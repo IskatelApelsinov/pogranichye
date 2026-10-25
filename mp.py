@@ -52,6 +52,7 @@ class Slot:
         self.card = None               # партия в «очко» в таверне: {deck,player,dealer,bet,done}
         self.durak = None              # партия в «дурака»: world.durak.Durak
         self.durak_bet = 0
+        self.feed = []                 # лента жизни персонажа (что делал игрок) — эфемерная
 
 
 class World:
@@ -72,6 +73,7 @@ class World:
         self._empty = {}                             # глоб.индекс -> тиков без игрока
         self._hot_applied = {}                       # shard_id -> последний применённый набор горячих
         self._chat = {}                              # глоб.индекс деревни -> [ {who,text,day} ] (эфемерный чат в баре)
+        self._tables = {}                            # глоб.индекс деревни -> PvP-стол (карты с другим игроком)
 
     # ── глобальная адресация деревень поверх шардов ──
     def _reindex(self):
@@ -323,6 +325,14 @@ class World:
         return self.players.get(aid)
 
     # ── намерения ──
+    def _feed(self, slot, text):
+        """Записать событие в личную ленту жизни персонажа (для показа игроку)."""
+        if slot is None:
+            return
+        slot.feed.append({"day": self.clock.day, "hour": self.clock.hour, "text": text})
+        if len(slot.feed) > 40:
+            del slot.feed[:-40]
+
     def do(self, aid, activity, quality):
         with self.lock:
             slot = self._slot(aid)
@@ -333,6 +343,8 @@ class World:
             w = self._cur(slot)
             r = P.do_activity(w, slot.char, activity, float(quality), self.rng)
             if r.get("ok"):
+                lab = P.ACTIVITIES.get(activity, {}).get("label", activity)
+                self._feed(slot, f"🛠 {lab}" + (f" · +{r['pay']}⌾" if r.get("pay") else ""))
                 info = Q.credit_activity(w, slot.char, r["activity"], self.clock)
                 if info:
                     slot.char.reputation += 2.0          # добрая слава за выполненную просьбу
@@ -468,8 +480,12 @@ class World:
                 return {"ok": False, "msg": "драться не с кем"}
             bid = slot.pending["beast"]; slot.pending = None
             res = C.resolve(slot.char, bid, float(quality), self.rng)
+            b = C.info(bid)
             if res.get("win"):
                 slot.char.reputation += 1.0          # победа над зверем прибавляет славы
+                self._feed(slot, f"⚔ одолел(а) {b['icon']} {b['name']}")
+            else:
+                self._feed(slot, f"🩸 схватка с {b['icon']} {b['name']} — не задалось")
             return res
 
     def drink(self, aid):
@@ -500,6 +516,7 @@ class World:
             relax = T.DRINK_RELAX * _traits.mod(ch, "tavern", 1.0)   # общительным корчма милее
             ch.fatigue = max(0.0, ch.fatigue - relax)
             P.update_condition(ch, cheered=6.0)                      # медовуха веселит душу
+            self._feed(slot, "🍯 выпил(а) медовухи в таверне")
             slot.drank = self.clock.total_hours
             if ch.name not in w.tavern_tonight:
                 w.tavern_tonight.append(ch.name)
@@ -680,6 +697,151 @@ class World:
             if slot.durak.view()["over"] and not was_over:
                 self._durak_payout(slot)
             return self._durak_view(slot)
+
+    # ── PvP «ОЧКО»: общий стол в таверне на двух игроков (кто ближе к 21, тот берёт банк) ──
+    PVP_BET = 10
+
+    def _pvp_name(self, aid):
+        s = self.players.get(aid)
+        return s.char.full_name() if s else "?"
+
+    def _pvp_deal(self, t):
+        deck = [(label, val, su) for (label, val) in self.CARD_RANKS for su in self.CARD_SUITS]
+        self.rng.shuffle(deck)
+        t["deck"] = deck
+        for a in t["seats"]:
+            t["hands"][a] = [deck.pop(), deck.pop()]
+            t["stood"][a] = False
+            s = self.players.get(a)
+            if s:
+                s.char.coins -= t["bet"]              # взнос в банк при старте
+        t["started"] = True
+        t["pot"] = t["bet"] * len(t["seats"])
+        t["msg"] = "Оба в игре: бери карту или говори «хватит»."
+
+    def _pvp_finish(self, t):
+        t["done"] = True
+        totals = {}
+        for a in t["seats"]:
+            tot = self._card_total(t["hands"][a])
+            totals[a] = tot if tot <= 21 else 0        # перебор = 0 (проигрыш)
+        best = max(totals.values())
+        winners = [a for a in t["seats"] if totals[a] == best and best > 0]
+        names = {a: self._pvp_name(a) for a in t["seats"]}
+        if not winners:
+            # оба перебрали — банк остаётся заведению
+            t["msg"] = "Оба перебрали — банк ушёл заведению."
+        elif len(winners) == 1:
+            w = winners[0]; s = self.players.get(w)
+            if s:
+                s.char.coins += t["pot"]
+            t["msg"] = f"🏆 {names[w]} берёт банк {t['pot']}⌾ ({self._card_total(t['hands'][w])})."
+            for a in t["seats"]:
+                self._feed(self.players.get(a),
+                           f"🂡 выиграл(а) в очко (+{t['pot']}⌾)" if a == w else "🃏 проиграл(а) в очко")
+        else:
+            share = t["pot"] // len(winners)
+            for a in winners:
+                s = self.players.get(a)
+                if s:
+                    s.char.coins += share
+            t["msg"] = f"🤝 Ничья ({best}) — банк поделён по {share}⌾."
+
+    def _pvp_view(self, aid):
+        g = self._tables.get(self.players[aid].loc) if aid in self.players else None
+        if not g:
+            return {"ok": True, "seated": False, "msg": "за столом никого"}
+        me = aid
+        others = [a for a in g["seats"] if a != me]
+        opp = others[0] if others else None
+        ov = None
+        if opp:
+            ov = {"name": self._pvp_name(opp),
+                  "cards": len(g["hands"].get(opp, [])),
+                  "total": self._card_total(g["hands"][opp]) if (g.get("done") or g["stood"].get(opp)) else None,
+                  "stood": g["stood"].get(opp, False)}
+        seated = me in g["seats"]
+        hand = g["hands"].get(me, [])
+        return {"ok": True, "seated": seated, "started": g.get("started", False),
+                "done": g.get("done", False), "bet": g["bet"], "pot": g.get("pot", 0),
+                "hand": self._card_view(hand), "total": self._card_total(hand) if hand else 0,
+                "stood": g["stood"].get(me, False), "opponent": ov,
+                "waiting": (len(g["seats"]) < 2),
+                "players": [self._pvp_name(a) for a in g["seats"]],
+                "msg": g.get("msg", ""),
+                "coins": round(self.players[me].char.coins, 1) if me in self.players else 0}
+
+    def pvp_join(self, aid):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or slot.loc is None or not slot.char.alive:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            w = self._cur(slot)
+            if not getattr(w, "tavern", False):
+                return {"ok": False, "msg": "стол стоит в корчме"}
+            loc = slot.loc
+            t = self._tables.get(loc)
+            if t and t.get("done"):
+                t = None                               # прошлая партия сыграна — новый стол
+            if t is None:
+                t = {"kind": "ochko", "seats": [aid], "hands": {}, "stood": {},
+                     "bet": self.PVP_BET, "started": False, "done": False, "pot": 0,
+                     "msg": "Ждём второго игрока за столом…"}
+                self._tables[loc] = t
+                return self._pvp_view(aid)
+            if aid in t["seats"]:
+                return self._pvp_view(aid)
+            if len(t["seats"]) >= 2:
+                return {"ok": False, "msg": "стол занят — дождись следующей партии"}
+            # второй игрок — проверим монеты у обоих и раздадим
+            if slot.char.coins < t["bet"]:
+                return {"ok": False, "msg": f"нужно {t['bet']}⌾ на кон"}
+            first = self.players.get(t["seats"][0])
+            if not first or first.char.coins < t["bet"]:
+                return {"ok": False, "msg": "у первого игрока не хватает монет — стол распался"}
+            t["seats"].append(aid)
+            self._pvp_deal(t)
+            return self._pvp_view(aid)
+
+    def pvp_act(self, aid, action):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or slot.loc is None:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            t = self._tables.get(slot.loc)
+            if not t or aid not in t["seats"]:
+                return {"ok": False, "msg": "ты не за столом"}
+            if action == "leave":
+                if t.get("started") and not t.get("done"):
+                    # ушёл в партии — соперник берёт банк
+                    opp = [a for a in t["seats"] if a != aid]
+                    if opp:
+                        so = self.players.get(opp[0])
+                        if so:
+                            so.char.coins += t.get("pot", 0)
+                    t["done"] = True
+                    t["msg"] = "Игрок встал из-за стола — банк сопернику."
+                else:
+                    t["seats"].remove(aid)
+                    if not t["seats"]:
+                        self._tables.pop(slot.loc, None)
+                return {"ok": True, "msg": "встал из-за стола"}
+            if not t.get("started"):
+                return {"ok": False, "msg": "ждём второго игрока"}
+            if t.get("done"):
+                return self._pvp_view(aid)
+            if t["stood"].get(aid):
+                return self._pvp_view(aid)
+            if action == "hit":
+                t["hands"][aid].append(t["deck"].pop())
+                if self._card_total(t["hands"][aid]) > 21:
+                    t["stood"][aid] = True              # перебор = автоматически «хватит»
+            elif action == "stand":
+                t["stood"][aid] = True
+            # если оба закончили — подвести итог
+            if all(t["stood"].get(a) for a in t["seats"]) and len(t["seats"]) == 2:
+                self._pvp_finish(t)
+            return self._pvp_view(aid)
 
     def say(self, aid, text):
         """Сказать слово в деревне/баре. Чат эфемерный, привязан к месту (loc):
@@ -933,6 +1095,7 @@ class World:
                             "event": RE.roll(self.rng, hours, cross)}
             slot.loc = None
             tail = " (другой край — караван дальний)" if cross else ""
+            self._feed(slot, f"🐫 отправился(ась) в {self._settle(to).name}")
             return {"ok": True, "msg": f"Вышел с караваном в {self._settle(to).name} (~{hours} ч){tail}."}
 
     def save(self, aid=None):
@@ -978,6 +1141,7 @@ class World:
                   "sex": ch.sex, "age": round(ch.age, 1),
                   "father": ch.father, "mother": ch.mother, "origin": ch.origin,
                   "priority": ch.priority, "journal": list(ch.journal[-8:])[::-1],
+                  "feed": list(slot.feed[-12:])[::-1],
                   "reputation": round(ch.reputation, 1), "heir": ch.heir_name,
                   "plot": [{"id": s, "name": P.PLOT[s]["name"], "icon": P.PLOT[s]["icon"]}
                            for s in ch.plot if s in P.PLOT],
@@ -1046,6 +1210,7 @@ class World:
                          "news": list(w.news[-6:])[::-1],
                          "chat": list(self._chat.get(slot.loc, []))[-16:],
                          "caravans": self._caravans_here(slot.loc),
+                         "pvp": self._pvp_view(aid) if slot.loc in self._tables else None,
                          "chronicle": list(w.chronicle[-6:])[::-1], "graves": w.graves},
                 "activities": {k: {"label": v["label"], "minigame": v["minigame"], "skill": v["skill"],
                                    "difficulty": self._activity_difficulty(w, ch, k)}

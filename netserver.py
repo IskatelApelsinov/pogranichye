@@ -126,6 +126,10 @@ def _dispatch(aid, path, body):
         act = body.get("action", "start")
         if act == "start": return w.durak_start(aid)
         return w.durak_act(aid, act, body.get("idx", -1))
+    if path == "/api/pvp":
+        act = body.get("action", "join")
+        if act == "join": return w.pvp_join(aid)
+        return w.pvp_act(aid, act)
     if path == "/api/fixtavern":return w.fix_tavern(aid, body.get("quality", 0))
     if path == "/api/dice":    return w.dice(aid, body.get("quality", 0))
     if path == "/api/priority":return w.priority(aid, body.get("mode", "balanced"))
@@ -588,6 +592,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
     <button onclick="dice()">🎲 Кости (ставка 5⌾)</button>
     <button onclick="cardStart()">🃏 Очко (ставка 10⌾)</button>
     <button onclick="durakStart()">🂿 Дурак (ставка 10⌾)</button>
+    <button onclick="pvpJoin()">🎴 PvP Очко (с игроком)</button>
     <span class="sub" id="withme"></span></div>
    <div class="sub" id="keeper" style="margin-top:6px"></div></div>
   <div class="card" id="cardgame" style="display:none"><b>🃏 Очко</b> <span class="sub">набери ближе к 21, но не больше</span>
@@ -600,6 +605,13 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
    <div id="durakhand" class="cardrow"></div>
    <div id="durakmsg" style="margin-top:4px"></div>
    <div class="row" id="durakbtns" style="margin-top:6px"></div></div>
+  <div class="card" id="pvpgame" style="display:none"><b>🎴 PvP Очко</b> <span class="sub">кто ближе к 21, тот берёт банк</span>
+   <div id="pvptop" class="sub" style="margin-top:6px"></div>
+   <div id="pvpopp" style="margin-top:4px"></div>
+   <div class="sub" style="margin-top:4px">твои карты:</div>
+   <div id="pvphand" class="cardrow"></div>
+   <div id="pvpmsg" style="margin-top:4px"></div>
+   <div class="row" id="pvpbtns" style="margin-top:6px"></div></div>
   <div class="card"><b>💬 Разговор у очага</b> <span class="sub">слышат те, кто сейчас здесь</span>
    <div id="chatlog" class="chatlog"></div>
    <div class="row" style="margin-top:8px">
@@ -641,7 +653,8 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  </div>
 
  <div class="pane" data-pane="log">
-  <div class="guide">Деревня живёт сама: тут слухи дня и долгая память (хроника, могилы).</div>
+  <div class="guide">Твоя лента жизни, слухи дня и долгая память деревни.</div>
+  <div class="card"><b>🧭 Лента жизни</b> <span class="sub">что ты делал(а)</span><ul id="feed"></ul></div>
   <div class="cols">
    <div class="card"><b>Что говорят</b><ul id="news"></ul></div>
    <div class="card"><b>Память деревни</b> <span class="sub" id="graves"></span><ul id="chron"></ul></div>
@@ -956,6 +969,8 @@ function render(){
  document.getElementById('withme').textContent=H.players_here&&H.players_here.length?('с тобой тут: '+H.players_here.join(', ')):'';
  document.getElementById('drinkbtn').textContent=H.free_tab?'🍺 Выпить (за счёт заведения)':`🍺 Выпить медовухи (${H.drink_price}⌾)`;
  renderChat(H.chat||[]);
+ // PvP-стол: если мы за столом — держим панель актуальной (вход соперника, его ходы)
+ if(H.pvp&&H.pvp.seated){renderPvp(H.pvp);}
  document.getElementById('keeper').textContent=H.keeper?('корчмарь: '+H.keeper+(H.free_tab?' — должен тебе (стол закрыт)':'')):'';
  const pr={work:'больше работать',balanced:'баланс',rest:'больше отдыхать',full_rest:'только отдых'}[S.me.priority]||S.me.priority;
  document.getElementById('origin').textContent=(S.me.origin||'');
@@ -978,6 +993,8 @@ function render(){
    b.innerHTML=`${p.icon} ${p.name} <span class="mut">(${cost})</span>`;b.onclick=()=>build(p.id);pl.appendChild(b);}
  const jn=document.getElementById('journal');
  jn.innerHTML=(S.me.journal&&S.me.journal.length)?('<div class="mut">📖 пока тебя не было:</div><ul>'+S.me.journal.map(e=>`<li>${e}</li>`).join('')+'</ul>'):'';
+ const fd=document.getElementById('feed');
+ if(fd)fd.innerHTML=(S.me.feed&&S.me.feed.length)?S.me.feed.map(e=>`<li><span class="mut">д.${e.day} ${String(e.hour).padStart(2,'0')}:00</span> ${escHtml(e.text)}</li>`).join(''):'<li class="sub">пока тихо — начни действовать</li>';
  document.getElementById('news').innerHTML=H.news.map(n=>`<li>${n}</li>`).join('')||'<li>тихо…</li>';
  document.getElementById('graves').textContent='· могил '+H.graves;
  document.getElementById('chron').innerHTML=H.chronicle.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>';
@@ -1149,6 +1166,25 @@ let _durakGame=null;
 async function durakStart(){const r=await wsCall('durak',{action:'start'});if(!r.ok){toast(r.msg);return;}_durakGame=r;renderDurak(r);}
 async function durakAct(a){const r=await wsCall('durak',{action:a});if(!r.ok){toast(r.msg);return;}_durakGame=r;renderDurak(r);}
 async function durakPlay(i){const g=_durakGame;if(!g||!g.your_turn)return;const a=(g.role==='attack')?'attack':'defend';const r=await wsCall('durak',{action:a,idx:i});if(!r.ok){toast(r.msg);return;}_durakGame=r;renderDurak(r);}
+// ── PvP Очко ──
+let _pvpOn=false;
+function renderPvp(g){
+ const box=document.getElementById('pvpgame');box.style.display='block';_pvpOn=!g.done;
+ document.getElementById('pvptop').textContent=g.waiting?('за столом: '+(g.players||[]).join(', ')+' · ждём второго…'):('банк '+g.pot+'⌾ · за столом: '+(g.players||[]).join(' vs '));
+ const op=document.getElementById('pvpopp');
+ if(g.opponent){op.innerHTML=`соперник <b>${escHtml(g.opponent.name)}</b>: карт ${g.opponent.cards}`+(g.opponent.total!=null?(' · '+g.opponent.total):' · ?')+(g.opponent.stood?' (готов)':'');}
+ else op.innerHTML='<span class="sub">соперника пока нет</span>';
+ document.getElementById('pvphand').innerHTML=(g.hand||[]).map(cardEl).join('')||'<span class="sub">—</span>';
+ document.getElementById('pvphand').insertAdjacentHTML('beforeend', g.total?` <span class="ctot">= ${g.total}</span>`:'');
+ document.getElementById('pvpmsg').textContent=g.msg||'';
+ const b=document.getElementById('pvpbtns');
+ if(g.done){b.innerHTML=`<button onclick="pvpJoin()">🔄 Ещё партию</button><button onclick="pvpAct('leave')">Встать</button>`;}
+ else if(g.waiting){b.innerHTML=`<button onclick="pvpAct('leave')">Отменить</button>`;}
+ else if(g.stood){b.innerHTML='<span class="sub">ждём соперника…</span>';}
+ else{b.innerHTML=`<button onclick="pvpAct('hit')">🎴 Ещё карту</button><button onclick="pvpAct('stand')">✋ Хватит</button>`;}
+}
+async function pvpJoin(){const r=await wsCall('pvp',{action:'join'});if(!r.ok){toast(r.msg);return;}renderPvp(r);}
+async function pvpAct(a){const r=await wsCall('pvp',{action:a});if(!r.ok){toast(r.msg);return;}if(a==='leave'&&!r.seated){document.getElementById('pvpgame').style.display='none';return;}renderPvp(r);}
 async function fixTavern(){pending={kind:'fixtavern'};openMini({label:'Починка корчмы',minigame:'sequence',difficulty:0.4});}
 async function dice(){pending={kind:'dice'};openMini({label:'Кости',minigame:'timing',difficulty:0.5});}
 async function prio(m){toast((await wsCall('priority',{mode:m})).msg);}
