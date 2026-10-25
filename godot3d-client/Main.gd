@@ -36,6 +36,17 @@ var _mini_pos := 0.0
 var _mini_dir := 1.0
 var _mini_activity := ""
 
+# управляемый аватар игрока (ходим сами, камера следует)
+var _player: Node3D
+var _move_target: Vector3 = Vector3.ZERO
+var _has_target := false
+var _prompt: Label
+var _near: Dictionary = {}            # ближайшая точка взаимодействия
+const CAM_OFFSET := Vector3(14, 16, 14)
+const MOVE_SPEED := 5.5
+const INTERACT_RADIUS := 1.7
+const BOUND := 8.0
+
 
 func _ready() -> void:
 	_build_scene_3d()
@@ -77,6 +88,23 @@ func _build_scene_3d() -> void:
 	e.fog_light_color = Color("#141420")
 	_env.environment = e
 	add_child(_env)
+	# аватар игрока — капсула с подписью, им ходим
+	_player = Node3D.new(); add_child(_player)
+	var body := MeshInstance3D.new()
+	var cap := CapsuleMesh.new(); cap.radius = 0.38; cap.height = 1.3
+	body.mesh = cap; body.position = Vector3(0, 0.65, 0)
+	var pm := StandardMaterial3D.new()
+	pm.albedo_color = Color("#e1b12c"); pm.emission_enabled = true
+	pm.emission = Color("#e1b12c"); pm.emission_energy_multiplier = 0.25
+	body.material_override = pm
+	_player.add_child(body)
+	var plbl := Label3D.new()
+	plbl.text = "⭐ ты"; plbl.position = Vector3(0, 1.7, 0)
+	plbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	plbl.pixel_size = 0.013; plbl.outline_size = 6
+	_player.add_child(plbl)
+	_player.position = Vector3(0, 0, 2.0)
+	_cam.position = _player.position + CAM_OFFSET
 
 
 func _build_ui() -> void:
@@ -115,10 +143,28 @@ func _build_ui() -> void:
 	_btn(row, "🐫 В путь", func(): _travel_next())
 	_btn(row, "💾", func(): _send("save", {}))
 
+	# подсказка по движению
+	var movehint := Label.new()
+	movehint.text = "WASD / клик по земле — ходить · подойди к месту и жми Пробел/E"
+	movehint.add_theme_color_override("font_color", Color("#8a93a0"))
+	movehint.add_theme_font_size_override("font_size", 12)
+	root.add_child(movehint)
+
 	# подпись выбранного объекта (клик по жителю/строению)
 	_sel_label = Label.new()
 	_sel_label.add_theme_color_override("font_color", Color("#d8b968"))
 	root.add_child(_sel_label)
+
+	# подсказка взаимодействия (по центру, над кнопками действий)
+	_prompt = Label.new()
+	_prompt.anchor_left = 0.5; _prompt.anchor_right = 0.5
+	_prompt.anchor_top = 1.0; _prompt.anchor_bottom = 1.0
+	_prompt.offset_left = -220; _prompt.offset_right = 220
+	_prompt.offset_top = -210; _prompt.offset_bottom = -182
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.add_theme_color_override("font_color", Color("#ffe6a0"))
+	_prompt.add_theme_font_size_override("font_size", 18)
+	cl.add_child(_prompt)
 
 	_build_inventory_panel(cl)
 	_build_minigame(cl)
@@ -302,6 +348,8 @@ func _process(dt: float) -> void:
 		var bar := _mini_marker.get_parent() as Control
 		if bar:
 			_mini_marker.position = Vector2(_mini_pos * (bar.size.x - 8.0), 0)
+	else:
+		_update_movement(dt)         # ходьба отключена, пока открыта мини-игра
 	_ws.poll()
 	var st := _ws.get_ready_state()
 	if st == WebSocketPeer.STATE_OPEN:
@@ -327,50 +375,112 @@ func _process(dt: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# пробел завершает мини-игру
-	if _mini_active and event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
-		_finish_minigame()
-		get_viewport().set_input_as_handled()
-		return
-	# клик левой кнопкой — выбрать ближайшего жителя или строение
+	if event is InputEventKey and event.pressed and not event.echo:
+		# пробел/E: в мини-игре — завершить; иначе — взаимодействовать с ближайшей точкой
+		if event.keycode == KEY_SPACE or event.keycode == KEY_E:
+			if _mini_active:
+				_finish_minigame()
+			else:
+				_do_interact()
+			get_viewport().set_input_as_handled()
+			return
+	# клик левой кнопкой по земле — идти туда; рядом с жителем — выбрать его
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_pick_at(event.position)
+		if not _pick_at(event.position):        # не попали по жителю — ставим цель движения
+			_set_move_target(event.position)
 
 
-func _pick_at(screen_pos: Vector2) -> void:
-	if not _world or not _cam:
+func _set_move_target(screen_pos: Vector2) -> void:
+	if _cam == null:
 		return
+	# пересечём луч из камеры с землёй (плоскость y=0)
+	var origin := _cam.project_ray_origin(screen_pos)
+	var dirn := _cam.project_ray_normal(screen_pos)
+	var plane := Plane(Vector3.UP, 0.0)
+	var hit = plane.intersects_ray(origin, dirn)
+	if hit != null:
+		_move_target = hit
+		_has_target = true
+
+
+func _pick_at(screen_pos: Vector2) -> bool:
+	# вернёт true, если кликнули по жителю (и выбрали его); иначе false (клик по земле)
+	if not _world or not _cam:
+		return false
 	var best := ""
-	var best_d := 48.0        # порог в пикселях
+	var best_d := 44.0        # порог в пикселях
 	var positions: Dictionary = _world.token_positions()
 	for name in positions.keys():
 		var sp := _cam.unproject_position(positions[name])
 		var d := sp.distance_to(screen_pos)
 		if d < best_d:
 			best_d = d; best = name
-	# строение-таверна (клик рядом с её проекцией)
-	var tav_sp := _cam.unproject_position(_world.tavern_position())
-	if tav_sp.distance_to(screen_pos) < 60.0 and best == "":
-		_selected = "@tavern"
-		_sel_label.text = "🍯 Таверна — «Выпить», «Очко», «Дурак»"
-		_world.highlight("")
-		return
+	if best == "":
+		return false
 	_selected = best
 	_world.highlight(best)
-	if best == "":
-		_sel_label.text = ""
-		return
-	# показать, кто это, по данным ростера/игрока
 	var h: Dictionary = S.get("here", {})
 	var role := ""
 	for r in h.get("roster", []):
 		if r.get("name", "") == best:
 			role = str(r.get("role", "")); break
-	if best == S.get("me", {}).get("name", ""):
-		_sel_label.text = "⭐ %s — это ты" % best
-	else:
-		_sel_label.text = "🧍 %s%s" % [best, (" · " + role) if role != "" else ""]
+	_sel_label.text = "🧍 %s%s" % [best, (" · " + role) if role != "" else ""]
+	return true
 
+
+func _update_movement(dt: float) -> void:
+	if _player == null or _cam == null:
+		return
+	# направление от клавиш относительно камеры (чтобы W = «от камеры вперёд»)
+	var fwd := -_cam.global_transform.basis.z; fwd.y = 0; fwd = fwd.normalized()
+	var rgt := _cam.global_transform.basis.x; rgt.y = 0; rgt = rgt.normalized()
+	var dir := Vector3.ZERO
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP): dir += fwd
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN): dir -= fwd
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT): dir += rgt
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT): dir -= rgt
+	if dir.length() > 0.01:
+		_has_target = false
+		_player.position += dir.normalized() * MOVE_SPEED * dt
+	elif _has_target:
+		var to := _move_target - _player.position; to.y = 0
+		if to.length() < 0.15:
+			_has_target = false
+		else:
+			_player.position += to.normalized() * MOVE_SPEED * dt
+	# границы сцены
+	_player.position.x = clampf(_player.position.x, -BOUND, BOUND)
+	_player.position.z = clampf(_player.position.z, -BOUND, BOUND)
+	# камера следует за игроком, сохраняя угол
+	_cam.position = _cam.position.lerp(_player.position + CAM_OFFSET, clampf(dt * 4.0, 0, 1))
+	_update_nearest()
+
+func _update_nearest() -> void:
+	_near = {}
+	if _world == null:
+		return
+	var best := INTERACT_RADIUS
+	for sp in _world.interactables():
+		var d: float = (Vector3(sp["pos"].x, 0, sp["pos"].z) - Vector3(_player.position.x, 0, _player.position.z)).length()
+		if d < best:
+			best = d; _near = sp
+	if _near.is_empty():
+		_prompt.text = ""
+	else:
+		var verb := "В таверну" if _near.get("type") == "tavern" else _near.get("label", "")
+		_prompt.text = "[Пробел] %s %s" % [_near.get("emoji", ""), verb]
+
+func _do_interact() -> void:
+	if _near.is_empty():
+		return
+	var act: String = _near.get("action", "")
+	if act in ["firewood", "fishing", "herbs"]:
+		_start_minigame(act)
+	elif act == "hunt":
+		_send("hunt", {})
+	elif act == "tavern":
+		_send("drink", {})
+		_log_line("🍯 В таверне: Выпить — здесь, Очко и Дурак — на верхней панели.")
 
 func _on_packet(text: String) -> void:
 	var m = JSON.parse_string(text)

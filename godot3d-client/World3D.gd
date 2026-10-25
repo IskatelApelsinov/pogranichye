@@ -17,6 +17,15 @@ var _static_sig := ""
 var _static_root: Node3D
 var _tokens: Dictionary = {}         # имя -> {node, label, target:Vector3}
 var _tok_root: Node3D
+var _spots: Array = []               # точки взаимодействия: {type,label,action,pos,emoji}
+
+# постоянные места занятий на карте (клетка, эмодзи, подпись, намерение серверу)
+const SPOTS := [
+	{"cell": Vector2(0, 1), "emoji": "🪵", "label": "Поленница", "action": "firewood"},
+	{"cell": Vector2(4, 1), "emoji": "🎣", "label": "Рыбное место", "action": "fishing"},
+	{"cell": Vector2(0, 3), "emoji": "🌿", "label": "Травы", "action": "herbs"},
+	{"cell": Vector2(4, 3), "emoji": "🏹", "label": "Угодья", "action": "hunt"},
+]
 
 func _ready() -> void:
 	_static_root = Node3D.new(); add_child(_static_root)
@@ -73,7 +82,30 @@ func set_state(st: Dictionary) -> void:
 	if sig != _static_sig:
 		_static_sig = sig
 		_build_static(h, winter, alive)
+		_build_spots(h)
 	_sync_tokens(h)
+
+func _build_spots(h: Dictionary) -> void:
+	# точки взаимодействия на карте: места занятий (тумба+подпись) и таверна
+	_spots.clear()
+	for sp in SPOTS:
+		var cell: Vector2 = sp["cell"]
+		var pos := cell_pos(cell.x, cell.y)
+		var post := _box(_static_root, pos, Vector3(0.5, 0.5, 0.5), Color("#caa15a"))
+		var lbl := Label3D.new()
+		lbl.text = sp["emoji"] + " " + sp["label"]
+		lbl.position = pos + Vector3(0, 1.1, 0)
+		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		lbl.pixel_size = 0.011; lbl.outline_size = 6
+		_static_root.add_child(lbl)
+		_spots.append({"type": "work", "label": sp["label"], "action": sp["action"],
+			"pos": pos, "emoji": sp["emoji"]})
+	if h.get("tavern", true):
+		_spots.append({"type": "tavern", "label": "Таверна", "action": "tavern",
+			"pos": cell_pos(TAV.x, TAV.y), "emoji": "🍯"})
+
+func interactables() -> Array:
+	return _spots
 
 func _build_static(h: Dictionary, winter: bool, alive: int) -> void:
 	for c in _static_root.get_children():
@@ -97,7 +129,7 @@ func _build_static(h: Dictionary, winter: bool, alive: int) -> void:
 		_box(_static_root, cell_pos(TAV.x, TAV.y, 1.9), Vector3(2.0, 0.5, 2.0), Color("#c0392b"))
 	# немного декора по краям: деревья/камни
 	var tree_col := Color("#2f6b39") if not winter else Color("#bcd4c0")
-	for spot in [Vector2(-1, 0), Vector2(5, 1), Vector2(-1, 3), Vector2(5, 4)]:
+	for spot in [Vector2(-1, 0), Vector2(5, 0), Vector2(-1, 2), Vector2(5, 4)]:
 		_box(_static_root, cell_pos(spot.x, spot.y), Vector3(0.4, 1.4, 0.4), Color("#5e4630"))
 		var crown := _box(_static_root, cell_pos(spot.x, spot.y, 1.4), Vector3(1.2, 1.2, 1.2), tree_col)
 
@@ -122,8 +154,9 @@ func _sync_tokens(h: Dictionary) -> void:
 		want[rr.get("name", "?")] = {"color": role_color(rr.get("role", "")), "me": false}
 	for n in h.get("players_here", []):
 		want[n] = {"color": Color("#cfe0ff"), "me": false}
-	if me.has("name"):
-		want[me["name"]] = {"color": Color("#e1b12c"), "me": true}
+	# «меня» среди токенов НЕ рисуем — игрока представляет управляемый аватар (в Main)
+	var myname: String = me.get("name", "")
+	want.erase(myname)
 	# убрать исчезнувших
 	for n in _tokens.keys():
 		if not want.has(n):
