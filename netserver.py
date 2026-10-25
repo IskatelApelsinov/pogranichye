@@ -490,6 +490,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  .world3d{position:absolute;left:50%;top:44px;transform:translateX(-50%)}
  #tokens{z-index:4} .spr{position:absolute;image-rendering:auto}
  .sprfallback{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:none}
+ .spr.clk{cursor:pointer} .spr.clk:hover{filter:brightness(1.25) drop-shadow(0 0 6px var(--gold))}
  .token{position:absolute;transition:left 1.6s ease,top 1.6s ease}
  .win{position:absolute;width:6px;height:6px;border-radius:2px;background:#ffd36b;
       box-shadow:0 0 6px #ffcf5a;opacity:0;transition:opacity 1.4s;z-index:3}
@@ -612,7 +613,8 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <div class="cols">
    <div class="card"><b>🧺 Караван-торг</b> <span class="sub">рынок ×<span id="mk">1</span></span>
     <div id="trade" style="margin-top:8px"></div><div class="sub" id="cargo" style="margin-top:8px"></div></div>
-   <div class="card"><b>🛒 Лавка</b> <span class="sub">оружие и одежда</span><div id="shop" style="margin-top:8px"></div></div>
+   <div class="card"><b>🛒 Лавка</b> <span class="sub">товар от мастеров и караванов</span>
+    <div id="caravan" style="margin-top:4px"></div><div id="shop" style="margin-top:8px"></div></div>
   </div>
   <div class="cols">
    <div class="card"><b>🎒 При себе / 🏠 Склад</b><div id="inv" style="margin-top:8px"></div></div>
@@ -730,9 +732,11 @@ function buildStatic(H,winter){
    g.style.left=(isoX(c,r)-4)+'px';g.style.top=(isoY(c,r)-14)+'px';g.style.zIndex=60;
    w3.appendChild(g);_winGlows.push(g);};
  for(let i=0;i<nb;i++){const [c,r]=HOUSE_SPOTS[i];
-   addSpr(w3,'/assets/house.svg',isoX(c,r)-32,isoY(c,r)-40,64,72,50+(c+r),'','🏠');mark(c,r);}
+   const hi=addSpr(w3,'/assets/house.svg',isoX(c,r)-32,isoY(c,r)-40,64,72,50+(c+r),'clk','🏠');
+   hi.title='двор и хозяйство';hi.onclick=()=>tab('goods');mark(c,r);}
  if(H.tavern){const [c,r]=TAVERN_SPOT;
-   addSpr(w3,'/assets/tavern.svg',isoX(c,r)-32,isoY(c,r)-40,64,72,54,'','🍯');mark(c,r);}
+   const ti=addSpr(w3,'/assets/tavern.svg',isoX(c,r)-32,isoY(c,r)-40,64,72,54,'clk','🍯');
+   ti.title='в таверну';ti.onclick=()=>tab('tavern');mark(c,r);}
  // декор по краям: деревья/ёлки/камни/колодец (зимой — заснеженные). Не на тропах.
  const treeSp=winter?'/assets/pine_snow.svg':'/assets/tree.svg';
  const treeEm=winter?'🌲':'🌳';
@@ -916,7 +920,11 @@ function render(){
    row.innerHTML=`<span style="width:70px">${res}</span><span class="mut">куп ${p.buy} / прод ${p.sell} · есть ${p.store}</span><button onclick="trade('buy','${res}')">купить 10</button><button onclick="trade('sell','${res}')">продать 10</button>`;tr.appendChild(row);}
  const cg=Object.entries(S.me.cargo);document.getElementById('cargo').innerHTML=cg.length?'🧺 в грузе: '+cg.map(([k,v])=>`${k} ${v}`).join(' · '):'<span class="sub">груз пуст</span>';
  const sh=document.getElementById('shop');sh.innerHTML='';
- for(const it of S.shop){const b=document.createElement('button');b.innerHTML=`${it.icon} ${it.name} <span class="mut">${it.price}⌾</span>`;b.onclick=()=>item('buy',it.id);sh.appendChild(b);}
+ if(!S.shop||!S.shop.length){sh.innerHTML='<span class="sub">лавка пуста — ждите мастеров или караван</span>';}
+ for(const it of (S.shop||[])){const b=document.createElement('button');b.innerHTML=`${it.icon} ${it.name} <span class="mut">${it.price}⌾ ·×${it.count}</span>`;b.onclick=()=>item('buy',it.id);sh.appendChild(b);}
+ // караван в деревне
+ const cv=(H.caravans||[]);const cvd=document.getElementById('caravan');
+ if(cvd)cvd.innerHTML=cv.length?('🐫 '+cv.map(c=>`<b>${c.name}</b> <span class="sub">(${c.goods})</span>`).join(' · ')):'';
  const inv=document.getElementById('inv');
  const SLOTS=[['weapon','⚔','в руках'],['head','🎩','голова'],['body','👕','тело'],['outfit','🧥','верх'],['feet','🥾','ноги'],['trinket','🧿','оберег']];
  const worn=S.me.worn||{};
@@ -928,8 +936,8 @@ function render(){
  inv.appendChild(pd);
  inv.innerHTML+='<div class="mut" style="margin-top:6px">🎒 при себе:</div>';
  const bag=document.createElement('div');bag.className='row';if(!S.me.inventory.length)bag.innerHTML='<span class="sub">пусто</span>';
- S.me.inventory.forEach(it=>{const d=document.createElement('span');d.className='pill';const slot=(S.shop.find(x=>x.id===it.id)||{}).slot;
-   const eq=(slot==='weapon'||slot==='clothing')?`<a href="#" onclick="item('equip','${it.id}');return false">надеть</a> · `:'';
+ S.me.inventory.forEach(it=>{const d=document.createElement('span');d.className='pill';const slot=it.slot||'';
+   const eq=(slot==='weapon'||slot==='clothing'||slot==='trinket')?`<a href="#" onclick="item('equip','${it.id}');return false">надеть</a> · `:'';
    const us=(slot==='consumable')?`<a href="#" onclick="item('use','${it.id}');return false">выпить</a> · `:'';
    d.innerHTML=`${it.label} <span class="mut">${eq}${us}<a href="#" onclick="item('store','${it.id}');return false">склад</a> · <a href="#" onclick="item('sell','${it.id}');return false">продать</a></span>`;bag.appendChild(d);});
  inv.appendChild(bag);inv.innerHTML+='<div class="mut" style="margin-top:6px">🏠 склад:</div>';

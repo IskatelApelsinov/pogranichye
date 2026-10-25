@@ -19,6 +19,10 @@ from .model import Settlement, WorldClock, Character
 from .engine import Engine
 from .offline import offline_day
 from .archive import archive_settlement, restore_settlement
+from . import economy as _econ
+
+_CARAVAN_NAMES = ["Гужевой обоз Третьяка", "Купеческий обоз Доброни",
+                  "Коробейники Весняка", "Обоз Мирона Долгого", "Торг Белояра"]
 from .systems import (NeedsSystem, WorkSystem, TavernSystem, ConsumptionSystem,
                       EventsSystem, PopulationSystem, WeatherSystem, QuestSystem,
                       SeasonSystem, AlifeSystem)
@@ -95,6 +99,13 @@ class Region:
         # детальные движки держим только для горячих поселений (ленивое создание)
         self._engines: dict[int, Engine] = {}
         self.wanderers: list[Character] = []     # в пути между поселениями (не теряются)
+        # караваны-торговцы ходят между деревнями шарда в реальном времени
+        self.caravans: list = []
+        if len(settlements) >= 2:
+            n_cav = 1 + (len(settlements) >= 4)
+            for k in range(n_cav):
+                nm = _CARAVAN_NAMES[(seed + k) % len(_CARAVAN_NAMES)]
+                self.caravans.append(_econ.new_caravan(nm, settlements, self.clock, self.rng))
 
     # ── температура: кто горячий. Смена режима архивирует/восстанавливает тела ──
     def set_hot(self, indices) -> None:
@@ -124,9 +135,17 @@ class Region:
             self._run_hot_hour(i)
         # часы двигаем один раз на весь регион
         self.clock.total_hours += 1
+        # караваны-торговцы ходят каждый час (товары текут по миру в реальном времени)
+        for cav in self.caravans:
+            news = _econ.step_caravan(cav, self.settlements, self.clock, self.rng)
+            if news and 0 <= cav.at < len(self.settlements):
+                self.settlements[cav.at].add_news(self.clock, news)
         if self.clock.hour == 0:
             # сперва расселяем вчерашних путников (миграция в приоритете над рождением)
             self._migrate()
+            # мастера пополняют лавки своими изделиями
+            for s in self.settlements:
+                _econ.restock_artisans(s, self.rng)
             # затем холодные — дёшево, раз в сутки (могут дать новых путников)
             for i, s in enumerate(self.settlements):
                 if s.temperature < HOT_THRESHOLD:

@@ -22,6 +22,7 @@ from world import items as I
 from world import names
 from world import traits as _traits
 from world.durak import Durak, YOU as DURAK_YOU, BOT as DURAK_BOT
+from world import economy as ECON
 from world import combat as C
 from world import roadevents as RE
 from world import tuning as T
@@ -834,6 +835,18 @@ class World:
                 w.add_news(self.clock, f"У {ch.name} в доме прибавление — {ch.heir_name}.")
             return {"ok": True, "msg": f"В доме родился наследник — {ch.heir_name}. Род не прервётся."}
 
+    def _caravans_here(self, g):
+        """Караваны, стоящие сейчас в этой деревне (для подсказки в клиенте)."""
+        if g is None:
+            return []
+        sid, li = self._map[g]
+        out = []
+        for cav in getattr(self.shards[sid], "caravans", []):
+            if cav.at == li:
+                goods = ", ".join(f"{I.label(k)}×{v}" for k, v in list(cav.cargo.items())[:4])
+                out.append({"name": cav.name, "goods": goods or "распродан"})
+        return out
+
     def sleep(self, aid):
         """Отправить персонажа в кровать (ночью). Дома — крепкий сон, без крова — урывками."""
         with self.lock:
@@ -878,7 +891,10 @@ class World:
             if not s:
                 return {"ok": False, "msg": "?"}
             ch = s.char
-            if action == "buy":     return I.buy(ch, iid)
+            if action == "buy":
+                if s.loc is None:
+                    return {"ok": False, "msg": "лавка — только в деревне"}
+                return ECON.buy_ware(ch, self._cur(s), iid)   # покупка из конечного запаса лавки
             if action == "sell":    return I.sell(ch, iid)
             if action == "store":   return I.to_storage(ch, iid)
             if action == "unstore": return I.from_storage(ch, iid)
@@ -978,7 +994,8 @@ class World:
                   "alive": ch.alive, "dead": slot.dead,
                   "skills": {k: round(v, 1) for k, v in ch.skills.items()},
                   "favors": dict(ch.favors),
-                  "inventory": [{"id": x, "label": I.label(x)} for x in ch.inventory],
+                  "inventory": [{"id": x, "label": I.label(x),
+                                 "slot": (I.CATALOG.get(x) or {}).get("slot", "")} for x in ch.inventory],
                   "storage": [{"id": x, "label": I.label(x)} for x in ch.storage],
                   "cargo": {k: round(v) for k, v in ch.cargo.items() if v > 0},
                   "weapon": {"id": ch.weapon, "label": I.label(ch.weapon)} if ch.weapon else None,
@@ -993,7 +1010,7 @@ class World:
             base = {"region": {"name": "Приграничье", "count": self._nset(),
                                "shards": len(self.shards), "hot": hot_n, "bodies": bodies},
                     "day": self.clock.day, "hour": self.clock.hour,
-                    "me": me, "settlements": reg, "shop": I.catalog_list(),
+                    "me": me, "settlements": reg, "shop": ECON.wares_list(self._cur(slot)),
                     "recipes": [dict(r, can=I.can_craft(ch, r["id"])) for r in I.recipes_list()],
                     "plots": P.plot_list()}
             if slot.pending:
@@ -1028,6 +1045,7 @@ class World:
                          "drink_price": T.DRINK_PRICE,
                          "news": list(w.news[-6:])[::-1],
                          "chat": list(self._chat.get(slot.loc, []))[-16:],
+                         "caravans": self._caravans_here(slot.loc),
                          "chronicle": list(w.chronicle[-6:])[::-1], "graves": w.graves},
                 "activities": {k: {"label": v["label"], "minigame": v["minigame"], "skill": v["skill"],
                                    "difficulty": self._activity_difficulty(w, ch, k)}

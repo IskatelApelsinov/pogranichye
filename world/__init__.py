@@ -11,6 +11,7 @@ from . import content
 from . import names as _names
 from . import traits as _traits
 from . import items as _items
+from . import economy as _economy
 from .persistence import save_world, load_world
 from .systems import (NeedsSystem, WorkSystem, TavernSystem, ConsumptionSystem,
                       EventsSystem, PopulationSystem, WeatherSystem, QuestSystem,
@@ -41,6 +42,11 @@ def make_world(name: str | None = None, demo_seed: int = 1) -> Settlement:
         keeper = s.residents[-1]
         keeper.role = "tavernkeeper"
         s.keeper = keeper.name
+    # сделаем одного-двух ткачами — чтобы в лавке была одежда (ремесло → товар)
+    idlers = [c for c in s.residents if c.role == "idler"]
+    for c in idlers[:2]:
+        c.role = "weaver"
+    _economy.seed_wares(s, rng)                        # начальный ассортимент лавки от мастеров
     return s
 
 

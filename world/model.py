@@ -113,6 +113,7 @@ class Settlement:
     weather: str = "ясно"                             # погода дня (ставит WeatherSystem)
     axe_wear: float = 0.0
     house_integrity: float = 100.0
+    wares: dict = field(default_factory=dict)         # лавка: {item_id: число} — товары на продажу (конечны)
     news: list = field(default_factory=list)
     departures: list = field(default_factory=list)   # ушедшие — мир направит их дальше
     temperature: float = 101.0                        # активность: 101 горячо, <0 холодно
