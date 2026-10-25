@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.json
+!docker-compose*.json
+.godot/
+*.import
+/tmp/

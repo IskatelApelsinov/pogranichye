@@ -1,0 +1,18 @@
+; Толстый клиент «Приграничье» — 3D (вид сверху, ортокамера) на Godot 4.
+; Открыть: Godot 4.3+ → Import → выбрать эту папку. Сервер должен быть поднят.
+; Логика — на сервере; клиент только рисует состояние и шлёт намерения (тот же WS-протокол).
+
+config_version=5
+
+[application]
+config/name="Приграничье — 3D клиент"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.3")
+
+[display]
+window/size/viewport_width=1100
+window/size/viewport_height=720
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.09,0.09,0.12,1)

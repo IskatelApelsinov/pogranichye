@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.json
+*.db
+*.md
+sim.py
+web.py
+thin.py
+bench*.py
+/tmp/
