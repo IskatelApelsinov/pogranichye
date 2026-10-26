@@ -76,6 +76,29 @@ func _tex(name: String):
 	_tex_cache[name] = t
 	return t
 
+func _model(name: String):
+	# модель из models/<name>.glb, если положена в проект; иначе null (откат на примитив).
+	var key := "mdl:" + name
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var path := "res://models/" + name + ".glb"
+	var s = load(path) if ResourceLoader.exists(path) else null
+	_tex_cache[key] = s
+	return s
+
+func _struct(name: String, pos: Vector3, scale := 1.0) -> bool:
+	# поставить модель models/<name>.glb на клетку. Вернёт true, если модель есть и поставлена;
+	# false — файла нет, вызывающий строит примитив как раньше.
+	# Имя — контракт: house.glb/tavern.glb/forge.glb/barn.glb/well.glb/tree.glb/table.glb.
+	var m = _model(name)
+	if m == null:
+		return false
+	var inst = m.instantiate()
+	inst.position = pos
+	inst.scale = Vector3(scale, scale, scale)
+	_static_root.add_child(inst)
+	return true
+
 func _mat(col: Color, emission := 0.0, texname := "") -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = col
@@ -160,30 +183,43 @@ func _build_static(h: Dictionary, winter: bool, alive: int) -> void:
 	var nb: int = clampi(int(round(alive / 3.0)), 3, HOUSE.size())
 	for i in range(nb):
 		var p: Vector2i = HOUSE[i]
-		_box(_static_root, cell_pos(p.x, p.y), Vector3(1.5, 1.4, 1.5), Color("#7a5a3a"), "wood.png")
-		_box(_static_root, cell_pos(p.x, p.y, 1.4), Vector3(1.7, 0.5, 1.7), Color("#8a3a2a"), "roof.png")
+		var hp := cell_pos(p.x, p.y)
+		if not _struct("house", hp):
+			_box(_static_root, hp, Vector3(1.5, 1.4, 1.5), Color("#7a5a3a"), "wood.png")
+			_box(_static_root, hp + Vector3(0, 1.4, 0), Vector3(1.7, 0.5, 1.7), Color("#8a3a2a"), "roof.png")
 	# кузница (с «огнём») и амбар
-	_box(_static_root, cell_pos(FORGE.x, FORGE.y), Vector3(1.5, 1.3, 1.5), Color("#4a4a52"), "wood.png")
-	_box(_static_root, cell_pos(FORGE.x, FORGE.y, 1.3), Vector3(1.7, 0.4, 1.7), Color("#2a2a30"), "roof.png")
+	var fp := cell_pos(FORGE.x, FORGE.y)
+	if not _struct("forge", fp):
+		_box(_static_root, fp, Vector3(1.5, 1.3, 1.5), Color("#4a4a52"), "wood.png")
+		_box(_static_root, fp + Vector3(0, 1.3, 0), Vector3(1.7, 0.4, 1.7), Color("#2a2a30"), "roof.png")
 	_sign(cell_pos(FORGE.x, FORGE.y, 2.0), "🔨 Кузница")
-	_box(_static_root, cell_pos(BARN.x, BARN.y), Vector3(1.6, 1.2, 1.6), Color("#8a6a3a"), "wood.png")
-	_box(_static_root, cell_pos(BARN.x, BARN.y, 1.2), Vector3(1.8, 0.5, 1.8), Color("#6a4a2a"), "roof.png")
+	var bp := cell_pos(BARN.x, BARN.y)
+	if not _struct("barn", bp):
+		_box(_static_root, bp, Vector3(1.6, 1.2, 1.6), Color("#8a6a3a"), "wood.png")
+		_box(_static_root, bp + Vector3(0, 1.2, 0), Vector3(1.8, 0.5, 1.8), Color("#6a4a2a"), "roof.png")
 	_sign(cell_pos(BARN.x, BARN.y, 1.9), "🌾 Амбар")
 	# колодец на площади
-	_box(_static_root, cell_pos(WELL.x, WELL.y), Vector3(0.9, 0.8, 0.9), Color("#6e5234"))
-	_box(_static_root, cell_pos(WELL.x, WELL.y, 0.8), Vector3(0.3, 0.9, 0.3), Color("#5e4630"))
+	var wp := cell_pos(WELL.x, WELL.y)
+	if not _struct("well", wp):
+		_box(_static_root, wp, Vector3(0.9, 0.8, 0.9), Color("#6e5234"))
+		_box(_static_root, wp + Vector3(0, 0.8, 0), Vector3(0.3, 0.9, 0.3), Color("#5e4630"))
 	# таверна + вывеска + столы
 	if h.get("tavern", true):
-		_box(_static_root, cell_pos(TAV.x, TAV.y), Vector3(2.0, 2.0, 2.0), Color("#6a4a7a"), "wood.png")
-		_box(_static_root, cell_pos(TAV.x, TAV.y, 2.0), Vector3(2.2, 0.5, 2.2), Color("#c0392b"), "roof.png")
+		var tvp := cell_pos(TAV.x, TAV.y)
+		if not _struct("tavern", tvp):
+			_box(_static_root, tvp, Vector3(2.0, 2.0, 2.0), Color("#6a4a7a"), "wood.png")
+			_box(_static_root, tvp + Vector3(0, 2.0, 0), Vector3(2.2, 0.5, 2.2), Color("#c0392b"), "roof.png")
 		_sign(cell_pos(TAV.x, TAV.y, 2.7), "🍯 Таверна")
 		for tp in table_positions():
-			_box(_static_root, tp, Vector3(0.9, 0.5, 0.9), Color("#7a5a3a"), "wood.png")   # стол
+			if not _struct("table", tp):
+				_box(_static_root, tp, Vector3(0.9, 0.5, 0.9), Color("#7a5a3a"), "wood.png")   # стол
 	# деревья по краям
 	var tree_col := Color("#2f6b39") if not winter else Color("#bcd4c0")
 	for spot in [Vector2(-1, 1), Vector2(7, 1), Vector2(-1, 4), Vector2(7, 4), Vector2(3, -1)]:
-		_box(_static_root, cell_pos(spot.x, spot.y), Vector3(0.4, 1.5, 0.4), Color("#5e4630"))
-		_box(_static_root, cell_pos(spot.x, spot.y, 1.5), Vector3(1.3, 1.3, 1.3), tree_col)
+		var sp3 := cell_pos(spot.x, spot.y)
+		if not _struct("tree", sp3):
+			_box(_static_root, sp3, Vector3(0.4, 1.5, 0.4), Color("#5e4630"))
+			_box(_static_root, sp3 + Vector3(0, 1.5, 0), Vector3(1.3, 1.3, 1.3), tree_col)
 
 func _sign(pos: Vector3, text: String) -> void:
 	var lbl := Label3D.new()
