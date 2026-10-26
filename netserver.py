@@ -997,7 +997,8 @@ function render(){
  const sic={'весна':'🌱','лето':'☀','осень':'🍂','зима':'❄'}[H.season]||'';
  const wic={'буря':'⛈','ливень':'🌧','засуха':'🌵','вёдро':'☀','ясно':''}[H.weather]||'';
  const wtag=(H.weather&&H.weather!=='ясно')?` <span class="tag">${wic} ${H.weather}</span>`:'';
- const coldb=(H.cold?' <span class="tag" style="background:#2d4a63">❄ холода</span>':'')+` <span class="tag">${sic} ${H.season}</span>`+wtag;
+ const rdb=(H.road_danger&&H.road_danger>0)?` <span class="tag" style="background:#7a2a2a">🗡 неспокойно на дорогах</span>`:'';
+ const coldb=(H.cold?' <span class="tag" style="background:#2d4a63">❄ холода</span>':'')+` <span class="tag">${sic} ${H.season}</span>`+wtag+rdb;
  document.getElementById('health').innerHTML=`<span style="color:${hc}">здоровье ${H.health}</span>`+coldb;
  document.getElementById('store').textContent='· еды на '+H.food_days+' дн · склад: '+Object.entries(H.store).map(([k,v])=>k+' '+v).join(' · ');
  let wline='';

@@ -10,14 +10,19 @@ from __future__ import annotations
 from . import combat
 
 
-def roll(rng, hours: int, cross: bool):
-    """Вернуть событие пути или None. Шанс растёт с длиной и «дальностью» пути."""
-    chance = min(0.75, 0.12 + hours * 0.03 + (0.15 if cross else 0.0))
+def roll(rng, hours: int, cross: bool, danger: float = 0.0):
+    """Вернуть событие пути или None. Шанс растёт с длиной, «дальностью» пути и
+    опасностью дорог (danger — от решений NPC: ватаги на большаке, world.systems.decisions)."""
+    danger = max(0.0, min(3.0, danger))
+    chance = min(0.85, 0.12 + hours * 0.03 + (0.15 if cross else 0.0) + danger * 0.10)
     if rng.random() > chance:
         return None
     r = rng.random()
-    if r < 0.40:
-        return {"kind": "ambush", "beast": combat.pick(rng, "road")}
+    ambush_cut = 0.40 + danger * 0.12            # опаснее дорога — чаще засады
+    if r < ambush_cut:
+        # на опасных дорогах засада чаще оборачивается разбойником, а не зверем
+        beast = "bandit" if rng.random() < (0.3 + danger * 0.2) else combat.pick(rng, "road")
+        return {"kind": "ambush", "beast": beast}
     if r < 0.70:
         return {"kind": "find", "coins": round(rng.uniform(3, 10), 1),
                 "res": rng.choice(["raw", "honey", "wood"]), "amt": rng.randint(2, 6)}

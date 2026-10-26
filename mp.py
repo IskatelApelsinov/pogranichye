@@ -1391,9 +1391,10 @@ class World:
             if slot.char in src.residents:
                 src.residents.remove(slot.char)
             cross = self._shard(to) != self._shard(slot.loc)
+            danger = getattr(src, "road_danger", 0.0) + getattr(self._settle(to), "road_danger", 0.0)
             slot.transit = {"to": to, "from": slot.loc, "from_shard": self._shard(slot.loc),
                             "arrive": self.clock.total_hours + hours,
-                            "event": RE.roll(self.rhub.stream("road", aid), hours, cross)}
+                            "event": RE.roll(self.rhub.stream("road", aid), hours, cross, danger)}
             slot.loc = None
             tail = " (другой край — караван дальний)" if cross else ""
             self._feed(slot, f"🐫 отправился(ась) в {self._settle(to).name}")
@@ -1519,7 +1520,8 @@ class World:
                          "caravans": self._caravans_here(slot.loc),
                          "pvp": self._pvp_view(aid) if slot.loc in self._tables else None,
                          "dpvp": self._dpvp_view(aid) if slot.loc in self._dtables else None,
-                         "chronicle": list(w.chronicle[-6:])[::-1], "graves": w.graves},
+                         "chronicle": list(w.chronicle[-6:])[::-1], "graves": w.graves,
+                         "road_danger": round(getattr(w, "road_danger", 0.0), 1)},
                 "activities": {k: {"label": v["label"], "minigame": v["minigame"], "skill": v["skill"],
                                    "difficulty": self._activity_difficulty(w, ch, k)}
                                for k, v in P.ACTIVITIES.items()},

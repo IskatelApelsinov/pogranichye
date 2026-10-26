@@ -10,7 +10,8 @@ from .quests import QuestSystem
 from .season import SeasonSystem
 from .alife import AlifeSystem
 from .npc_economy import NpcEconomySystem
+from .decisions import NpcDecisionSystem
 
 __all__ = ["NeedsSystem", "WorkSystem", "TavernSystem", "ConsumptionSystem",
            "EventsSystem", "PopulationSystem", "WeatherSystem", "QuestSystem",
-           "SeasonSystem", "AlifeSystem", "NpcEconomySystem"]
+           "SeasonSystem", "AlifeSystem", "NpcEconomySystem", "NpcDecisionSystem"]
