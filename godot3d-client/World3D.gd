@@ -54,20 +54,36 @@ func role_color(role: String) -> Color:
 		"tavernkeeper": return Color("#9a6a8a")
 		_: return Color("#9bb0c8")
 
-func _mat(col: Color, emission := 0.0) -> StandardMaterial3D:
+var _tex_cache := {}
+
+func _tex(name: String):
+	# текстура из textures/<name>, если положена в проект; иначе null (откат на цвет)
+	if _tex_cache.has(name):
+		return _tex_cache[name]
+	var path := "res://textures/" + name
+	var t = load(path) if ResourceLoader.exists(path) else null
+	_tex_cache[name] = t
+	return t
+
+func _mat(col: Color, emission := 0.0, texname := "") -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = col
+	if texname != "":
+		var t = _tex(texname)
+		if t != null:
+			m.albedo_texture = t
+			m.uv1_triplanar = true          # аккуратно натягивает текстуру на бокс
 	if emission > 0.0:
 		m.emission_enabled = true
 		m.emission = col
 		m.emission_energy_multiplier = emission
 	return m
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, col: Color) -> MeshInstance3D:
+func _box(parent: Node3D, pos: Vector3, size: Vector3, col: Color, texname := "") -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new(); bm.size = size
 	mi.mesh = bm
-	mi.material_override = _mat(col)
+	mi.material_override = _mat(col, 0.0, texname)
 	mi.position = pos + Vector3(0, size.y * 0.5, 0)
 	parent.add_child(mi)
 	return mi
@@ -91,7 +107,7 @@ func _build_spots(h: Dictionary) -> void:
 	for sp in SPOTS:
 		var cell: Vector2 = sp["cell"]
 		var pos := cell_pos(cell.x, cell.y)
-		var post := _box(_static_root, pos, Vector3(0.5, 0.5, 0.5), Color("#caa15a"))
+		_box(_static_root, pos, Vector3(0.5, 0.5, 0.5), Color("#caa15a"))
 		var lbl := Label3D.new()
 		lbl.text = sp["emoji"] + " " + sp["label"]
 		lbl.position = pos + Vector3(0, 1.1, 0)
@@ -115,23 +131,23 @@ func _build_static(h: Dictionary, winter: bool, alive: int) -> void:
 	for r in range(ROWS):
 		for c in range(COLS):
 			var shade := 0.94 + 0.06 * ((c + r) % 2)
-			_box(_static_root, cell_pos(c, r, -0.2), Vector3(SP * 0.98, 0.2, SP * 0.98), grass * shade)
+			_box(_static_root, cell_pos(c, r, -0.2), Vector3(SP * 0.98, 0.2, SP * 0.98), grass * shade, "snow.png" if winter else "grass.png")
 	# дома
 	var nb: int = clampi(int(round(alive / 4.0)), 2, HOUSE.size())
 	for i in range(nb):
 		var p: Vector2i = HOUSE[i]
-		_box(_static_root, cell_pos(p.x, p.y), Vector3(1.4, 1.3, 1.4), Color("#7a5a3a"))
+		_box(_static_root, cell_pos(p.x, p.y), Vector3(1.4, 1.3, 1.4), Color("#7a5a3a"), "wood.png")
 		# крыша
-		var roof := _box(_static_root, cell_pos(p.x, p.y, 1.3), Vector3(1.6, 0.5, 1.6), Color("#8a3a2a"))
+		_box(_static_root, cell_pos(p.x, p.y, 1.3), Vector3(1.6, 0.5, 1.6), Color("#8a3a2a"), "roof.png")
 	# таверна
 	if h.get("tavern", true):
-		_box(_static_root, cell_pos(TAV.x, TAV.y), Vector3(1.8, 1.9, 1.8), Color("#6a4a7a"))
-		_box(_static_root, cell_pos(TAV.x, TAV.y, 1.9), Vector3(2.0, 0.5, 2.0), Color("#c0392b"))
+		_box(_static_root, cell_pos(TAV.x, TAV.y), Vector3(1.8, 1.9, 1.8), Color("#6a4a7a"), "wood.png")
+		_box(_static_root, cell_pos(TAV.x, TAV.y, 1.9), Vector3(2.0, 0.5, 2.0), Color("#c0392b"), "roof.png")
 	# немного декора по краям: деревья/камни
 	var tree_col := Color("#2f6b39") if not winter else Color("#bcd4c0")
 	for spot in [Vector2(-1, 0), Vector2(5, 0), Vector2(-1, 2), Vector2(5, 4)]:
 		_box(_static_root, cell_pos(spot.x, spot.y), Vector3(0.4, 1.4, 0.4), Color("#5e4630"))
-		var crown := _box(_static_root, cell_pos(spot.x, spot.y, 1.4), Vector3(1.2, 1.2, 1.2), tree_col)
+		_box(_static_root, cell_pos(spot.x, spot.y, 1.4), Vector3(1.2, 1.2, 1.2), tree_col)
 
 func target_cell(name: String, in_tavern: bool, is_me: bool) -> Vector2i:
 	var sleep := hour >= 23 or hour < 7

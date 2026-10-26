@@ -130,6 +130,10 @@ def _dispatch(aid, path, body):
         act = body.get("action", "join")
         if act == "join": return w.pvp_join(aid)
         return w.pvp_act(aid, act)
+    if path == "/api/dpvp":
+        act = body.get("action", "join")
+        if act == "join": return w.durak_pvp_join(aid)
+        return w.durak_pvp_act(aid, act, body.get("idx", -1))
     if path == "/api/fixtavern":return w.fix_tavern(aid, body.get("quality", 0))
     if path == "/api/dice":    return w.dice(aid, body.get("quality", 0))
     if path == "/api/priority":return w.priority(aid, body.get("mode", "balanced"))
@@ -593,6 +597,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
     <button onclick="cardStart()">🃏 Очко (ставка 10⌾)</button>
     <button onclick="durakStart()">🂿 Дурак (ставка 10⌾)</button>
     <button onclick="pvpJoin()">🎴 PvP Очко (с игроком)</button>
+    <button onclick="dpvpJoin()">🂿 PvP Дурак (с игроком)</button>
     <span class="sub" id="withme"></span></div>
    <div class="sub" id="keeper" style="margin-top:6px"></div></div>
   <div class="card" id="cardgame" style="display:none"><b>🃏 Очко</b> <span class="sub">набери ближе к 21, но не больше</span>
@@ -612,6 +617,13 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
    <div id="pvphand" class="cardrow"></div>
    <div id="pvpmsg" style="margin-top:4px"></div>
    <div class="row" id="pvpbtns" style="margin-top:6px"></div></div>
+  <div class="card" id="dpvpgame" style="display:none"><b>🂿 PvP Дурак</b> <span class="sub">подкидной с другим игроком</span>
+   <div id="dpvptop" class="sub" style="margin-top:6px"></div>
+   <div id="dpvptable" style="margin-top:6px;min-height:58px"></div>
+   <div class="sub" style="margin-top:4px">твои карты (клик — сыграть):</div>
+   <div id="dpvphand" class="cardrow"></div>
+   <div id="dpvpmsg" style="margin-top:4px"></div>
+   <div class="row" id="dpvpbtns" style="margin-top:6px"></div></div>
   <div class="card"><b>💬 Разговор у очага</b> <span class="sub">слышат те, кто сейчас здесь</span>
    <div id="chatlog" class="chatlog"></div>
    <div class="row" style="margin-top:8px">
@@ -969,8 +981,9 @@ function render(){
  document.getElementById('withme').textContent=H.players_here&&H.players_here.length?('с тобой тут: '+H.players_here.join(', ')):'';
  document.getElementById('drinkbtn').textContent=H.free_tab?'🍺 Выпить (за счёт заведения)':`🍺 Выпить медовухи (${H.drink_price}⌾)`;
  renderChat(H.chat||[]);
- // PvP-стол: если мы за столом — держим панель актуальной (вход соперника, его ходы)
+ // PvP-столы: держим панели актуальными (вход соперника, его ходы)
  if(H.pvp&&H.pvp.seated){renderPvp(H.pvp);}
+ if(H.dpvp&&H.dpvp.seated){renderDpvp(H.dpvp);}
  document.getElementById('keeper').textContent=H.keeper?('корчмарь: '+H.keeper+(H.free_tab?' — должен тебе (стол закрыт)':'')):'';
  const pr={work:'больше работать',balanced:'баланс',rest:'больше отдыхать',full_rest:'только отдых'}[S.me.priority]||S.me.priority;
  document.getElementById('origin').textContent=(S.me.origin||'');
@@ -1185,6 +1198,29 @@ function renderPvp(g){
 }
 async function pvpJoin(){const r=await wsCall('pvp',{action:'join'});if(!r.ok){toast(r.msg);return;}renderPvp(r);}
 async function pvpAct(a){const r=await wsCall('pvp',{action:a});if(!r.ok){toast(r.msg);return;}if(a==='leave'&&!r.seated){document.getElementById('pvpgame').style.display='none';return;}renderPvp(r);}
+// ── PvP Дурак ──
+let _dpvp=null;
+function renderDpvp(g){
+ const box=document.getElementById('dpvpgame');box.style.display='block';_dpvp=g;
+ if(g.waiting){document.getElementById('dpvptop').textContent='за столом: '+(g.players||[]).join(', ')+' · ждём второго…';
+  document.getElementById('dpvptable').innerHTML='';document.getElementById('dpvphand').innerHTML='';
+  document.getElementById('dpvpmsg').textContent=g.msg||'';
+  document.getElementById('dpvpbtns').innerHTML=`<button onclick="dpvpAct('leave')">Отменить</button>`;return;}
+ document.getElementById('dpvptop').textContent=`козырь ${g.trump} ${g.trump_card?('('+g.trump_card+')'):''} · колода ${g.deck} · у ${escHtml(g.opp_name||'соперника')} ${g.opp_cards} карт · банк ${g.pot}⌾ · ты ${g.role==='attack'?'заходишь':'отбиваешься'}`;
+ const tbl=document.getElementById('dpvptable');
+ tbl.innerHTML=(!g.table||!g.table.length)?'<span class="sub">стол пуст</span>':g.table.map(p=>`<span style="display:inline-block;position:relative;margin:0 10px 6px 0">${cardEl(p.a)}${p.d?('<span style="position:absolute;left:14px;top:10px">'+cardEl(p.d)+'</span>'):''}</span>`).join('');
+ const canPlay=g.your_turn&&!g.done;
+ document.getElementById('dpvphand').innerHTML=(g.hand||[]).map((c,i)=>{const r=/[♥♦]/.test(c.label)?' red':'';const st=canPlay?'cursor:pointer':'';return `<div class="pcard${r}" style="${st}" onclick="${canPlay?('dpvpPlay('+i+')'):''}">${c.label}</div>`;}).join('')||'<span class="sub">карт нет</span>';
+ document.getElementById('dpvpmsg').textContent=g.msg||'';
+ const b=document.getElementById('dpvpbtns');
+ if(g.done){b.innerHTML=`<button onclick="dpvpJoin()">🔄 Ещё партию</button><button onclick="dpvpAct('leave')">Встать</button>`;}
+ else if(g.role==='defend'&&g.your_turn){b.innerHTML=`<button onclick="dpvpAct('take')">🖐 Беру</button>`;}
+ else if(g.role==='attack'&&g.your_turn){b.innerHTML=`<button onclick="dpvpAct('done')">✓ Бито</button>`;}
+ else{b.innerHTML='<span class="sub">ход соперника…</span>';}
+}
+async function dpvpJoin(){const r=await wsCall('dpvp',{action:'join'});if(!r.ok){toast(r.msg);return;}renderDpvp(r);}
+async function dpvpAct(a){const r=await wsCall('dpvp',{action:a});if(!r.ok){toast(r.msg);return;}if(a==='leave'&&!r.seated){document.getElementById('dpvpgame').style.display='none';return;}renderDpvp(r);}
+async function dpvpPlay(i){const g=_dpvp;if(!g||!g.your_turn)return;const a=(g.role==='attack')?'attack':'defend';const r=await wsCall('dpvp',{action:a,idx:i});if(!r.ok){toast(r.msg);return;}renderDpvp(r);}
 async function fixTavern(){pending={kind:'fixtavern'};openMini({label:'Починка корчмы',minigame:'sequence',difficulty:0.4});}
 async function dice(){pending={kind:'dice'};openMini({label:'Кости',minigame:'timing',difficulty:0.5});}
 async function prio(m){toast((await wsCall('priority',{mode:m})).msg);}

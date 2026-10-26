@@ -20,8 +20,10 @@ def _label(r, s):
 
 
 class Durak:
-    def __init__(self, rng):
+    def __init__(self, rng, vs_bot=True, names=None):
         self.rng = rng
+        self.vs_bot = vs_bot                        # False — PvP (оба места — люди, бот молчит)
+        self.names = names or {}                    # seat -> отображаемое имя (для PvP-сообщений)
         deck = [{"r": r, "s": s, "label": _label(r, s)} for (r, _) in RANKS for s in SUITS]
         rng.shuffle(deck)
         self.deck = deck
@@ -35,10 +37,13 @@ class Durak:
         self.table = []                            # [{"a":card,"d":card|None}]
         self.phase = "attack"                      # attack | defend | over
         self.loser = None
-        self.msg = "Твой ход." if self.attacker == YOU else "Корчмарь заходит."
         self._sort_hands()
-        if self.attacker == BOT:
-            self._bot_turn()
+        if self.vs_bot:
+            self.msg = "Твой ход." if self.attacker == YOU else "Корчмарь заходит."
+            if self.attacker == BOT:
+                self._bot_turn()
+        else:
+            self.msg = "Заходит " + self._seat_name(self.attacker)
 
     # ── утилиты ──
     def _sort_hands(self):
@@ -114,56 +119,66 @@ class Durak:
         self.phase = "attack"
         self._check_over()
 
-    # ── ходы игрока (YOU) ──
+    # ── ходы игрока (одиночная игра против бота: ходит YOU) ──
     def act(self, action, idx=-1):
         if self.phase == "over":
             return self.view()
         if self.attacker == YOU:
-            self._you_attack_side(action, idx)
+            self._attack_side(YOU, action, idx)
         else:
-            self._you_defend_side(action, idx)
-        # после хода игрока — отработать бота, пока очередь не вернётся к игроку
-        self._bot_turn()
+            self._defend_side(YOU, action, idx)
+        if self.vs_bot:
+            self._bot_turn()                         # против корчмаря — бот отвечает сам
         return self.view()
 
-    def _you_attack_side(self, action, idx):
+    # ── PvP: ход конкретного места (seat), без бота ──
+    def act_as(self, seat, action, idx=-1):
+        if self.phase == "over":
+            return
+        if seat == self.attacker and self.phase == "attack":
+            self._attack_side(seat, action, idx)
+        elif seat == self._defender() and self.phase == "defend":
+            self._defend_side(seat, action, idx)
+        # иначе — не твой сейчас ход, игнор
+
+    def _attack_side(self, who, action, idx):
         if action == "done":                        # «бито» — завершить бой (если нет незащищённых)
             if self._undef() is None and self.table:
                 self._end_bout(defended=True)
-                self.msg = "Бито. " + ("Твой заход." if self.attacker == YOU else "Корчмарь заходит.")
+                self.msg = "Бито — заходит " + self._seat_name(self.attacker)
             return
         if action == "attack":
-            card = self._take_from_hand(YOU, idx)
+            card = self._take_from_hand(who, idx)
             if not card:
                 return
             if self.table and card["r"] not in self._table_ranks():
-                self.hands[YOU].append(card); self._sort_hands()      # нельзя — вернуть
+                self.hands[who].append(card); self._sort_hands()      # нельзя — вернуть
                 self.msg = "Подкинуть можно только карту ранга, что уже на столе."
                 return
-            if len([p for p in self.table if p["d"] is None]) >= 1 and self.table:
-                # уже есть незащищённая — ждём ответа защитника (бот ответит)
-                pass
             self.table.append({"a": card, "d": None})
             self.phase = "defend"
 
-    def _you_defend_side(self, action, idx):
+    def _defend_side(self, who, action, idx):
         if action == "take":
             self._end_bout(defended=False)
-            self.msg = "Ты взял карты. Корчмарь заходит снова."
+            self.msg = self._seat_name(who) + " взял карты — снова заходит " + self._seat_name(self.attacker)
             return
         if action == "defend":
             pair = self._undef()
             if not pair:
                 return
-            card = self._take_from_hand(YOU, idx)
+            card = self._take_from_hand(who, idx)
             if not card:
                 return
             if not self.beats(card, pair["a"]):
-                self.hands[YOU].append(card); self._sort_hands()
+                self.hands[who].append(card); self._sort_hands()
                 self.msg = "Этой картой не побить."
                 return
             pair["d"] = card
-            self.phase = "attack"                    # ход возвращается атакующему (боту) — подкинуть/бито
+            self.phase = "attack"                    # ход возвращается атакующему — подкинуть/бито
+
+    def _seat_name(self, seat):
+        return self.names.get(seat, "корчмарь" if seat == BOT else "ты")
 
     def _take_from_hand(self, who, idx):
         h = self.hands[who]
@@ -261,5 +276,29 @@ class Durak:
             "role": ("attack" if self.attacker == YOU else "defend"),
             "over": self.phase == "over",
             "loser": self.loser,
+            "msg": self.msg,
+        }
+
+    def view_for(self, seat):
+        """Вид глазами конкретного места (для PvP). seat — YOU или BOT."""
+        other = BOT if seat == YOU else YOU
+        return {
+            "ok": True,
+            "trump": self.trump,
+            "trump_card": (self.deck[-1]["label"] if self.deck else None),
+            "deck": len(self.deck),
+            "hand": list(self.hands[seat]),
+            "opp_cards": len(self.hands[other]),
+            "opp_name": self.names.get(other, "соперник"),
+            "table": [{"a": p["a"], "d": p["d"]} for p in self.table],
+            "attacker": self.attacker,
+            "phase": self.phase,
+            "your_turn": (self.phase != "over" and (
+                (self.attacker == seat and self.phase == "attack") or
+                (self._defender() == seat and self.phase == "defend"))),
+            "role": ("attack" if self.attacker == seat else "defend"),
+            "over": self.phase == "over",
+            "loser": (self.names.get(self.loser, "") if self.loser else None),
+            "loser_seat": self.loser,
             "msg": self.msg,
         }

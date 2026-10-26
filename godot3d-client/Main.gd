@@ -38,6 +38,9 @@ var _mini_activity := ""
 
 # управляемый аватар игрока (ходим сами, камера следует)
 var _player: Node3D
+var _road: Node3D
+var _road_props: Array = []
+var _traveling := false
 var _move_target: Vector3 = Vector3.ZERO
 var _has_target := false
 var _prompt: Label
@@ -428,8 +431,62 @@ func _pick_at(screen_pos: Vector2) -> bool:
 	return true
 
 
+func _build_road() -> void:
+	if _road != null:
+		return
+	_road = Node3D.new(); add_child(_road)
+	# длинная дорога (тёмная полоса) вдоль -Z
+	var ground := MeshInstance3D.new()
+	var pm := PlaneMesh.new(); pm.size = Vector2(8, 120)
+	ground.mesh = pm
+	var gm := StandardMaterial3D.new(); gm.albedo_color = Color("#4a3f2e")
+	ground.material_override = gm
+	ground.position = Vector3(0, -0.05, -40)
+	_road.add_child(ground)
+	# придорожные деревья по обе стороны — их будем «прокручивать» к игроку
+	for i in range(14):
+		for side in [-3.2, 3.2]:
+			var t := MeshInstance3D.new()
+			var bm := BoxMesh.new(); bm.size = Vector3(0.9, 1.6, 0.9)
+			t.mesh = bm
+			var m := StandardMaterial3D.new(); m.albedo_color = Color("#2f6b39")
+			t.material_override = m
+			t.position = Vector3(side, 0.8, -i * 9.0 - 4.0)
+			_road.add_child(t); _road_props.append(t)
+
+func _enter_travel() -> void:
+	if _traveling:
+		return
+	_traveling = true
+	_build_road()
+	_road.visible = true
+	if _world:
+		_world.visible = false
+	# игрок «шагает на месте» в начале дороги, камера за ним
+	_player.position = Vector3(0, 0, 0)
+	_has_target = false
+	_prompt.text = ""
+
+func _exit_travel() -> void:
+	_traveling = false
+	if _road:
+		_road.visible = false
+	if _world:
+		_world.visible = true
+	_player.position = Vector3(0, 0, 2.0)
+
 func _update_movement(dt: float) -> void:
 	if _player == null or _cam == null:
+		return
+	if _traveling:
+		# «беговая дорожка»: деревья едут к игроку, создавая ощущение пути
+		for t in _road_props:
+			t.position.z += 6.0 * dt
+			if t.position.z > 12.0:
+				t.position.z -= 126.0
+		# лёгкое покачивание аватара
+		_player.position.y = 0.08 * sin(Time.get_ticks_msec() * 0.006)
+		_cam.position = _cam.position.lerp(_player.position + CAM_OFFSET, clampf(dt * 4.0, 0, 1))
 		return
 	# направление от клавиш относительно камеры (чтобы W = «от камеры вперёд»)
 	var fwd := -_cam.global_transform.basis.z; fwd.y = 0; fwd = fwd.normalized()
@@ -460,15 +517,17 @@ func _update_nearest() -> void:
 	if _world == null:
 		return
 	var best := INTERACT_RADIUS
+	var mypos := _player.position
 	for sp in _world.interactables():
-		var d: float = (Vector3(sp["pos"].x, 0, sp["pos"].z) - Vector3(_player.position.x, 0, _player.position.z)).length()
+		var spos: Vector3 = sp["pos"]
+		var d: float = Vector2(spos.x - mypos.x, spos.z - mypos.z).length()
 		if d < best:
 			best = d; _near = sp
 	if _near.is_empty():
 		_prompt.text = ""
 	else:
-		var verb := "В таверну" if _near.get("type") == "tavern" else _near.get("label", "")
-		_prompt.text = "[Пробел] %s %s" % [_near.get("emoji", ""), verb]
+		var verb: String = "В таверну" if _near.get("type") == "tavern" else str(_near.get("label", ""))
+		_prompt.text = "[Пробел] %s %s" % [str(_near.get("emoji", "")), verb]
 
 func _do_interact() -> void:
 	if _near.is_empty():
@@ -510,8 +569,12 @@ func _render() -> void:
 		_refresh_inventory()
 	var me: Dictionary = S.get("me", {})
 	if S.has("transit"):
+		_enter_travel()
 		_status.text = "🐫 В пути → %s (осталось %s ч)" % [S["transit"].get("to"), S["transit"].get("left")]
+		_prompt.text = "🐫 в пути…"
 		return
+	if _traveling:
+		_exit_travel()
 	var h: Dictionary = S.get("here", {})
 	var near := ""
 	if h.get("players_here", []).size() > 0:

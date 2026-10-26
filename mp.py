@@ -73,7 +73,8 @@ class World:
         self._empty = {}                             # глоб.индекс -> тиков без игрока
         self._hot_applied = {}                       # shard_id -> последний применённый набор горячих
         self._chat = {}                              # глоб.индекс деревни -> [ {who,text,day} ] (эфемерный чат в баре)
-        self._tables = {}                            # глоб.индекс деревни -> PvP-стол (карты с другим игроком)
+        self._tables = {}                            # глоб.индекс деревни -> PvP-стол «очко»
+        self._dtables = {}                           # глоб.индекс деревни -> PvP-стол «дурак»
 
     # ── глобальная адресация деревень поверх шардов ──
     def _reindex(self):
@@ -843,6 +844,110 @@ class World:
                 self._pvp_finish(t)
             return self._pvp_view(aid)
 
+    # ── PvP «ДУРАК»: подкидной на двух игроков в одной таверне ──
+    def _durak_seat(self, t, aid):
+        return DURAK_YOU if t["seats"][0] == aid else DURAK_BOT
+
+    def _dpvp_view(self, aid):
+        slot = self.players.get(aid)
+        if not slot:
+            return {"ok": True, "seated": False}
+        t = self._dtables.get(slot.loc)
+        if not t or aid not in t["seats"]:
+            return {"ok": True, "seated": False, "msg": "за столом в дурака никого"}
+        if not t.get("started"):
+            return {"ok": True, "seated": True, "started": False, "waiting": True,
+                    "bet": t["bet"], "players": [self._pvp_name(a) for a in t["seats"]],
+                    "msg": "Ждём второго игрока за столом дурака…"}
+        g = t["game"]
+        v = g.view_for(self._durak_seat(t, aid))
+        v["seated"] = True; v["started"] = True; v["waiting"] = False
+        v["done"] = bool(t.get("done")) or bool(v.get("over"))
+        v["bet"] = t["bet"]; v["pot"] = t.get("pot", 0)
+        v["coins"] = round(slot.char.coins, 1)
+        v["players"] = [self._pvp_name(a) for a in t["seats"]]
+        return v
+
+    def _dpvp_finish(self, t):
+        g = t["game"]
+        if g.loser is None:
+            return
+        # дурак (проигравший) отдаёт банк победителю
+        loser_seat = g.loser
+        winner_seat = DURAK_BOT if loser_seat == DURAK_YOU else DURAK_YOU
+        win_aid = t["seats"][0] if winner_seat == DURAK_YOU else t["seats"][1]
+        sw = self.players.get(win_aid)
+        if sw:
+            sw.char.coins += t.get("pot", 0)
+        for a in t["seats"]:
+            self._feed(self.players.get(a),
+                       f"🂿 обыграл(а) в дурака (+{t['pot']}⌾)" if a == win_aid else "🃏 остался(ась) в дураках")
+        t["done"] = True
+
+    def durak_pvp_join(self, aid):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or slot.loc is None or not slot.char.alive:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            w = self._cur(slot)
+            if not getattr(w, "tavern", False):
+                return {"ok": False, "msg": "стол стоит в корчме"}
+            loc = slot.loc
+            t = self._dtables.get(loc)
+            if t and t.get("done"):
+                t = None
+            if t is None:
+                t = {"seats": [aid], "started": False, "done": False,
+                     "bet": self.PVP_BET, "pot": 0, "game": None}
+                self._dtables[loc] = t
+                return self._dpvp_view(aid)
+            if aid in t["seats"]:
+                return self._dpvp_view(aid)
+            if len(t["seats"]) >= 2:
+                return {"ok": False, "msg": "стол занят — дождись следующей партии"}
+            if slot.char.coins < t["bet"]:
+                return {"ok": False, "msg": f"нужно {t['bet']}⌾ на кон"}
+            first = self.players.get(t["seats"][0])
+            if not first or first.char.coins < t["bet"]:
+                return {"ok": False, "msg": "у первого игрока не хватает монет — стол распался"}
+            t["seats"].append(aid)
+            first.char.coins -= t["bet"]; slot.char.coins -= t["bet"]
+            t["pot"] = t["bet"] * 2
+            names = {DURAK_YOU: self._pvp_name(t["seats"][0]),
+                     DURAK_BOT: self._pvp_name(t["seats"][1])}
+            t["game"] = Durak(self.rng, vs_bot=False, names=names)
+            t["started"] = True
+            return self._dpvp_view(aid)
+
+    def durak_pvp_act(self, aid, action, idx=-1):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or slot.loc is None:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            t = self._dtables.get(slot.loc)
+            if not t or aid not in t["seats"]:
+                return {"ok": False, "msg": "ты не за столом"}
+            if action == "leave":
+                if t.get("started") and not t.get("done"):
+                    opp = [a for a in t["seats"] if a != aid]
+                    if opp:
+                        so = self.players.get(opp[0])
+                        if so:
+                            so.char.coins += t.get("pot", 0)
+                    t["done"] = True
+                else:
+                    t["seats"].remove(aid)
+                    if not t["seats"]:
+                        self._dtables.pop(slot.loc, None)
+                return {"ok": True, "msg": "встал из-за стола"}
+            if not t.get("started") or t.get("done"):
+                return self._dpvp_view(aid)
+            seat = self._durak_seat(t, aid)
+            t["game"].act_as(seat, action, int(idx))
+            if t["game"].view()["over"]:
+                self._dpvp_finish(t)
+            return self._dpvp_view(aid)
+
     def say(self, aid, text):
         """Сказать слово в деревне/баре. Чат эфемерный, привязан к месту (loc):
         слышат только те игроки, кто физически здесь. Сервер чистит и ограничивает ввод."""
@@ -1211,6 +1316,7 @@ class World:
                          "chat": list(self._chat.get(slot.loc, []))[-16:],
                          "caravans": self._caravans_here(slot.loc),
                          "pvp": self._pvp_view(aid) if slot.loc in self._tables else None,
+                         "dpvp": self._dpvp_view(aid) if slot.loc in self._dtables else None,
                          "chronicle": list(w.chronicle[-6:])[::-1], "graves": w.graves},
                 "activities": {k: {"label": v["label"], "minigame": v["minigame"], "skill": v["skill"],
                                    "difficulty": self._activity_difficulty(w, ch, k)}
