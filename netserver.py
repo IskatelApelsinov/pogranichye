@@ -529,6 +529,28 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  .verbadge{position:fixed;right:8px;bottom:6px;z-index:9999;font-size:11px;color:var(--sub);opacity:.6;pointer-events:none}
  .fairbox{margin-top:5px;font-size:11px;color:var(--sub)} .fairbox code{color:#9ab;background:#0003;padding:0 3px;border-radius:3px} .fairbox a{color:var(--gold)}
  .obsbanner{position:fixed;left:0;right:0;top:0;z-index:9998;background:#5a3a1a;color:#ffd890;text-align:center;padding:6px;font-size:13px}
+ /* ── мобильная оптимизация: тач-first, крупные цели, без залипающего hover ── */
+ html,body{overflow-x:hidden}
+ button,input,.act,.tabs button{touch-action:manipulation}   /* нет 300мс задержки/зум-даблтапа */
+ @media(hover:none){                                          /* сенсор: hover-эффекты залипают — гасим */
+   button:hover{border-color:var(--line)}
+   .spr.clk:hover{filter:none}
+   .act:active,button:active{filter:brightness(1.2)}          /* отклик на касание — через :active */
+ }
+ @media(max-width:560px){
+   body{padding:12px 16px;font-size:15px}
+   .card{padding:12px 13px;margin:10px 0;border-radius:11px}
+   .cols{grid-template-columns:1fr}                           /* две колонки → в стопку на телефоне */
+   .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+   button,.tabs button{min-height:44px;padding:10px 12px}     /* палец, а не курсор */
+   input{min-height:44px}
+   h1{font-size:19px}
+   .scene{height:200px}
+   .tabs{position:sticky;top:0;z-index:50;background:var(--bg);padding:6px 0;margin:6px 0 2px}
+ }
+ @media(prefers-reduced-motion:reduce){
+   *{transition:none!important;animation:none!important}       /* экономим батарею/кадры */
+ }
  body.observing #game{opacity:.6}
  .token{position:absolute;transition:left 1.6s ease,top 1.6s ease}
  .win{position:absolute;width:6px;height:6px;border-radius:2px;background:#ffd36b;
