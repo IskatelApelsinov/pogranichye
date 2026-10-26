@@ -44,6 +44,7 @@ var _traveling := false
 var _move_target: Vector3 = Vector3.ZERO
 var _has_target := false
 var _prompt: Label
+var _verbadge: Label
 var _near: Dictionary = {}            # ближайшая точка взаимодействия
 const CAM_OFFSET := Vector3(14, 16, 14)
 const MOVE_SPEED := 5.5
@@ -168,6 +169,17 @@ func _build_ui() -> void:
 	_prompt.add_theme_color_override("font_color", Color("#ffe6a0"))
 	_prompt.add_theme_font_size_override("font_size", 18)
 	cl.add_child(_prompt)
+
+	# бейдж версии (правый нижний угол)
+	_verbadge = Label.new()
+	_verbadge.anchor_left = 1.0; _verbadge.anchor_right = 1.0
+	_verbadge.anchor_top = 1.0; _verbadge.anchor_bottom = 1.0
+	_verbadge.offset_left = -120; _verbadge.offset_top = -24
+	_verbadge.offset_right = -8; _verbadge.offset_bottom = -4
+	_verbadge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_verbadge.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	_verbadge.add_theme_font_size_override("font_size", 11)
+	cl.add_child(_verbadge)
 
 	_build_inventory_panel(cl)
 	_build_minigame(cl)
@@ -575,6 +587,8 @@ func _render() -> void:
 		return
 	if _traveling:
 		_exit_travel()
+	if _verbadge:
+		_verbadge.text = "v" + str(S.get("version", "?"))
 	var h: Dictionary = S.get("here", {})
 	var near := ""
 	if h.get("players_here", []).size() > 0:

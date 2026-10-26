@@ -38,6 +38,7 @@ class Character:
     # ── экономика игрока (у NPC по умолчанию пусто; каждый может быть игроком) ──
     coins: float = 0.0
     favors: dict = field(default_factory=dict)   # имя NPC -> сколько он тебе должен (услуги/бартер)
+    debts: dict = field(default_factory=dict)    # имя -> сколько монет ты должен ему (долги)
     home: str = "none"            # 'none' | 'rented' | 'owned'
     home_comfort: float = 0.0     # обустройство жилья (0..100) — лучше отдых/настрой
     inventory: list = field(default_factory=list)  # предметы при себе (id из items)

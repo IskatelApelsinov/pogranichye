@@ -16,10 +16,11 @@ from world.accounts import Accounts, AccountsDB
 from world.storage import JsonStorage, SqlStorage
 from world import ws
 import mp
+from world.version import VERSION as GAME_VERSION
 
 PORT = int(os.environ.get("GAME_PORT", "8090"))
 HOST = os.environ.get("GAME_HOST", "127.0.0.1")   # в Docker ставим 0.0.0.0
-SPEED = 1.0
+SPEED = float(os.environ.get("GAME_SPEED", "0.55"))   # тиков в секунду; меньше — мир медленнее (~44с/день)
 # Гость — небезопасен в проде (аккаунт без пароля легко фармить/абьюзить),
 # поэтому доступен ТОЛЬКО в тестовом окружении. Прод: GAME_ENV=prod → только вход.
 GAME_ENV = os.environ.get("GAME_ENV", "dev")
@@ -209,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
     # ── маршруты ──
     def do_GET(self):
         if self.path == "/healthz":                 # для healthcheck контейнера
-            self._json({"ok": True}); return
+            self._json({"ok": True, "version": GAME_VERSION}); return
         if self.path.startswith("/assets/"):
             self._asset(self.path[len("/assets/"):]); return
         if self.path == "/manifest.webmanifest":
@@ -217,7 +218,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/sw.js":
             self._raw(SW_JS.encode(), "application/javascript"); return
         if self.path in ("/", "/index.html"):
-            self._html(PAGE); return
+            self._html(PAGE.replace("__VER__", GAME_VERSION)); return
         if self.path == "/observe":
             self._html(OBSERVE_PAGE); return
         if self.path == "/api/observe":
@@ -401,7 +402,7 @@ let DATA={entities:[],settlements:[]}, sortKey='name', sortDir=1;
 const ECOLS=[['name','имя'],['role','роль'],['driver','упр.'],['trait','черта'],['where','деревня'],['sex','п'],['age','возр'],
  ['health','здоровье'],['morale','настрой'],['hunger','голод'],['fatigue','устал'],
  ['social','общ'],['ambition','амб'],['dwelling','дом'],
- ['home','жильё'],['comfort','уют'],['coins','монеты'],['rep','слава'],['weapon','оружие'],
+ ['home','жильё'],['comfort','уют'],['coins','монеты'],['debt','долг'],['rep','слава'],['weapon','оружие'],
  ['warmth','тепло'],['worn','надето'],['skills','навыки'],['last_act','занятие']];
 const SCOLS=[['name','деревня'],['pop','нас.'],['online','онлайн'],['health','здоровье'],['food_days','еда,дн'],
  ['house_integrity','дом%'],['season','сезон'],['weather','погода'],['keeper','корчмарь'],['graves','могил']];
@@ -441,7 +442,7 @@ function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1;}render()
 async function pull(){
  try{const r=await fetch('/api/observe',{cache:'no-store'});DATA=await r.json();
   document.getElementById('clock').textContent=`· день ${DATA.day}, ${String(DATA.hour).padStart(2,'0')}:00`;
-  document.getElementById('meta').textContent=`шардов ${DATA.shards} · деревень ${DATA.settlements_n} · сущностей ${DATA.entities.length}`;
+  document.getElementById('meta').textContent=`v${DATA.version||'?'} · шардов ${DATA.shards} · деревень ${DATA.settlements_n} · сущностей ${DATA.entities.length}`;
   render();}catch(e){document.getElementById('meta').textContent='нет связи…';}
 }
 setInterval(()=>{if(document.getElementById('auto').checked)pull();},2000);
@@ -499,6 +500,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  #tokens{z-index:4} .spr{position:absolute;image-rendering:auto}
  .sprfallback{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:none}
  .spr.clk{cursor:pointer} .spr.clk:hover{filter:brightness(1.25) drop-shadow(0 0 6px var(--gold))}
+ .verbadge{position:fixed;right:8px;bottom:6px;z-index:9999;font-size:11px;color:var(--sub);opacity:.6;pointer-events:none}
  .token{position:absolute;transition:left 1.6s ease,top 1.6s ease}
  .win{position:absolute;width:6px;height:6px;border-radius:2px;background:#ffd36b;
       box-shadow:0 0 6px #ffcf5a;opacity:0;transition:opacity 1.4s;z-index:3}
@@ -542,6 +544,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  <button onclick="newLife()">Начать новую жизнь</button>
 </div></div>
 
+<div id="verbadge" class="verbadge"></div>
 <div id="game" style="display:none">
 <div class="row" style="justify-content:space-between">
  <div><h1 id="town">…</h1><div class="sub" id="when">…</div></div>
@@ -703,7 +706,7 @@ function wsCall(op,extra){return new Promise(res=>{
  const id=++_rid;_pend[id]=res;ws.send(JSON.stringify(Object.assign({op,rid:id},extra||{})));
  setTimeout(()=>{if(_pend[id]){delete _pend[id];res({ok:false,msg:'таймаут'});}},5000);});}
 const ROLE_EMOJI={woodcutter:'🪓',smith:'🔨',cook:'🍲',fisher:'🎣',idler:'🧑',
- tavernkeeper:'🍺',villager:'🧑‍🌾',newcomer:'🧳',heir:'👶',traveler:'🧳',
+ tavernkeeper:'🍺',villager:'🧑',newcomer:'🧳',heir:'👶',traveler:'🧳',
  hunter:'🏹',herbalist:'🌿'};
 const ROLE_SPRITE={woodcutter:1,smith:1,cook:1,fisher:1,hunter:1,herbalist:1,tavernkeeper:1};
 function roleSprite(role){return ROLE_SPRITE[role]?('/assets/'+role+'.svg'):'/assets/villager.svg';}
@@ -1031,19 +1034,27 @@ function render(){
 }
 
 let DIFF=0.3;
-function startAct(k){pending={kind:'do',activity:k};openMini(S.activities[k]);}
+const ACT_GAMES={firewood:['mash','timing'],garden:['sequence','catch'],berries:['ripe','catch'],
+ fishing:['hold','balance'],hunting:['targets','aim'],build:['sequence','timing'],
+ herbs:['ripe','catch'],mine:['timing','balance']};
+function startAct(k){const a=Object.assign({},S.activities[k]);const pool=ACT_GAMES[k];
+ if(pool)a.minigame=pool[Math.floor(Math.random()*pool.length)];
+ pending={kind:'do',activity:k};openMini(a);}
 function startHelp(){pending={kind:'help'};openMini({label:'Помощь со стройкой',minigame:'sequence',difficulty:0.3});}
 function openMini(a){document.getElementById('mini').classList.add('on');DIFF=a.difficulty||0.3;
  document.getElementById('mtitle').textContent=a.label;const mg=a.minigame;
  const lvl=DIFF<0.3?'просто':DIFF<0.55?'средне':DIFF<0.75?'сложно':'мастерски';
  const hints={timing:'Останови бегунок в зелёной зоне (Пробел). 3 попытки.',sequence:'Повтори последовательность.',
-  targets:'Лови цели.',ripe:'Кликай спелые 🫐, не 🟢.',mash:'Жми ПРОБЕЛ часто — наполни полосу!',
-  hold:'Держи ПРОБЕЛ и отпусти в зелёной зоне.'};
+  targets:'Лови цели.',ripe:'Кликай спелые 🍎, не 🟢.',mash:'Жми ПРОБЕЛ часто — наполни полосу!',
+  hold:'Держи ПРОБЕЛ и отпусти в зелёной зоне.',catch:'Лови 🍎, не хватай 🪨 — кликай падающее.',
+  aim:'Бей по цели, когда она в кольце (Пробел/клик).',balance:'Держи точку в центре: Пробел толкает, отпустишь — сносит.'};
  document.getElementById('mhint').textContent=(hints[mg]||'')+` · сложность: ${lvl}`;
  const body=document.getElementById('mbody');body.innerHTML='';window._spaceAction=null;
  if(mg==='timing')miniTiming(body);else if(mg==='sequence')miniSequence(body);
  else if(mg==='ripe')miniRipe(body);else if(mg==='mash')miniMash(body);
- else if(mg==='hold')miniHold(body);else miniTargets(body);}
+ else if(mg==='hold')miniHold(body);else if(mg==='catch')miniCatch(body);
+ else if(mg==='aim')miniAim(body);else if(mg==='balance')miniBalance(body);
+ else miniTargets(body);}
 function closeMini(){document.getElementById('mini').classList.remove('on');window._spaceAction=null;if(window._mt)cancelAnimationFrame(window._mt);}
 
 // ── охота/бой ──
@@ -1106,7 +1117,7 @@ function miniHold(body){body.innerHTML='<div id="tbar"><div class="zone"></div><
   const c=zlo+zw/2;const q=Math.max(0,1-Math.abs(v-c)/35);finish(q);}
  window._spaceAction=(down)=>{if(down)held=true;else release();};
  body.onpointerdown=()=>{held=true;};body.onpointerup=()=>release();}
-function miniSequence(body){const icons=['🌿','🪵','🫐','🐟','🔨','🌾'];let seq=[],inp=[];const n=3+Math.round(DIFF*5);
+function miniSequence(body){const icons=['🌲','🍎','🐟','🔨','🌾','💧'];let seq=[],inp=[];const n=3+Math.round(DIFF*5);
  for(let i=0;i<n;i++)seq.push(Math.floor(Math.random()*icons.length));
  body.innerHTML='<div id="show" style="font-size:30px;letter-spacing:6px;min-height:40px"></div><div id="pad"></div>';
  const sh=body.querySelector('#show'),pad=body.querySelector('#pad');let i=0;
@@ -1117,7 +1128,7 @@ function miniRipe(body){body.innerHTML='<div id="field"></div><div class="sub" i
  const f=body.querySelector('#field'),cnt=body.querySelector('#cnt');let good=0,bad=0,sp=0,done=false;
  const goal=6+Math.round(DIFF*7),life=Math.max(500,1000-DIFF*520);f.style.fontSize='26px';
  function spawn(){if(done)return;sp++;const ripe=Math.random()>0.38;const t=document.createElement('div');
-  t.className='target';t.style.background='none';t.textContent=ripe?'🫐':'🟢';
+  t.className='target';t.style.background='none';t.textContent=ripe?'🍎':'🟢';
   t.style.display='flex';t.style.alignItems='center';t.style.justifyContent='center';
   t.style.left=(Math.random()*82)+'%';t.style.top=(Math.random()*74)+'%';
   t.onclick=()=>{if(ripe){good++;}else{bad++;}cnt.textContent='спелых '+good+(bad?(' · мимо '+bad):'');t.remove();};
@@ -1131,6 +1142,38 @@ function miniTargets(body){body.innerHTML='<div id="field"></div><div class="sub
  function spawn(){if(done)return;sp++;const t=document.createElement('div');t.className='target';t.style.left=(Math.random()*82)+'%';t.style.top=(Math.random()*76)+'%';
   t.onclick=()=>{c++;cnt.textContent='поймано '+c;t.remove();};f.appendChild(t);setTimeout(()=>t.remove(),life);if(sp<tot)setTimeout(spawn,gap+Math.random()*200);}spawn();
  setTimeout(()=>{done=true;f.querySelectorAll('.target').forEach(t=>t.remove());finish(Math.min(1,c/tot));},6000);}
+// ловля: падают 🍎(хорошо) и 🪨(плохо) — клик по падающему
+function miniCatch(body){body.innerHTML='<div id="field" style="position:relative;height:200px"></div><div class="sub" id="cnt">собрано 0</div>';
+ const f=body.querySelector('#field'),cnt=body.querySelector('#cnt');let good=0,bad=0,done=false,sp=0;
+ const goal=6+Math.round(DIFF*6),fall=Math.max(1200,2200-DIFF*1000);
+ function drop(){if(done)return;sp++;const ok=Math.random()>0.32;const t=document.createElement('div');
+  t.textContent=ok?'🍎':'🪨';t.style.cssText=`position:absolute;font-size:26px;left:${5+Math.random()*85}%;top:-28px;transition:top ${fall}ms linear;cursor:pointer`;
+  f.appendChild(t);requestAnimationFrame(()=>t.style.top='180px');
+  t.onclick=()=>{if(ok)good++;else bad++;cnt.textContent='собрано '+good+(bad?(' · мимо '+bad):'');t.remove();};
+  setTimeout(()=>t.remove(),fall+60);if(sp<goal+8)setTimeout(drop,Math.max(360,760-DIFF*300));}
+ drop();setTimeout(()=>{done=true;finish(Math.max(0,Math.min(1,(good-bad*0.8)/goal)));},6500);}
+// прицел: цель бегает, бей когда она в кольце (клик/Пробел)
+function miniAim(body){body.innerHTML='<div id="field" style="position:relative;height:200px"><div id="ring" style="position:absolute;width:60px;height:60px;border:3px solid var(--gold);border-radius:50%;left:50%;top:70px;transform:translateX(-50%)"></div></div><div class="sub" id="cnt">попаданий 0</div>';
+ const f=body.querySelector('#field'),ring=f.querySelector('#ring'),cnt=body.querySelector('#cnt');
+ const rx=f.clientWidth/2||180, ry=100;let hits=0,done=false,t=0;
+ const tgt=document.createElement('div');tgt.textContent='🎯';tgt.style.cssText='position:absolute;font-size:30px;cursor:pointer';f.appendChild(tgt);
+ const goal=5+Math.round(DIFF*5),spd=1.6+DIFF*1.8;
+ function loop(){if(done)return;t+=spd;const x=rx+Math.sin(t*0.05)*120, y=ry+Math.cos(t*0.07)*60;
+  tgt.style.left=(x-15)+'px';tgt.style.top=(y-15)+'px';window._mt=requestAnimationFrame(loop);}loop();
+ function tryHit(){if(done)return;const tr=tgt.getBoundingClientRect(),rr=ring.getBoundingClientRect();
+  const dx=(tr.left+tr.width/2)-(rr.left+rr.width/2),dy=(tr.top+tr.height/2)-(rr.top+rr.height/2);
+  if(Math.hypot(dx,dy)<34){hits++;cnt.textContent='попаданий '+hits+' / '+goal;if(hits>=goal){end();}}}
+ tgt.onclick=tryHit;f.onclick=tryHit;window._spaceAction=(d)=>{if(d)tryHit();};
+ function end(){if(done)return;done=true;cancelAnimationFrame(window._mt);window._spaceAction=null;finish(Math.min(1,hits/goal));}
+ setTimeout(end,7000);}
+// баланс: точку сносит влево, Пробел/мышь толкает вправо — держи у центра
+function miniBalance(body){body.innerHTML='<div id="bar2" style="position:relative;height:34px;background:#26262e;border-radius:8px;margin-top:10px"><div id="zone2" style="position:absolute;left:42%;width:16%;top:0;bottom:0;background:#3a5a3a;border-radius:8px"></div><div id="dot2" style="position:absolute;width:16px;height:34px;background:var(--gold);border-radius:6px;left:50%"></div></div><div class="sub" id="cnt">держи в зелёной</div>';
+ const dot=body.querySelector('#dot2');let pos=50,vel=0,push=false,done=false,inzone=0,ticks=0;
+ function loop(){if(done)return;ticks++;vel+=(-0.18-DIFF*0.12);if(push)vel+=0.5;vel*=0.9;pos+=vel;
+  if(pos<2){pos=2;vel=0;}if(pos>94){pos=94;vel=0;}dot.style.left=pos+'%';
+  if(pos>=42&&pos<=58)inzone++;window._mt=requestAnimationFrame(loop);}loop();
+ window._spaceAction=(d)=>{push=d;};body.onpointerdown=()=>push=true;body.onpointerup=()=>push=false;
+ setTimeout(()=>{done=true;cancelAnimationFrame(window._mt);window._spaceAction=null;finish(Math.max(0,Math.min(1,inzone/Math.max(1,ticks))));},6500);}
 
 async function accept(q){toast((await wsCall('quest',{qid:q})).msg);}
 async function choose(opt){const r=await wsCall('choose',{opt});toast(r.msg);if(r.chain_next)setTimeout(()=>toast(`🔗 ${r.chain_next.title} (${r.chain_next.reward}⌾) — на доске`),2200);}
@@ -1246,6 +1289,7 @@ async function build(id){toast((await wsCall('build',{id})).msg);}
 async function family(){toast((await wsCall('family',{})).msg);}
 
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('/sw.js');}catch(e){}}
+document.getElementById('verbadge').textContent='v__VER__';
 boot();
 </script></body></html>"""
 

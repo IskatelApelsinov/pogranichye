@@ -25,12 +25,12 @@ _CARAVAN_NAMES = ["Гужевой обоз Третьяка", "Купеческ�
                   "Коробейники Весняка", "Обоз Мирона Долгого", "Торг Белояра"]
 from .systems import (NeedsSystem, WorkSystem, TavernSystem, ConsumptionSystem,
                       EventsSystem, PopulationSystem, WeatherSystem, QuestSystem,
-                      SeasonSystem, AlifeSystem)
+                      SeasonSystem, AlifeSystem, NpcEconomySystem)
 
 HOT_THRESHOLD = 50.0        # выше — детальный режим, ниже — offline
 DEFAULT_SYSTEMS = [NeedsSystem, WorkSystem, TavernSystem, ConsumptionSystem,
                    EventsSystem, PopulationSystem, WeatherSystem, QuestSystem,
-                   SeasonSystem, AlifeSystem]
+                   SeasonSystem, AlifeSystem, NpcEconomySystem]
 
 
 def _fresh_systems():

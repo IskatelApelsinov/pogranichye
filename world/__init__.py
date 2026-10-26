@@ -26,8 +26,12 @@ def make_world(name: str | None = None, demo_seed: int = 1) -> Settlement:
     s.store.update(content.STARTING_STORE)
     s.tavern = content.SETTLEMENT_HAS_TAVERN
     rng = random.Random(demo_seed)
-    for cname, role in content.STARTING_ROSTER:
-        sex = _names.sex_of(cname)
+    used = set()                                       # имена уникальны В ПРЕДЕЛАХ деревни
+    for _orig, role in content.STARTING_ROSTER:
+        # имена генерим случайно по деревне (а не берём один общий ростер) —
+        # иначе во всех деревнях одни и те же люди и один корчмарь
+        sex = _names.random_sex(rng)
+        cname = _names.random_name(sex, rng, exclude=used); used.add(cname)
         father, mother = _names.random_parents(rng)
         age = round(rng.uniform(18, 55), 1)
         surname, nick = _names.identity(sex, role, rng)
@@ -38,8 +42,8 @@ def make_world(name: str | None = None, demo_seed: int = 1) -> Settlement:
                        coins=round(rng.uniform(3, 25), 1))   # у жителей есть немного денег
         _items.outfit_for_role(ch, rng)                      # одежда/орудие по ремеслу
         s.residents.append(ch)
-    if s.tavern and s.residents:                      # назначим корчмаря
-        keeper = s.residents[-1]
+    if s.tavern and s.residents:                      # корчмарь — случайный житель деревни
+        keeper = rng.choice(s.residents)
         keeper.role = "tavernkeeper"
         s.keeper = keeper.name
     # сделаем одного-двух ткачами — чтобы в лавке была одежда (ремесло → товар)

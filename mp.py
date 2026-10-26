@@ -23,6 +23,7 @@ from world import names
 from world import traits as _traits
 from world.durak import Durak, YOU as DURAK_YOU, BOT as DURAK_BOT
 from world import economy as ECON
+from world.version import VERSION as _VERSION
 from world import combat as C
 from world import roadevents as RE
 from world import tuning as T
@@ -1023,13 +1024,14 @@ class World:
                         "dwelling": round(c.dwelling),
                         "home": c.home, "comfort": round(c.home_comfort),
                         "coins": round(c.coins, 1), "rep": round(c.reputation, 1),
+                        "debt": round(sum(c.debts.values()), 1) if c.debts else 0,
                         "weapon": I.label(c.weapon) if c.weapon else "",
                         "warmth": I.warmth(c), "worn": len(I.worn(c)),
                         "last_act": c.last_act,
                         "skills": ", ".join(f"{k} {v:.0f}" for k, v in top),
                         "plot": len(c.plot), "inv": len(c.inventory),
                     })
-            return {"day": self.clock.day, "hour": self.clock.hour,
+            return {"day": self.clock.day, "hour": self.clock.hour, "version": _VERSION,
                     "shards": len(self.shards), "settlements_n": self._nset(),
                     "entities": entities, "settlements": settlements}
 
@@ -1278,6 +1280,7 @@ class World:
             bodies = sum(len(self._settle(g).residents) for g in range(self._nset()))
             base = {"region": {"name": "Приграничье", "count": self._nset(),
                                "shards": len(self.shards), "hot": hot_n, "bodies": bodies},
+                    "version": _VERSION,
                     "day": self.clock.day, "hour": self.clock.hour,
                     "me": me, "settlements": reg, "shop": ECON.wares_list(self._cur(slot)),
                     "recipes": [dict(r, can=I.can_craft(ch, r["id"])) for r in I.recipes_list()],
