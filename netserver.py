@@ -121,6 +121,11 @@ def _dispatch(aid, path, body):
         if act == "begin": return w.fight_begin(aid)
         if act == "view":  return w.fight_view(aid)
         return w.fight_act(aid, act, body.get("target", ""), body.get("quality", 0))
+    if path == "/api/magic":
+        act = body.get("action", "cast")
+        if act == "awaken": return w.magic_awaken(aid)
+        if act == "free":   return w.magic_cast(aid, "free", body.get("power", 0.5))
+        return w.magic_cast(aid, body.get("weave", "light"))
     if path == "/api/drink":   return w.drink(aid)
     if path == "/api/say":     return w.say(aid, body.get("text", ""))
     if path == "/api/card":
@@ -652,6 +657,8 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
    <div id="dpvphand" class="cardrow"></div>
    <div id="dpvpmsg" style="margin-top:4px"></div>
    <div class="row" id="dpvpbtns" style="margin-top:6px"></div></div>
+  <div class="card" id="magiccard" style="display:none"><b>✨ Плетение</b> <span class="sub">— дар немногих; тки осторожно, провал бьёт откатом</span>
+   <div id="magicbody" style="margin-top:8px"></div></div>
   <div class="card"><b>💬 Разговор у очага</b> <span class="sub">слышат те, кто сейчас здесь</span>
    <div id="chatlog" class="chatlog"></div>
    <div class="row" style="margin-top:8px">
@@ -905,7 +912,35 @@ function applyState(s){S=s;if(S.dead)document.getElementById('deadover').classLi
  document.body.classList.toggle('simple', !!(s.status && s.status!=='guest')); // аккаунт — проще, с гайдами
  if(S.fight){if(!_fightOpen)renderFight(S.fight);}   // открыть/возобновить; ход рисует сам ответ
  else if(S.encounter&&!_inCombat&&!_fightOpen)offerFight(S.encounter);
+ renderMagic();
  render();}
+// ── магия (панель мага) ──
+function renderMagic(){
+ const card=document.getElementById('magiccard');const mg=S.me&&S.me.magic;
+ if(!mg||!mg.mage){card.style.display='none';return;}
+ card.style.display='';
+ const b=document.getElementById('magicbody');
+ if(!mg.awakened){
+   b.innerHTML=`<div class="sub">В тебе дремлет дар (${Math.round(mg.gift*100)}%). Пробуди — и откроется плетение.</div>`
+    +`<button style="margin-top:8px" onclick="magicAwaken()">✨ Пробудить дар</button>`;
+   return;}
+ const mana=`<div style="margin:2px 0 6px"><span class="sub">сила ${mg.mana}/${mg.mana_max} · плетение ${mg.weaving}${mg.psyche>0?' · надлом '+mg.psyche:''}</span>`
+   +`<div style="background:#222;border-radius:5px;height:9px;overflow:hidden;margin-top:3px"><div style="width:${mg.mana_max?100*mg.mana/mg.mana_max:0}%;height:100%;background:#58a"></div></div></div>`;
+ let btns='';for(const wv of mg.weaves){
+   btns+=`<button ${wv.can?'':'disabled'} title="${wv.desc}" onclick="magicCast('${wv.id}')">${wv.icon} ${wv.name} <span class="sub">(${wv.cost})</span></button>`;}
+ const free=`<div style="margin-top:10px"><div class="sub">вольное плетение — азарт: больше силы, выше риск отката</div>`
+   +`<div class="row" style="margin-top:4px;align-items:center"><input id="freepow" type="range" min="10" max="100" value="50" style="flex:1">`
+   +`<button onclick="magicFree()">🌀 Сплести</button></div></div>`;
+ b.innerHTML=mana+`<div class="row" style="flex-wrap:wrap">${btns}</div>`+free;
+}
+async function magicAwaken(){toast((await wsCall('magic',{action:'awaken'})).msg||'');}
+async function magicCast(wv){const r=await wsCall('magic',{action:'cast',weave:wv});toast(r.msg||'');
+ if(r.fight_over){_fightOpen=false;document.getElementById('mini').classList.remove('on');}
+ else if(r.fight_view&&_fightOpen)renderFight(r.fight_view);}
+async function magicFree(){const p=(+document.getElementById('freepow').value)/100;
+ const r=await wsCall('magic',{action:'free',power:p});toast(r.msg||'');
+ if(r.fight_over){_fightOpen=false;document.getElementById('mini').classList.remove('on');}
+ else if(r.fight_view&&_fightOpen)renderFight(r.fight_view);}
 function tab(name){document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.pane===name));}
 // пробел = основное действие активной мини-игры (ПК)
@@ -1164,10 +1199,16 @@ function renderFight(fv){
   +`<button onclick="fightStrike()">⚔ Удар</button>`
   +`<button onclick="fightAct('guard')">🛡 Защита</button>`
   +`<button onclick="fightAct('dodge')">🤸 Уклон</button>`
-  +`<button onclick="fightAct('flee')" ${fv.can_flee?'':'disabled'}>🏃 Бежать</button></div>`
+  +`<button onclick="fightAct('flee')" ${fv.can_flee?'':'disabled'}>🏃 Бежать</button>`
+  +((S.me&&S.me.magic&&S.me.magic.awakened&&S.me.magic.mana>=8)?`<button onclick="fightSpark()">✨ Искра</button>`:'')
+  +`</div>`
   +`<div id="flog" style="margin-top:8px;max-height:96px;overflow:auto">${log}</div>`;
  highlightPart();
 }
+async function fightSpark(){if(_fightBusy)return;_fightBusy=true;
+ const r=await wsCall('magic',{action:'cast',weave:'spark'});_fightBusy=false;toast(r.msg||'');
+ if(r.fight_over){_fightOpen=false;document.getElementById('mini').classList.remove('on');}
+ else if(r.fight_view)renderFight(r.fight_view);}
 function pickPart(k){_fightTarget=k;highlightPart();}
 function highlightPart(){document.querySelectorAll('.pbtn').forEach(x=>{
   x.style.outline=(x.dataset.p===_fightTarget)?'2px solid var(--gold)':'none';});}

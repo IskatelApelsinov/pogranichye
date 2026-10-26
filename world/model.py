@@ -23,6 +23,11 @@ class Character:
     health: float = 100.0         # телесное здоровье (0..100): точит голод/усталость/холод/раны
     wounds: dict = field(default_factory=dict)   # раны по частям тела (world.body): часть -> урон; пусто = цел
     bleeding: float = 0.0         # кровопотеря (world.body): точит здоровье, пока не остановлена
+    # ── дар и психика (world.magic / world.psyche) ──
+    gift: float = 0.0             # предрасположенность к плетению (бросок при рождении); >порога = может учиться магии
+    mana: float = 0.0             # запас силы для плетений («чем действуешь»)
+    mana_max: float = 0.0         # предел маны (у немагов 0)
+    psyche: float = 0.0           # душевный надлом/стресс (0..100): растёт от смерти, отката; мешает колдовать и трезво решать
     trait: str = ""               # черта характера (world.traits); '' — обычный
     skills: dict = field(default_factory=dict)
     alive: bool = True

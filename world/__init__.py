@@ -10,6 +10,7 @@ from .engine import Engine, System
 from . import content
 from . import names as _names
 from . import traits as _traits
+from . import magic as _magic
 from . import items as _items
 from . import economy as _economy
 from .persistence import save_world, load_world
@@ -41,6 +42,9 @@ def make_world(name: str | None = None, demo_seed: int = 1) -> Settlement:
                        trait=_traits.assign(rng),
                        coins=round(rng.uniform(3, 25), 1))   # у жителей есть немного денег
         _items.outfit_for_role(ch, rng)                      # одежда/орудие по ремеслу
+        _magic.roll_gift(ch, rng)                            # редкий дар к плетению (world.magic)
+        if _magic.gifted(ch) and rng.random() < 0.6:         # большинство одарённых уже владеют азами
+            _magic.awaken(ch); ch.skills["weaving"] = round(rng.uniform(5, 40), 1); ch.mana = ch.mana_max
         s.residents.append(ch)
     if s.tavern and s.residents:                      # корчмарь — случайный житель деревни
         keeper = rng.choice(s.residents)

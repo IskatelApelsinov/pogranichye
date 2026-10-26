@@ -4,6 +4,7 @@ from __future__ import annotations
 from .. import tuning as T
 from .. import player as _player
 from .. import body as _body
+from .. import magic as _magic
 from ..engine import System
 from ..memory import record_death
 
@@ -24,6 +25,11 @@ class NeedsSystem(System):
                     ch.alive = False
                     record_death(w, ch, "истёк кровью от ран", clock)
                     continue
+            # мана мага восполняется, душевный надлом понемногу отпускает (world.magic/психика)
+            if getattr(ch, "mana_max", 0.0) > 0:
+                _magic.regen(ch, 1.0)
+            if getattr(ch, "psyche", 0.0) > 0:
+                ch.psyche = max(0.0, ch.psyche - (1.2 if sleeping_now else 0.6))
             if sleeping_now:
                 ch.fatigue = max(0.0, ch.fatigue - T.SLEEP_RECOVER)
                 ch.last_act = "спит"

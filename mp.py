@@ -28,6 +28,7 @@ from world.dice import RngHub as DiceHub, seed64 as _dice_seed64, FairDice as _F
 from world import combat as C
 from world import body as _body
 from world import encounter as EN
+from world import magic as MG
 from world import roadevents as RE
 from world import tuning as T
 from world.content import (TAVERN_TOASTS, TAVERN_RUMORS,
@@ -230,6 +231,7 @@ class World:
                          surname=surname, nick=nick,
                          coins=60.0, origin=origin, trait=_traits.assign(g))
         I.outfit_for_role(char, g)                    # новичок приходит одетым по ремеслу
+        MG.roll_gift(char, g)                         # бросок дара к плетению при рождении (редко)
         return char, loc
 
     def touch(self, aid):
@@ -607,6 +609,48 @@ class World:
             if not slot or not slot.enc:
                 return {"ok": False, "msg": "боя нет"}
             return {"ok": True, "view": EN.view(slot.char, slot.enc)}
+
+    # ── магия (world.magic) — слой 3 ──
+    def magic_awaken(self, aid):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or not slot.char.alive:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            r = MG.awaken(slot.char)
+            if r.get("ok") and "пробуждён — ты" in r.get("msg", ""):
+                self._feed(slot, "✨ дар плетения пробуждён")
+            return r
+
+    def magic_cast(self, aid, weave, power=0.0):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or not slot.char.alive:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            st = self.rhub.stream("weave", aid)
+            if weave == "free":
+                res = MG.free_weave(slot.char, float(power or 0.0), st)
+            else:
+                res = MG.cast(slot.char, weave, st)
+            # боевой эффект применяем к текущей схватке, если она идёт
+            eff = res.get("effect")
+            if eff and eff.get("kind") == "spark":
+                if slot.enc and not slot.enc.get("over"):
+                    slot.enc["hp"] = max(0.0, slot.enc["hp"] - eff["power"])
+                    res["msg"] += f" — зверю −{eff['power']:.0f}"
+                    if slot.enc["hp"] <= 0:
+                        enc = slot.enc; b = C.info(enc["beast"]); slot.enc = None
+                        enc["over"] = True; enc["won"] = True
+                        slot.char.reputation += 1.0
+                        res["fight_over"] = True; res["won"] = True
+                        res["reward"] = EN._settle(slot.char, enc)
+                        self._feed(slot, f"✨ испепелил(а) {b['icon']} {b['name']} плетением")
+                    else:
+                        res["fight_view"] = EN.view(slot.char, slot.enc)
+                else:
+                    res["msg"] += " — но бить сейчас некого, сила ушла в воздух"
+            if res.get("success") is False and res.get("backlash"):
+                self._feed(slot, "🌀 откат плетения")
+            return res
 
     def drink(self, aid):
         """Выпить медовухи в таверне. Атмосфера + совместное питьё при со-присутствии —
@@ -1414,6 +1458,7 @@ class World:
                   "social": round(ch.social), "ambition": round(ch.ambition),
                   "dwelling": round(ch.dwelling),
                   "body": _body.state_view(ch),
+                  "magic": MG.view(ch),
                   "alive": ch.alive, "dead": slot.dead,
                   "skills": {k: round(v, 1) for k, v in ch.skills.items()},
                   "favors": dict(ch.favors),
