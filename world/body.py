@@ -28,11 +28,11 @@ from __future__ import annotations
 # Части тела: макс. запас прочности и вес уязвимости (как часто сюда прилетает).
 # Торс крупный и открытый — ловит чаще; голова мелкая — реже, но дорого.
 PARTS = {
-    "head":   dict(name="голова",   max=22.0, weight=1.0),
-    "torso":  dict(name="корпус",   max=48.0, weight=4.0),
-    "arm_r":  dict(name="правая рука", max=26.0, weight=2.0),  # ведущая — держит оружие
-    "arm_l":  dict(name="левая рука",  max=26.0, weight=1.6),
-    "legs":   dict(name="ноги",     max=34.0, weight=2.4),
+    "head":   dict(name="голова",   acc="голову",      max=22.0, weight=1.0),
+    "torso":  dict(name="корпус",   acc="корпус",      max=48.0, weight=4.0),
+    "arm_r":  dict(name="правая рука", acc="правую руку", max=26.0, weight=2.0),  # ведущая — держит оружие
+    "arm_l":  dict(name="левая рука",  acc="левую руку",  max=26.0, weight=1.6),
+    "legs":   dict(name="ноги",     acc="ноги",        max=34.0, weight=2.4),
 }
 ORDER = ["head", "torso", "arm_r", "arm_l", "legs"]
 
@@ -97,8 +97,14 @@ def can_flee(ch) -> bool:
 
 
 def incapacitated(ch) -> bool:
-    """«Без сил»: корпус добит или голова добита — бой окончен отступлением/падением."""
-    return disabled(ch, "torso") or disabled(ch, "head")
+    """«Без сил»: бой окончен отступлением/падением, если
+    добит корпус или голова, иссяк общий запас жизни, либо отнялись обе конечности."""
+    if disabled(ch, "torso") or disabled(ch, "head"):
+        return True
+    if getattr(ch, "health", 100.0) <= 15.0:
+        return True
+    limbs = sum(1 for p in ("arm_r", "arm_l", "legs") if disabled(ch, p))
+    return limbs >= 2
 
 
 def bleeding(ch) -> float:
@@ -166,7 +172,7 @@ def apply_hit(ch, amount: float, stream, target: str | None = None,
     elif bleed:
         text = f"кровь из раны — {pname}"
     else:
-        text = f"удар в {pname}"
+        text = f"удар в {PARTS[part]['acc']}"
     return {"part": part, "part_name": pname, "dealt": round(amount, 1),
             "disabled": now_disabled, "bleed": bool(bleed),
             "spill": round(spill, 1), "text": text}

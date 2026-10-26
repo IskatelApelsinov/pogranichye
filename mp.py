@@ -27,6 +27,7 @@ from world.version import VERSION as _VERSION
 from world.dice import RngHub as DiceHub, seed64 as _dice_seed64, FairDice as _FairDice
 from world import combat as C
 from world import body as _body
+from world import encounter as EN
 from world import roadevents as RE
 from world import tuning as T
 from world.content import (TAVERN_TOASTS, TAVERN_RUMORS,
@@ -50,6 +51,7 @@ class Slot:
         self.transit = None; self.last_seen = time.time()
         self.online = True; self.dead = False
         self.pending = None            # незакрытый энкаунтер (бой): {'beast','where'}
+        self.enc = None                # тактическая схватка по раундам (world.encounter): плоский словарь
         self.choice = None             # незакрытая развилка квеста: {'giver','activity','options'}
         self.drank = -99               # час последнего тоста (для совместного питья)
         self.card = None               # партия в «очко» в таверне: {deck,player,dealer,bet,done}
@@ -556,6 +558,55 @@ class World:
             else:
                 self._feed(slot, f"🩸 схватка с {b['icon']} {b['name']} — не задалось")
             return res
+
+    # ── тактическая схватка по раундам (world.encounter) — слой 2 ──
+    def fight_begin(self, aid):
+        """Начать поединок по раундам из ожидающего зверя (hunt/дорога).
+        Старый одноударный strike остаётся для быстрого боя — это альтернатива."""
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or not slot.char.alive:
+                return {"ok": False, "msg": "нельзя сейчас"}
+            if slot.enc and not slot.enc.get("over"):
+                return {"ok": True, "view": EN.view(slot.char, slot.enc)}
+            if not slot.pending:
+                return {"ok": False, "msg": "драться не с кем"}
+            bid = slot.pending["beast"]; where = slot.pending.get("where", "hunt")
+            slot.pending = None
+            slot.enc = EN.start(slot.char, bid, where)
+            if not slot.enc:
+                return {"ok": False, "msg": "зверя уже нет"}
+            return {"ok": True, "view": EN.view(slot.char, slot.enc)}
+
+    def fight_act(self, aid, kind, target="", quality=0.0):
+        """Один раунд схватки. kind=strike|guard|dodge|flee, target — часть тела."""
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or not slot.enc:
+                return {"ok": False, "msg": "боя нет"}
+            action = {"kind": kind, "quality": float(quality or 0.0)}
+            if target:
+                action["target"] = target
+            res = EN.act(slot.char, slot.enc, action, self.rhub.stream("fight", aid, slot.enc["round"]))
+            if slot.enc.get("over"):
+                b = C.info(slot.enc["beast"]); enc = slot.enc; slot.enc = None
+                if enc.get("won"):
+                    slot.char.reputation += 1.0
+                    self._feed(slot, f"⚔ одолел(а) {b['icon']} {b['name']} в бою")
+                elif enc.get("fled"):
+                    self._feed(slot, f"🏃 вышел(а) из боя с {b['icon']} {b['name']}")
+                else:
+                    self._feed(slot, f"🩸 {b['icon']} {b['name']} оказался сильнее")
+            else:
+                res["view"] = EN.view(slot.char, slot.enc)
+            return res
+
+    def fight_view(self, aid):
+        with self.lock:
+            slot = self._slot(aid)
+            if not slot or not slot.enc:
+                return {"ok": False, "msg": "боя нет"}
+            return {"ok": True, "view": EN.view(slot.char, slot.enc)}
 
     def drink(self, aid):
         """Выпить медовухи в таверне. Атмосфера + совместное питьё при со-присутствии —
@@ -1386,7 +1437,9 @@ class World:
                     "me": me, "settlements": reg, "shop": ECON.wares_list(self._cur(slot)),
                     "recipes": [dict(r, can=I.can_craft(ch, r["id"])) for r in I.recipes_list()],
                     "plots": P.plot_list()}
-            if slot.pending:
+            if slot.enc and not slot.enc.get("over"):
+                base["fight"] = EN.view(slot.char, slot.enc)
+            elif slot.pending:
                 b = C.info(slot.pending["beast"])
                 base["encounter"] = {"beast": slot.pending["beast"], "name": b["name"],
                                      "icon": b["icon"], "where": slot.pending["where"],

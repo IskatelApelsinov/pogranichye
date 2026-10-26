@@ -116,6 +116,11 @@ def _dispatch(aid, path, body):
     if path == "/api/hunt":    return w.hunt(aid)
     if path == "/api/trap":    return w.trap(aid)
     if path == "/api/strike":  return w.strike(aid, body.get("quality", 0))
+    if path == "/api/fight":
+        act = body.get("action", "begin")
+        if act == "begin": return w.fight_begin(aid)
+        if act == "view":  return w.fight_view(aid)
+        return w.fight_act(aid, act, body.get("target", ""), body.get("quality", 0))
     if path == "/api/drink":   return w.drink(aid)
     if path == "/api/say":     return w.say(aid, body.get("text", ""))
     if path == "/api/card":
@@ -898,7 +903,8 @@ function endTravelView(){_travelSig='';if(_travelRAF){cancelAnimationFrame(_trav
 let _inCombat=false;
 function applyState(s){S=s;if(S.dead)document.getElementById('deadover').classList.add('on');
  document.body.classList.toggle('simple', !!(s.status && s.status!=='guest')); // аккаунт — проще, с гайдами
- if(S.encounter&&!_inCombat)openCombat(S.encounter);
+ if(S.fight){if(!_fightOpen)renderFight(S.fight);}   // открыть/возобновить; ход рисует сам ответ
+ else if(S.encounter&&!_inCombat&&!_fightOpen)offerFight(S.encounter);
  render();}
 function tab(name){document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.pane===name));}
@@ -1118,6 +1124,78 @@ function openCombat(enc){
  window._spaceAction=(down)=>{if(down){const t=f.querySelector('.target');if(t)doHit(t);}};
  spawn();
  setTimeout(finishCombat,9000);
+}
+
+// ── тактическая схватка по раундам (слой 2) ──
+let _fightOpen=false, _fightTarget='torso', _fightBusy=false;
+const PART_LABEL={head:'голова',torso:'корпус',arm_r:'прав. рука',arm_l:'лев. рука',legs:'ноги'};
+function offerFight(enc){
+ _fightOpen=true;
+ const m=document.getElementById('mini');m.classList.add('on');
+ document.getElementById('mtitle').textContent=(enc.where==='road'?'Засада! ':'Зверь: ')+enc.icon+' '+enc.name;
+ document.getElementById('mhint').textContent='Как будешь биться?';
+ const b=document.getElementById('mbody');
+ b.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px">'
+  +'<button onclick="fightBegin()">⚔ В бой (по раундам)</button>'
+  +'<button onclick="fightQuick()">⚡ Быстро (наскок)</button></div>'
+  +'<div class="sub" style="margin-top:8px">В бою: целься по частям тела, защищайся, уклоняйся или уходи.</div>';
+}
+function fightQuick(){_fightOpen=false;document.getElementById('mini').classList.remove('on');openCombat(S.encounter);}
+async function fightBegin(){const r=await wsCall('fight',{action:'begin'});if(!r.ok){toast(r.msg);_fightOpen=false;document.getElementById('mini').classList.remove('on');return;}renderFight(r.view);}
+function _hpBar(ratio,col){return`<div style="background:#222;border-radius:5px;height:12px;overflow:hidden"><div style="width:${Math.max(0,ratio*100)}%;height:100%;background:${col}"></div></div>`;}
+function renderFight(fv){
+ _fightOpen=true;_fightBusy=false;
+ const m=document.getElementById('mini');m.classList.add('on');
+ document.getElementById('mtitle').textContent='Бой: '+fv.icon+' '+fv.name+' · раунд '+fv.round;
+ document.getElementById('mhint').textContent='Выбери цель и действие.';
+ const bd=fv.body||{}, parts=bd.parts||{};
+ let partBtns='';for(const k of ['head','torso','arm_r','arm_l','legs']){
+   const p=parts[k]||{ratio:1};const dis=p.disabled?' ✖':'';
+   partBtns+=`<button class="pbtn" data-p="${k}" onclick="pickPart('${k}')" style="padding:4px 7px;font-size:12px">${PART_LABEL[k]}${dis}</button>`;}
+ let mine='';const notes=(bd.notes||[]);
+ const blood=bd.bleeding>0?' 🩸':'';
+ const log=(fv.log||[]).map(l=>`<div class="sub">• ${l}</div>`).join('');
+ const b=document.getElementById('mbody');
+ b.innerHTML=
+  `<div style="margin:6px 0 2px">${fv.icon} ${fv.name}</div>${_hpBar(fv.hp_ratio,'#c45')}`
+  +`<div class="sub" style="margin-top:6px">ты${blood} ${notes.length?('· '+notes.join(' · ')):'· цел'}</div>`
+  +`<div style="margin-top:8px"><div class="sub">цель удара:</div><div id="parts" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">${partBtns}</div></div>`
+  +`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">`
+  +`<button onclick="fightStrike()">⚔ Удар</button>`
+  +`<button onclick="fightAct('guard')">🛡 Защита</button>`
+  +`<button onclick="fightAct('dodge')">🤸 Уклон</button>`
+  +`<button onclick="fightAct('flee')" ${fv.can_flee?'':'disabled'}>🏃 Бежать</button></div>`
+  +`<div id="flog" style="margin-top:8px;max-height:96px;overflow:auto">${log}</div>`;
+ highlightPart();
+}
+function pickPart(k){_fightTarget=k;highlightPart();}
+function highlightPart(){document.querySelectorAll('.pbtn').forEach(x=>{
+  x.style.outline=(x.dataset.p===_fightTarget)?'2px solid var(--gold)':'none';});}
+async function fightAct(kind,quality){
+ if(_fightBusy)return;_fightBusy=true;
+ const r=await wsCall('fight',{action:kind,target:(kind==='strike'?_fightTarget:''),quality:quality||0});
+ _fightBusy=false;
+ if(!r.ok){toast(r.msg||'');return;}
+ if(r.over){_fightOpen=false;document.getElementById('mini').classList.remove('on');
+   let m=r.msg||'';if(r.won&&r.reward){m+=` · +${r.reward.coins_gain}⌾`;}toast(m);return;}
+ if(r.view)renderFight(r.view);
+}
+// удар с замером точности: быстрый бегунок, тап по центру = сильный удар
+function fightStrike(){
+ if(_fightBusy)return;
+ const b=document.getElementById('mbody');
+ document.getElementById('mhint').textContent='Жми в центр полосы — точнее удар!';
+ b.innerHTML=`<div class="sub" style="margin-bottom:6px">цель: ${PART_LABEL[_fightTarget]}</div>`
+  +`<div id="tbar" style="position:relative;height:26px;background:#222;border-radius:6px;overflow:hidden">`
+  +`<div style="position:absolute;left:42%;width:16%;height:100%;background:#3a5a3a"></div>`
+  +`<div id="mk" style="position:absolute;top:0;width:4px;height:100%;background:var(--gold)"></div></div>`
+  +`<button id="hitb" style="margin-top:10px">Бей!</button>`;
+ let x=0,dir=1,raf=0;const mk=b.querySelector('#mk');
+ function step(){x+=dir*2.2;if(x>=100){x=100;dir=-1;}if(x<=0){x=0;dir=1;}mk.style.left=x+'%';raf=requestAnimationFrame(step);}
+ step();
+ function hit(){cancelAnimationFrame(raf);const q=Math.max(0,1-Math.abs(x-50)/50);fightAct('strike',q);}
+ b.querySelector('#hitb').onclick=hit;
+ window._spaceAction=(d)=>{if(d)hit();};
 }
 async function finish(q){closeMini();let r;
  if(pending.kind==='do')r=await wsCall('do',{activity:pending.activity,quality:q});
