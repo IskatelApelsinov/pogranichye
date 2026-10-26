@@ -959,7 +959,15 @@ function render(){
  const coldb=(H.cold?' <span class="tag" style="background:#2d4a63">❄ холода</span>':'')+` <span class="tag">${sic} ${H.season}</span>`+wtag;
  document.getElementById('health').innerHTML=`<span style="color:${hc}">здоровье ${H.health}</span>`+coldb;
  document.getElementById('store').textContent='· еды на '+H.food_days+' дн · склад: '+Object.entries(H.store).map(([k,v])=>k+' '+v).join(' · ');
- document.getElementById('body').innerHTML=`❤ здоровье ${S.me.health} · 🙂 настрой ${S.me.morale} · 🍗 голод ${S.me.hunger} · 💤 усталость ${S.me.fatigue}`;
+ let wline='';
+ const bd=S.me.body;
+ if(bd&&(bd.severity>0.001||bd.bleeding>0)){
+   const parts=(bd.notes||[]).join(' · ');
+   const bl=bd.bleeding>0?` <span class="tag" style="background:#7a2a2a">🩸 кровь</span>`:'';
+   const ic=bd.incapacitated?' <span class="tag" style="background:#7a2a2a">⚠ без сил</span>':'';
+   wline=`<div class="sub" style="margin-top:3px;color:#d98">🩹 ${parts}${bl}${ic}</div>`;
+ }
+ document.getElementById('body').innerHTML=`❤ здоровье ${S.me.health} · 🙂 настрой ${S.me.morale} · 🍗 голод ${S.me.hunger} · 💤 усталость ${S.me.fatigue}`+wline;
  document.getElementById('whoelse').textContent=H.players_here&&H.players_here.length?('👥 рядом другие игроки: '+H.players_here.join(', ')):'';
  document.getElementById('mk').textContent=H.market;
  drawScene(H,S.hour);

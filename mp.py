@@ -26,6 +26,7 @@ from world import economy as ECON
 from world.version import VERSION as _VERSION
 from world.dice import RngHub as DiceHub, seed64 as _dice_seed64, FairDice as _FairDice
 from world import combat as C
+from world import body as _body
 from world import roadevents as RE
 from world import tuning as T
 from world.content import (TAVERN_TOASTS, TAVERN_RUMORS,
@@ -1361,6 +1362,7 @@ class World:
                   "trait_desc": (_traits.info(getattr(ch, "trait", "")) or {}).get("desc", ""),
                   "social": round(ch.social), "ambition": round(ch.ambition),
                   "dwelling": round(ch.dwelling),
+                  "body": _body.state_view(ch),
                   "alive": ch.alive, "dead": slot.dead,
                   "skills": {k: round(v, 1) for k, v in ch.skills.items()},
                   "favors": dict(ch.favors),

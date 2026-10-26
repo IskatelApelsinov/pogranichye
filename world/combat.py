@@ -10,6 +10,7 @@ combat) и качество мини-игры множат. Одежда (warmth
 """
 from __future__ import annotations
 from . import items as _items
+from . import body as _body
 
 # power — боевая мощь зверя; loot — добыча в груз; coins — монеты; danger — ответный урон
 BEASTS = {
@@ -42,8 +43,9 @@ def attack_power(ch, quality: float) -> float:
     """Сила удара: база + оружие, умноженные на навык и качество мини-игры."""
     dmg = _items.weapon_dmg(ch)
     skill = max(ch.skill("hunting"), ch.skill("combat"))
-    # голыми руками зверя не взять (база мала) — нужна снасть; оружие и навык множат
-    return (1.0 + dmg) * (0.35 + 0.65 * quality) * (1.0 + skill / 100.0)
+    # голыми руками зверя не взять (база мала) — нужна снасть; оружие и навык множат.
+    # Раны бьющей руки/корпуса ослабляют удар (системное последствие ран, world.body).
+    return (1.0 + dmg) * (0.35 + 0.65 * quality) * (1.0 + skill / 100.0) * _body.attack_mult(ch)
 
 
 def resolve(ch, beast_id: str, quality: float, rng) -> dict:
@@ -62,7 +64,12 @@ def resolve(ch, beast_id: str, quality: float, rng) -> dict:
     armor = _items.warmth(ch) * 0.4
     hurt = max(0.0, b["danger"] * (1.3 - quality) - armor)
     hurt *= (1.0 - _items.trinket_stat(ch, "guard"))     # оберег бережёт в бою
-    ch.fatigue = min(100.0, ch.fatigue + hurt)
+    ch.fatigue = min(100.0, ch.fatigue + hurt * 0.4)     # часть «боли» — просто усталость от схватки
+    # остальное — настоящая рана по части тела (кости выбирают куда, если не целишься)
+    wound = {}
+    if hurt > 0.5:
+        crit = rng.chance(0.10 + 0.18 * (1.0 - quality))  # промах чаще пропускает тяжёлый удар
+        wound = _body.apply_hit(ch, hurt, rng, crit=crit)
 
     if win:
         gained = {}
@@ -73,13 +80,14 @@ def resolve(ch, beast_id: str, quality: float, rng) -> dict:
                 gained[res] = take
         pay = round(b["coins"] * (0.5 + 0.5 * quality), 1)
         ch.coins += pay
+        wtext = f" · {wound['text']}" if wound.get("text") else ""
         return {"ok": True, "win": True, "beast": b["name"], "icon": b["icon"],
                 "loot": gained, "coins_gain": pay, "coins": round(ch.coins, 1),
-                "hurt": round(hurt), "skill": skill,
+                "hurt": round(hurt), "wound": wound, "skill": skill,
                 "skill_level": round(ch.skill(skill), 1),
                 "msg": f"{b['icon']} {b['name']} повержен! добыча: "
                        + (", ".join(f"{k} {v}" for k, v in gained.items()) or "—")
-                       + f", +{pay}⌾" + (f" · урон тебе {hurt:.0f}" if hurt else "")}
+                       + f", +{pay}⌾" + wtext}
     # поражение: травма; разбойник отнимает часть груза
     stolen = {}
     if beast_id == "bandit" and ch.cargo:
@@ -89,9 +97,10 @@ def resolve(ch, beast_id: str, quality: float, rng) -> dict:
         if ch.cargo[res] <= 0:
             ch.cargo.pop(res, None)
         stolen[res] = amt
+    wtext = f", {wound['text']}" if wound.get("text") else ""
     return {"ok": True, "win": False, "beast": b["name"], "icon": b["icon"],
-            "hurt": round(hurt), "stolen": stolen, "skill": skill,
+            "hurt": round(hurt), "wound": wound, "stolen": stolen, "skill": skill,
             "skill_level": round(ch.skill(skill), 1),
             "msg": f"{b['icon']} {b['name']} оказался сильнее — ты отступил"
-                   + (f", урон {hurt:.0f}" if hurt else "")
+                   + wtext
                    + (f", украдено: {', '.join(f'{k} {v}' for k, v in stolen.items())}" if stolen else "")}

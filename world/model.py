@@ -21,6 +21,8 @@ class Character:
     dwelling: float = 0.0         # A-LIFE: обустроенность своего дома (растёт трудом, гасит тягу уйти)
     morale: float = 60.0          # настрой (0..100): растёт от отдыха/медовухи/дел, падает от нужды
     health: float = 100.0         # телесное здоровье (0..100): точит голод/усталость/холод/раны
+    wounds: dict = field(default_factory=dict)   # раны по частям тела (world.body): часть -> урон; пусто = цел
+    bleeding: float = 0.0         # кровопотеря (world.body): точит здоровье, пока не остановлена
     trait: str = ""               # черта характера (world.traits); '' — обычный
     skills: dict = field(default_factory=dict)
     alive: bool = True
