@@ -76,6 +76,14 @@ class Stream:
     def uniform(self, a: float, b: float) -> float:
         return a + (b - a) * self.random()
 
+    def randrange(self, start: int, stop: int | None = None) -> int:
+        """Как random.randrange: [0,start) или [start,stop). Для drop-in совместимости."""
+        if stop is None:
+            lo, hi = 0, start
+        else:
+            lo, hi = start, stop
+        return lo + self._u64() % max(1, (hi - lo))
+
     # ── кости ──
     def roll(self, sides: int = 6) -> int:
         """Один кубик d<sides>: 1..sides."""

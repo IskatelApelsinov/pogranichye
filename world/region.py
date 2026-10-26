@@ -20,6 +20,7 @@ from .engine import Engine
 from .offline import offline_day
 from .archive import archive_settlement, restore_settlement
 from . import economy as _econ
+from .dice import RngHub as _RngHub
 
 _CARAVAN_NAMES = ["Гужевой обоз Третьяка", "Купеческий обоз Доброни",
                   "Коробейники Весняка", "Обоз Мирона Долгого", "Торг Белояра"]
@@ -92,10 +93,14 @@ def make_region(n: int = 3, seed: int = 1) -> "Region":
 
 
 class Region:
-    def __init__(self, settlements: list[Settlement], seed: int = 1):
+    def __init__(self, settlements: list[Settlement], seed: int = 1, rng_states: dict | None = None):
         self.settlements = settlements
         self.clock = WorldClock()
-        self.rng = random.Random(seed)
+        self.rng = random.Random(seed)           # legacy-поток (почти не используется; оставлен для совместимости)
+        # ── ЯДРО КОСТЕЙ: независимые именованные потоки (world/dice.py) ──
+        # каждый (деревня, система) тянет из своего потока, поэтому добавление системы
+        # НЕ сдвигает чужую случайность. Состояние переживает рестарт (rng_states).
+        self.dice = _RngHub(f"region-{seed}", rng_states)
         # детальные движки держим только для горячих поселений (ленивое создание)
         self._engines: dict[int, Engine] = {}
         self.wanderers: list[Character] = []     # в пути между поселениями (не теряются)
@@ -105,7 +110,7 @@ class Region:
             n_cav = 1 + (len(settlements) >= 4)
             for k in range(n_cav):
                 nm = _CARAVAN_NAMES[(seed + k) % len(_CARAVAN_NAMES)]
-                self.caravans.append(_econ.new_caravan(nm, settlements, self.clock, self.rng))
+                self.caravans.append(_econ.new_caravan(nm, settlements, self.clock, self.dice.stream("caravan_init", k)))
 
     # ── температура: кто горячий. Смена режима архивирует/восстанавливает тела ──
     def set_hot(self, indices) -> None:
@@ -121,7 +126,6 @@ class Region:
         eng = self._engines.get(i)
         if eng is None:
             eng = Engine(self.settlements[i], self.clock, seed=0)
-            eng.rng = self.rng                 # общий поток случайности региона
             for sys in _fresh_systems():
                 eng.register(sys)
             self._engines[i] = eng
@@ -136,29 +140,30 @@ class Region:
         # часы двигаем один раз на весь регион
         self.clock.total_hours += 1
         # караваны-торговцы ходят каждый час (товары текут по миру в реальном времени)
-        for cav in self.caravans:
-            news = _econ.step_caravan(cav, self.settlements, self.clock, self.rng)
+        for ci, cav in enumerate(self.caravans):
+            news = _econ.step_caravan(cav, self.settlements, self.clock, self.dice.stream("caravan", ci))
             if news and 0 <= cav.at < len(self.settlements):
                 self.settlements[cav.at].add_news(self.clock, news)
         if self.clock.hour == 0:
             # сперва расселяем вчерашних путников (миграция в приоритете над рождением)
             self._migrate()
             # мастера пополняют лавки своими изделиями
-            for s in self.settlements:
-                _econ.restock_artisans(s, self.rng)
+            for i, s in enumerate(self.settlements):
+                _econ.restock_artisans(s, self.dice.stream("restock", i))
             # затем холодные — дёшево, раз в сутки (могут дать новых путников)
             for i, s in enumerate(self.settlements):
                 if s.temperature < HOT_THRESHOLD:
-                    offline_day(s, self.clock, self.rng)
+                    offline_day(s, self.clock, self.dice.stream("offline", i))
 
     def _run_hot_hour(self, i: int) -> None:
         eng = self._engine_for(i)
+        # каждая система тянет из СВОЕГО потока (деревня i, имя системы) — независимо
         for sys in eng.systems:
-            sys.on_hour(eng.world, self.clock, self.rng)
+            sys.on_hour(eng.world, self.clock, self.dice.stream(i, sys.name))
         # суточные хуки горячего поселения — на стыке суток (clock ещё не сдвинут)
         if (self.clock.total_hours + 1) % T.HOURS_PER_DAY == 0:
             for sys in eng.systems:
-                sys.on_day(eng.world, self.clock, self.rng)
+                sys.on_day(eng.world, self.clock, self.dice.stream(i, sys.name, "day"))
 
     # ── миграция: ушедшие → странники → в поселение под ёмкость (никто не теряется) ──
     def _migrate(self) -> None:
@@ -175,7 +180,7 @@ class Region:
             if not dests:
                 still_walking.append(ch)         # мест нет — идёт дальше, не исчезает
                 continue
-            dest = self.rng.choice(dests)
+            dest = self.dice.stream("migrate").choice(dests)
             ch.role = "idler"
             if dest.archived:
                 dest.pending_arrivals.append(ch) # придёт в тела при разогреве

@@ -159,7 +159,16 @@ class World:
         Деревню выбираем через персистентный поток костей 'spawn' — так подряд
         идущие новички распределяются равномерно (а не кучкуются в одной деревне,
         как было с hash(aid))."""
-        loc = self.dice.stream("spawn").randint(0, self._nset() - 1)
+        # куда родиться: честный бросок кости, НО с естественной неровностью —
+        # новичков тянет туда, где есть жизнь (вес по населению + здоровью деревни),
+        # поэтому идеально равномерного распределения нет (как и просила).
+        weights = []
+        for g in range(self._nset()):
+            s = self._settle(g)
+            pop = max(1, s.pop())
+            health = max(10.0, s.health() if s.health() >= 0 else 10.0)
+            weights.append((g, pop * 0.6 + health * 0.4))
+        loc = self.dice.stream("spawn").weighted(weights)
         g = random.Random(_dice_seed64("char", aid) & 0xffffffff)
         sex = names.random_sex(g); f, m = names.random_parents(g)
         village = self._settle(loc).name

@@ -60,6 +60,7 @@ def region_to_dict(region) -> dict:
         "clock": asdict(region.clock),
         "settlements": [_settlement_to_dict(s) for s in region.settlements],
         "wanderers": [asdict(c) for c in region.wanderers],
+        "rng": region.dice.to_dict(),                 # состояния потоков костей — переживают рестарт
     }
 
 
@@ -67,7 +68,8 @@ def region_from_dict(data: dict, seed: int = 1):
     """Собрать регион из dict. Движки создадутся лениво, погода стартует заново."""
     from .region import Region
     setts = [_settlement_from_dict(d) for d in data["settlements"]]
-    reg = Region(setts, seed=seed)
+    rng_blob = data.get("rng") or {}
+    reg = Region(setts, seed=seed, rng_states=rng_blob.get("states"))
     reg.clock.total_hours = data["clock"]["total_hours"]
     reg.wanderers = [Character(**c) for c in data.get("wanderers", [])]
     reg.set_hot(range(len(setts)))
