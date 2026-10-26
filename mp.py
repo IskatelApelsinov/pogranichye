@@ -24,7 +24,7 @@ from world import traits as _traits
 from world.durak import Durak, YOU as DURAK_YOU, BOT as DURAK_BOT
 from world import economy as ECON
 from world.version import VERSION as _VERSION
-from world.dice import RngHub as DiceHub, seed64 as _dice_seed64
+from world.dice import RngHub as DiceHub, seed64 as _dice_seed64, FairDice as _FairDice
 from world import combat as C
 from world import roadevents as RE
 from world import tuning as T
@@ -69,9 +69,9 @@ class World:
             self.shards = make_shards(SHARD_GROUPS, seed)
         # ядро костей/случайности (см. world/dice.py): независимые потоки, переживают рестарт
         if data and "rng" in data:
-            self.dice = DiceHub.from_dict(data["rng"])
+            self.rhub = DiceHub.from_dict(data["rng"])
         else:
-            self.dice = DiceHub(f"world-{seed}")
+            self.rhub = DiceHub(f"world-{seed}")
         self._reindex()
         self.clock = self.shards[0].clock           # все часы шардов идут в ногу
         self.players: dict[str, Slot] = {}
@@ -168,7 +168,7 @@ class World:
             pop = max(1, s.pop())
             health = max(10.0, s.health() if s.health() >= 0 else 10.0)
             weights.append((g, pop * 0.6 + health * 0.4))
-        loc = self.dice.stream("spawn").weighted(weights)
+        loc = self.rhub.stream("spawn").weighted(weights)
         g = random.Random(_dice_seed64("char", aid) & 0xffffffff)
         sex = names.random_sex(g); f, m = names.random_parents(g)
         village = self._settle(loc).name
@@ -316,9 +316,9 @@ class World:
                     b = C.info(ev["beast"])
                     dest.add_news(self.clock, f"⚔ На дороге была засада — {b['name']}!")
                 else:
-                    C.resolve(slot.char, ev["beast"], 0.5, self.rng)   # afk отбивается сам
+                    C.resolve(slot.char, ev["beast"], 0.5, self.rhub.stream("combat", slot.aid))   # afk отбивается сам
             else:
-                dest.add_news(self.clock, RE.apply_passive(ev, slot.char, self.rng))
+                dest.add_news(self.clock, RE.apply_passive(ev, slot.char, self.rhub.stream("road", slot.aid)))
 
     def _cross_migrate(self):
         """Переполнение шарда расселяется по ВСЕМУ миру: странники, которым не нашлось
@@ -465,8 +465,9 @@ class World:
             if not slot.char.weapon:
                 return {"ok": False, "msg": "без оружия зверя не возьмёшь — купи/скрафти оружие или поставь силок (🪤)"}
             skill = slot.char.skill("hunting")
-            tier = "big" if skill >= 50 and self.rng.random() < 0.3 else ("medium" if skill >= 20 else "small")
-            bid = C.pick(self.rng, tier)
+            hs = self.rhub.stream("hunt", aid)              # поток охоты этого игрока
+            tier = "big" if skill >= 50 and hs.random() < 0.3 else ("medium" if skill >= 20 else "small")
+            bid = C.pick(hs, tier)
             slot.pending = {"beast": bid, "where": "hunt"}
             b = C.info(bid)
             return {"ok": True, "beast": bid, "name": b["name"], "icon": b["icon"],
@@ -482,12 +483,13 @@ class World:
             ch = slot.char
             if "trap" not in ch.inventory:
                 return {"ok": False, "msg": "нужен силок (🪤) — купи в лавке или скрафти"}
-            bid = C.pick(self.rng, "small")                 # силок берёт только мелочь
+            ts = self.rhub.stream("trap", aid)              # поток ловушки этого игрока
+            bid = C.pick(ts, "small")                       # силок берёт только мелочь
             b = C.info(bid)
-            got = max(1, round(b["loot"].get("raw", 2) * self.rng.uniform(0.4, 0.8)))
+            got = max(1, round(b["loot"].get("raw", 2) * ts.uniform(0.4, 0.8)))
             ch.cargo["raw"] = ch.cargo.get("raw", 0) + got
             ch.train("hunting", 0.4)
-            broke = self.rng.random() < 0.2               # силок иногда рвётся
+            broke = ts.random() < 0.2                       # силок иногда рвётся
             if broke:
                 ch.inventory.remove("trap")
             msg = f"🪤 В силок попался {b['name']} {b['icon']} — {got} raw." + (" Силок порвался." if broke else "")
@@ -500,7 +502,7 @@ class World:
             if not slot or not slot.pending:
                 return {"ok": False, "msg": "драться не с кем"}
             bid = slot.pending["beast"]; slot.pending = None
-            res = C.resolve(slot.char, bid, float(quality), self.rng)
+            res = C.resolve(slot.char, bid, float(quality), self.rhub.stream("combat", aid))
             b = C.info(bid)
             if res.get("win"):
                 slot.char.reputation += 1.0          # победа над зверем прибавляет славы
@@ -577,6 +579,15 @@ class World:
                   ("В", 10), ("Д", 10), ("К", 10), ("Т", 11)]   # Валет/Дама/Король/Туз
     CARD_SUITS = ["♠", "♥", "♦", "♣"]
 
+    def _new_fair(self, *public):
+        """Честные кости для партии (commit-reveal). Секрет берём из скрытого серверного
+        потока — клиент не знает его до раскрытия, значит не может предсказать карты.
+        Возвращает (fair, секрет)."""
+        secret = "%016x%016x" % (self.rhub.stream("gamble-secret")._u64(),
+                                 self.rhub.stream("gamble-secret")._u64())
+        pub = "|".join(str(p) for p in public)
+        return _FairDice(secret, public=pub), secret
+
     def _card_total(self, hand):
         """Сумма очков; Туз (11) опускается до 1, чтобы не перебрать.
         Карта = (label, value, suit)."""
@@ -598,7 +609,9 @@ class World:
                 "dealer": self._card_view(dealer),
                 "dtotal": self._card_total(dealer) if reveal else None,
                 "hidden": 0 if reveal else max(0, len(g["dealer"]) - 1),
-                "msg": g.get("msg", ""), "coins": round(slot.char.coins, 1)}
+                "msg": g.get("msg", ""), "coins": round(slot.char.coins, 1),
+                "fair_commit": g.get("commit"),
+                "fair_reveal": g.get("secret") if (reveal or g["done"]) else None}
 
     def card_start(self, aid):
         with self.lock:
@@ -614,11 +627,13 @@ class World:
             if ch.coins < self.CARD_BET:
                 return {"ok": False, "msg": f"нужно {self.CARD_BET}⌾ на кон, у тебя {ch.coins:.0f}"}
             ch.coins -= self.CARD_BET
+            fair, secret = self._new_fair("ochko", aid, self.clock.total_hours)
             deck = [(label, val, s) for (label, val) in self.CARD_RANKS for s in self.CARD_SUITS]
-            self.rng.shuffle(deck)
+            fair.stream().shuffle(deck)                 # колода тасуется ЧЕСТНЫМ потоком
             slot.card = {"deck": deck, "player": [deck.pop(), deck.pop()],
                          "dealer": [deck.pop(), deck.pop()], "bet": self.CARD_BET,
-                         "done": False, "msg": "Твой ход: ещё карту или хватит?"}
+                         "done": False, "msg": "Твой ход: ещё карту или хватит?",
+                         "secret": secret, "commit": fair.commit()}
             # «очко» сразу (21 на двух) — проверим разом
             if self._card_total(slot.card["player"]) == 21:
                 return self._card_finish(slot, blackjack=True)
@@ -689,6 +704,8 @@ class World:
         v = slot.durak.view()
         v["bet"] = slot.durak_bet
         v["coins"] = round(slot.char.coins, 1)
+        v["fair_commit"] = getattr(slot, "durak_commit", None)
+        v["fair_reveal"] = getattr(slot, "durak_secret", None) if v.get("over") else None
         return v
 
     def durak_start(self, aid):
@@ -705,7 +722,9 @@ class World:
                 return {"ok": False, "msg": f"нужно {self.DURAK_BET}⌾ на кон"}
             slot.char.coins -= self.DURAK_BET
             slot.durak_bet = self.DURAK_BET
-            slot.durak = Durak(self.rng)
+            fair, secret = self._new_fair("durak", aid, self.clock.total_hours)
+            slot.durak_commit = fair.commit(); slot.durak_secret = secret
+            slot.durak = Durak(fair.stream())           # вся партия выводится из честного секрета
             return self._durak_view(slot)
 
     def durak_act(self, aid, action, idx=-1):
@@ -727,8 +746,10 @@ class World:
         return s.char.full_name() if s else "?"
 
     def _pvp_deal(self, t):
+        fair, secret = self._new_fair("pvp-ochko", "+".join(t["seats"]), self.clock.total_hours)
+        t["commit"] = fair.commit(); t["secret"] = secret
         deck = [(label, val, su) for (label, val) in self.CARD_RANKS for su in self.CARD_SUITS]
-        self.rng.shuffle(deck)
+        fair.stream().shuffle(deck)
         t["deck"] = deck
         for a in t["seats"]:
             t["hands"][a] = [deck.pop(), deck.pop()]
@@ -790,6 +811,8 @@ class World:
                 "waiting": (len(g["seats"]) < 2),
                 "players": [self._pvp_name(a) for a in g["seats"]],
                 "msg": g.get("msg", ""),
+                "fair_commit": g.get("commit"),
+                "fair_reveal": g.get("secret") if g.get("done") else None,
                 "coins": round(self.players[me].char.coins, 1) if me in self.players else 0}
 
     def pvp_join(self, aid):
@@ -886,6 +909,8 @@ class World:
         v["bet"] = t["bet"]; v["pot"] = t.get("pot", 0)
         v["coins"] = round(slot.char.coins, 1)
         v["players"] = [self._pvp_name(a) for a in t["seats"]]
+        v["fair_commit"] = t.get("commit")
+        v["fair_reveal"] = t.get("secret") if v["done"] else None
         return v
 
     def _dpvp_finish(self, t):
@@ -935,7 +960,9 @@ class World:
             t["pot"] = t["bet"] * 2
             names = {DURAK_YOU: self._pvp_name(t["seats"][0]),
                      DURAK_BOT: self._pvp_name(t["seats"][1])}
-            t["game"] = Durak(self.rng, vs_bot=False, names=names)
+            fair, secret = self._new_fair("pvp-durak", "+".join(t["seats"]), self.clock.total_hours)
+            t["commit"] = fair.commit(); t["secret"] = secret
+            t["game"] = Durak(fair.stream(), vs_bot=False, names=names)
             t["started"] = True
             return self._dpvp_view(aid)
 
@@ -1066,14 +1093,21 @@ class World:
             bet = 5.0; ch = slot.char
             if ch.coins < bet:
                 return {"ok": False, "msg": f"нет монет на ставку ({bet:.0f}⌾)"}
-            win = float(quality) > 0.5
-            if win:
-                ch.coins += bet
-                msg = f"🎲 Кости легли удачно — забираешь банк (+{bet:.0f}⌾)!"
+            # честный бросок: 2d6 игрока против 2d6 банкира; ловкость (мини-игра) даёт перевес
+            fair, secret = self._new_fair("dice", aid, self.clock.total_hours)
+            st = fair.stream()
+            pr = st.roll_detail(2, 6); hr = st.roll_detail(2, 6)
+            edge = 1 if float(quality) > 0.6 else 0        # твёрдая рука — +1 к броску
+            pt = sum(pr) + edge; ht = sum(hr)
+            if pt > ht:
+                ch.coins += bet; msg = f"🎲 Твои {pr}{'+1' if edge else ''}={pt} против {hr}={ht} — банк твой (+{bet:.0f}⌾)!"
+            elif pt == ht:
+                msg = f"🎲 Ничья {pt}:{ht} — ставка остаётся при тебе."
             else:
-                ch.coins -= bet
-                msg = f"🎲 Не повезло — ставка ушла в банк (−{bet:.0f}⌾)."
-            return {"ok": True, "msg": msg, "coins": round(ch.coins, 1)}
+                ch.coins -= bet; msg = f"🎲 Твои {pr}{'+1' if edge else ''}={pt} против {hr}={ht} — ставка ушла (−{bet:.0f}⌾)."
+            return {"ok": True, "msg": msg, "coins": round(ch.coins, 1),
+                    "fair_commit": fair.commit(), "fair_reveal": secret,
+                    "rolls": {"you": pr, "bank": hr}}
 
     def fix_tavern(self, aid, quality):
         """Подлатать корчму. Корчмарь остаётся должен — потом закроет тебе стол."""
@@ -1218,7 +1252,7 @@ class World:
             cross = self._shard(to) != self._shard(slot.loc)
             slot.transit = {"to": to, "from": slot.loc, "from_shard": self._shard(slot.loc),
                             "arrive": self.clock.total_hours + hours,
-                            "event": RE.roll(self.rng, hours, cross)}
+                            "event": RE.roll(self.rhub.stream("road", aid), hours, cross)}
             slot.loc = None
             tail = " (другой край — караван дальний)" if cross else ""
             self._feed(slot, f"🐫 отправился(ась) в {self._settle(to).name}")
@@ -1230,7 +1264,7 @@ class World:
 
     def _persist(self):
         self.store.world_save({"shards": [PS.region_to_dict(r) for r in self.shards],
-                               "rng": self.dice.to_dict()})
+                               "rng": self.rhub.to_dict()})
         for slot in self.players.values():
             loc = slot.loc if slot.loc is not None else (slot.transit["from"] if slot.transit else 0)
             self.store.player_save(slot.aid, slot.char, loc)

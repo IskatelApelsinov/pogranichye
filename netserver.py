@@ -501,6 +501,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  .sprfallback{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:none}
  .spr.clk{cursor:pointer} .spr.clk:hover{filter:brightness(1.25) drop-shadow(0 0 6px var(--gold))}
  .verbadge{position:fixed;right:8px;bottom:6px;z-index:9999;font-size:11px;color:var(--sub);opacity:.6;pointer-events:none}
+ .fairbox{margin-top:5px;font-size:11px;color:var(--sub)} .fairbox code{color:#9ab;background:#0003;padding:0 3px;border-radius:3px} .fairbox a{color:var(--gold)}
  .token{position:absolute;transition:left 1.6s ease,top 1.6s ease}
  .win{position:absolute;width:6px;height:6px;border-radius:2px;background:#ffd36b;
       box-shadow:0 0 6px #ffcf5a;opacity:0;transition:opacity 1.4s;z-index:3}
@@ -1201,6 +1202,19 @@ async function sayChat(){
  el.value='';const r=await wsCall('say',{text:t});if(!r.ok)toast(r.msg);
 }
 function cardEl(c){const r=/[♥♦]/.test(c.c)?' red':'';const v=(c.v!=null)?`<span class="pcv">${c.v}</span>`:'';return `<div class="pcard${r}">${c.c}${v}</div>`;}
+function fairLine(g){
+ if(!g||!g.fair_commit)return '';
+ const c=g.fair_commit.slice(0,14);
+ if(g.fair_reveal){const s=g.fair_reveal.slice(0,14);
+   return `<div class="fairbox">🔓 Честность: секрет <code>${s}…</code> — <a href="#" onclick="verifyFair('${g.fair_commit}','${g.fair_reveal}');return false">проверить</a></div>`;}
+ return `<div class="fairbox">🔒 Честность: commit <code>${c}…</code> — секрет раскроется после партии</div>`;
+}
+function verifyFair(commit,secret){
+ crypto.subtle.digest('SHA-256', new TextEncoder().encode('commit|'+secret)).then(buf=>{
+  const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  toast(hex===commit?'✅ Честно: sha256(секрета) совпал с commit — кости не подменяли.':'❌ Несовпадение — что-то не так!');
+ });
+}
 function renderCard(g){
  const box=document.getElementById('cardgame');const tbl=document.getElementById('cardtable');
  const btns=document.getElementById('cardbtns');box.style.display='block';
@@ -1208,7 +1222,7 @@ function renderCard(g){
  for(let i=0;i<(g.hidden||0);i++)dealer+='<div class="pcard back">?</div>';
  tbl.innerHTML=`<div class="ctot">Банкир${g.dtotal!=null?' · '+g.dtotal:''}:</div><div class="cardrow">${dealer}</div>`+
   `<div class="ctot">Ты · ${g.ptotal}:</div><div class="cardrow">${g.player.map(cardEl).join('')}</div>`+
-  `<div style="margin-top:4px">${g.msg||''}</div>`;
+  `<div style="margin-top:4px">${g.msg||''}</div>`+fairLine(g);
  btns.innerHTML = g.done
   ? `<button onclick="cardStart()">🔄 Ещё партию (10⌾)</button><button onclick="cardClose()">Встать из-за стола</button>`
   : `<button onclick="cardHit()">🃏 Ещё карту</button><button onclick="cardStand()">✋ Хватит</button>`;
@@ -1228,7 +1242,7 @@ function renderDurak(g){
  const hand=document.getElementById('durakhand');
  const canPlay=g.your_turn;
  hand.innerHTML=g.hand.map((c,i)=>dcard(c, canPlay?`durakPlay(${i})`:'')).join('')||'<span class="sub">карт нет</span>';
- document.getElementById('durakmsg').textContent=g.msg||'';
+ document.getElementById('durakmsg').innerHTML=(g.msg||'')+fairLine(g);
  const btns=document.getElementById('durakbtns');
  if(g.over){btns.innerHTML=`<button onclick="durakStart()">🔄 Ещё партию (10⌾)</button><button onclick="document.getElementById('durakgame').style.display='none'">Встать</button>`;}
  else if(g.role==='defend'&&g.your_turn){btns.innerHTML=`<button onclick="durakAct('take')">🖐 Беру</button>`;}
@@ -1249,7 +1263,7 @@ function renderPvp(g){
  else op.innerHTML='<span class="sub">соперника пока нет</span>';
  document.getElementById('pvphand').innerHTML=(g.hand||[]).map(cardEl).join('')||'<span class="sub">—</span>';
  document.getElementById('pvphand').insertAdjacentHTML('beforeend', g.total?` <span class="ctot">= ${g.total}</span>`:'');
- document.getElementById('pvpmsg').textContent=g.msg||'';
+ document.getElementById('pvpmsg').innerHTML=(g.msg||'')+fairLine(g);
  const b=document.getElementById('pvpbtns');
  if(g.done){b.innerHTML=`<button onclick="pvpJoin()">🔄 Ещё партию</button><button onclick="pvpAct('leave')">Встать</button>`;}
  else if(g.waiting){b.innerHTML=`<button onclick="pvpAct('leave')">Отменить</button>`;}
@@ -1264,14 +1278,14 @@ function renderDpvp(g){
  const box=document.getElementById('dpvpgame');box.style.display='block';_dpvp=g;
  if(g.waiting){document.getElementById('dpvptop').textContent='за столом: '+(g.players||[]).join(', ')+' · ждём второго…';
   document.getElementById('dpvptable').innerHTML='';document.getElementById('dpvphand').innerHTML='';
-  document.getElementById('dpvpmsg').textContent=g.msg||'';
+  document.getElementById('dpvpmsg').innerHTML=(g.msg||'')+fairLine(g);
   document.getElementById('dpvpbtns').innerHTML=`<button onclick="dpvpAct('leave')">Отменить</button>`;return;}
  document.getElementById('dpvptop').textContent=`козырь ${g.trump} ${g.trump_card?('('+g.trump_card+')'):''} · колода ${g.deck} · у ${escHtml(g.opp_name||'соперника')} ${g.opp_cards} карт · банк ${g.pot}⌾ · ты ${g.role==='attack'?'заходишь':'отбиваешься'}`;
  const tbl=document.getElementById('dpvptable');
  tbl.innerHTML=(!g.table||!g.table.length)?'<span class="sub">стол пуст</span>':g.table.map(p=>`<span style="display:inline-block;position:relative;margin:0 10px 6px 0">${cardEl(p.a)}${p.d?('<span style="position:absolute;left:14px;top:10px">'+cardEl(p.d)+'</span>'):''}</span>`).join('');
  const canPlay=g.your_turn&&!g.done;
  document.getElementById('dpvphand').innerHTML=(g.hand||[]).map((c,i)=>{const r=/[♥♦]/.test(c.label)?' red':'';const st=canPlay?'cursor:pointer':'';return `<div class="pcard${r}" style="${st}" onclick="${canPlay?('dpvpPlay('+i+')'):''}">${c.label}</div>`;}).join('')||'<span class="sub">карт нет</span>';
- document.getElementById('dpvpmsg').textContent=g.msg||'';
+ document.getElementById('dpvpmsg').innerHTML=(g.msg||'')+fairLine(g);
  const b=document.getElementById('dpvpbtns');
  if(g.done){b.innerHTML=`<button onclick="dpvpJoin()">🔄 Ещё партию</button><button onclick="dpvpAct('leave')">Встать</button>`;}
  else if(g.role==='defend'&&g.your_turn){b.innerHTML=`<button onclick="dpvpAct('take')">🖐 Беру</button>`;}
