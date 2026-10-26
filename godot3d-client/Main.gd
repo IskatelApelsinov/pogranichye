@@ -46,10 +46,10 @@ var _has_target := false
 var _prompt: Label
 var _verbadge: Label
 var _near: Dictionary = {}            # ближайшая точка взаимодействия
-const CAM_OFFSET := Vector3(14, 16, 14)
+const CAM_OFFSET := Vector3(18, 21, 18)
 const MOVE_SPEED := 5.5
 const INTERACT_RADIUS := 1.7
-const BOUND := 8.0
+const BOUND := 8.6
 
 
 func _ready() -> void:
@@ -69,7 +69,7 @@ func _build_scene_3d() -> void:
 	# ортокамера «вид сверху» с лёгким наклоном (2.5D-ощущение)
 	_cam = Camera3D.new()
 	_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_cam.size = 16.0
+	_cam.size = 22.0
 	_cam.position = Vector3(14, 16, 14)
 	_cam.rotation_degrees = Vector3(-50, 45, 0)
 	_cam.current = true
@@ -552,6 +552,15 @@ func _do_interact() -> void:
 	elif act == "tavern":
 		_send("drink", {})
 		_log_line("🍯 В таверне: Выпить — здесь, Очко и Дурак — на верхней панели.")
+	elif act == "inn":
+		# комната: если нет своего дома — снять; иначе лечь спать
+		var me: Dictionary = S.get("me", {})
+		if me.get("home", "none") == "none":
+			_send("house", {"action": "rent"})
+			_log_line("🛏 Снимаю комнату…")
+		else:
+			_send("sleep", {})
+			_log_line("🛏 Ложусь отдыхать…")
 
 func _on_packet(text: String) -> void:
 	var m = JSON.parse_string(text)
