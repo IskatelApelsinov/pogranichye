@@ -821,40 +821,57 @@ function drawScene(H,hour){
  }
 }
 
-let _travelSig='', _travelCar=null, _travelLbl=null, _travelX=i=>0;
+// ── анимированное путешествие (самоанимация через rAF, деревня скрыта) ──
+let _travelSig='', _travelRAF=0, _travelProps=[], _travelCar=null, _travelBar=null, _travelLbl=null;
+let _travelProg=0, _travelCur=0, _travelT=0;
+function hideVillage(hide){
+ ['world3d','tokens','night','orb','wx'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=hide?'none':'';});
+}
 function drawTravel(S){
  const sc=document.getElementById('scene');const tr=document.getElementById('travel');
- sc.style.background='linear-gradient(#2a2f45,#141a2e)';
- document.getElementById('night').style.opacity='0';
- document.getElementById('wx').textContent='';document.getElementById('orb').textContent='';
+ hideVillage(true);                                  // прячем деревню на время пути
+ sc.style.background='linear-gradient(#20406a 0%,#3a5a86 55%,#8a6a4a 56%,#6a4e32 100%)'; // небо + земля
  tr.classList.add('on');
- const setts=S.settlements||[];const n=Math.max(1,setts.length);
- const W=tr.clientWidth||860, pad=48, span=W-pad*2, y=135;
- let toI=0;setts.forEach((v,i)=>{if(v.name===S.transit.to)toI=i;});
- // статичную часть (дорога+точки) строим один раз на маршрут, иначе — только двигаем верблюда
- const sig=`${S.transit.to}|${n}|${Math.round(W)}`;
+ const sig=`${S.transit.to}`;
  if(sig!==_travelSig){
-  _travelSig=sig;tr.innerHTML='';
-  const road=document.createElement('div');road.className='road';
-  road.style.left=pad+'px';road.style.top=y+'px';road.style.width=span+'px';tr.appendChild(road);
-  _travelX=i=>pad+(n>1?i/(n-1):0.5)*span;
-  setts.forEach((v,i)=>{const d=document.createElement('div');d.className='vdot';
-    d.style.left=_travelX(i)+'px';d.style.top=(y-20)+'px';
-    const hl=(i===toI)?'style="color:var(--gold)"':'';
-    const nm=v.name||'🌫 ?';if(!v.name)d.style.opacity='.5';
-    d.innerHTML=`🏘<br><span ${hl}>${nm}</span>`;tr.appendChild(d);});
-  _travelCar=document.createElement('div');_travelCar.className='caravan';_travelCar.textContent='🐫';
-  _travelCar.style.top=y+'px';_travelCar.style.transition='left 2s linear';tr.appendChild(_travelCar);
-  _travelLbl=document.createElement('div');_travelLbl.className='vdot';_travelLbl.style.left='50%';_travelLbl.style.top='34px';
-  tr.appendChild(_travelLbl);
+  _travelSig=sig;tr.innerHTML='';_travelProps=[];
+  const W=tr.clientWidth||860, H=tr.clientHeight||300, horizon=Math.round(H*0.56);
+  // солнце
+  const sun=document.createElement('div');sun.textContent='☀';sun.style.cssText=`position:absolute;left:78%;top:18px;font-size:30px`;tr.appendChild(sun);
+  // дорога
+  const road=document.createElement('div');road.style.cssText=`position:absolute;left:0;right:0;top:${horizon}px;height:${H-horizon}px;background:repeating-linear-gradient(90deg,#5a4026 0 40px,#64482c 40px 80px)`;tr.appendChild(road);
+  // придорожные деревья/камни — их прокручиваем влево (ощущение движения)
+  const EM=['🌲','🌳','🪨','🌲','🌾','🌳','🏔','🌲'];
+  for(let i=0;i<10;i++){const p=document.createElement('div');p.textContent=EM[i%EM.length];
+    p.style.cssText=`position:absolute;font-size:${22+ (i%3)*8}px;top:${horizon-24-(i%3)*6}px;left:${i*120}px`;
+    tr.appendChild(p);_travelProps.push({el:p,base:i*120});}
+  // караван (покачивается на месте по центру)
+  _travelCar=document.createElement('div');_travelCar.textContent='🐫';
+  _travelCar.style.cssText=`position:absolute;left:44%;top:${horizon-30}px;font-size:40px`;tr.appendChild(_travelCar);
+  // метка и полоса прогресса
+  _travelLbl=document.createElement('div');_travelLbl.style.cssText='position:absolute;left:0;right:0;top:14px;text-align:center;font-weight:600;color:#ffe6a0';tr.appendChild(_travelLbl);
+  const barbg=document.createElement('div');barbg.style.cssText=`position:absolute;left:10%;right:10%;bottom:16px;height:10px;background:#0006;border-radius:6px;overflow:hidden`;
+  _travelBar=document.createElement('div');_travelBar.style.cssText='height:100%;width:0;background:linear-gradient(90deg,#d8b968,#f0d890)';barbg.appendChild(_travelBar);tr.appendChild(barbg);
+  _travelCur=0;
+  if(!_travelRAF)_travelRAF=requestAnimationFrame(travelTick);
  }
- // караван плавно едет к назначению (CSS-переход двигает его между пушами)
- const prog=Math.max(0.05,Math.min(0.97,1-S.transit.left/9));
- const fromX=_travelX(Math.max(0,toI-1)), toX=_travelX(toI);
- if(_travelCar)_travelCar.style.left=(fromX+(toX-fromX)*prog)+'px';
- if(_travelLbl)_travelLbl.innerHTML=`🐫 В пути в <b>${S.transit.to}</b> — осталось ~${S.transit.left} ч`;
+ _travelProg=Math.max(0.03,Math.min(0.99,1-(S.transit.left||0)/9));
+ _travelLbl.innerHTML=`🐫 В пути в <b>${S.transit.to}</b> — осталось ~${S.transit.left} ч`;
 }
-function endTravelView(){_travelSig='';_travelCar=null;_travelLbl=null;}
+function travelTick(ts){
+ _travelRAF=requestAnimationFrame(travelTick);
+ const dt=16; _travelT+=dt;
+ const tr=document.getElementById('travel');const W=(tr&&tr.clientWidth)||860;
+ // прокрутка пейзажа
+ const speed=0.06;
+ for(const p of _travelProps){let x=(p.base - (_travelT*speed))% (W+140);if(x<-120)x+=W+140;p.el.style.left=x+'px';}
+ // покачивание каравана
+ if(_travelCar)_travelCar.style.transform=`translateY(${Math.sin(_travelT*0.006)*4}px)`;
+ // плавное подтягивание полосы прогресса к цели
+ _travelCur+=(_travelProg-_travelCur)*0.04;
+ if(_travelBar)_travelBar.style.width=(_travelCur*100).toFixed(1)+'%';
+}
+function endTravelView(){_travelSig='';if(_travelRAF){cancelAnimationFrame(_travelRAF);_travelRAF=0;}_travelProps=[];_travelCar=null;_travelBar=null;_travelLbl=null;hideVillage(false);}
 let _inCombat=false;
 function applyState(s){S=s;if(S.dead)document.getElementById('deadover').classList.add('on');
  document.body.classList.toggle('simple', !!(s.status && s.status!=='guest')); // аккаунт — проще, с гайдами
