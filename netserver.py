@@ -236,9 +236,15 @@ class Handler(BaseHTTPRequestHandler):
     # ── WebSocket: живой канал вместо опроса ──
     def _serve_ws(self):
         tok = self._token()
-        if not tok and "?" in self.path:          # толстый клиент (Godot) шлёт токен в query: /ws?sid=…
+        level = "thin"
+        if "?" in self.path:                       # толстый клиент шлёт ?sid=… и ?level=thick
             from urllib.parse import urlparse, parse_qs
-            tok = (parse_qs(urlparse(self.path).query).get("sid") or [None])[0]
+            q = parse_qs(urlparse(self.path).query)
+            if not tok:
+                tok = (q.get("sid") or [None])[0]
+            level = (q.get("level") or ["thin"])[0]
+            if level not in ("thin", "thick"):
+                level = "thin"
         aid = _accounts.resolve(tok)
         key = self.headers.get("Sec-WebSocket-Key")
         if not aid or not key:
@@ -250,6 +256,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         sock = self.connection
         _world.join(aid)
+        conn_id = os.urandom(6).hex()              # идентификатор ЭТОГО соединения
+        _world.attach_conn(aid, conn_id, level)    # лестница присутствия
         send_lock = threading.Lock()
         alive = [True]
 
@@ -282,21 +290,28 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         continue
                     _world.touch(aid)
-                    res = _dispatch(aid, "/api/" + str(msg.get("op", "")), msg)
+                    op_name = str(msg.get("op", ""))
+                    # наблюдатель (управление в другом клиенте) не двигает тело — только смотрит/чат
+                    if op_name not in ("state", "say") and not _world.may_control(aid, conn_id):
+                        res = {"ok": False, "observer": True,
+                               "msg": "ты сейчас наблюдаешь — управление в другом клиенте"}
+                    else:
+                        res = _dispatch(aid, "/api/" + op_name, msg)
                     push({"type": "ack", "rid": msg.get("rid"), "res": res})
-                    push({"type": "state", "state": _state(aid)})
+                    st = _state(aid); st["control"] = _world.control_info(aid, conn_id)
+                    push({"type": "state", "state": st})
 
         rt = threading.Thread(target=reader, daemon=True)
         rt.start()
         # первый снимок — полный; дальше шлём только ИЗМЕНИВШИЕСЯ части (дельты),
         # чтобы не гонять весь мир каждому раз в секунду (оптимизация под рост)
-        last = _state(aid)
+        last = _state(aid); last["control"] = _world.control_info(aid, conn_id)
         push({"type": "state", "state": last})
         try:
             while alive[0]:
                 time.sleep(1.0)
                 _world.touch(aid)
-                st = _state(aid)
+                st = _state(aid); st["control"] = _world.control_info(aid, conn_id)
                 changed = {k: v for k, v in st.items() if last.get(k) != v}
                 for k in last:
                     if k not in st:
@@ -307,6 +322,7 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             pass
         alive[0] = False
+        _world.detach_conn(aid, conn_id)             # соединение ушло — пересчитать лестницу
 
     def do_POST(self):
         # аутентификация
@@ -502,6 +518,8 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
  .spr.clk{cursor:pointer} .spr.clk:hover{filter:brightness(1.25) drop-shadow(0 0 6px var(--gold))}
  .verbadge{position:fixed;right:8px;bottom:6px;z-index:9999;font-size:11px;color:var(--sub);opacity:.6;pointer-events:none}
  .fairbox{margin-top:5px;font-size:11px;color:var(--sub)} .fairbox code{color:#9ab;background:#0003;padding:0 3px;border-radius:3px} .fairbox a{color:var(--gold)}
+ .obsbanner{position:fixed;left:0;right:0;top:0;z-index:9998;background:#5a3a1a;color:#ffd890;text-align:center;padding:6px;font-size:13px}
+ body.observing #game{opacity:.6}
  .token{position:absolute;transition:left 1.6s ease,top 1.6s ease}
  .win{position:absolute;width:6px;height:6px;border-radius:2px;background:#ffd36b;
       box-shadow:0 0 6px #ffcf5a;opacity:0;transition:opacity 1.4s;z-index:3}
@@ -546,6 +564,7 @@ PAGE = r"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
 </div></div>
 
 <div id="verbadge" class="verbadge"></div>
+<div id="obsbanner" class="obsbanner" style="display:none"></div>
 <div id="game" style="display:none">
 <div class="row" style="justify-content:space-between">
  <div><h1 id="town">…</h1><div class="sub" id="when">…</div></div>
@@ -903,6 +922,10 @@ async function boot(){const s=await api('/api/state');
  document.getElementById('gate').classList.remove('on');document.getElementById('game').style.display='';connectWS();}
 
 function render(){
+ const ctrl=S.control;const ob=document.getElementById('obsbanner');
+ if(ctrl&&ctrl.you_control===false){document.body.classList.add('observing');ob.style.display='';
+   ob.textContent='👁 Наблюдение — твоим персонажем управляют в '+(ctrl.controller_level==='thick'?'толстом (3D)':'другом')+' клиенте. Действия заблокированы.';}
+ else{document.body.classList.remove('observing');ob.style.display='none';}
  document.getElementById('who').textContent=`${S.me.full_name||S.me.name} ${S.me.sex==='ж'?'♀':'♂'} ${S.me.age}л · ★${S.me.reputation} (ты)`+(S.me.trait_label?` · ${S.me.trait_label}`:'');
  if(S.me.trait_desc)document.getElementById('who').title=S.me.trait_desc;
  document.getElementById('coins').textContent='⌾ '+S.me.coins;

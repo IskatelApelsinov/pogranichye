@@ -82,6 +82,51 @@ class World:
         self._chat = {}                              # глоб.индекс деревни -> [ {who,text,day} ] (эфемерный чат в баре)
         self._tables = {}                            # глоб.индекс деревни -> PvP-стол «очко»
         self._dtables = {}                           # глоб.индекс деревни -> PvP-стол «дурак»
+        self._conns = {}                             # aid -> [(conn_id, level)] (лестница присутствия)
+
+    # ── ЛЕСТНИЦА ПРИСУТСТВИЯ: одно тело — один водитель; выше уровень — тот и правит ──
+    LEVEL_RANK = {"ai": 0, "thin": 1, "thick": 2}
+
+    def attach_conn(self, aid, conn_id, level="thin"):
+        """Подключить соединение клиента к персонажу с его уровнем (thin/thick)."""
+        with self.lock:
+            lst = self._conns.setdefault(aid, [])
+            lst[:] = [c for c in lst if c[0] != conn_id]
+            lst.append((conn_id, level))
+
+    def detach_conn(self, aid, conn_id):
+        with self.lock:
+            lst = self._conns.get(aid)
+            if lst:
+                lst[:] = [c for c in lst if c[0] != conn_id]
+                if not lst:
+                    self._conns.pop(aid, None)
+
+    def controller_of(self, aid):
+        """Кто сейчас правит телом: самый высокий уровень; при равенстве — кто подключился
+        позже (перехват при пересадке thin→thick или второй такой же клиент)."""
+        lst = self._conns.get(aid) or []
+        if not lst:
+            return None
+        best_i, best_rank = 0, -1
+        for i, (cid, lvl) in enumerate(lst):
+            rank = self.LEVEL_RANK.get(lvl, 0)
+            if rank >= best_rank:                    # >= — при равенстве побеждает поздний (перехват)
+                best_rank, best_i = rank, i
+        return lst[best_i][0]
+
+    def may_control(self, aid, conn_id):
+        c = self.controller_of(aid)
+        return c is None or c == conn_id             # нет учёта соединений (старый путь) — разрешаем
+
+    def control_info(self, aid, conn_id):
+        lst = self._conns.get(aid) or []
+        ctrl = self.controller_of(aid)
+        clevel = next((l for (c, l) in lst if c == ctrl), "ai")
+        mylevel = next((l for (c, l) in lst if c == conn_id), None)
+        return {"you_control": (ctrl == conn_id) or ctrl is None,
+                "controller_level": clevel, "your_level": mylevel,
+                "observers": max(0, len(lst) - 1)}
 
     # ── глобальная адресация деревень поверх шардов ──
     def _reindex(self):

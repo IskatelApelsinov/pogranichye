@@ -344,7 +344,7 @@ func _on_auth(_result: int, code: int, headers: PackedStringArray, body: PackedB
 	# Godot) — просто игнорируется и не роняет подключение.
 	if _cookie != "":
 		_ws.set("handshake_headers", PackedStringArray(["Cookie: " + _cookie]))
-	var url := "ws://%s:%d/ws?sid=%s" % [host, port, _token]
+	var url := "ws://%s:%d/ws?sid=%s&level=thick" % [host, port, _token]   # толстый клиент = высший уровень присутствия
 	_log_line("[WS] подключаюсь: %s" % url)
 	var err := _ws.connect_to_url(url)
 	if err != OK:
