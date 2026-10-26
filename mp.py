@@ -24,6 +24,7 @@ from world import traits as _traits
 from world.durak import Durak, YOU as DURAK_YOU, BOT as DURAK_BOT
 from world import economy as ECON
 from world.version import VERSION as _VERSION
+from world.dice import RngHub as DiceHub, seed64 as _dice_seed64
 from world import combat as C
 from world import roadevents as RE
 from world import tuning as T
@@ -66,6 +67,11 @@ class World:
             self.shards = [PS.region_from_dict(d, seed) for d in data["shards"]]
         else:
             self.shards = make_shards(SHARD_GROUPS, seed)
+        # ядро костей/случайности (см. world/dice.py): независимые потоки, переживают рестарт
+        if data and "rng" in data:
+            self.dice = DiceHub.from_dict(data["rng"])
+        else:
+            self.dice = DiceHub(f"world-{seed}")
         self._reindex()
         self.clock = self.shards[0].clock           # все часы шардов идут в ногу
         self.players: dict[str, Slot] = {}
@@ -148,9 +154,13 @@ class World:
 
     def _newborn(self, aid):
         """Новый игрок рождается в СЛУЧАЙНОЙ деревне со случайной предысторией:
-        либо местный житель, либо пришлый странник (как и задумано)."""
-        g = random.Random(hash(aid) & 0xffffffff)
-        loc = g.randrange(self._nset())
+        либо местный житель, либо пришлый странник (как и задумано).
+
+        Деревню выбираем через персистентный поток костей 'spawn' — так подряд
+        идущие новички распределяются равномерно (а не кучкуются в одной деревне,
+        как было с hash(aid))."""
+        loc = self.dice.stream("spawn").randint(0, self._nset() - 1)
+        g = random.Random(_dice_seed64("char", aid) & 0xffffffff)
         sex = names.random_sex(g); f, m = names.random_parents(g)
         village = self._settle(loc).name
         if g.random() < 0.5:
@@ -1210,7 +1220,8 @@ class World:
             self._persist(); return {"ok": True, "msg": "Сохранено."}
 
     def _persist(self):
-        self.store.world_save({"shards": [PS.region_to_dict(r) for r in self.shards]})
+        self.store.world_save({"shards": [PS.region_to_dict(r) for r in self.shards],
+                               "rng": self.dice.to_dict()})
         for slot in self.players.values():
             loc = slot.loc if slot.loc is not None else (slot.transit["from"] if slot.transit else 0)
             self.store.player_save(slot.aid, slot.char, loc)
