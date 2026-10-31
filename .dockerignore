@@ -1,10 +1,7 @@
-__pycache__/
-*.pyc
-*.json
-*.db
-*.md
-sim.py
-web.py
-thin.py
-bench*.py
-/tmp/
+# в образ не нужны: архив прототипа, клиент Unity, dev-материалы, локальные данные
+3-dev/
+2-client/
+data/
+**/*.json
+!1-server/**/*.json
+.git/
