@@ -1,0 +1,134 @@
+package core
+
+// Базовые свойства живого мира. Это НЕ исчерпывающий список — это стартовый набор.
+// Новое свойство (тело по частям, инвентарь, репутация, род, вера...) добавляется здесь
+// или в своём пакете одной структурой + Register в init(): ядро и системы не меняются.
+// Каждый компонент — указатель-структура с Kind() и регистрацией (для снимка без потерь).
+
+func init() {
+	Register("ident", func() Component { return &IdentC{} })
+	Register("vitals", func() Component { return &VitalsC{} })
+	Register("drives", func() Component { return &DrivesC{} })
+	Register("mind", func() Component { return &MindC{} })
+	Register("skills", func() Component { return &SkillsC{Skills: map[string]float64{}} })
+	Register("purse", func() Component { return &PurseC{Debts: map[string]float64{}} })
+	Register("home", func() Component { return &HomeC{} })
+	Register("place", func() Component { return &PlaceC{} })
+	Register("settlement", func() Component { return &SettlementC{Store: map[string]float64{}} })
+}
+
+// IdentC — кто это: имя и родовое, пол, ремесло, черта, происхождение. Фамилия согласуется
+// по полу на уровне генерации (в прототипе был баг «Всеволод Тихонова» — больше не повторяем).
+type IdentC struct {
+	Name    string `json:"name"`
+	Surname string `json:"surname"`
+	Nick    string `json:"nick"`
+	Sex     string `json:"sex"` // "м" | "ж"
+	Role    string `json:"role"`
+	Trait   string `json:"trait"`
+	Origin  string `json:"origin"`
+}
+
+func (c *IdentC) Kind() string { return "ident" }
+
+// VitalsC — тело и нужды (0..100, кроме возраста в годах). Возраст реально растёт, здоровье
+// реально кончается — в мёртвом прототипе этого не было (у всех вечные 100), оттого и застой.
+type VitalsC struct {
+	Age    float64 `json:"age"`
+	Health float64 `json:"health"`
+	Hunger float64 `json:"hunger"`
+	Energy float64 `json:"energy"`
+	Morale float64 `json:"morale"`
+}
+
+func (c *VitalsC) Kind() string { return "vitals" }
+
+// DrivesC — тяги A-life, которые гонят поведение (а не скрипт): тяга к людям, жажда роста,
+// обустроенность. Разум читает их и ставит цель. Высокая амбиция без роста → человек уходит.
+type DrivesC struct {
+	Ambition float64 `json:"ambition"`
+	Social   float64 `json:"social"`
+	Dwelling float64 `json:"dwelling"`
+}
+
+func (c *DrivesC) Kind() string { return "drives" }
+
+// MindC — «мысли» (блок 1.4): текущая цель, до какого часа она держится, и короткая память
+// о последнем действии. Разум (пакет mind) выбирает цель по нуждам и тягам; система лишь
+// исполняет. Так НПС живёт, а не ждёт команды.
+type MindC struct {
+	Goal      string `json:"goal"`       // eat | rest | work | socialize | seek_home | wander | leave
+	GoalUntil int64  `json:"goal_until"` // час мира, до которого цель в силе
+	LastAct   string `json:"last_act"`
+}
+
+func (c *MindC) Kind() string { return "mind" }
+
+// SkillsC — умения по имени. Растут от дела, с замедлением (нельзя раздуть до бесконечности,
+// как вышло в прототипе с cooking 433).
+type SkillsC struct {
+	Skills map[string]float64 `json:"skills"`
+}
+
+func (c *SkillsC) Kind() string { return "skills" }
+
+// Train повышает умение с насыщением: чем выше навык, тем медленнее прирост.
+func (c *SkillsC) Train(name string, amount float64) {
+	if c.Skills == nil {
+		c.Skills = map[string]float64{}
+	}
+	cur := c.Skills[name]
+	c.Skills[name] = cur + amount/(1.0+cur/50.0)
+}
+
+func (c *SkillsC) Level(name string) float64 { return c.Skills[name] }
+
+// PurseC — деньги и долги. Долги — по id того, кому должен (не по имени: имена не уникальны).
+type PurseC struct {
+	Coins float64            `json:"coins"`
+	Debts map[string]float64 `json:"debts"`
+}
+
+func (c *PurseC) Kind() string { return "purse" }
+
+// HomeC — жильё: нет/снимает/владеет, уют и к какому поселению привязан дом.
+type HomeC struct {
+	Status     string  `json:"status"` // none | rented | owned
+	Comfort    float64 `json:"comfort"`
+	Settlement ID      `json:"settlement"`
+}
+
+func (c *HomeC) Kind() string { return "home" }
+
+// PlaceC — где сущность сейчас (id поселения). В пути Settlement==0, а Transit хранит маршрут
+// (добавим компонентом позже — пример расширяемости).
+type PlaceC struct {
+	Settlement ID `json:"settlement"`
+}
+
+func (c *PlaceC) Kind() string { return "place" }
+
+// SettlementC — поселение как сущность: имя, когда основано, общий склад, ступень роста,
+// есть ли корчма и кто корчмарь. Город вырастает из деревни сменой Tier — civilization растёт.
+type SettlementC struct {
+	Name    string             `json:"name"`
+	Founded int64              `json:"founded"` // день основания
+	Tier    string             `json:"tier"`    // hamlet | village | town | city
+	Store   map[string]float64 `json:"store"`
+	Tavern  bool               `json:"tavern"`
+	Keeper  ID                 `json:"keeper"`
+}
+
+func (c *SettlementC) Kind() string { return "settlement" }
+
+// --- типизированные помощники: короче и безопаснее, чем Get+приведение ---
+
+func Ident(e *Entity) *IdentC       { c, _ := e.Get("ident").(*IdentC); return c }
+func Vitals(e *Entity) *VitalsC     { c, _ := e.Get("vitals").(*VitalsC); return c }
+func Drives(e *Entity) *DrivesC     { c, _ := e.Get("drives").(*DrivesC); return c }
+func Mind(e *Entity) *MindC         { c, _ := e.Get("mind").(*MindC); return c }
+func Skills(e *Entity) *SkillsC     { c, _ := e.Get("skills").(*SkillsC); return c }
+func Purse(e *Entity) *PurseC       { c, _ := e.Get("purse").(*PurseC); return c }
+func Home(e *Entity) *HomeC         { c, _ := e.Get("home").(*HomeC); return c }
+func Place(e *Entity) *PlaceC       { c, _ := e.Get("place").(*PlaceC); return c }
+func Settle(e *Entity) *SettlementC { c, _ := e.Get("settlement").(*SettlementC); return c }
