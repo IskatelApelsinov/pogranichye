@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b1b21">
+<title>Приграничье</title>
+<style>
+ :root{--bg:#1b1b21;--card:#26262e;--line:#34343f;--ink:#e8e6e3;--sub:#9b9a97;
+   --gold:#e1b12c;--good:#6ab04c;--warn:#f0932b;--bad:#eb4d4b;--accent:#7b68ee}
+ *{box-sizing:border-box} html,body{overflow-x:hidden}
+ body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;
+   max-width:620px;margin:0 auto;padding:16px}
+ h1{font-size:22px;margin:.2em 0} .sub{color:var(--sub);font-size:13px}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+ input{width:100%;background:#1b1b21;color:var(--ink);border:1px solid var(--line);
+   border-radius:10px;padding:12px;font:inherit;margin:6px 0;min-height:46px}
+ button{background:#30303a;color:var(--ink);border:1px solid var(--line);border-radius:11px;
+   padding:12px 14px;font:inherit;cursor:pointer;min-height:46px;touch-action:manipulation}
+ button.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%}
+ button:active{filter:brightness(1.2)}
+ .row{display:flex;gap:8px;flex-wrap:wrap}
+ .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+ .bar{height:10px;border-radius:6px;background:#15151a;overflow:hidden;margin:3px 0 10px}
+ .bar>div{height:100%}
+ .stat{font-size:13px;color:var(--sub)}
+ .big{font-size:20px;font-weight:700}
+ .tag{font-size:12px;padding:2px 9px;border-radius:12px;background:#30303a;color:var(--sub)}
+ .nb{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+ .nb:last-child{border:0}
+ #err{color:var(--bad);font-size:13px;min-height:18px}
+ .hidden{display:none}
+ .gold{color:var(--gold)}
+</style>
+</head>
+<body>
+<h1>Приграничье <span class="sub" id="ver">· живой мир</span></h1>
+
+<!-- вход / регистрация -->
+<div class="card" id="auth">
+ <div class="row" style="margin-bottom:8px">
+  <button id="tabLogin" class="primary" style="width:auto;flex:1">Вход</button>
+  <button id="tabReg" style="flex:1">Регистрация</button>
+ </div>
+ <input id="login" placeholder="логин" autocomplete="username">
+ <input id="pass" type="password" placeholder="пароль (от 4 символов)" autocomplete="current-password">
+ <button class="primary" id="go">Войти в мир</button>
+ <div id="err"></div>
+ <div class="sub" style="margin-top:8px">Регистрация отдельна от мира: один аккаунт — любой клиент.
+  Войдя, ты вселяешься в жителя Приграничья и живёшь его жизнью.</div>
+</div>
+
+<!-- игра -->
+<div id="game" class="hidden">
+ <div class="card">
+  <div class="row" style="justify-content:space-between;align-items:center">
+   <div><span class="big" id="who">—</span> <span class="sub" id="role"></span></div>
+   <span class="tag" id="when">—</span>
+  </div>
+  <div class="stat">здоровье <span id="hv"></span></div><div class="bar"><div id="hbar"></div></div>
+  <div class="stat">сытость <span id="fv"></span></div><div class="bar"><div id="fbar"></div></div>
+  <div class="stat">силы <span id="ev"></span></div><div class="bar"><div id="ebar"></div></div>
+  <div class="stat">настрой <span id="mv"></span></div><div class="bar"><div id="mbar"></div></div>
+  <div class="sub" id="last" style="margin-top:6px"></div>
+ </div>
+
+ <div class="card">
+  <div><b id="place">—</b> <span class="tag" id="tier"></span></div>
+  <div class="sub" id="placefood" style="margin:4px 0 8px"></div>
+  <b class="sub">чем займёшься</b>
+  <div class="acts">
+   <button onclick="goal('work')">🛠 Работать</button>
+   <button onclick="goal('eat')">🍞 Поесть</button>
+   <button onclick="goal('rest')">💤 Отдохнуть</button>
+   <button onclick="goal('socialize')">🍯 В таверну</button>
+  </div>
+ </div>
+
+ <div class="card">
+  <b class="sub">рядом живут</b>
+  <div id="neighbors"></div>
+ </div>
+ <button id="leave" style="width:100%;margin-bottom:24px">Выйти (тело вернётся под управление мира)</button>
+</div>
+
+<script>
+let token=null, ws=null, mode='login';
+const $=id=>document.getElementById(id);
+$('tabLogin').onclick=()=>{mode='login';$('tabLogin').className='primary';$('tabReg').className='';$('go').textContent='Войти в мир';};
+$('tabReg').onclick =()=>{mode='reg';  $('tabReg').className='primary';$('tabLogin').className='';$('go').textContent='Создать и войти';};
+
+async function api(path,body){
+ const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ return r.json();
+}
+$('go').onclick=async()=>{
+ $('err').textContent='';
+ const login=$('login').value.trim(), pass=$('pass').value;
+ if(!login||pass.length<4){$('err').textContent='нужен логин и пароль от 4 символов';return;}
+ if(mode==='reg'){
+   const rr=await api('/api/register',{login,pass});
+   if(!rr.ok){$('err').textContent=rr.msg||'не удалось зарегистрироваться';return;}
+ }
+ const lr=await api('/api/login',{login,pass});
+ if(!lr.ok){$('err').textContent=lr.msg||'неверный вход';return;}
+ token=lr.token; connect();
+};
+
+function connect(){
+ const proto=location.protocol==='https:'?'wss':'ws';
+ ws=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+ ws.onmessage=e=>render(JSON.parse(e.data));
+ ws.onclose=()=>{ if(token){ $('err').textContent='связь прервалась'; } };
+ ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); };
+}
+function goal(g){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({op:'goal',goal:g})); }
+$('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
+
+function barColor(v){ return v<25?'var(--bad)':v<55?'var(--warn)':'var(--good)'; }
+function setBar(id,val,invert){
+ const shown=invert?100-val:val;
+ $(id+'bar').style.width=Math.max(0,Math.min(100,shown))+'%';
+ $(id+'bar').style.background=barColor(invert?100-val:val);
+ $(id+'v').textContent=Math.round(val);
+}
+function render(s){
+ if(!s.alive){ $('who').textContent='твоё тело покинуло мир'; return; }
+ const me=s.me;
+ $('who').textContent=me.name+(me.surname?' '+me.surname:'');
+ $('role').textContent='· '+me.role+' · '+me.age+' лет';
+ $('when').textContent=`год ${s.year}, ${s.season}, день ${s.day}`;
+ setBar('h',me.health); setBar('f',100-me.hunger); // сытость = 100-голод
+ $('fv').textContent=Math.round(100-me.hunger);
+ setBar('e',me.energy); setBar('m',me.morale);
+ const goalNames={work:'работает',eat:'ест',rest:'отдыхает',socialize:'в таверне',seek_home:'ищет дом',leave:'в пути',wander:'бродит'};
+ $('last').innerHTML='сейчас: <span class="gold">'+(goalNames[me.goal]||me.goal||'—')+'</span> · '+(me.last||'');
+ if(s.place){
+   $('place').textContent=s.place.name;
+   $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;
+   $('placefood').textContent=`в закромах: еды ${s.place.food}, хлеба ${s.place.bread}`;
+   $('neighbors').innerHTML=(s.place.neighbors||[]).map(n=>
+     `<div class="nb">${n.name} <span class="sub">— ${n.role}, ${n.act}</span></div>`).join('')||'<div class="sub">никого рядом</div>';
+ }
+}
+</script>
+</body>
+</html>

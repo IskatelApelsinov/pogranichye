@@ -5,3 +5,8 @@ __pycache__/
 .godot/
 *.import
 /tmp/
+
+# Собираемые/рантайм-файлы сервера
+1-server/accounts.json
+1-server/pogserver
+*.snapshot.json
