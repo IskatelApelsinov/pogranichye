@@ -30,7 +30,7 @@ func run(w *core.World, day int) {
 
 // Без пахаря пашня не засевается — хлеба не будет (сохранение: нет труда → нет блага).
 func TestNoFarmerNoSowing(t *testing.T) {
-	w, se := mini(map[string]float64{GoodSeed: 500}, "", 0)
+	w, se := mini(map[string]float64{GoodWheat: 500}, "", 0)
 	w.Spawn(&ResourceNodeC{Node: NodeField, Good: GoodWheat, Settlement: se.ID})
 	run(w, 1) // день 1 — весна
 	var n *ResourceNodeC
@@ -40,27 +40,58 @@ func TestNoFarmerNoSowing(t *testing.T) {
 	}
 }
 
-// С пахарём весной сеют (семена убывают), осенью жнут (зерно-еда прибывает, сохранение).
+// С пахарём весной сеют (зерно убывает в землю), осенью жнут (зерно прибывает, сохранение).
 func TestSowAndHarvest(t *testing.T) {
-	store := map[string]float64{GoodSeed: 500}
+	store := map[string]float64{GoodWheat: 500}
 	w, se := mini(store, "farmer", 30)
 	w.Spawn(&ResourceNodeC{Node: NodeField, Good: GoodWheat, Settlement: se.ID})
 	run(w, 1) // весна: сев
-	seedAfterSow := store[GoodSeed]
-	if seedAfterSow >= 500 {
-		t.Fatalf("сев не израсходовал семена: %.0f", seedAfterSow)
+	if store[GoodWheat] >= 500 {
+		t.Fatalf("сев не израсходовал зерно: %.0f", store[GoodWheat])
 	}
-	// довести поле до спелости и сжать осенью
 	var n *ResourceNodeC
 	w.Each("resnode", func(e *core.Entity) { n = Node(e) })
 	n.Ripe = 1
 	run(w, 50) // осень: жатва
-	if store[GoodWheat] <= 0 {
-		t.Fatal("осенью должна быть жатва зерна")
+	// урожай должен заметно превысить остаток (сам-N), но не больше физически возможного
+	if store[GoodWheat] < 100 {
+		t.Fatalf("осенью должна быть жатва, а зерна лишь %.0f", store[GoodWheat])
 	}
-	// сохранение: урожай не больше, чем посеяно × макс. сам-N
-	if store[GoodWheat] > seedPerField*yieldRatioMax+1 {
+	if store[GoodWheat] > 500+seedPerField*yieldRatioMax {
 		t.Fatalf("урожай больше физически возможного: %.0f", store[GoodWheat])
+	}
+}
+
+// Бережливость — поведение, а не замок: повар НЕ мелет зерно ниже посевного резерва (sowReserve),
+// придерживая его под сев. Проверяем, что из запаса чуть выше резерва смелется лишь излишек.
+func TestCookKeepsSowReserve(t *testing.T) {
+	store := map[string]float64{GoodWheat: sowReserve + 20}
+	w, _ := mini(store, "cook", 30)
+	run(w, 30) // лето — повар печёт
+	if store[GoodWheat] < sowReserve-1 {
+		t.Fatalf("повар проел посевной резерв: осталось %.0f (резерв %.0f)", store[GoodWheat], sowReserve)
+	}
+	if store[GoodBread] <= 0 {
+		t.Fatal("повар должен был испечь хлеб из излишка зерна")
+	}
+}
+
+// Трагедия «съели семена» эмерджентна: голод (нет печёного/промысла, только зерно) заставляет
+// есть зерно — и оно уходит НИЖЕ посевного резерва (движок этого не запрещает).
+func TestFamineEatsSowGrain(t *testing.T) {
+	se := &core.Entity{ID: 1, Comps: map[string]core.Component{}}
+	se.Add(&core.SettlementC{Store: map[string]float64{GoodWheat: sowReserve}})
+	ate := 0
+	for i := 0; i < 50; i++ {
+		if Eat(se) { // ничего кроме зерна нет → в голод едят зерно
+			ate++
+		}
+	}
+	if ate == 0 {
+		t.Fatal("в голод люди должны есть зерно (в т.ч. посевное)")
+	}
+	if core.Settle(se).Store[GoodWheat] >= sowReserve {
+		t.Fatal("посевной резерв должен был просесть — это и есть «съели семена»")
 	}
 }
 
@@ -93,20 +124,6 @@ func TestMineDepletes(t *testing.T) {
 	// добыто не больше, чем было в жиле (сохранение)
 	if core.Settle(se).Store[GoodOre] > 12.01 {
 		t.Fatalf("добыто больше, чем было руды: %.2f", core.Settle(se).Store[GoodOre])
-	}
-}
-
-// Семенное зерно НЕ едят ни при каком голоде — сев всегда обеспечен.
-func TestSeedIsSacred(t *testing.T) {
-	se := &core.Entity{ID: 1, Comps: map[string]core.Component{}}
-	se.Add(&core.SettlementC{Store: map[string]float64{GoodSeed: 100}})
-	for i := 0; i < 50; i++ {
-		if Eat(se) {
-			t.Fatal("семенное зерно нельзя есть")
-		}
-	}
-	if core.Settle(se).Store[GoodSeed] != 100 {
-		t.Fatalf("семена тронули: %.0f", core.Settle(se).Store[GoodSeed])
 	}
 }
 

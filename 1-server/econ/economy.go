@@ -7,8 +7,11 @@ import (
 
 // Настройки экономики — в одном месте, чтобы крутить баланс не трогая логику.
 const (
-	seedPerField   = 60.0  // семян на засев общинной пашни (крупная площадь; жатва кормит год)
-	seedTarget     = 300.0 // семенной фонд под 4 рабочие пашни + страховка
+	seedPerField = 60.0  // зерна на засев одной общинной пашни (крупная площадь; жатва кормит год)
+	sowReserve   = 300.0 // зерна, которое ОБЩИНА старается придержать под будущий сев.
+	//                        Это НЕ закон движка, а бережливость жителей: повар не мелет ниже,
+	//                        торговцы не продают ниже. Но в голод отчаявшиеся проедают и его —
+	//                        и остаются без сева. «Священность» делают НПС, не код.
 	yieldRatioMin  = 3.0   // урожай: сам-3 в плохой год...
 	yieldRatioMax  = 6.0   // ...сам-6 в хороший (реальные средневековые цифры)
 	harvestRipe    = 0.75  // ниже спелости жатва почти пустая
@@ -21,15 +24,16 @@ const (
 	titheRate      = 0.1   // десятина
 )
 
-// Съедобное (по предпочтению). Зерно-еда (wheat) едят кашей, если нет печёного; семенное
-// зерно (seed) — отдельный товар, его не едят вовсе, поэтому сев всегда обеспечен.
+// Съедобное (по предпочтению). Зерно (wheat) — ПОСЛЕДНЕЕ в списке: его едят кашей, лишь когда
+// печёного и промысла не осталось. Так в сытое время зерно копится под сев само (никто его не
+// доедает), а в голод люди проедают и посевной резерв — отсюда эмерджентная трагедия «съели семена».
 var edibles = []string{GoodBread, GoodFish, GoodGame, GoodFlour, GoodWheat}
 
-// SeedPerField — сколько зерна уходит на засев пашни (для генерации стартового резерва семян).
+// SeedPerField — сколько зерна уходит на засев пашни (для генерации стартовых запасов).
 func SeedPerField() float64 { return seedPerField }
 
-// SeedTarget — целевой семенной фонд поселения (для стартовой генерации).
-func SeedTarget() float64 { return seedTarget }
+// SowReserve — сколько зерна община бережёт под сев (поведенческая цель, не замок движка).
+func SowReserve() float64 { return sowReserve }
 
 // Edible сообщает, можно ли это съесть (для проверок рождений/голода снаружи пакета).
 func Edible(good string) bool {
@@ -51,9 +55,17 @@ func FoodOnHand(se *core.Entity) float64 {
 	return t
 }
 
-// FeedableFood — вся доступная в пищу еда (зерно-еда уже входит в edibles; семена не в счёт).
+// FeedableFood — еда, которой община реально готова кормиться: печёное/промысел плюс зерно
+// СВЕРХ посевного резерва (сам резерв берегут под сев, пока не грянул настоящий голод).
 // По ней решаем, сыта ли деревня для рождений.
-func FeedableFood(se *core.Entity) float64 { return FoodOnHand(se) }
+func FeedableFood(se *core.Entity) float64 {
+	st := store(se)
+	t := st[GoodBread] + st[GoodFish] + st[GoodGame] + st[GoodFlour]
+	if surplus := st[GoodWheat] - sowReserve; surplus > 0 {
+		t += surplus
+	}
+	return t
+}
 
 // store возвращает склад поселения (карту товаров), создавая при нужде.
 func store(se *core.Entity) map[string]float64 {
@@ -150,8 +162,10 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		switch season {
 		case core.Spring:
-			if !n.Sown && farmers > 0 && st[GoodSeed] >= seedPerField {
-				st[GoodSeed] -= seedPerField // семенное зерно уходит в землю
+			// сеют, если есть пахари И есть зерно в закромах. Если за зиму зерно проели —
+			// сеять нечем, год будет голодный (эмерджентно, без запрета в движке).
+			if !n.Sown && farmers > 0 && st[GoodWheat] >= seedPerField {
+				st[GoodWheat] -= seedPerField // зерно уходит в землю
 				n.SownSeed = seedPerField
 				n.Sown = true
 				n.Ripe = 0
@@ -163,15 +177,7 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		case core.Autumn:
 			if n.Sown && n.Ripe >= harvestRipe {
 				ratio := s.Uniform(yieldRatioMin, yieldRatioMax)
-				yield := n.SownSeed * ratio // урожай = сам-N от посеянного (сохранение)
-				// первым делом пополнить семенной фонд до цели, остальное — зерно-еда
-				need := seedTarget - st[GoodSeed]
-				if need > 0 {
-					take := min(need, yield)
-					st[GoodSeed] += take
-					yield -= take
-				}
-				st[GoodWheat] += yield
+				st[GoodWheat] += n.SownSeed * ratio // урожай = сам-N от посеянного (сохранение)
 				n.Sown = false
 				n.SownSeed = 0
 				n.Ripe = 0
@@ -217,11 +223,16 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if l == nil {
 			return
 		}
-		// повар мелет зерно-еду в хлеб (семенной фонд — отдельный товар, его не трогаем)
-		if cooks := l.byRole["cook"]; cooks > 0 && st[GoodWheat] > 0 {
-			use := min(st[GoodWheat], float64(cooks)*cookGrindDay)
-			st[GoodWheat] -= use
-			st[GoodBread] += use * breadFromWheat
+		// повар мелет зерно В ХЛЕБ, но прудентно оставляет общине посевной резерв (sowReserve):
+		// печём из ИЗЛИШКА зерна, а не из того, что нужно весной на сев. Это и есть «бережливость
+		// жителей» вместо запрета в движке — в голод её нарушит само поедание зерна (edibles).
+		if cooks := l.byRole["cook"]; cooks > 0 {
+			grindable := st[GoodWheat] - sowReserve
+			if grindable > 0 {
+				use := min(grindable, float64(cooks)*cookGrindDay)
+				st[GoodWheat] -= use
+				st[GoodBread] += use * breadFromWheat
+			}
 		}
 		if smiths := l.byRole["smith"]; smiths > 0 && st[GoodOre] > 0 {
 			use := min(st[GoodOre], float64(smiths)*smithOreDay)
@@ -311,9 +322,10 @@ func (TradeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			target := float64(pop[sid]) * tradeBufferDays
 			feed := FeedableFood(se)
 			switch {
-			case feed > target*1.5: // излишек — часть зерна-еды на продажу (семена не трогаем)
+			case feed > target*1.5: // излишек — часть зерна на продажу
 				give := (feed - target) * 0.5
-				give = min(give, st[GoodWheat])
+				// но не продаём ниже посевного резерва (та же бережливость общины)
+				give = min(give, st[GoodWheat]-sowReserve)
 				if give > 0 {
 					st[GoodWheat] -= give
 					pooled += give

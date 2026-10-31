@@ -20,8 +20,7 @@ const (
 	NodeForest  = "forest"  // лес: дрова/дичь, медленно возобновляется
 	NodePasture = "pasture" // пастбище/угодья: дичь, возобновляется
 
-	GoodWheat = "wheat" // зерно-еда (мелют в муку/хлеб, едят кашей)
-	GoodSeed  = "seed"  // семенное зерно — НЕ едят и НЕ возят: только на сев (священно)
+	GoodWheat = "wheat" // зерно: и на хлеб, и на сев, и каша в голод — один товар, без «священного»
 	GoodFlour = "flour"
 	GoodBread = "bread"
 	GoodFish  = "fish"

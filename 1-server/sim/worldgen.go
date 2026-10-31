@@ -61,8 +61,8 @@ func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
 		Name: name, Founded: 0, Tier: "village", Tavern: true,
 		Store: map[string]float64{
 			econ.GoodBread: 400,
-			econ.GoodWheat: 160,
-			econ.GoodSeed:  econ.SeedTarget(),
+			// зерно: посевной резерв (его община бережёт под сев) + немного на кашу
+			econ.GoodWheat: econ.SowReserve() + 160,
 			econ.GoodWood:  30,
 		},
 	})
