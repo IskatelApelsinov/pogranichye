@@ -5,52 +5,120 @@ import (
 
 	"pogranichye/core"
 	"pogranichye/dice"
+	"pogranichye/econ"
 )
 
 var villageNames = []string{"Белогорье", "Отрадное", "Соловьёво", "Усть-Ворон", "Лещина",
-	"Яворово", "Тихий Брод", "Межгорье", "Краснолесье", "Студёное"}
+	"Яворово", "Тихий Брод", "Межгорье", "Краснолесье", "Студёное", "Вербное", "Залесье",
+	"Каменка", "Рыбное", "Горелово", "Светлояр", "Новосёлки", "Дубрава", "Погост", "Броды"}
 
-// Generate создаёт живой мир-затравку: несколько поселений с жителями. Разброс свойств —
-// через кости (возраст, пол, тяги, стартовый достаток), чтобы НЕ было клонов и идеальной
-// ровности. Возвращает мир и хаб костей (детерминированно от seed).
+var realmNames = []string{"Залесская земля", "Понизовье", "Горный удел"}
+
+// Generate создаёт живой мир-затравку с экономикой на законе сохранения: у поселений есть
+// рельеф и КОНЕЧНЫЕ угодья (пашни, лес, пастбище, где можно — рыбное место и шахта), склад
+// с запасом еды и семян, жители с ремёслами по весам (пахарей больше — хлеб основа). Державы
+// делят землю и берут десятину. Разброс — через кости, без клонов и идеальной ровности.
 func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 	w := core.NewWorld(seed)
 	hub := dice.NewHub(seed)
-	gen := hub.Stream("worldgen")
+	g := hub.Stream("worldgen")
 
 	if settlements > len(villageNames) {
 		settlements = len(villageNames)
 	}
+	var settleIDs []core.ID
 	for i := 0; i < settlements; i++ {
-		s := w.Spawn(&core.SettlementC{
+		coastal := g.Chance(0.4)  // у воды — рыбное место
+		mountain := g.Chance(0.3) // в горах — шахта
+		pop := g.Between(6, 10)
+
+		se := w.Spawn(&core.SettlementC{
 			Name:    villageNames[i],
 			Founded: 0,
 			Tier:    "village",
-			Store:   map[string]float64{"food": gen.Uniform(40, 120), "wood": gen.Uniform(20, 60)},
 			Tavern:  true,
+			Store: map[string]float64{
+				econ.GoodBread: float64(pop) * 40, // запас хлеба дожить до первой жатвы
+				econ.GoodWheat: float64(pop) * 20, // зерно-еда на первое время
+				econ.GoodSeed:  econ.SeedTarget(), // семенной фонд под сев (неприкосновенный)
+				econ.GoodWood:  30,
+			},
 		})
-		// население деревни — не ровное: кость задаёт 6..14 душ
-		pop := gen.Between(6, 14)
+		settleIDs = append(settleIDs, se.ID)
+
+		// угодья (конечные). Трёхполье: из трёх пашен одна под паром.
+		// пять общинных полей, одно под паром (трёхполье упрощённо): жатва должна кормить год
+		for f := 0; f < 5; f++ {
+			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeField, Good: econ.GoodWheat,
+				Settlement: se.ID, Fallow: f == 4})
+		}
+		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeForest, Good: econ.GoodWood,
+			Settlement: se.ID, Stock: 400, Cap: 400, Regen: 3})
+		w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
+			Settlement: se.ID, Stock: 200, Cap: 200, Regen: 4})
+		if coastal {
+			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFishery, Good: econ.GoodFish,
+				Settlement: se.ID, Stock: 300, Cap: 300, Regen: 6})
+		}
+		if mountain {
+			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeMine, Good: econ.GoodOre,
+				Settlement: se.ID, Stock: g.Uniform(300, 600), Cap: 600, Regen: 0}) // шахта истощается
+		}
+
 		var residents []*core.Entity
 		for j := 0; j < pop; j++ {
-			p := spawnPerson(w, gen, s.ID)
+			p := spawnPerson(w, g, se.ID)
+			// костяк каждой деревни задаём жёстко, чтобы не было нежизнеспособных (без пахарей/
+			// повара деревня обречена голодать). Остальные — по весам ремёсел.
+			switch j {
+			case 0, 1:
+				setRole(p, "farmer") // минимум два пахаря — хлеб основа
+			case 2:
+				setRole(p, "cook") // повар печёт хлеб из зерна
+			}
 			residents = append(residents, p)
 		}
-		// корчмарь — случайный взрослый житель
 		if len(residents) > 0 {
-			k := residents[gen.Intn(len(residents))]
+			k := residents[g.Intn(len(residents))]
 			core.Ident(k).Role = "tavernkeeper"
-			core.Settle(s).Keeper = k.ID
+			core.Settle(se).Keeper = k.ID
 		}
 	}
+
+	// державы делят землю и берут десятину
+	makeRealms(w, g, settleIDs)
 	return w, hub
 }
 
-// spawnPerson создаёт жителя с согласованной личностью и разбросанными свойствами.
+func makeRealms(w *core.World, g *dice.Stream, settles []core.ID) {
+	if len(settles) == 0 {
+		return
+	}
+	nRealms := 1 + len(settles)/5 // примерно одна держава на ~5 поселений
+	if nRealms > len(realmNames) {
+		nRealms = len(realmNames)
+	}
+	buckets := make([][]core.ID, nRealms)
+	for i, sid := range settles {
+		b := i % nRealms
+		buckets[b] = append(buckets[b], sid)
+	}
+	for i := 0; i < nRealms; i++ {
+		if len(buckets[i]) == 0 {
+			continue
+		}
+		w.Spawn(&econ.RealmC{
+			Name:      realmNames[i],
+			Capital:   buckets[i][0],
+			TaxRate:   0.1, // десятина
+			Territory: buckets[i],
+		})
+	}
+}
+
 func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity {
 	sex := randomSex(s)
-	ident := makeIdentity(s, sex, "", "")
-	// возраст — колоколом вокруг 30, обрезанный в [1,70]; дети и старики существуют
+	ident := makeIdentity(s, sex, "", pickRole(s))
 	age := s.Normal(30, 15)
 	if age < 1 {
 		age = 1
@@ -60,43 +128,40 @@ func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity
 	}
 	home := "none"
 	if s.Chance(0.4) {
-		home = "owned" // часть жителей уже обжилась
+		home = "owned"
 	}
-	e := w.Spawn(
+	return w.Spawn(
 		ident,
-		&core.VitalsC{
-			Age:    round1(age),
-			Health: s.Uniform(80, 100),
-			Hunger: s.Uniform(0, 40),
-			Energy: s.Uniform(50, 100),
-			Morale: s.Uniform(45, 80),
-		},
-		&core.DrivesC{
-			Ambition: s.Uniform(0, 60),
-			Social:   s.Uniform(0, 50),
-			Dwelling: s.Uniform(0, 60),
-		},
+		&core.VitalsC{Age: round1(age), Health: s.Uniform(80, 100),
+			Hunger: s.Uniform(0, 40), Energy: s.Uniform(50, 100), Morale: s.Uniform(45, 80)},
+		&core.DrivesC{Ambition: s.Uniform(0, 60), Social: s.Uniform(0, 50), Dwelling: s.Uniform(0, 60)},
 		&core.MindC{Goal: "", LastAct: "—"},
-		&core.SkillsC{Skills: map[string]float64{
-			ident.Role: s.Uniform(2, 25), // стартовое умение по ремеслу, скромное
-		}},
+		&core.SkillsC{Skills: map[string]float64{ident.Role: s.Uniform(2, 25)}},
 		&core.PurseC{Coins: round1(s.Uniform(2, 40)), Debts: map[string]float64{}},
 		&core.HomeC{Status: home, Comfort: 0, Settlement: settlement},
 		&core.PlaceC{Settlement: settlement},
 	)
-	return e
 }
 
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
 
-// Describe — короткая человекочитаемая сводка мира (для cmd/диагностики).
+// Describe — короткая сводка мира (для cmd/диагностики).
 func Describe(w *core.World) string {
-	people, settles := 0, 0
-	w.Each("vitals", func(e *core.Entity) {
-		if core.Ident(e) != nil {
-			people++
-		}
-	})
+	people, settles, nodes, realms := 0, 0, 0, 0
+	w.Each("ident", func(e *core.Entity) { people++ })
 	w.Each("settlement", func(e *core.Entity) { settles++ })
-	return fmt.Sprintf("мир: %d поселений, %d живых сущностей", settles, people)
+	w.Each("resnode", func(e *core.Entity) { nodes++ })
+	w.Each("realm", func(e *core.Entity) { realms++ })
+	return fmt.Sprintf("мир: %d держав, %d поселений, %d угодий, %d живых душ",
+		realms, settles, nodes, people)
+}
+
+// setRole жёстко назначает ремесло жителю и даёт начальные азы навыка (для костяка деревни).
+func setRole(e *core.Entity, role string) {
+	if id := core.Ident(e); id != nil {
+		id.Role = role
+	}
+	if sk := core.Skills(e); sk != nil {
+		sk.Skills[role] = 8
+	}
 }

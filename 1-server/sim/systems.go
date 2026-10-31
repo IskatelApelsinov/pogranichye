@@ -5,6 +5,7 @@ import (
 
 	"pogranichye/core"
 	"pogranichye/dice"
+	"pogranichye/econ"
 	"pogranichye/mind"
 )
 
@@ -16,11 +17,14 @@ const (
 	birthCapPop   = 26   // потолок населения деревни (чтобы не взрывалось)
 	townAtPop     = 16   // деревня → город (town) при таком населении
 	cityAtPop     = 24   // town → город (city)
-	hungerPerHour = 1.3
+	hungerPerHour = 0.6
 	energyPerHour = 2.2
 )
 
 func sid(id core.ID) string { return strconv.FormatUint(uint64(id), 10) }
+
+// Диагностические счётчики (для трассировки баланса). Не для прода.
+var DebugBirths, DebugDeaths, DebugFamine, DebugOld int
 
 // --- Нужды: голод, силы, здоровье, настрой. Каждый час. ---
 
@@ -46,14 +50,11 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			v.Energy = clamp(v.Energy-energyPerHour, 0, 100)
 		}
 
-		// поесть, если такова цель и в деревне есть съестное
-		if m != nil && m.Goal == mind.GoalEat {
-			if s := settlementOf(w, e); s != nil {
-				st := core.Settle(s)
-				if st.Store["food"] >= 1 {
-					st.Store["food"]--
-					v.Hunger = clamp(v.Hunger-45, 0, 100)
-				}
+		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
+		// проедает лишнее — так деревня съедала годовой запас за пару недель)
+		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
+			if s := settlementOf(w, e); s != nil && econ.Eat(s) {
+				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			}
 		}
 
@@ -102,20 +103,11 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 		ident := core.Ident(e)
 		sk := core.Skills(e)
 		if ident != nil && sk != nil && v.Energy > 8 {
-			sk.Train(ident.Role, 0.5)
+			sk.Train(ident.Role, 0.5) // труд растит навык и платит; саму добычу считает econ
 			if p := core.Purse(e); p != nil {
 				p.Coins = round1(p.Coins + s.Uniform(0.5, 2.5))
 			}
-			// труд кормит общий склад деревни (провизия/дрова) — деревня жива трудом
-			if set := settlementOf(w, e); set != nil {
-				store := core.Settle(set).Store
-				if shared.Chance(0.6) {
-					store["food"] += s.Uniform(0.5, 2.0)
-				} else {
-					store["wood"] += s.Uniform(0.3, 1.2)
-				}
-			}
-			m.LastAct = "работает"
+			m.LastAct = "работает (" + ident.Role + ")"
 		} else {
 			m.LastAct = "выдохся"
 		}
@@ -178,25 +170,31 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// взросление: ребёнок-idler, дорастя до 15, берёт ремесло — иначе мир вырождается
 		// в сплошных idler'ов (болезнь прототипа: родились безликими и такими остались)
 		if id := core.Ident(e); id != nil && id.Role == "idler" && v.Age >= 15 {
-			id.Role = roles[role.Intn(len(roles))]
+			id.Role = pickRole(role) // ремесло по весам (пахарей больше — хлеб основа)
 			if sk := core.Skills(e); sk != nil {
 				sk.Train(id.Role, role.Uniform(2, 8)) // юношеские азы ремесла
 			}
 		}
+		// Смерть — это прежде всего СТАРОСТЬ (оборот поколений идёт сам). Голод убивает
+		// лишь в НАСТОЯЩИЙ голод (hunger>=100 — еды нет совсем), а не при лёгком недоедании:
+		// иначе любой сезонный просад превращается в мор. Болезни/раны добавим отдельным слоем.
 		p := 0.0
-		if v.Age > 55 {
-			p += (v.Age - 55) / (maxAge - 55) * 0.02 // старость
-		}
-		if v.Health <= 5 {
-			p += 0.12 // при смерти от истощения
+		if v.Age > 50 {
+			p += (v.Age - 50) / (maxAge - 50) * 0.03 // старость: чем старше, тем вероятнее
 		}
 		if v.Hunger >= 100 {
-			p += 0.05
+			p += 0.02 // голод истощает медленно (переживают лихой сезон); катастрофу делает СОБЫТИЕ, не фон
 		}
 		if p > 0 && mort.Chance(p) {
 			dead = append(dead, e.ID)
+			if v.Hunger >= 100 {
+				DebugFamine++
+			} else {
+				DebugOld++
+			}
 		}
 	})
+	DebugDeaths += len(dead)
 	for _, id := range dead {
 		w.Remove(id) // идентичность уходит из мира; хроника памяти — отдельный слой (позже)
 	}
@@ -209,17 +207,21 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		pop := len(res)
 		adults := 0
 		for _, r := range res {
-			if v := core.Vitals(r); v != nil && v.Age >= 18 && v.Age <= 45 {
+			if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 48 {
 				adults++
 			}
 		}
-		// деревня жива и сыта → изредка рождается ребёнок (не выше потолка)
-		if adults >= 2 && pop < birthCapPop && set.Store["food"] > float64(pop) {
-			chance := 0.03 * float64(adults) / 4.0
+		// деревня жива и сыта → изредка рождается ребёнок (не выше потолка).
+		// Сытость меряем РЕАЛЬНОЙ едой на складе: нет хлеба/рыбы — не до детей.
+		if adults >= 2 && pop < birthCapPop && econ.FeedableFood(se) > float64(pop) {
+			chance := 0.05 * float64(adults) / 4.0
 			if birth.Chance(chance) {
 				bornTo := res[birth.Intn(len(res))]
 				spawnNewborn(w, birth, se.ID, bornTo)
-				set.Store["food"] -= 4 // прокорм младенца
+				DebugBirths++
+				for i := 0; i < 4; i++ {
+					econ.Eat(se) // прокорм младенца из реальных запасов
+				}
 			}
 		}
 		// рост ступени: деревня → город по населению (цивилизация растёт сама)
@@ -305,7 +307,9 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 	}
 }
 
-// Default — стандартный набор систем в фиксированном порядке (нужды → разум → жизнь).
+// Default — стандартный набор систем в фиксированном порядке. Экономика идёт ПЕРВОЙ в сутках
+// (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
+// жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{NeedsSystem{}, MindSystem{}, LifeSystem{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}}
 }

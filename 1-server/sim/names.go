@@ -23,8 +23,20 @@ var (
 	}
 	traits = []string{"Крепкий", "Ловкий", "Трудолюбивый", "Выносливый", "Бережливый",
 		"Хозяйственный", "Общительный", "Удачливый", "Дотошный", "обычный"}
-	roles = []string{"woodcutter", "fisher", "cook", "smith", "herbalist", "hunter", "weaver"}
+	// ремёсла. farmer и miner добавлены: без пахарей не сеют хлеб, без рудокопов нет руды.
+	// веса подобраны так, чтобы деревня кормила себя (много пахарей, поменьше прочих).
+	roles       = []string{"farmer", "fisher", "cook", "smith", "herbalist", "hunter", "woodcutter", "weaver", "miner"}
+	roleWeights = []float64{34, 10, 12, 6, 6, 10, 10, 4, 8} // фермеров больше всего — хлеб основа жизни
 )
+
+// pickRole — ремесло по весам (пахари чаще прочих). Отдельно от roles, чтобы менять баланс.
+func pickRole(s *dice.Stream) string {
+	i := s.Weighted(roleWeights)
+	if i < 0 {
+		i = 0
+	}
+	return roles[i]
+}
 
 // surnameFor выдаёт родовое прозвание в нужной форме по полу.
 func surnameFor(s *dice.Stream, sex string) string {
