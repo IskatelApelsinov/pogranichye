@@ -23,58 +23,20 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 	hub := dice.NewHub(seed)
 	g := hub.Stream("worldgen")
 
-	if settlements > len(villageNames) {
-		settlements = len(villageNames)
-	}
 	var settleIDs []core.ID
 	for i := 0; i < settlements; i++ {
-		coastal := g.Chance(0.4)  // у воды — рыбное место
-		mountain := g.Chance(0.3) // в горах — шахта
+		se := NewSettlement(w, g, settlementName(w, g, i))
 		pop := g.Between(6, 10)
-
-		se := w.Spawn(&core.SettlementC{
-			Name:    villageNames[i],
-			Founded: 0,
-			Tier:    "village",
-			Tavern:  true,
-			Store: map[string]float64{
-				econ.GoodBread: float64(pop) * 40, // запас хлеба дожить до первой жатвы
-				econ.GoodWheat: float64(pop) * 20, // зерно-еда на первое время
-				econ.GoodSeed:  econ.SeedTarget(), // семенной фонд под сев (неприкосновенный)
-				econ.GoodWood:  30,
-			},
-		})
-		settleIDs = append(settleIDs, se.ID)
-
-		// угодья (конечные). Трёхполье: из трёх пашен одна под паром.
-		// пять общинных полей, одно под паром (трёхполье упрощённо): жатва должна кормить год
-		for f := 0; f < 5; f++ {
-			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeField, Good: econ.GoodWheat,
-				Settlement: se.ID, Fallow: f == 4})
-		}
-		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeForest, Good: econ.GoodWood,
-			Settlement: se.ID, Stock: 400, Cap: 400, Regen: 3})
-		w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
-			Settlement: se.ID, Stock: 200, Cap: 200, Regen: 4})
-		if coastal {
-			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFishery, Good: econ.GoodFish,
-				Settlement: se.ID, Stock: 300, Cap: 300, Regen: 6})
-		}
-		if mountain {
-			w.Spawn(&econ.ResourceNodeC{Node: econ.NodeMine, Good: econ.GoodOre,
-				Settlement: se.ID, Stock: g.Uniform(300, 600), Cap: 600, Regen: 0}) // шахта истощается
-		}
-
 		var residents []*core.Entity
 		for j := 0; j < pop; j++ {
 			p := spawnPerson(w, g, se.ID)
-			// костяк каждой деревни задаём жёстко, чтобы не было нежизнеспособных (без пахарей/
-			// повара деревня обречена голодать). Остальные — по весам ремёсел.
+			// костяк деревни задаём жёстко, чтобы не было нежизнеспособных (без пахарей/повара
+			// деревня обречена голодать). Остальные — по весам ремёсел.
 			switch j {
 			case 0, 1:
-				setRole(p, "farmer") // минимум два пахаря — хлеб основа
+				setRole(p, "farmer")
 			case 2:
-				setRole(p, "cook") // повар печёт хлеб из зерна
+				setRole(p, "cook")
 			}
 			residents = append(residents, p)
 		}
@@ -83,11 +45,53 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 			core.Ident(k).Role = "tavernkeeper"
 			core.Settle(se).Keeper = k.ID
 		}
+		settleIDs = append(settleIDs, se.ID)
 	}
-
-	// державы делят землю и берут десятину
-	makeRealms(w, g, settleIDs)
+	makeRealms(w, g, settleIDs) // державы делят землю и берут десятину
 	return w, hub
+}
+
+// NewSettlement создаёт ПОСЕЛЕНИЕ с рельефом и конечными угодьями (без жителей) — общий
+// код для стартовой генерации и для ОСНОВАНИЯ новых деревень живым миром. Так мир растёт
+// не только населением, но и числом мест.
+func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
+	coastal := g.Chance(0.4)
+	mountain := g.Chance(0.3)
+	se := w.Spawn(&core.SettlementC{
+		Name: name, Founded: 0, Tier: "village", Tavern: true,
+		Store: map[string]float64{
+			econ.GoodBread: 400,
+			econ.GoodWheat: 160,
+			econ.GoodSeed:  econ.SeedTarget(),
+			econ.GoodWood:  30,
+		},
+	})
+	for f := 0; f < 5; f++ { // пять полей, одно под паром (трёхполье упрощённо)
+		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeField, Good: econ.GoodWheat,
+			Settlement: se.ID, Fallow: f == 4})
+	}
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeForest, Good: econ.GoodWood,
+		Settlement: se.ID, Stock: 400, Cap: 400, Regen: 3})
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
+		Settlement: se.ID, Stock: 200, Cap: 200, Regen: 4})
+	if coastal {
+		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFishery, Good: econ.GoodFish,
+			Settlement: se.ID, Stock: 300, Cap: 300, Regen: 6})
+	}
+	if mountain {
+		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeMine, Good: econ.GoodOre,
+			Settlement: se.ID, Stock: g.Uniform(300, 600), Cap: 600, Regen: 0})
+	}
+	return se
+}
+
+// settlementName выдаёт имя: из списка, пока хватает, затем процедурно (мир растёт — имён
+// фиксированного списка не напасёшься).
+func settlementName(w *core.World, g *dice.Stream, i int) string {
+	if i < len(villageNames) {
+		return villageNames[i]
+	}
+	return procToponym(g)
 }
 
 func makeRealms(w *core.World, g *dice.Stream, settles []core.ID) {
@@ -164,4 +168,15 @@ func setRole(e *core.Entity, role string) {
 	if sk := core.Skills(e); sk != nil {
 		sk.Skills[role] = 8
 	}
+}
+
+// topoPrefix/Root/Suffix — для процедурных названий новых мест (мир растёт — имён не напасёшься).
+var topoPrefix = []string{"Ново", "Старо", "Велико", "Мало", "Красно", "Бело", "Чёрно", "Злато", "Тихо", "Дальне"}
+var topoRoot = []string{"лес", "брод", "гор", "озёр", "реч", "камен", "поль", "дуб", "яр", "студён", "соколь", "медвеж"}
+var topoSuffix = []string{"ье", "ово", "ино", "ск", "ец", "поль", "град"}
+
+func procToponym(g *dice.Stream) string {
+	return topoPrefix[g.Intn(len(topoPrefix))] +
+		topoRoot[g.Intn(len(topoRoot))] +
+		topoSuffix[g.Intn(len(topoSuffix))]
 }

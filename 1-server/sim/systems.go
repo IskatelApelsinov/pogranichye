@@ -232,6 +232,96 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			set.Tier = "town"
 		}
 	})
+
+	// основание НОВЫХ поселений: из переполненной деревни с амбициозными — переселенцы ставят
+	// новую (мир растёт не только населением, но и числом мест). Ограничено потолком.
+	foundNewSettlement(w, hub.Stream("life", "found"))
+}
+
+const maxSettlements = 400 // потолок числа поселений (производительность; поднимается легко)
+
+func foundNewSettlement(w *core.World, s *dice.Stream) {
+	if !s.Chance(0.05) { // редкое событие в масштабе мира
+		return
+	}
+	nSet := 0
+	w.Each("settlement", func(*core.Entity) { nSet++ })
+	if nSet >= maxSettlements {
+		return
+	}
+	// найти переполненную деревню с достатком амбициозных взрослых
+	var source *core.Entity
+	w.Each("settlement", func(se *core.Entity) {
+		if source != nil {
+			return
+		}
+		res := residentsOf(w, se.ID)
+		if len(res) < birthCapPop-2 {
+			return
+		}
+		amb := 0
+		for _, r := range res {
+			if d := core.Drives(r); d != nil && d.Ambition >= 55 {
+				if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 45 {
+					amb++
+				}
+			}
+		}
+		if amb >= 4 {
+			source = se
+		}
+	})
+	if source == nil {
+		return
+	}
+	// собрать ватагу переселенцев (амбициозные взрослые)
+	var band []*core.Entity
+	for _, r := range residentsOf(w, source.ID) {
+		d := core.Drives(r)
+		v := core.Vitals(r)
+		if d != nil && v != nil && d.Ambition >= 55 && v.Age >= 16 && v.Age <= 45 {
+			band = append(band, r)
+		}
+		if len(band) >= 5 {
+			break
+		}
+	}
+	if len(band) < 3 {
+		return
+	}
+	ne := NewSettlement(w, s, procToponym(s))
+	for _, r := range band {
+		if pl := core.Place(r); pl != nil {
+			pl.Settlement = ne.ID
+		}
+		if h := core.Home(r); h != nil {
+			h.Status = "none"
+			h.Settlement = ne.ID
+		}
+		if d := core.Drives(r); d != nil {
+			d.Ambition = 0 // доля найдена — осели
+		}
+	}
+	// обеспечить костяк: первый — пахарь, второй — повар
+	setRole(band[0], "farmer")
+	if len(band) > 1 {
+		setRole(band[1], "cook")
+	}
+	core.Settle(ne).Keeper = band[len(band)-1].ID
+	core.Ident(band[len(band)-1]).Role = "tavernkeeper"
+	// приписать к державе источника (если есть)
+	w.Each("realm", func(re *core.Entity) {
+		r := econ.Realm(re)
+		if r == nil {
+			return
+		}
+		for _, sid := range r.Territory {
+			if sid == source.ID {
+				r.Territory = append(r.Territory, ne.ID)
+				return
+			}
+		}
+	})
 }
 
 func spawnNewborn(w *core.World, s *dice.Stream, settlement core.ID, parent *core.Entity) {
