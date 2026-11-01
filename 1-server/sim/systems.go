@@ -171,7 +171,22 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 			m.LastAct = "выдохся" // нет сил работать — особый исход важнее занятия
 		}
 	case mind.GoalSocialize:
-		v.Morale = clamp(v.Morale+4, 0, 100)
+		// честно: если в корчме есть медовуха — угостился (мера списывается, настрой выше);
+		// нет — просто посидел с людьми. Подпись отражает ФАКТ, а не намерение.
+		drank := false
+		if se := settlementOf(w, e); se != nil {
+			if st := core.Settle(se).Store; st[econ.GoodMead] >= 1 {
+				st[econ.GoodMead]--
+				drank = true
+			}
+		}
+		if drank {
+			v.Morale = clamp(v.Morale+6, 0, 100)
+			m.LastAct = "в корчме за кружкой"
+		} else {
+			v.Morale = clamp(v.Morale+3, 0, 100)
+			m.LastAct = "коротает вечер с соседями"
+		}
 		if d := core.Drives(e); d != nil {
 			d.Social = clamp(d.Social-12, 0, 100)
 		}

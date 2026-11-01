@@ -7,28 +7,30 @@ import (
 )
 
 // Повседневные ЗАНЯТИЯ НПС. Грубую цель (пирамида Маслоу: work/rest/eat/…) уточняем до КОНКРЕТНОГО
-// занятия по профессии, времени года и суток и доступным ресурсам. У каждого занятия — реальная
-// причина: нет дичи в угодьях — охотник не «охотится», а остался без добычи; зимой поле спит —
-// землепашец чинит снасть, а не сеет; нет руды — кузнец у холодного горна. Это НЕ новые поля кадра
-// и НЕ изменение контракта: занятие ложится в уже существующее человекочитаемое поле `last`.
+// занятия по профессии, времени года/суток и доступным ресурсам.
 //
-// Код занятия (code) — внутренний (для тестов/будущей структуризации), НЕ входит в словарь
-// намерений игрока из контракта. Label — строка для `last`.
+// Подписи НАБЛЮДАТЕЛЬНО ЧЕСТНЫ (по замечанию ревью): они говорят, чем человек ЗАНЯТ или что ПЫТАЕТСЯ
+// делать, либо прямо называют НЕВОЗМОЖНОСТЬ, — но не утверждают подтверждённый исход, которого
+// симуляция не гарантирует. «Вышел на жатву» (занят), а не «намолотил хлеб» (исход); «промышляет в
+// угодьях» (занят), а не «добыл зверя»; «у холодного горна — нет руды» (невозможность). Где дёшево,
+// подпись считается из тех же предусловий, что и экономика (есть ли зерно на сев, руда, сырьё, дичь).
+//
+// Код занятия (code) — внутренний (для тестов), НЕ входит в словарь намерений игрока из контракта.
+// Label кладётся в уже существующее поле `last` — новых полей кадра нет, контракт не меняется.
 
 type activity struct{ code, label string }
 
-// localResources — что РЕАЛЬНО доступно в этом поселении сейчас (дешёвые сигналы из склада/фауны/
-// маны/сезона, без сканирования угодий). От них зависит, есть ли у занятия причина состояться.
+// localResources — дешёвые сигналы доступности в поселении сейчас (склад/фауна/сезон), по которым у
+// занятия есть или нет реальной причины состояться.
 type localResources struct {
-	gameNearby   bool // в угодьях есть зверьё (фауна) — есть на кого охотиться
-	oreAround    bool // в селе есть руда — кузнецу/рудокопу есть с чем работать
-	fiber        bool // шерсть/лён/шкуры — ткачу есть из чего ткать
-	tavernDrink  bool // в корчме есть медовуха — есть за чем идти в корчму
-	herbsSeason  bool // не зима — травы можно собирать
-	placeOfPower bool // мана места высока — магу есть откуда черпать
+	gameNearby  bool // в угодьях есть зверьё — есть на кого выйти на промысел
+	oreAround   bool // в селе есть руда — кузнецу/рудокопу есть с чем работать
+	fiber       bool // шерсть/лён/шкуры — ткачу есть из чего ткать
+	tavernDrink bool // в корчме есть медовуха — есть чем угоститься
+	canSow      bool // зерна в закромах общины хватает на засев хотя бы одной пашни
 }
 
-// settlementResources снимает дешёвые сигналы доступности с поселения (склад, фауна, мана, сезон).
+// settlementResources снимает сигналы с поселения (дёшево, без сканирования угодий).
 func settlementResources(se *core.Entity, season core.Season) localResources {
 	s := core.Settle(se)
 	store := s.Store
@@ -42,12 +44,11 @@ func settlementResources(se *core.Entity, season core.Season) localResources {
 		}
 	}
 	return localResources{
-		gameNearby:   game,
-		oreAround:    store[econ.GoodOre] >= 1,
-		fiber:        store[econ.GoodWool]+store[econ.GoodFlax]+store[econ.GoodHide] >= 1,
-		tavernDrink:  store[econ.GoodMead] >= 1,
-		herbsSeason:  season != core.Winter,
-		placeOfPower: s.Mana >= 1.3,
+		gameNearby:  game,
+		oreAround:   store[econ.GoodOre] >= 1,
+		fiber:       store[econ.GoodWool]+store[econ.GoodFlax]+store[econ.GoodHide] >= 1,
+		tavernDrink: store[econ.GoodMead] >= 1,
+		canSow:      store[econ.GoodWheat] >= econ.SeedPerField(),
 	}
 }
 
@@ -63,10 +64,11 @@ func chooseActivity(role, goal string, season core.Season, hour int, r localReso
 		}
 		return activity{"rest_idle", "отдыхает"}
 	case "socialize":
+		// фактический исход (угостился ли медовухой) решает и списывает execGoal — здесь лишь намерение
 		if r.tavernDrink {
-			return activity{"drink_tavern", "в корчме за кружкой"}
+			return activity{"drink_tavern", "идёт в корчму"}
 		}
-		return activity{"visit_neighbors", "в гостях у соседей"}
+		return activity{"visit_neighbors", "коротает время с соседями"}
 	case "seek_home":
 		return activity{"seek_home", "ищет, где осесть"}
 	case "leave":
@@ -77,15 +79,19 @@ func chooseActivity(role, goal string, season core.Season, hour int, r localReso
 	return activity{"wander", "бродит"}
 }
 
-// workActivity — конкретный труд по профессии, сезону и наличию сырья/дичи.
+// workActivity — чем ЗАНЯТ работник по профессии/сезону/наличию сырья. Подписи — о занятости или
+// невозможности, не о подтверждённом результате.
 func workActivity(role string, season core.Season, r localResources) activity {
 	switch role {
 	case "farmer":
 		switch season {
 		case core.Spring:
-			return activity{"farm_sow", "сеет яровые"}
+			if r.canSow {
+				return activity{"farm_sow", "вышел на сев"}
+			}
+			return activity{"farm_noseed", "ладит пашню — нет зерна на сев"} // невозможность
 		case core.Autumn:
-			return activity{"farm_reap", "жнёт хлеб"}
+			return activity{"farm_reap", "вышел на жатву"} // занят жатвой (намолот — дело поля)
 		case core.Winter:
 			return activity{"farm_mend", "чинит снасть в избе"} // поле спит
 		default:
@@ -95,19 +101,19 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		if season == core.Spring {
 			return activity{"fisher_mend", "чинит сети — нерест, лов закрыт"}
 		}
-		return activity{"fish_river", "ловит рыбу на реке"}
+		return activity{"fish_river", "на реке с сетью"}
 	case "hunter":
 		if r.gameNearby {
-			return activity{"hunt_wild", "бьёт дичь в угодьях"}
+			return activity{"hunt_wild", "промышляет в угодьях"} // занят промыслом, не «добыл»
 		}
 		return activity{"hunter_empty", "вернулся пустым — зверь ушёл"}
 	case "cook":
-		return activity{"cook_hearth", "печёт у очага"}
+		return activity{"cook_hearth", "у печи"}
 	case "herbalist":
 		if season == core.Winter {
-			return activity{"brew_remedy", "варит снадобье"} // травы под снегом не рвут
+			return activity{"brew_remedy", "у котла со снадобьем"} // травы под снегом не рвут
 		}
-		return activity{"forage_herbs", "собирает травы на лугу"}
+		return activity{"forage_herbs", "на травяном лугу за травами"}
 	case "smith":
 		if r.oreAround {
 			return activity{"smith_forge", "кует у горна"}
@@ -120,7 +126,7 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		return activity{"weaver_wait", "ждёт пряжу — нет сырья"}
 	case "miner":
 		if r.oreAround {
-			return activity{"mine_ore", "бьёт руду в шахте"}
+			return activity{"mine_ore", "в шахте за рудой"}
 		}
 		return activity{"mine_spent", "жила скудеет"}
 	case "woodcutter":
@@ -133,9 +139,7 @@ func workActivity(role string, season core.Season, r localResources) activity {
 	case "tavernkeeper":
 		return activity{"keep_tavern", "за стойкой корчмы"}
 	case "mage":
-		if r.placeOfPower {
-			return activity{"study_power", "черпает ману места силы"}
-		}
+		// расход маны/плетение решает MagicSystem и сам ставит честную подпись; здесь — занятость
 		return activity{"study_mana", "упражняется в плетениях"}
 	}
 	return activity{"work", "трудится"}

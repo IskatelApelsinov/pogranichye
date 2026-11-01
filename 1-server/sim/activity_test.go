@@ -12,7 +12,7 @@ func code(role, goal string, season core.Season, hour int, r localResources) str
 
 // Занятие под трудом зависит от профессии и сезона — у каждого своя причина.
 func TestWorkActivityByRoleAndSeason(t *testing.T) {
-	full := localResources{gameNearby: true, oreAround: true, fiber: true, herbsSeason: true}
+	full := localResources{gameNearby: true, oreAround: true, fiber: true, canSow: true}
 	cases := []struct {
 		role   string
 		season core.Season
@@ -37,7 +37,7 @@ func TestWorkActivityByRoleAndSeason(t *testing.T) {
 
 // Занятие требует РЕСУРСА: нет дичи/руды/сырья/маны — у действия нет причины состояться.
 func TestWorkActivityNeedsResources(t *testing.T) {
-	with := localResources{gameNearby: true, oreAround: true, fiber: true, placeOfPower: true}
+	with := localResources{gameNearby: true, oreAround: true, fiber: true, canSow: true}
 	none := localResources{}
 	pairs := []struct {
 		role      string
@@ -48,7 +48,6 @@ func TestWorkActivityNeedsResources(t *testing.T) {
 		{"smith", "smith_forge", "smith_cold"},
 		{"weaver", "weave", "weaver_wait"},
 		{"miner", "mine_ore", "mine_spent"},
-		{"mage", "study_power", "study_mana"},
 	}
 	for _, p := range pairs {
 		if got := code(p.role, "work", core.Summer, 12, with); got != p.withCode {
@@ -57,6 +56,16 @@ func TestWorkActivityNeedsResources(t *testing.T) {
 		if got := code(p.role, "work", core.Summer, 12, none); got != p.withoutIt {
 			t.Errorf("%s без ресурса: хотели %s, получили %s", p.role, p.withoutIt, got)
 		}
+	}
+}
+
+// Честность сева: весной подпись признаёт нехватку зерна, а не утверждает ложно, что сев идёт.
+func TestFarmerSowNeedsSeed(t *testing.T) {
+	if code("farmer", "work", core.Spring, 12, localResources{canSow: true}) != "farm_sow" {
+		t.Error("есть зерно на сев — вышел на сев")
+	}
+	if code("farmer", "work", core.Spring, 12, localResources{canSow: false}) != "farm_noseed" {
+		t.Error("нет зерна на сев — подпись должна признавать невозможность, а не утверждать сев")
 	}
 }
 
