@@ -45,8 +45,9 @@ The client sends intentions only. It never changes authoritative world state loc
 
 ## Protocol rules
 
-- Protocol version is checked; unsupported versions are rejected visibly.
-- `me.id` and `neighbors[].id` remain strings in JSON and are parsed to `ulong` for view identity.
+- Protocol version and `alive` are validated as JSON integer/boolean tokens; unsupported versions are rejected visibly.
+- `me.id` and `neighbors[].id` must be JSON strings containing valid uint64 values; numeric JSON IDs are rejected rather than coerced.
+- The Editor fixture validator also checks malformed IDs, missing `alive`, string-valued versions, unsupported versions, and the valid `alive:false` terminal frame.
 - `alive:false` is a valid terminal frame and contains no `me` object.
 - `place` and `neighbors` may be absent.
 - `last` is opaque display text. The client does not parse it into activity codes.
@@ -55,4 +56,4 @@ The client sends intentions only. It never changes authoritative world state loc
 
 ## Verification status
 
-The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. URP package pin and setup instructions are committed as project configuration, but actual package resolution, asset assignment, scene generation, runtime compatibility and server integration still require an Editor run. Do not treat this branch as a tested Unity build.
+The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. Parser hardening and Editor-side positive/negative fixture checks are source changes only until the menu action is actually run. URP package pin and setup instructions are committed as project configuration, but actual package resolution, asset assignment, scene generation, runtime compatibility and server integration still require an Editor run. Do not treat this branch as a tested Unity build.
