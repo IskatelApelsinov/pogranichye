@@ -12,7 +12,7 @@ func code(role, goal string, season core.Season, hour int, r localResources) str
 
 // Занятие под трудом зависит от профессии и сезона — у каждого своя причина.
 func TestWorkActivityByRoleAndSeason(t *testing.T) {
-	full := localResources{gameNearby: true, oreAround: true, fiber: true, canSow: true}
+	full := localResources{gameNearby: true, oreInStore: true, mineAvailable: true, fiber: true, canSow: true, fieldRipe: true}
 	cases := []struct {
 		role   string
 		season core.Season
@@ -37,7 +37,7 @@ func TestWorkActivityByRoleAndSeason(t *testing.T) {
 
 // Занятие требует РЕСУРСА: нет дичи/руды/сырья/маны — у действия нет причины состояться.
 func TestWorkActivityNeedsResources(t *testing.T) {
-	with := localResources{gameNearby: true, oreAround: true, fiber: true, canSow: true}
+	with := localResources{gameNearby: true, oreInStore: true, mineAvailable: true, fiber: true}
 	none := localResources{}
 	pairs := []struct {
 		role      string
@@ -59,12 +59,18 @@ func TestWorkActivityNeedsResources(t *testing.T) {
 	}
 }
 
-// Честность сева: весной подпись признаёт нехватку зерна, а не утверждает ложно, что сев идёт.
-func TestFarmerSowNeedsSeed(t *testing.T) {
+// Честность полей: сев/жатва признают реальное состояние пашни, а не утверждают ложно.
+func TestFarmerFieldHonesty(t *testing.T) {
 	if code("farmer", "work", core.Spring, 12, localResources{canSow: true}) != "farm_sow" {
-		t.Error("есть зерно на сев — вышел на сев")
+		t.Error("есть несеяная пашня и зерно — вышел на сев")
 	}
-	if code("farmer", "work", core.Spring, 12, localResources{canSow: false}) != "farm_noseed" {
+	if code("farmer", "work", core.Autumn, 12, localResources{fieldRipe: true}) != "farm_reap" {
+		t.Error("есть вызревшее поле — вышел на жатву")
+	}
+	if code("farmer", "work", core.Autumn, 12, localResources{fieldRipe: false}) != "farm_noreap" {
+		t.Error("урожай не дошёл — подпись не должна утверждать жатву")
+	}
+	if code("farmer", "work", core.Spring, 12, localResources{canSow: false}) != "farm_nosow" {
 		t.Error("нет зерна на сев — подпись должна признавать невозможность, а не утверждать сев")
 	}
 }

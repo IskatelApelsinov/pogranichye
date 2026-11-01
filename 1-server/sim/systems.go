@@ -108,6 +108,25 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			pop[pl.Settlement]++
 		}
 	})
+	// сигналы РЕАЛЬНОГО состояния угодий (поля/шахты) — один проход по узлам (для честных подписей)
+	ns := map[core.ID]nodeSignals{}
+	w.Each("resnode", func(ne *core.Entity) {
+		n := econ.Node(ne)
+		if n == nil {
+			return
+		}
+		sig := ns[n.Settlement]
+		if n.Sowable() {
+			sig.sowableField = true
+		}
+		if n.RipeForHarvest() {
+			sig.ripeField = true
+		}
+		if n.Node == econ.NodeMine && n.Stock > 0 {
+			sig.mineStock = true
+		}
+		ns[n.Settlement] = sig
+	})
 	res := map[core.ID]localResources{}
 	season := clock.Season()
 	w.Each("settlement", func(se *core.Entity) {
@@ -116,7 +135,7 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			p = 1
 		}
 		foodDays[se.ID] = econ.FeedableFood(se) / float64(p)
-		res[se.ID] = settlementResources(se, season) // что реально доступно для занятий
+		res[se.ID] = settlementResources(se, ns[se.ID]) // склад/фауна + реальное состояние угодий
 	})
 
 	w.Each("mind", func(e *core.Entity) {
@@ -192,6 +211,13 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 		}
 	case mind.GoalRest:
 	case mind.GoalEat:
+		// честно: «ест» только если ЕСТЬ что съесть (свои закрома или рынок села); иначе голодает.
+		// Само насыщение (списание голода) делает NeedsSystem — здесь лишь правдивая подпись.
+		if econ.HasFoodToEat(e, settlementOf(w, e)) {
+			m.LastAct = "ест"
+		} else {
+			m.LastAct = "голодает — еды нет"
+		}
 	case mind.GoalSeekHome:
 		if p := core.Purse(e); p != nil {
 			h := core.Home(e)

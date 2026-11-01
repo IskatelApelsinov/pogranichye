@@ -20,18 +20,28 @@ import (
 
 type activity struct{ code, label string }
 
-// localResources — дешёвые сигналы доступности в поселении сейчас (склад/фауна/сезон), по которым у
-// занятия есть или нет реальной причины состояться.
+// localResources — сигналы реальной возможности занятия в поселении сейчас. Часть снимается со
+// склада/фауны (дёшево), часть — с РЕАЛЬНОГО состояния угодий (есть ли несеяная пашня, вызревшее
+// поле, руда в шахтном узле): их заполняет вызывающий одним проходом по узлам (nodeSignals).
 type localResources struct {
-	gameNearby  bool // в угодьях есть зверьё — есть на кого выйти на промысел
-	oreAround   bool // в селе есть руда — кузнецу/рудокопу есть с чем работать
-	fiber       bool // шерсть/лён/шкуры — ткачу есть из чего ткать
-	tavernDrink bool // в корчме есть медовуха — есть чем угоститься
-	canSow      bool // зерна в закромах общины хватает на засев хотя бы одной пашни
+	gameNearby    bool // в угодьях есть зверьё — есть на кого выйти на промысел
+	oreInStore    bool // на складе есть руда — КУЗНЕЦУ есть что ковать
+	mineAvailable bool // в шахтном узле ещё есть руда — РУДОКОПУ есть что бить (не склад!)
+	fiber         bool // шерсть/лён/шкуры — ткачу есть из чего ткать
+	tavernDrink   bool // в корчме есть медовуха — есть чем угоститься
+	canSow        bool // есть несеяная пашня И зерно на засев — сев реально возможен
+	fieldRipe     bool // есть засеянное вызревшее поле — жатва реально возможна
 }
 
-// settlementResources снимает сигналы с поселения (дёшево, без сканирования угодий).
-func settlementResources(se *core.Entity, season core.Season) localResources {
+// nodeSignals — то, что видно только по узлам угодий (поля/шахты). Заполняется одним проходом.
+type nodeSignals struct {
+	sowableField bool // есть пашня, готовая под сев (не засеяна, не под паром)
+	ripeField    bool // есть засеянное вызревшее поле
+	mineStock    bool // в шахтном узле ещё есть руда
+}
+
+// settlementResources снимает дешёвые сигналы со склада/фауны; поля/шахты докладывает nodeSignals.
+func settlementResources(se *core.Entity, ns nodeSignals) localResources {
 	s := core.Settle(se)
 	store := s.Store
 	game := false
@@ -44,11 +54,13 @@ func settlementResources(se *core.Entity, season core.Season) localResources {
 		}
 	}
 	return localResources{
-		gameNearby:  game,
-		oreAround:   store[econ.GoodOre] >= 1,
-		fiber:       store[econ.GoodWool]+store[econ.GoodFlax]+store[econ.GoodHide] >= 1,
-		tavernDrink: store[econ.GoodMead] >= 1,
-		canSow:      store[econ.GoodWheat] >= econ.SeedPerField(),
+		gameNearby:    game,
+		oreInStore:    store[econ.GoodOre] >= 1,
+		mineAvailable: ns.mineStock,
+		fiber:         store[econ.GoodWool]+store[econ.GoodFlax]+store[econ.GoodHide] >= 1,
+		tavernDrink:   store[econ.GoodMead] >= 1,
+		canSow:        ns.sowableField && store[econ.GoodWheat] >= econ.SeedPerField(),
+		fieldRipe:     ns.ripeField,
 	}
 }
 
@@ -87,11 +99,14 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		switch season {
 		case core.Spring:
 			if r.canSow {
-				return activity{"farm_sow", "вышел на сев"}
+				return activity{"farm_sow", "вышел на сев"} // есть несеяная пашня и зерно
 			}
-			return activity{"farm_noseed", "ладит пашню — нет зерна на сев"} // невозможность
+			return activity{"farm_nosow", "правит пашню — сеять нечего или негде"} // невозможность
 		case core.Autumn:
-			return activity{"farm_reap", "вышел на жатву"} // занят жатвой (намолот — дело поля)
+			if r.fieldRipe {
+				return activity{"farm_reap", "вышел на жатву"} // есть вызревшее поле
+			}
+			return activity{"farm_noreap", "осматривает поля — жать ещё нечего"} // урожай не дошёл
 		case core.Winter:
 			return activity{"farm_mend", "чинит снасть в избе"} // поле спит
 		default:
@@ -115,7 +130,7 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		}
 		return activity{"forage_herbs", "на травяном лугу за травами"}
 	case "smith":
-		if r.oreAround {
+		if r.oreInStore {
 			return activity{"smith_forge", "кует у горна"}
 		}
 		return activity{"smith_cold", "у холодного горна — нет руды"}
@@ -125,10 +140,10 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		}
 		return activity{"weaver_wait", "ждёт пряжу — нет сырья"}
 	case "miner":
-		if r.oreAround {
+		if r.mineAvailable {
 			return activity{"mine_ore", "в шахте за рудой"}
 		}
-		return activity{"mine_spent", "жила скудеет"}
+		return activity{"mine_spent", "жила выработана"}
 	case "woodcutter":
 		return activity{"chop_wood", "рубит лес"}
 	case "herder":
