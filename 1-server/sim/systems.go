@@ -563,6 +563,8 @@ func (DiseaseSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 // кровопотеря без лечения может добить. Смерти ограничены — риск, а не бойня.
 var DebugBattleDeaths, DebugHunts, DebugWins, DebugWounds int
 
+const remedyPerTreat = 0.5 // снадобья уходит на одну перевязку раненого (чистые травы тратятся)
+
 type BattleSystem struct{}
 
 func (BattleSystem) Name() string { return "battle" }
@@ -586,9 +588,11 @@ func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				herb++
 			}
 		}
-		m := core.Settle(se).Store[econ.GoodRemedy]/40.0 + float64(herb)*0.4
-		if m > 1 {
-			m = 1
+		// присутствие знахаря само по себе помогает раненым (перевязка, уход); снадобье со
+		// склада пойдёт в дело отдельно — его реально ТРАТЯТ на лечение ниже (не висит пассивно).
+		m := float64(herb) * 0.45
+		if m > 0.8 {
+			m = 0.8
 		}
 		med[se.ID] = m
 		ward[se.ID] = core.Settle(se).Ward // оберег ставит магия (слой ниже); пока 0
@@ -608,13 +612,21 @@ func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		medicine := med[pl.Settlement]
 		se := w.Get(pl.Settlement)
 
-		// 1) заживление уже имеющихся ран
-		if b := battle.Body(e); b != nil && (len(b.Wounds) > 0 || b.Bleeding > 0) {
+		// 1) заживление уже имеющихся ран. Раненому дают чистые травы со склада (их ТРАТЯТ) —
+		// это и ускоряет, и не даёт ране загноиться. Нет трав и нет знахаря — рана гниёт, мир суров.
+		if b := battle.Body(e); b != nil && (len(b.Wounds) > 0 || b.Bleeding > 0 || b.Infection > 0) {
 			rest := core.Home(e) != nil && core.Home(e).Status == "owned"
-			lost := b.Heal(rest, medicine, hs)
+			care := medicine
+			if se != nil {
+				if st := core.Settle(se).Store; st[econ.GoodRemedy] >= remedyPerTreat {
+					st[econ.GoodRemedy] -= remedyPerTreat // перевязали чистыми травами — снадобье убыло
+					care = clamp(care+0.5, 0, 1)
+				}
+			}
+			lost := b.Heal(rest, care, hs)
 			v.Health = clamp(v.Health-lost, 0, 100)
-			if b.Bleeding > 0 && v.Health <= 2 && hs.Chance(0.2) {
-				dead = append(dead, e.ID) // истёк кровью без лечения
+			if (b.Bleeding > 0 || b.Infection > 4) && v.Health <= 2 && hs.Chance(0.2) {
+				dead = append(dead, e.ID) // истёк кровью / сгорел от заражения без лечения
 				return
 			}
 		}

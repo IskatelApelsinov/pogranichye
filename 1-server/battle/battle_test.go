@@ -48,6 +48,43 @@ func TestWoundHeal(t *testing.T) {
 	}
 }
 
+// Открытая рана без чистых трав гноится; травы/лекарь не дают заразиться и чистят гной.
+func TestInfectionNeedsHerbs(t *testing.T) {
+	// без медицины глубокая рана за много дней хоть раз да загноится
+	festered := false
+	for trial := 0; trial < 40 && !festered; trial++ {
+		b := &BodyC{Wounds: map[string]float64{"leg": 18}}
+		s := dice.NewStream(uint64(trial + 1))
+		for i := 0; i < 8; i++ {
+			b.Heal(false, 0, s)
+			if b.Infection > 0 {
+				festered = true
+				break
+			}
+		}
+	}
+	if !festered {
+		t.Fatal("открытая рана без трав должна иногда загнаиваться")
+	}
+	// с травами (medicine высокое) та же рана не гноится
+	b := &BodyC{Wounds: map[string]float64{"leg": 18}}
+	s := dice.NewStream(99)
+	for i := 0; i < 8; i++ {
+		b.Heal(true, 1.0, s)
+	}
+	if b.Infection > 0 {
+		t.Fatalf("с чистыми травами рана не должна гноиться: %.1f", b.Infection)
+	}
+	// уже начавшееся заражение травы вычищают
+	inf := &BodyC{Infection: 6}
+	for i := 0; i < 5; i++ {
+		inf.Heal(true, 1.0, dice.NewStream(5))
+	}
+	if inf.Infection >= 6 {
+		t.Fatalf("лечение должно уменьшать заражение: %.1f", inf.Infection)
+	}
+}
+
 // Кровь без лечения точит жизнь; медицина её останавливает.
 func TestBleedingNeedsCare(t *testing.T) {
 	s := dice.NewStream(7)

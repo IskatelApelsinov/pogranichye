@@ -18,10 +18,11 @@ var partMax = map[string]float64{"head": 20, "torso": 45, "arm": 25, "leg": 30}
 
 var partList = []string{"head", "torso", "arm", "leg"}
 
-// BodyC — раны по частям тела и кровопотеря. Пусто — цел. Хранится плоско (переживает снимок).
+// BodyC — раны по частям тела, кровопотеря и заражение. Пусто — цел. Хранится плоско (снимок).
 type BodyC struct {
-	Wounds   map[string]float64 `json:"wounds"`   // часть → накопленный урон
-	Bleeding float64            `json:"bleeding"` // кровит — точит жизнь, пока не унялось/перевязали
+	Wounds    map[string]float64 `json:"wounds"`    // часть → накопленный урон
+	Bleeding  float64            `json:"bleeding"`  // кровит — точит жизнь, пока не унялось/перевязали
+	Infection float64            `json:"infection"` // загноение раны — точит жизнь, пока не вычистят травами/лекарем
 }
 
 func (c *BodyC) Kind() string { return "body" }
@@ -57,8 +58,15 @@ func (c *BodyC) hurt(part string, amount float64) {
 	}
 }
 
-// Heal — заживление за день: раны затягиваются (быстрее в покое и со снадобьем/знахарем),
-// кровь унимается (перевязка/лекарь). Возвращает потерю здоровья от кровопотери за день.
+// openWound — порог, выше которого рана считается открытой: такую легко занести грязью (загноение),
+// а чистые травы/снадобье не дают ей загноиться.
+const openWound = 7.0
+
+// Heal — заживление за день. medicine (0..~1) — чистые травы/снадобье И/ИЛИ лекарь рядом: они
+// ускоряют заживление, останавливают кровь, НЕ дают открытой ране загноиться и вычищают уже
+// начавшееся загноение. Без них открытая рана может загноиться, и заражение само точит жизнь —
+// мир суров, но у того, кто запасся травами или держит знахаря, есть чем выжить. Возвращает
+// потерю здоровья за день (кровь + заражение).
 func (c *BodyC) Heal(rest bool, medicine float64, s *dice.Stream) float64 {
 	if c == nil {
 		return 0
@@ -67,16 +75,32 @@ func (c *BodyC) Heal(rest bool, medicine float64, s *dice.Stream) float64 {
 	if rest {
 		rate += 0.8
 	}
-	rate += medicine * 0.5 // снадобье/знахарь ускоряют
+	rate += medicine * 0.5 // снадобье/знахарь ускоряют затягивание
+	worst := 0.0
 	for p := range c.Wounds {
 		c.Wounds[p] -= rate
 		if c.Wounds[p] <= 0 {
 			delete(c.Wounds, p)
+		} else if c.Wounds[p] > worst {
+			worst = c.Wounds[p]
+		}
+	}
+	// заражение: открытая рана без чистых трав может загноиться; травы/лекарь не дают и чистят.
+	if worst > openWound {
+		fester := 0.18 * (1 - medicine*3) // много медицины (>0.33) — загноения не будет вовсе
+		if fester > 0 && s.Chance(fester) {
+			c.Infection += 2.5
+		}
+	}
+	if c.Infection > 0 {
+		c.Infection -= 0.3 + medicine*2.0 // травы/лекарь вычищают гной; сам по себе уходит еле-еле
+		if c.Infection < 0 {
+			c.Infection = 0
 		}
 	}
 	lost := 0.0
 	if c.Bleeding > 0 {
-		lost = c.Bleeding * 0.3
+		lost += c.Bleeding * 0.3
 		stop := 0.15 + medicine*0.4 // лекарь/снадобье останавливают кровь быстрее
 		if s.Chance(stop) {
 			c.Bleeding = 0
@@ -87,5 +111,6 @@ func (c *BodyC) Heal(rest bool, medicine float64, s *dice.Stream) float64 {
 			}
 		}
 	}
+	lost += c.Infection * 0.25 // гниющая рана точит здоровье, пока её не вычистят
 	return lost
 }
