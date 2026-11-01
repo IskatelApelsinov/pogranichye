@@ -3,6 +3,7 @@ package sim
 import (
 	"strconv"
 
+	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/dice"
 	"pogranichye/econ"
@@ -463,7 +464,7 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---
@@ -552,5 +553,93 @@ func (DiseaseSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	DebugPlague += len(dead)
 	for _, id := range dead {
 		w.Remove(id)
+	}
+}
+
+// --- Боевой слой: риск на охоте и заживление ран (перенос геймплея на новое ядро) ---
+// Охотник может нарваться на опасного зверя (кабан/волк/медведь) или разбойника: удачно —
+// больше мяса и шкур на рынок, неудачно — рана по телу. Раны заживают со временем, быстрее
+// в покое и с медициной (снадобье/знахарь — та же смычка, что у болезней). Запущенная
+// кровопотеря без лечения может добить. Смерти ограничены — риск, а не бойня.
+var DebugBattleDeaths, DebugHunts, DebugWins, DebugWounds int
+
+type BattleSystem struct{}
+
+func (BattleSystem) Name() string { return "battle" }
+
+func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
+	if !clock.IsNewDay() {
+		return
+	}
+	idx := residentIndex(w)
+	hs := hub.Stream("battle")
+
+	// медицина деревни (0..~1): снадобье на складе + знахарь
+	med := map[core.ID]float64{}
+	w.Each("settlement", func(se *core.Entity) {
+		res := idx[se.ID]
+		herb := 0
+		for _, r := range res {
+			if id := core.Ident(r); id != nil && id.Role == "herbalist" {
+				herb++
+			}
+		}
+		m := core.Settle(se).Store[econ.GoodRemedy]/40.0 + float64(herb)*0.4
+		if m > 1 {
+			m = 1
+		}
+		med[se.ID] = m
+	})
+
+	var dead []core.ID
+	w.Each("vitals", func(e *core.Entity) {
+		v := core.Vitals(e)
+		id := core.Ident(e)
+		pl := core.Place(e)
+		if v == nil || id == nil || pl == nil {
+			return
+		}
+		medicine := med[pl.Settlement]
+		se := w.Get(pl.Settlement)
+
+		// 1) заживление уже имеющихся ран
+		if b := battle.Body(e); b != nil && (len(b.Wounds) > 0 || b.Bleeding > 0) {
+			rest := core.Home(e) != nil && core.Home(e).Status == "owned"
+			lost := b.Heal(rest, medicine, hs)
+			v.Health = clamp(v.Health-lost, 0, 100)
+			if b.Bleeding > 0 && v.Health <= 2 && hs.Chance(0.2) {
+				dead = append(dead, e.ID) // истёк кровью без лечения
+				return
+			}
+		}
+
+		// 2) охотник вышел на зверя — риск/добыча (редко, чтобы не бойня)
+		if id.Role == "hunter" && v.Energy > 20 && hs.Chance(0.06) {
+			beast := battle.Pick(hs, "big") // (сюда же позже дорожные/военные встречи)
+			b := battle.Body(e)
+			if b == nil {
+				nb := &battle.BodyC{Wounds: map[string]float64{}}
+				w.Attach(e, nb)
+				b = nb
+			}
+			skill := 0.0
+			if sk := core.Skills(e); sk != nil {
+				skill = sk.Level("hunter")
+			}
+			out := battle.Resolve(skill, 0.3+skill/150.0, beast, b, hs)
+			DebugHunts++
+			if out.Hurt > 0 {
+				DebugWounds++
+			}
+			if out.Win && se != nil {
+				DebugWins++
+				core.Settle(se).Store[econ.GoodMeat] += out.Meat
+				core.Settle(se).Store[econ.GoodHide] += out.Hide
+			}
+		}
+	})
+	DebugBattleDeaths += len(dead)
+	for _, idd := range dead {
+		w.Remove(idd)
 	}
 }

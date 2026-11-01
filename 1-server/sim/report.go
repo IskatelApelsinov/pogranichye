@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/econ"
 )
@@ -47,6 +48,22 @@ func Report(w *core.World, clock core.Clock) {
 	fmt.Printf("\nВозрастные группы: %s\n", kv(ages))
 	fmt.Printf("Чем заняты (цели):  %s\n", kv(goals))
 	fmt.Printf("Ремёсла:            %s\n", kv(roles))
+
+	// боёвка: сейчас раненых + итоги охоты за прогон + мясо/шкуры на рынках
+	wounded := 0
+	w.Each("body", func(e *core.Entity) {
+		if b := battle.Body(e); b != nil && (len(b.Wounds) > 0 || b.Bleeding > 0) {
+			wounded++
+		}
+	})
+	meat, hide := 0.0, 0.0
+	w.Each("settlement", func(se *core.Entity) {
+		s := core.Settle(se)
+		meat += s.Store[econ.GoodMeat]
+		hide += s.Store[econ.GoodHide]
+	})
+	fmt.Printf("Охота и раны:       сейчас ранено=%d · охот=%d (добыто=%d, ранено в них=%d) · погибло в бою=%d · мяса=%.0f шкур=%.0f\n",
+		wounded, DebugHunts, DebugWins, DebugWounds, DebugBattleDeaths, meat, hide)
 }
 
 // Sample печатает выборку жителей (для -demo -v).

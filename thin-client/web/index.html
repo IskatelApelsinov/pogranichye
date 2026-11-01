@@ -63,6 +63,7 @@
   <div class="stat">настрой <span id="mv"></span></div><div class="bar"><div id="mbar"></div></div>
   <div class="sub" id="last" style="margin-top:6px"></div>
   <div style="margin-top:6px" id="purse">💰 <span class="gold" id="coins">0</span> монет <span class="sub" id="debt"></span></div>
+  <div class="sub" id="wounds" style="margin-top:6px"></div>
  </div>
 
  <div class="card">
@@ -137,6 +138,13 @@ function render(s){
  $('last').innerHTML='сейчас: <span class="gold">'+(goalNames[me.goal]||me.goal||'—')+'</span> · '+(me.last||'');
  $('coins').textContent=me.coins;
  $('debt').textContent=(me.debt>0)?('· 🧾 долг '+me.debt):'';
+ const parts={head:'голова',torso:'торс',arm:'рука',leg:'нога'};
+ const w=me.wounds||{}; const ws=Object.keys(w);
+ if(ws.length||me.bleeding>0){
+   let t='🩹 раны: '+ws.map(p=>(parts[p]||p)+' '+w[p]).join(', ');
+   if(me.bleeding>0) t+=(ws.length?' · ':'раны: ')+'🩸 кровит '+me.bleeding;
+   $('wounds').textContent=t;
+ } else { $('wounds').textContent=''; }
  if(s.place){
    $('place').textContent=s.place.name;
    $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"pogranichye/accounts"
+	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/econ"
 	"pogranichye/sim"
@@ -239,6 +240,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
 			"coins": meCoins(e), "debt": meDebt(e),
+			"wounds": meWounds(e), "bleeding": meBleeding(e),
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -303,4 +305,25 @@ func meDebt(e *core.Entity) float64 {
 		d += v
 	}
 	return round1(d)
+}
+
+// meWounds — раны игрока по частям тела (часть → тяжесть), пусто если цел.
+func meWounds(e *core.Entity) map[string]float64 {
+	b := battle.Body(e)
+	if b == nil || len(b.Wounds) == 0 {
+		return map[string]float64{}
+	}
+	out := map[string]float64{}
+	for p, w := range b.Wounds {
+		out[p] = round1(w)
+	}
+	return out
+}
+
+// meBleeding — кровит ли (0 — нет).
+func meBleeding(e *core.Entity) float64 {
+	if b := battle.Body(e); b != nil {
+		return round1(b.Bleeding)
+	}
+	return 0
 }
