@@ -5,6 +5,7 @@ import (
 
 	"pogranichye/core"
 	"pogranichye/dice"
+	"pogranichye/econ"
 )
 
 // Основание новых поселений: переполненная деревня с амбициозными даёт переселенцев,
@@ -63,5 +64,54 @@ func BenchmarkTick(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Step(w) // один час мира
+	}
+}
+
+// Болезнь только от реальных причин: скученный город без медицины страдает от хвори, а тот же
+// город со снадобьем/знахарем — нет. Маленькая деревня не болеет вовсе.
+func TestPlagueFromCrowdingNotSeason(t *testing.T) {
+	build := func(pop int, remedy float64, herbalists int) *core.World {
+		w := core.NewWorld("plague")
+		se := w.Spawn(&core.SettlementC{Name: "Город", Tier: "city",
+			Store: map[string]float64{econ.GoodBread: 9e6, econ.GoodRemedy: remedy}})
+		for i := 0; i < pop; i++ {
+			role := "farmer"
+			if i < herbalists {
+				role = "herbalist"
+			}
+			w.Spawn(&core.IdentC{Name: "Г", Role: role, Sex: "м"},
+				&core.VitalsC{Age: 25, Health: 100, Hunger: 0, Energy: 90},
+				&core.PlaceC{Settlement: se.ID})
+		}
+		return w
+	}
+	popOf := func(w *core.World) int {
+		n := 0
+		w.Each("ident", func(*core.Entity) { n++ })
+		return n
+	}
+	// крупный город без медицины — хворь должна проредить
+	wBad := build(30, 0, 0)
+	n0 := popOf(wBad)
+	rb := core.NewRunner("plague", DiseaseSystem{})
+	rb.Run(wBad, 500*core.HoursPerDay)
+	if popOf(wBad) >= n0 {
+		t.Fatalf("скученный город без медицины должен страдать от хвори (было %d, стало %d)", n0, popOf(wBad))
+	}
+	// тот же город со снадобьем и знахарями — хвори нет
+	wGood := build(30, 5000, 4)
+	m0 := popOf(wGood)
+	rg := core.NewRunner("plague", DiseaseSystem{})
+	rg.Run(wGood, 500*core.HoursPerDay)
+	if popOf(wGood) < m0 {
+		t.Fatalf("медицина должна гасить хворь (было %d, стало %d)", m0, popOf(wGood))
+	}
+	// маленькая деревня не болеет
+	wSmall := build(8, 0, 0)
+	s0 := popOf(wSmall)
+	rs := core.NewRunner("plague", DiseaseSystem{})
+	rs.Run(wSmall, 500*core.HoursPerDay)
+	if popOf(wSmall) < s0 {
+		t.Fatalf("малая деревня без скученности болеть не должна (было %d, стало %d)", s0, popOf(wSmall))
 	}
 }

@@ -457,5 +457,94 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}}
+}
+
+// --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---
+// Мор вспыхивает лишь там, где есть настоящая почва: скученность без гигиены (большой город)
+// И нехватка медицины (мало снадобья, нет знахаря). Крючки под войну (road_danger) и
+// нетипичный климат заложены. Снадобье и знахарь гасят хворь. Смертность ограничена, чтобы
+// мир не вымирал (болезнь прореживает скученные города, а не выкашивает всех).
+var DebugPlague int
+
+type DiseaseSystem struct{}
+
+func (DiseaseSystem) Name() string { return "disease" }
+
+const (
+	plagueCrowdPop  = 20    // ниже столько душ скученности для вспышки нет
+	medNeedPerCap   = 0.6   // сколько «медицины» нужно на душу, чтобы не вспыхнуло
+	herbMedicine    = 8.0   // вклад знахаря в медицину деревни
+	plagueStart     = 1.0   // стартовая интенсивность вспышки
+	plagueDecay     = 0.9   // сама стихает день ото дня
+	plagueLethality = 0.015 // базовый дневной риск смерти при полной хвори (мал — не мор поголовный)
+	outbreakBase    = 0.015 // базовый шанс вспышки при сошедшихся причинах
+)
+
+func (DiseaseSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
+	if !clock.IsNewDay() {
+		return
+	}
+	idx := residentIndex(w)
+	dis := hub.Stream("disease")
+	var dead []core.ID
+	w.Each("settlement", func(se *core.Entity) {
+		set := core.Settle(se)
+		res := idx[se.ID]
+		pop := len(res)
+		if pop == 0 {
+			set.Plague = 0
+			return
+		}
+		herb := 0
+		for _, r := range res {
+			if id := core.Ident(r); id != nil && id.Role == "herbalist" {
+				herb++
+			}
+		}
+		medicine := set.Store[econ.GoodRemedy] + float64(herb)*herbMedicine
+		warNear := set.Plague // (заготовка) войну/климат подмешаем, когда появятся: раны и беженцы
+
+		if set.Plague <= 0 {
+			// ВОЗНИКНОВЕНИЕ — только если сошлись причины: скученность И нехватка медицины
+			crowded := pop >= plagueCrowdPop
+			undermediced := medicine < float64(pop)*medNeedPerCap
+			if crowded && undermediced {
+				// чем теснее и чем хуже с лекарем, тем вероятнее (но редко)
+				risk := outbreakBase * (float64(pop) / plagueCrowdPop) * (1 - medicine/(float64(pop)*medNeedPerCap+1))
+				if dis.Chance(risk) {
+					set.Plague = plagueStart // хворь вспыхнула (известим хроникой позже)
+				}
+			}
+			_ = warNear
+			return
+		}
+		// активная хворь: лечим снадобьем (тратим), знахарь помогает, сама стихает
+		treat := min(set.Store[econ.GoodRemedy], float64(pop)*0.5)
+		set.Store[econ.GoodRemedy] -= treat
+		set.Plague = set.Plague*plagueDecay - treat*0.02 - float64(herb)*0.05
+		if set.Plague < 0.05 {
+			set.Plague = 0
+			return
+		}
+		// смертность — выше при сильной хвори и слабой медицине, но ограничена
+		relief := medicine / (float64(pop)*medNeedPerCap + 1)
+		if relief > 0.8 {
+			relief = 0.8
+		}
+		deathP := set.Plague * plagueLethality * (1 - relief)
+		for _, r := range res {
+			v := core.Vitals(r)
+			if v == nil {
+				continue
+			}
+			if dis.Chance(deathP) {
+				dead = append(dead, r.ID)
+			}
+		}
+	})
+	DebugPlague += len(dead)
+	for _, id := range dead {
+		w.Remove(id)
+	}
 }

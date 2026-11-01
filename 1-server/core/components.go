@@ -121,6 +121,7 @@ type SettlementC struct {
 	X       float64            `json:"x"`      // положение на карте мира (версты): нужно для путей,
 	Y       float64            `json:"y"`      // торговли и досягаемости сборщиков налога
 	Region  ID                 `json:"region"` // регион-контейнер (большой мир); 0 — вне региона
+	Plague  float64            `json:"plague"` // интенсивность хвори (0 — здорово); от скученности+нехватки медицины
 }
 
 func (c *SettlementC) Kind() string { return "settlement" }
