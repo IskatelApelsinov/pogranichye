@@ -28,6 +28,7 @@ const (
 	GoodFish  = "fish"
 	GoodGame  = "game"
 	GoodVeg   = "veg" // овощи с огорода — еда (разнообразие сверх хлеба)
+	GoodHay   = "hay" // сено — корм скоту на зиму (летом косят, зимой кормят; нет — падёж)
 	GoodOre   = "ore"
 	GoodMetal = "metal"
 	GoodTools = "tools"

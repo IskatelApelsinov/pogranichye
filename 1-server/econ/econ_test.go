@@ -226,3 +226,39 @@ func TestTaxReach(t *testing.T) {
 			core.Settle(far).Store[GoodBread])
 	}
 }
+
+// Зимой без сена — падёж; с сеном — стадо переживает зиму. И летом сено косят впрок.
+func TestWinterFodder(t *testing.T) {
+	// А) зима, сыто (чтоб не забивали), но сена нет → поголовье падает
+	w, se := mini(map[string]float64{GoodBread: 9999}, "herder", 30)
+	w.Spawn(&ResourceNodeC{Node: NodeHerd, HerdKind: HerdCattle, Settlement: se.ID,
+		Stock: 20, Cap: 45, Regen: 0})
+	for d := 70; d < 80; d++ { // зимние дни
+		run(w, d)
+	}
+	var n *ResourceNodeC
+	w.Each("resnode", func(e *core.Entity) { n = Node(e) })
+	if n.Stock >= 20 {
+		t.Fatalf("без сена зимой должен быть падёж, осталось %.1f", n.Stock)
+	}
+
+	// Б) та же зима, но с запасом сена → стадо держится
+	w2, se2 := mini(map[string]float64{GoodBread: 9999, GoodHay: 2000}, "herder", 30)
+	w2.Spawn(&ResourceNodeC{Node: NodeHerd, HerdKind: HerdCattle, Settlement: se2.ID,
+		Stock: 20, Cap: 45, Regen: 0})
+	for d := 70; d < 80; d++ {
+		run(w2, d)
+	}
+	var n2 *ResourceNodeC
+	w2.Each("resnode", func(e *core.Entity) { n2 = Node(e) })
+	if n2.Stock < 19 {
+		t.Fatalf("с сеном стадо должно пережить зиму, осталось %.1f", n2.Stock)
+	}
+
+	// В) летом пастух косит сено впрок
+	w3, se3 := mini(map[string]float64{}, "herder", 30)
+	run(w3, 30) // лето
+	if core.Settle(se3).Store[GoodHay] <= 0 {
+		t.Fatal("летом пастух должен косить сено на зиму")
+	}
+}

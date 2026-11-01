@@ -27,19 +27,21 @@ const (
 	titheRate      = 0.1   // десятина
 
 	// огород и животноводство
-	vegPerFarmerDay = 3.0 // овощей с огорода на землепашца в день (тёплый сезон)
-	herderRate      = 4.0 // продукта стада (молоко/шерсть/яйца) на пастуха в день
-	perAnimalDay    = 0.5 // но не больше столько с головы в день (маленькое стадо — мало продукта)
-	herdMinKeep     = 5.0 // ниже этого не режут — племенное ядро (иначе стадо вымрет)
-	slaughterPerDay = 2.0 // голов под нож в день, когда решено забивать
-	meatPerAnimal   = 6.0 // мяса с головы
-	hidePerAnimal   = 1.0 // шкур с головы
-	slaughterHunger = 8.0 // дней еды на душу, ниже — пускают скот под нож
-	cheeseFromMilk  = 0.5 // 2 молока → 1 сыр
-	cookCheeseDay   = 10.0
-	clothFromWool   = 0.6 // шерсть → сукно
-	leatherFromHide = 0.7 // шкура → кожа
-	weaveDay        = 8.0 // сырья на ткача в день
+	vegPerFarmerDay    = 3.0 // овощей с огорода на землепашца в день (тёплый сезон)
+	herderRate         = 4.0 // продукта стада (молоко/шерсть/яйца) на пастуха в день
+	perAnimalDay       = 0.5 // но не больше столько с головы в день (маленькое стадо — мало продукта)
+	herdMinKeep        = 5.0 // ниже этого не режут — племенное ядро (иначе стадо вымрет)
+	slaughterPerDay    = 2.0 // голов под нож в день, когда решено забивать
+	meatPerAnimal      = 6.0 // мяса с головы
+	hidePerAnimal      = 1.0 // шкур с головы
+	slaughterHunger    = 8.0 // дней еды на душу, ниже — пускают скот под нож
+	hayPerHerderDay    = 6.0 // сена косит пастух в день (лето/осень) — заготовка на зиму
+	hayPerAnimalWinter = 0.4 // сена на голову в зимний день; не хватит — падёж
+	cheeseFromMilk     = 0.5 // 2 молока → 1 сыр
+	cookCheeseDay      = 10.0
+	clothFromWool      = 0.6 // шерсть → сукно
+	leatherFromHide    = 0.7 // шкура → кожа
+	weaveDay           = 8.0 // сырья на ткача в день
 )
 
 // Съедобное (по предпочтению). Разнообразный стол: хлеб/мясо/рыба/сыр/яйца/овощи/дичь/молоко,
@@ -237,7 +239,7 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				st[GoodVeg] += float64(l.byRole["farmer"]) * vegPerFarmerDay
 			}
 		case NodeHerd:
-			tendHerd(n, l, st, se, w)
+			tendHerd(n, l, st, se, season)
 		default:
 			// лес/рыба/пастбище/шахта: промысловик снимает конечный запас
 			workers := workersFor(l.byRole, n.Node)
@@ -275,6 +277,12 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			use := min(st[GoodOre], float64(smiths)*smithOreDay)
 			st[GoodOre] -= use
 			st[GoodTools] += use * toolsFromOre
+		}
+		// сенокос: летом и осенью пастухи запасают сено на зиму (зимой трава не растёт)
+		if season == core.Summer || season == core.Autumn {
+			if herders := l.byRole["herder"]; herders > 0 {
+				st[GoodHay] += float64(herders) * hayPerHerderDay
+			}
 		}
 		// повар ещё и сыр из молока (хранится дольше молока)
 		if cooks := l.byRole["cook"]; cooks > 0 && st[GoodMilk] > 0 {
@@ -422,7 +430,7 @@ func (TradeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 // tendHerd — живое стадо: пастухи снимают возобновляемое (молоко/шерсть/яйца, птица ещё перо),
 // а в голод или при переполнении выпаса скот пускают под нож (мясо+шкура), оставляя племя.
 // Голов добавляет приплод (общий regen в п.1), здесь — только съём и убой. Сохранение соблюдено.
-func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity, w *core.World) {
+func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity, season core.Season) {
 	herders := l.byRole["herder"]
 	if herders > 0 && n.Stock > 0 {
 		if prod := herdProduct(n.HerdKind); prod != "" {
@@ -431,6 +439,17 @@ func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity
 			if n.HerdKind == HerdPoultry {
 				st[GoodFeather] += amount * 0.3 // с птицы ещё перо
 			}
+		}
+	}
+	// ЗИМА: трава не растёт — скот ест сено из заготовок. Не хватило — падёж (зимой голодно).
+	if season == core.Winter && n.Stock > 0 {
+		need := n.Stock * hayPerAnimalWinter
+		eaten := min(need, st[GoodHay])
+		st[GoodHay] -= eaten
+		if eaten < need {
+			short := (need - eaten) / hayPerAnimalWinter // столько голов осталось без корма
+			die := min(short, n.Stock*0.08)              // падёж постепенный, не весь двор разом
+			n.Stock -= die
 		}
 	}
 	// забой: если деревня голодает или выпас переполнен — и есть кому забить, и есть что (сверх племени)
