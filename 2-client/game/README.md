@@ -6,7 +6,7 @@ This folder contains the Unity client scaffold for the stable v1 protocol.
 
 - Unity Editor: **6000.6.7f1**
 - Render pipeline: **URP** (decision confirmed by project owner on 2026-11-02)
-- URP package: **17.5.0** (Unity 6.6 / 6000.6 line)
+- URP package: **17.6.0** (Unity 6.6 / 6000.6 line)
 - JSON: Newtonsoft JSON
 
 The URP package is pinned in `Packages/manifest.json`. Unity's graphics packages are core packages; if Package Manager reports a package resolution issue, use the version offered for this exact Editor installation rather than upgrading Unity or guessing a newer package.
