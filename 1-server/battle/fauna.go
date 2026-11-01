@@ -13,17 +13,20 @@ import (
 // тушами) — тот же принцип LoD: детализируем до особи лишь в активной сцене у игрока.
 
 func init() {
-	core.Register("fauna", func() core.Component { return &FaunaC{Pop: map[string]float64{}, Cap: map[string]float64{}} })
+	core.Register("fauna", func() core.Component {
+		return &FaunaC{Pop: map[string]float64{}, Cap: map[string]float64{}, Base: map[string]float64{}}
+	})
 }
 
 // виды по классу опасности: мелкая дичь безобидна, крупный зверь кусается.
 var smallSpecies = []string{"hare", "fox"}
 var bigSpecies = []string{"boar", "wolf", "bear"}
 
-// FaunaC — поголовье зверья по видам в угодьях одного поселения и природные пределы по виду.
+// FaunaC — поголовье зверья по видам в угодьях одного поселения и пределы по виду.
 type FaunaC struct {
-	Pop map[string]float64 `json:"pop"` // вид → сколько голов сейчас водится
-	Cap map[string]float64 `json:"cap"` // вид → природный предел (от биома и маны места)
+	Pop  map[string]float64 `json:"pop"`  // вид → сколько голов сейчас водится
+	Cap  map[string]float64 `json:"cap"`  // вид → ТЕКУЩИЙ предел (меняет мутация мира: вырубка леса его сжимает)
+	Base map[string]float64 `json:"base"` // вид → природная опора предела (от биома и маны); к ней Cap и тянется
 }
 
 func (c *FaunaC) Kind() string { return "fauna" }
@@ -83,10 +86,11 @@ func SeedFauna(biome string, mana float64, s *dice.Stream) *FaunaC {
 	if mana <= 0 {
 		mana = 1
 	}
-	f := &FaunaC{Pop: map[string]float64{}, Cap: map[string]float64{}}
+	f := &FaunaC{Pop: map[string]float64{}, Cap: map[string]float64{}, Base: map[string]float64{}}
 	base := map[string]float64{"hare": 40, "fox": 16, "boar": 9, "wolf": 6, "bear": 3}
 	for _, sp := range smallSpecies {
 		cap := base[sp] * biomeFauna(biome, sp) * (0.8 + 0.4*mana)
+		f.Base[sp] = cap
 		f.Cap[sp] = cap
 		f.Pop[sp] = cap * s.Uniform(0.5, 1.0)
 	}
@@ -100,6 +104,7 @@ func SeedFauna(biome string, mana float64, s *dice.Stream) *FaunaC {
 		if cap < 0 {
 			cap = 0
 		}
+		f.Base[sp] = cap
 		f.Cap[sp] = cap
 		f.Pop[sp] = cap * s.Uniform(0.3, 0.9)
 	}
