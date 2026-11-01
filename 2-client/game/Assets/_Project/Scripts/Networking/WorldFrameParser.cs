@@ -56,9 +56,10 @@ namespace Pogranichye.Client.Networking
                     {
                         if (neighbors.Type != JTokenType.Array)
                             throw new FormatException("place.neighbors должно быть массивом.");
-                        for (var i = 0; i < neighbors.Count(); i++)
+                        var neighborArray = (JArray)neighbors;
+                        for (var i = 0; i < neighborArray.Count; i++)
                         {
-                            var neighbor = neighbors[i];
+                            var neighbor = neighborArray[i];
                             if (neighbor == null || neighbor.Type != JTokenType.Object)
                                 throw new FormatException($"place.neighbors[{i}] должен быть объектом.");
                             RequireStringId(neighbor["id"], $"place.neighbors[{i}].id");
