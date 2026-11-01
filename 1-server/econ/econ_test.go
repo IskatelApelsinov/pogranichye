@@ -262,3 +262,21 @@ func TestWinterFodder(t *testing.T) {
 		t.Fatal("летом пастух должен косить сено на зиму")
 	}
 }
+
+// Новые цепочки ремёсел: лён→холст (ткач), травы→снадобье (знахарь), мёд→медовуха (корчмарь).
+func TestCraftChains2(t *testing.T) {
+	w, se := mini(map[string]float64{GoodFlax: 50, GoodHerb: 50, GoodHoney: 50, GoodBread: 9999}, "weaver", 30)
+	addWorker(w, se.ID, "herbalist")
+	addWorker(w, se.ID, "tavernkeeper")
+	run(w, 30)
+	st := core.Settle(se).Store
+	if st[GoodLinen] <= 0 {
+		t.Fatal("ткач должен делать холст из льна")
+	}
+	if st[GoodRemedy] <= 0 {
+		t.Fatal("знахарь должен делать снадобье из трав")
+	}
+	if st[GoodMead] <= 0 {
+		t.Fatal("корчмарь должен варить медовуху из мёда")
+	}
+}

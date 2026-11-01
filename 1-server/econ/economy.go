@@ -42,6 +42,14 @@ const (
 	clothFromWool      = 0.6 // шерсть → сукно
 	leatherFromHide    = 0.7 // шкура → кожа
 	weaveDay           = 8.0 // сырья на ткача в день
+	linenFromFlax      = 0.6 // лён → холст
+	flaxPerFarmerDay   = 2.0 // льна-волокна на землепашца в день
+	herbPerDay         = 3.0 // трав на знахаря в день
+	honeyPerDay        = 3.0 // мёда на бортника в день (лето)
+	remedyDay          = 4.0 // трав в снадобье в день
+	remedyFromHerb     = 0.5 // травы → снадобье
+	meadBrewDay        = 6.0 // мёда в варку в день
+	meadFromHoney      = 0.8 // мёд → медовуха
 )
 
 // Съедобное (по предпочтению). Разнообразный стол: хлеб/мясо/рыба/сыр/яйца/овощи/дичь/молоко,
@@ -238,6 +246,21 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			if (season == core.Summer || season == core.Autumn) && l.byRole["farmer"] > 0 {
 				st[GoodVeg] += float64(l.byRole["farmer"]) * vegPerFarmerDay
 			}
+		case NodeFlax:
+			// лён: землепашцы теребят волокно в тёплый сезон (→ холст)
+			if (season == core.Summer || season == core.Autumn) && l.byRole["farmer"] > 0 {
+				st[GoodFlax] += float64(l.byRole["farmer"]) * flaxPerFarmerDay
+			}
+		case NodeHerbs:
+			// травы: знахарь собирает (кроме зимы — под снегом не растут)
+			if season != core.Winter && l.byRole["herbalist"] > 0 {
+				st[GoodHerb] += float64(l.byRole["herbalist"]) * herbPerDay
+			}
+		case NodeApiary:
+			// пасека: мёд берут летом (взяток)
+			if season == core.Summer && l.byRole["herbalist"] > 0 {
+				st[GoodHoney] += float64(l.byRole["herbalist"]) * honeyPerDay
+			}
 		case NodeHerd:
 			tendHerd(n, l, st, se, season)
 		default:
@@ -290,7 +313,7 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			st[GoodMilk] -= use
 			st[GoodCheese] += use * cheeseFromMilk
 		}
-		// ткач: шерсть→сукно, шкура→кожа (ремёсла из животноводства)
+		// ткач: шерсть→сукно, шкура→кожа, лён→холст (ремёсла из сырья)
 		if weavers := l.byRole["weaver"]; weavers > 0 {
 			cap := float64(weavers) * weaveDay
 			if st[GoodWool] > 0 {
@@ -303,6 +326,23 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				st[GoodHide] -= use
 				st[GoodLeather] += use * leatherFromHide
 			}
+			if st[GoodFlax] > 0 {
+				use := min(st[GoodFlax], cap)
+				st[GoodFlax] -= use
+				st[GoodLinen] += use * linenFromFlax
+			}
+		}
+		// знахарь: травы → снадобье (лечит хворь, см. болезни)
+		if herb := l.byRole["herbalist"]; herb > 0 && st[GoodHerb] > 0 {
+			use := min(st[GoodHerb], float64(herb)*remedyDay)
+			st[GoodHerb] -= use
+			st[GoodRemedy] += use * remedyFromHerb
+		}
+		// корчмарь: мёд → медовуха (питьё для духа в таверне)
+		if l.byRole["tavernkeeper"] > 0 && st[GoodHoney] > 0 {
+			use := min(st[GoodHoney], meadBrewDay)
+			st[GoodHoney] -= use
+			st[GoodMead] += use * meadFromHoney
 		}
 	})
 
@@ -470,8 +510,9 @@ func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity
 // perishable — портится ли товар со временем. Еда и сырьё-органика гниют; изделия и металл нет.
 func perishable(good string) bool {
 	switch good {
-	case GoodTools, GoodMetal, GoodWool, GoodCloth, GoodHide, GoodLeather, GoodFeather, GoodWood, GoodOre:
-		return false
+	case GoodTools, GoodMetal, GoodWool, GoodCloth, GoodHide, GoodLeather, GoodFeather, GoodWood, GoodOre,
+		GoodFlax, GoodLinen, GoodHerb, GoodRemedy, GoodHoney, GoodMead:
+		return false // изделия, сухое сырьё, мёд/медовуха/снадобье хранятся долго
 	}
 	return true
 }

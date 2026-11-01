@@ -104,6 +104,10 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
 		Settlement: se.ID, Stock: pastureStock, Cap: pastureStock, Regen: 4})
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeGarden, Good: econ.GoodVeg, Settlement: se.ID})
+	// промыслы: лён (ткачу на холст), травы (знахарю на снадобье), пасека (мёд на медовуху)
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFlax, Good: econ.GoodFlax, Settlement: se.ID})
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeHerbs, Good: econ.GoodHerb, Settlement: se.ID})
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeApiary, Good: econ.GoodHoney, Settlement: se.ID})
 	herdKind := []string{econ.HerdCattle, econ.HerdSheep, econ.HerdPoultry}[g.Intn(3)]
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeHerd, HerdKind: herdKind,
 		Settlement: se.ID, Stock: g.Uniform(15, 30), Cap: 45, Regen: 0.4})
