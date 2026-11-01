@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -8,6 +9,9 @@ namespace Pogranichye.Client.Networking
 {
     public sealed class WorldSocketClient : IDisposable
     {
+        private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
+        private const int MaxMessageBytes = 1024 * 1024;
+
         private ClientWebSocket _socket;
         private CancellationTokenSource _lifetime;
         private readonly SemaphoreSlim _sendGate = new SemaphoreSlim(1, 1);
@@ -36,7 +40,7 @@ namespace Pogranichye.Client.Networking
             if (!IsConnected)
                 throw new InvalidOperationException("WebSocket не подключён.");
 
-            var json = "{\"v\":1,\"op\":\"goal\",\"goal\":\"" + EscapeJson(goal) + "\"}";
+            var json = "{\\"v\\":1,\\"op\\":\\"goal\\",\\"goal\\":\\"" + EscapeJson(goal) + "\\"}";
             var bytes = Encoding.UTF8.GetBytes(json);
             await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -52,29 +56,33 @@ namespace Pogranichye.Client.Networking
         private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
         {
             var buffer = new byte[8192];
-            var builder = new StringBuilder();
             try
             {
                 while (!cancellationToken.IsCancellationRequested && _socket.State == WebSocketState.Open)
                 {
-                    builder.Clear();
-                    WebSocketReceiveResult result;
-                    do
+                    using (var message = new MemoryStream())
                     {
-                        result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
-                        if (result.MessageType == WebSocketMessageType.Close)
+                        WebSocketReceiveResult result;
+                        do
                         {
-                            Closed?.Invoke("Сервер закрыл WebSocket.");
-                            return;
-                        }
-                        if (result.MessageType != WebSocketMessageType.Text)
-                            throw new InvalidOperationException("Ожидался текстовый JSON-кадр.");
-                        if (builder.Length + result.Count > 1024 * 1024)
-                            throw new InvalidOperationException("Размер WebSocket-кадра превышает 1 МиБ.");
-                        builder.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-                    } while (!result.EndOfMessage);
+                            result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
+                            if (result.MessageType == WebSocketMessageType.Close)
+                            {
+                                Closed?.Invoke("Сервер закрыл WebSocket.");
+                                return;
+                            }
+                            if (result.MessageType != WebSocketMessageType.Text)
+                                throw new InvalidOperationException("Ожидался текстовый JSON-кадр.");
 
-                    MessageReceived?.Invoke(builder.ToString());
+                            if (message.Length + result.Count > MaxMessageBytes)
+                                throw new InvalidOperationException("Размер WebSocket-кадра превышает 1 МиБ.");
+
+                            message.Write(buffer, 0, result.Count);
+                        } while (!result.EndOfMessage);
+
+                        var json = StrictUtf8.GetString(message.GetBuffer(), 0, checked((int)message.Length));
+                        MessageReceived?.Invoke(json);
+                    }
                 }
             }
             catch (OperationCanceledException) { }
@@ -86,7 +94,7 @@ namespace Pogranichye.Client.Networking
 
         private static string EscapeJson(string value)
         {
-            return (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return (value ?? string.Empty).Replace("\\\\", "\\\\\\\\").Replace("\\\"", "\\\\\\"");
         }
 
         public void Dispose()
