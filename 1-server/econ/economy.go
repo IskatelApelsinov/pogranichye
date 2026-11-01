@@ -50,7 +50,24 @@ const (
 	remedyFromHerb     = 0.5 // травы → снадобье
 	meadBrewDay        = 6.0 // мёда в варку в день
 	meadFromHoney      = 0.8 // мёд → медовуха
+
+	// износ изделий на душу в день — реальный спрос на ремесло (и повод для торговли)
+	clothWearPerCap   = 0.02
+	leatherWearPerCap = 0.02
+	toolsWearPerCap   = 0.015
+	meadDrinkPerCap   = 0.012
 )
+
+// wear изнашивает/потребляет изделие на складе (спрос), не уводя в минус.
+func wear(st map[string]float64, good string, amount float64) {
+	if amount <= 0 || st[good] <= 0 {
+		return
+	}
+	st[good] -= amount
+	if st[good] < 0 {
+		st[good] = 0
+	}
+}
 
 // Съедобное (по предпочтению). Разнообразный стол: хлеб/мясо/рыба/сыр/яйца/овощи/дичь/молоко,
 // а зерно (wheat) — ПОСЛЕДНЕЕ: его едят кашей, лишь когда прочего не осталось. Так в сытое время
@@ -345,6 +362,14 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			st[GoodHoney] -= use
 			st[GoodMead] += use * meadFromHoney
 		}
+		// ПОТРЕБЛЕНИЕ изделий: люди снашивают одежду/обувь, ломают утварь, пьют в корчме —
+		// это реальный СПРОС (иначе сукно/кожа/инструмент копятся без смысла). Отсюда и выгода
+		// возить изделия туда, где их мало: торговле есть ради чего ходить между державами.
+		pc := float64(l.people)
+		wear(st, GoodCloth, pc*clothWearPerCap)
+		wear(st, GoodLeather, pc*leatherWearPerCap)
+		wear(st, GoodTools, pc*toolsWearPerCap)
+		wear(st, GoodMead, pc*meadDrinkPerCap)
 	})
 
 	// 5) порча: запасы не живут вечно (еда гниёт) — важнейший тормоз инфляции склада
@@ -352,9 +377,9 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		st := store(se)
 		for g, v := range st {
 			if !perishable(g) {
-				continue // инструмент/металл/сукно/кожа/шерсть/шкура/перо не гниют
+				continue // инструмент/металл/сукно/кожа/шерсть/перо не гниют
 			}
-			st[g] = v * (1 - spoilPerDay)
+			st[g] = v * (1 - perishRate(g))
 			if st[g] < 0.01 {
 				delete(st, g)
 			}
@@ -508,14 +533,27 @@ func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity
 	}
 }
 
+// perishRate — скорость порчи в день. Сырая шкура и молоко портятся быстро (их надо скоро
+// выделать/переработать, иначе пропадут — отсюда давление вовремя пустить сырьё в дело), прочая
+// еда медленнее.
+func perishRate(good string) float64 {
+	switch good {
+	case GoodHide:
+		return 0.04 // невыделанная шкура быстро преет
+	case GoodMilk:
+		return 0.06 // молоко киснет
+	}
+	return spoilPerDay
+}
+
 // perishable — портится ли товар со временем. Еда и сырьё-органика гниют; изделия и металл нет.
 func perishable(good string) bool {
 	switch good {
-	case GoodTools, GoodMetal, GoodWool, GoodCloth, GoodHide, GoodLeather, GoodFeather, GoodWood, GoodOre,
+	case GoodTools, GoodMetal, GoodWool, GoodCloth, GoodLeather, GoodFeather, GoodWood, GoodOre,
 		GoodFlax, GoodLinen, GoodHerb, GoodRemedy, GoodHoney, GoodMead:
 		return false // изделия, сухое сырьё, мёд/медовуха/снадобье хранятся долго
 	}
-	return true
+	return true // сырая шкура (GoodHide), еда и прочая органика гниют, если не переработаны вовремя
 }
 
 // workersFor — сколько работников ремесла, кормящего данный узел.

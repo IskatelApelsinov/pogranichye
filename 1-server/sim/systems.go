@@ -469,7 +469,7 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, worldmut.System{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, worldmut.System{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---

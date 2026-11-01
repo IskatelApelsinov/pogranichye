@@ -89,6 +89,13 @@ func Report(w *core.World, clock core.Clock) {
 	})
 	fmt.Printf("Магия:              магов=%d · плетений=%d (сорвано=%d) · исцелений=%d · оберегов=%d · сёл под оберегом=%d\n",
 		mages, DebugSpells, DebugSpellFails, DebugHeals, DebugWards, warded)
+
+	treasury := 0.0
+	w.Each("realm", func(re *core.Entity) { treasury += econ.Realm(re).Treasury })
+	inTransit := 0
+	w.Each("caravan", func(*core.Entity) { inTransit++ })
+	fmt.Printf("Торговля держав:    караванов снаряжено=%d дошло=%d ограблено=%d · в пути сейчас=%d · казна держав=%.0f · шкур на рынках %.0f\n",
+		econ.DebugCaravans, econ.DebugArrived, econ.DebugRobbed, inTransit, treasury, hide)
 }
 
 // Sample печатает выборку жителей (для -demo -v).
