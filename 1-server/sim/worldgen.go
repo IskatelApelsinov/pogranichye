@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 
+	"pogranichye/arcane"
 	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/dice"
@@ -232,7 +233,7 @@ func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity
 	if s.Chance(0.4) {
 		home = "owned"
 	}
-	return w.Spawn(
+	e := w.Spawn(
 		ident,
 		&core.VitalsC{Age: round1(age), Health: s.Uniform(80, 100),
 			Hunger: s.Uniform(0, 40), Energy: s.Uniform(50, 100), Morale: s.Uniform(45, 80)},
@@ -243,6 +244,10 @@ func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity
 		&core.HomeC{Status: home, Comfort: 0, Settlement: settlement},
 		&core.PlaceC{Settlement: settlement},
 	)
+	if ident.Role == "mage" {
+		w.Attach(e, &arcane.MageC{}) // дар мага — запас маны (наполнится из поля места)
+	}
+	return e
 }
 
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }

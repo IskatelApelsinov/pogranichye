@@ -79,6 +79,16 @@ func Report(w *core.World, clock core.Clock) {
 		wounded, DebugHunts, DebugWins, DebugWounds, DebugBattleDeaths, meat, hide)
 	fmt.Printf("Зверьё в угодьях:   заяц=%.0f лиса=%.0f кабан=%.0f волк=%.0f медведь=%.0f · средняя мана %.2f\n",
 		beasts["hare"], beasts["fox"], beasts["boar"], beasts["wolf"], beasts["bear"], avgMana)
+
+	mages, warded := 0, 0
+	w.Each("mage", func(e *core.Entity) { mages++ })
+	w.Each("settlement", func(se *core.Entity) {
+		if core.Settle(se).Ward > 0.05 {
+			warded++
+		}
+	})
+	fmt.Printf("Магия:              магов=%d · плетений=%d (сорвано=%d) · исцелений=%d · оберегов=%d · сёл под оберегом=%d\n",
+		mages, DebugSpells, DebugSpellFails, DebugHeals, DebugWards, warded)
 }
 
 // Sample печатает выборку жителей (для -demo -v).

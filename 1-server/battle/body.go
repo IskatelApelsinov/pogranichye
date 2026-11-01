@@ -29,6 +29,35 @@ func (c *BodyC) Kind() string { return "body" }
 
 func Body(e *core.Entity) *BodyC { c, _ := e.Get("body").(*BodyC); return c }
 
+// Mend — магическое ускорение обмена веществ (канон: лечение = разгон метаболизма): раны
+// затягиваются скачком, кровь унимается, гной отступает. Нельзя отрастить утраченное из ничего —
+// только ускорить то, что тело и так чинит.
+func (c *BodyC) Mend(power float64) {
+	if c == nil {
+		return
+	}
+	for p := range c.Wounds {
+		c.Wounds[p] -= power
+		if c.Wounds[p] <= 0 {
+			delete(c.Wounds, p)
+		}
+	}
+	if c.Bleeding -= power; c.Bleeding < 0 {
+		c.Bleeding = 0
+	}
+	if c.Infection -= power; c.Infection < 0 {
+		c.Infection = 0
+	}
+}
+
+// Hurt наносит урон в случайную часть тела (экспорт для внешних причин — откат магии, бой на дороге).
+func (c *BodyC) Hurt(amount float64, s *dice.Stream) {
+	if c == nil || amount <= 0 {
+		return
+	}
+	c.hurt(partList[s.Intn(len(partList))], amount)
+}
+
 // Severity — совокупная тяжесть ран 0..1.
 func (c *BodyC) Severity() float64 {
 	if c == nil {

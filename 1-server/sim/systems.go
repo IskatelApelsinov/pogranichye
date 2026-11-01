@@ -3,6 +3,7 @@ package sim
 import (
 	"strconv"
 
+	"pogranichye/arcane"
 	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/dice"
@@ -204,6 +205,9 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			id.Role = pickRole(role) // ремесло по весам (пахарей больше — хлеб основа)
 			if sk := core.Skills(e); sk != nil {
 				sk.Train(id.Role, role.Uniform(2, 8)) // юношеские азы ремесла
+			}
+			if id.Role == "mage" && arcane.Mage(e) == nil {
+				w.Attach(e, &arcane.MageC{}) // проснулся дар — запас маны
 			}
 		}
 		// Смерть — это прежде всего СТАРОСТЬ (оборот поколений идёт сам). Голод убивает
@@ -464,7 +468,7 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---
