@@ -1,0 +1,37 @@
+{
+  "v": 1,
+  "alive": true,
+  "day": 128,
+  "year": 2,
+  "season": "осень",
+  "me": {
+    "id": "42",
+    "name": "Добронега",
+    "surname": "Кривонос",
+    "role": "farmer",
+    "sex": "ж",
+    "age": 42.4,
+    "health": 100,
+    "hunger": 64,
+    "energy": 86,
+    "morale": 73,
+    "goal": "rest",
+    "last": "отдыхает",
+    "home": "none",
+    "coins": 23.4,
+    "debt": 0,
+    "wounds": { "leg": 3.0 },
+    "bleeding": 0,
+    "stash": { "bread": 4 }
+  },
+  "place": {
+    "name": "Белогорье",
+    "tier": "city",
+    "food": 466,
+    "bread": 248,
+    "bread_price": 0.4,
+    "neighbors": [
+      { "id": "43", "name": "Благана", "role": "farmer", "act": "отдыхает" }
+    ]
+  }
+}

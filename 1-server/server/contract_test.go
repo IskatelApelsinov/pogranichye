@@ -49,6 +49,17 @@ func TestStateFrameMatchesContractV1(t *testing.T) {
 	if idv, ok := me["id"].(string); !ok || idv == "" {
 		t.Fatalf("me.id должен быть непустой строкой, получили %T %v", me["id"], me["id"])
 	}
+	// каждый сосед тоже обязан нести непустой строковый id (ключ Entity View у Unity)
+	if lp, _ := live["place"].(map[string]any); lp != nil {
+		if ns, _ := lp["neighbors"].([]any); ns != nil {
+			for i, raw := range ns {
+				nb, _ := raw.(map[string]any)
+				if idv, ok := nb["id"].(string); !ok || idv == "" {
+					t.Fatalf("neighbors[%d].id должен быть непустой строкой, получили %T %v", i, nb["id"], nb["id"])
+				}
+			}
+		}
+	}
 
 	// схема: набор ключей живого кадра совпадает с fixture (верхний уровень, me, сосед)
 	var fx map[string]any
