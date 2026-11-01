@@ -317,6 +317,14 @@ func foundNewSettlement(w *core.World, s *dice.Stream) {
 		return
 	}
 	ne := NewSettlement(w, s, procToponym(s))
+	// новая деревня встаёт НЕПОДАЛЁКУ от родной (переселенцы уходят не за тридевять земель),
+	// но часто за пределы досягаемости сборщиков — пограничье вольнее от податей
+	if src3 := core.Settle(source); src3 != nil {
+		ns := core.Settle(ne)
+		ns.X = clamp(src3.X+s.Uniform(-180, 180), 0, mapSize)
+		ns.Y = clamp(src3.Y+s.Uniform(-180, 180), 0, mapSize)
+		ns.Region = src3.Region
+	}
 	for _, r := range band {
 		if pl := core.Place(r); pl != nil {
 			pl.Settlement = ne.ID

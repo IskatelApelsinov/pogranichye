@@ -1,6 +1,8 @@
 package econ
 
 import (
+	"math"
+
 	"pogranichye/core"
 	"pogranichye/dice"
 )
@@ -21,6 +23,7 @@ const (
 	cookGrindDay   = 30.0  // сколько зерна перемалывает один повар в день
 	toolsFromOre   = 0.5   // 2 руды → 1 инструмент
 	smithOreDay    = 4.0   // руды в день на кузнеца
+	taxReach       = 350.0 // дальше этого от столицы сборщик налога не доходит (верст)
 	titheRate      = 0.1   // десятина
 
 	// огород и животноводство
@@ -309,20 +312,33 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 	})
 
-	// 6) десятина: держава собирает долю зерна/инструментов с подвластных земель в казну
+	// 6) десятина — ДЕЙСТВИЕ государства, а не магия: сборщики идут из столицы и достают лишь
+	//    поселения в пределах досягаемости. Дальние деревни сборщик не доходит — они вольны от
+	//    податей (зато и защиты державы меньше). Чем дальше в пределах досягаемости — тем меньше
+	//    довозят (убыль в пути). Так рождается вольное бедное пограничье.
 	w.Each("realm", func(re *core.Entity) {
 		r := Realm(re)
 		if r.TaxRate <= 0 {
 			return
 		}
+		capEnt := w.Get(r.Capital)
+		if capEnt == nil {
+			return
+		}
+		cc := core.Settle(capEnt)
 		for _, sid := range r.Territory {
 			se := w.Get(sid)
 			if se == nil {
 				continue
 			}
+			d := dist(cc, core.Settle(se))
+			if d > taxReach {
+				continue // сборщик не доходит — дальняя деревня податей не платит
+			}
+			collect := r.TaxRate * (1 - d/taxReach*0.5) // дальше по тракту — довозят меньше
 			st := store(se)
-			for _, g := range []string{GoodBread, GoodTools} { // зерно (семена) десятиной не трогаем
-				take := st[g] * r.TaxRate
+			for _, g := range []string{GoodBread, GoodTools} { // зерно под сев десятиной не трогаем
+				take := st[g] * collect
 				st[g] -= take
 				r.Treasury += take // казна в «мерах добра» (денежную оценку добавим с рынком)
 			}
@@ -461,4 +477,13 @@ func min(a, b float64) float64 {
 		return a
 	}
 	return b
+}
+
+// dist — расстояние между поселениями по карте (версты). Для путей, торговли, досягаемости.
+func dist(a, b *core.SettlementC) float64 {
+	if a == nil || b == nil {
+		return 1e9
+	}
+	dx, dy := a.X-b.X, a.Y-b.Y
+	return math.Sqrt(dx*dx + dy*dy)
 }

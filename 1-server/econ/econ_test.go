@@ -202,3 +202,27 @@ func TestAnimalChains(t *testing.T) {
 		t.Fatal("ткач должен делать сукно из шерсти")
 	}
 }
+
+// Налог — действие государства с досягаемостью: сборщик достаёт ближнюю деревню, а дальнюю
+// (за пределом taxReach от столицы) — нет, она вольна от податей.
+func TestTaxReach(t *testing.T) {
+	w := core.NewWorld("tax")
+	capital := w.Spawn(&core.SettlementC{Name: "Столица", X: 0, Y: 0,
+		Store: map[string]float64{GoodBread: 1000}})
+	far := w.Spawn(&core.SettlementC{Name: "Дальняя", X: 0, Y: 900, // > taxReach
+		Store: map[string]float64{GoodBread: 1000}})
+	w.Spawn(&RealmC{Name: "Д", Capital: capital.ID, TaxRate: 0.1,
+		Territory: []core.ID{capital.ID, far.ID}})
+
+	EconomySystem{}.Hour(w, dayHour(60), dice.NewHub("tax")) // день 60 (не весна) — сбор идёт
+
+	// столицу обложили (заметная убыль от налога ~10%), дальнюю лишь чуть тронула порча (не налог)
+	if core.Settle(capital).Store[GoodBread] > 950 {
+		t.Fatalf("ближнюю (столицу) сборщик должен заметно обложить, осталось %.1f",
+			core.Settle(capital).Store[GoodBread])
+	}
+	if core.Settle(far).Store[GoodBread] < 990 {
+		t.Fatalf("дальнюю деревню сборщик НЕ доходит — подати браться не должны (осталось %.1f)",
+			core.Settle(far).Store[GoodBread])
+	}
+}

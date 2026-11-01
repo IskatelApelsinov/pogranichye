@@ -117,6 +117,9 @@ type SettlementC struct {
 	Store   map[string]float64 `json:"store"`
 	Tavern  bool               `json:"tavern"`
 	Keeper  ID                 `json:"keeper"`
+	X       float64            `json:"x"`      // положение на карте мира (версты): нужно для путей,
+	Y       float64            `json:"y"`      // торговли и досягаемости сборщиков налога
+	Region  ID                 `json:"region"` // регион-контейнер (большой мир); 0 — вне региона
 }
 
 func (c *SettlementC) Kind() string { return "settlement" }

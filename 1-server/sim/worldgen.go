@@ -8,6 +8,8 @@ import (
 	"pogranichye/econ"
 )
 
+const mapSize = 1000.0 // сторона карты мира в верстах (для путей, торговли, досягаемости налога)
+
 var villageNames = []string{"Белогорье", "Отрадное", "Соловьёво", "Усть-Ворон", "Лещина",
 	"Яворово", "Тихий Брод", "Межгорье", "Краснолесье", "Студёное", "Вербное", "Залесье",
 	"Каменка", "Рыбное", "Горелово", "Светлояр", "Новосёлки", "Дубрава", "Погост", "Броды"}
@@ -61,6 +63,7 @@ func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
 	mountain := g.Chance(0.3)
 	se := w.Spawn(&core.SettlementC{
 		Name: name, Founded: 0, Tier: "village", Tavern: true,
+		X: g.Uniform(0, mapSize), Y: g.Uniform(0, mapSize), // положение на карте мира
 		Store: map[string]float64{
 			econ.GoodBread: 400,
 			// зерно: посевной резерв (его община бережёт под сев) + немного на кашу
