@@ -69,7 +69,9 @@ namespace Pogranichye.Client.Networking
                         }
                         if (result.MessageType != WebSocketMessageType.Text)
                             throw new InvalidOperationException("Ожидался текстовый JSON-кадр.");
-                        if (builder.Length + result.Count > 1024 * 1024)\n                            throw new InvalidOperationException("Размер WebSocket-кадра превышает 1 МиБ.");\n                        builder.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+                        if (builder.Length + result.Count > 1024 * 1024)
+                            throw new InvalidOperationException("Размер WebSocket-кадра превышает 1 МиБ.");
+                        builder.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
                     } while (!result.EndOfMessage);
 
                     MessageReceived?.Invoke(builder.ToString());
