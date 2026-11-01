@@ -24,14 +24,13 @@ namespace Pogranichye.Client
         private string _goalToSend;
         private WorldFrame _frame;
         private bool _busy;
-        private bool _registered;
 
         private void Awake()
         {
             _auth = new HttpAuthClient(serverUrl);
             var root = new GameObject("EntityViews").transform;
             _views = new EntityViewRegistry(root);
-            SetupCamera();
+            SetupPresentationScene();
         }
 
         private void Update()
@@ -202,28 +201,45 @@ namespace Pogranichye.Client
 
         private void Enqueue(Action action) => _mainThread.Enqueue(action);
 
-        private void SetupCamera()
+        private void SetupPresentationScene()
         {
             var camera = Camera.main;
             if (camera == null)
             {
                 var go = new GameObject("Main Camera");
-                camera = go.AddComponent<Camera>();
                 go.tag = "MainCamera";
+                camera = go.AddComponent<Camera>();
             }
             camera.transform.position = new Vector3(0, 8, -12);
             camera.transform.rotation = Quaternion.Euler(28, 0, 0);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.12f, 0.15f, 0.17f);
+
             if (FindObjectOfType<Light>() == null)
             {
                 var light = new GameObject("Directional Light").AddComponent<Light>();
                 light.type = LightType.Directional;
+                light.intensity = 1.15f;
                 light.transform.rotation = Quaternion.Euler(50, -30, 0);
             }
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            floor.name = "TemporaryPresentationGround";
-            floor.transform.localScale = new Vector3(2, 1, 2);
+
+            var ground = GameObject.Find("TemporaryPresentationGround");
+            if (ground == null)
+            {
+                ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                ground.name = "TemporaryPresentationGround";
+                ground.transform.localScale = new Vector3(2, 1, 2);
+            }
+            ApplyUrpMaterial(ground.GetComponent<Renderer>(), new Color(0.34f, 0.31f, 0.25f));
+        }
+
+        internal static void ApplyUrpMaterial(Renderer renderer, Color color)
+        {
+            if (renderer == null) return;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return;
+            var material = new Material(shader) { color = color };
+            renderer.sharedMaterial = material;
         }
 
         private void OnDestroy()
