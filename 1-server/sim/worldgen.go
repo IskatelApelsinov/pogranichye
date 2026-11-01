@@ -37,6 +37,8 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 				setRole(p, "farmer")
 			case 2:
 				setRole(p, "cook")
+			case 3:
+				setRole(p, "herder") // кто-то пасёт скот — молоко/шерсть/мясо
 			}
 			residents = append(residents, p)
 		}
@@ -74,6 +76,12 @@ func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
 		Settlement: se.ID, Stock: 400, Cap: 400, Regen: 3})
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
 		Settlement: se.ID, Stock: 200, Cap: 200, Regen: 4})
+	// огород — овощи к столу (разнообразие сверх хлеба)
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeGarden, Good: econ.GoodVeg, Settlement: se.ID})
+	// стадо — вид по жребию; даёт возобновляемое + убой. Regen = приплод, Cap = предел выпаса.
+	herdKind := []string{econ.HerdCattle, econ.HerdSheep, econ.HerdPoultry}[g.Intn(3)]
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeHerd, HerdKind: herdKind,
+		Settlement: se.ID, Stock: g.Uniform(15, 30), Cap: 45, Regen: 0.4})
 	if coastal {
 		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFishery, Good: econ.GoodFish,
 			Settlement: se.ID, Stock: 300, Cap: 300, Regen: 6})

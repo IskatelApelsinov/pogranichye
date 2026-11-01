@@ -15,21 +15,55 @@ func init() {
 // Виды узлов и товаров — строками, чтобы клиент и инструменты читали без магии.
 const (
 	NodeField   = "field"   // пашня: сеют весной, жнут осенью; нельзя собрать больше, чем выросло
+	NodeGarden  = "garden"  // огород: овощи, зреют за лето, тянет землепашец; разнообразит еду
 	NodeFishery = "fishery" // рыбное место: запас, нерест весной (лов закрыт), перелов убивает
 	NodeMine    = "mine"    // шахта: конечная руда, НЕ возобновляется — истощается
 	NodeForest  = "forest"  // лес: дрова/дичь, медленно возобновляется
 	NodePasture = "pasture" // пастбище/угодья: дичь, возобновляется
+	NodeHerd    = "herd"    // стадо: даёт возобновляемое (молоко/шерсть/яйца+перо) и убой (мясо/кожа)
 
 	GoodWheat = "wheat" // зерно: и на хлеб, и на сев, и каша в голод — один товар, без «священного»
 	GoodFlour = "flour"
 	GoodBread = "bread"
 	GoodFish  = "fish"
 	GoodGame  = "game"
+	GoodVeg   = "veg" // овощи с огорода — еда (разнообразие сверх хлеба)
 	GoodOre   = "ore"
 	GoodMetal = "metal"
 	GoodTools = "tools"
 	GoodWood  = "wood"
+	// животноводство: возобновляемое с живого стада
+	GoodMilk    = "milk"    // молоко → сыр
+	GoodCheese  = "cheese"  // сыр (еда, хранится дольше молока)
+	GoodWool    = "wool"    // шерсть → сукно
+	GoodCloth   = "cloth"   // сукно (ткач)
+	GoodEgg     = "egg"     // яйца (еда)
+	GoodFeather = "feather" // перо (перина/оперение стрел)
+	// убой стада
+	GoodMeat    = "meat"    // мясо (еда)
+	GoodHide    = "hide"    // шкура → кожа
+	GoodLeather = "leather" // кожа (ткач/кожевник)
 )
+
+// Виды стад и их возобновляемый продукт (убой у всех даёт мясо+шкуру).
+const (
+	HerdCattle  = "cattle"  // скот → молоко
+	HerdSheep   = "sheep"   // овцы → шерсть
+	HerdPoultry = "poultry" // птица → яйца (+перо)
+)
+
+// herdProduct — что даёт живое стадо (возобновляемо, без убоя).
+func herdProduct(kind string) string {
+	switch kind {
+	case HerdCattle:
+		return GoodMilk
+	case HerdSheep:
+		return GoodWool
+	case HerdPoultry:
+		return GoodEgg
+	}
+	return ""
+}
 
 // ResourceNodeC — конечный природный источник у поселения. Запас реально кончается и
 // восстанавливается лишь природой (regen), а не трудом. Труд лишь ПЕРЕНОСИТ запас в склад.
@@ -41,11 +75,14 @@ type ResourceNodeC struct {
 	Regen      float64 `json:"regen"`      // естественное восстановление в день (0 у шахты)
 	Settlement core.ID `json:"settlement"` // чьё это угодье
 
-	// поля пашни (Node==field): сезонный цикл сева и жатвы
+	// поля пашни/огорода (Node==field|garden): сезонный цикл
 	Sown     bool    `json:"sown"`      // засеяно в этом году
 	SownSeed float64 `json:"sown_seed"` // сколько зерна ушло в землю (от этого урожай)
 	Ripe     float64 `json:"ripe"`      // спелость 0..1, растёт за лето
 	Fallow   bool    `json:"fallow"`    // под паром в этом году (трёхполье) — не сеют, земля отдыхает
+
+	// стадо (Node==herd): Stock = голов скота, Cap = предел выпаса, Regen = приплод/день
+	HerdKind string `json:"herd_kind"` // cattle|sheep|poultry — определяет возобновляемый продукт
 }
 
 func (c *ResourceNodeC) Kind() string { return "resnode" }

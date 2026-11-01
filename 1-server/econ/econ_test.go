@@ -148,3 +148,57 @@ func TestTradeConserves(t *testing.T) {
 		t.Fatal("бедное поселение должно было получить зерно по торговле")
 	}
 }
+
+// добавить работника ремесла в существующее поселение.
+func addWorker(w *core.World, sid core.ID, role string) {
+	w.Spawn(&core.IdentC{Name: "Р", Role: role, Sex: "м"},
+		&core.VitalsC{Age: 30, Health: 100}, &core.PlaceC{Settlement: sid})
+}
+
+// Стадо даёт возобновляемое (молоко) трудом пастуха, не из воздуха и не больше лимита с головы.
+func TestHerdRenewable(t *testing.T) {
+	w, se := mini(map[string]float64{GoodBread: 9999}, "herder", 30) // сыты → не режут
+	w.Spawn(&ResourceNodeC{Node: NodeHerd, HerdKind: HerdCattle, Settlement: se.ID,
+		Stock: 20, Cap: 45, Regen: 0})
+	run(w, 30) // лето
+	milk := core.Settle(se).Store[GoodMilk]
+	if milk <= 0 {
+		t.Fatal("пастух со стадом должен давать молоко")
+	}
+	if milk > herderRate+0.01 { // 1 пастух: не больше herderRate в день
+		t.Fatalf("молока больше возможного: %.2f", milk)
+	}
+}
+
+// Голодная деревня пускает скот под нож: голов меньше, появляется мясо и шкура, племя цело.
+func TestHerdSlaughter(t *testing.T) {
+	w, se := mini(map[string]float64{}, "herder", 30) // еды нет → голод
+	w.Spawn(&ResourceNodeC{Node: NodeHerd, HerdKind: HerdSheep, Settlement: se.ID,
+		Stock: 20, Cap: 45, Regen: 0})
+	run(w, 30)
+	var n *ResourceNodeC
+	w.Each("resnode", func(e *core.Entity) { n = Node(e) })
+	if n.Stock >= 20 {
+		t.Fatalf("в голод скот должны были забить, осталось %.0f", n.Stock)
+	}
+	if n.Stock < herdMinKeep-0.01 {
+		t.Fatalf("племенное ядро нельзя резать: осталось %.0f (минимум %.0f)", n.Stock, herdMinKeep)
+	}
+	if core.Settle(se).Store[GoodMeat] <= 0 || core.Settle(se).Store[GoodHide] <= 0 {
+		t.Fatal("с забоя должны быть мясо и шкура")
+	}
+}
+
+// Цепочки животноводства: молоко→сыр (повар), шерсть→сукно (ткач).
+func TestAnimalChains(t *testing.T) {
+	w, se := mini(map[string]float64{GoodMilk: 50, GoodWool: 50, GoodBread: 9999}, "cook", 30)
+	addWorker(w, se.ID, "weaver")
+	run(w, 30)
+	st := core.Settle(se).Store
+	if st[GoodCheese] <= 0 {
+		t.Fatal("повар должен делать сыр из молока")
+	}
+	if st[GoodCloth] <= 0 {
+		t.Fatal("ткач должен делать сукно из шерсти")
+	}
+}

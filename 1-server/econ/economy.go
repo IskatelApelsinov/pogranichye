@@ -22,12 +22,27 @@ const (
 	toolsFromOre   = 0.5   // 2 руды → 1 инструмент
 	smithOreDay    = 4.0   // руды в день на кузнеца
 	titheRate      = 0.1   // десятина
+
+	// огород и животноводство
+	vegPerFarmerDay = 3.0 // овощей с огорода на землепашца в день (тёплый сезон)
+	herderRate      = 4.0 // продукта стада (молоко/шерсть/яйца) на пастуха в день
+	perAnimalDay    = 0.5 // но не больше столько с головы в день (маленькое стадо — мало продукта)
+	herdMinKeep     = 5.0 // ниже этого не режут — племенное ядро (иначе стадо вымрет)
+	slaughterPerDay = 2.0 // голов под нож в день, когда решено забивать
+	meatPerAnimal   = 6.0 // мяса с головы
+	hidePerAnimal   = 1.0 // шкур с головы
+	slaughterHunger = 8.0 // дней еды на душу, ниже — пускают скот под нож
+	cheeseFromMilk  = 0.5 // 2 молока → 1 сыр
+	cookCheeseDay   = 10.0
+	clothFromWool   = 0.6 // шерсть → сукно
+	leatherFromHide = 0.7 // шкура → кожа
+	weaveDay        = 8.0 // сырья на ткача в день
 )
 
-// Съедобное (по предпочтению). Зерно (wheat) — ПОСЛЕДНЕЕ в списке: его едят кашей, лишь когда
-// печёного и промысла не осталось. Так в сытое время зерно копится под сев само (никто его не
-// доедает), а в голод люди проедают и посевной резерв — отсюда эмерджентная трагедия «съели семена».
-var edibles = []string{GoodBread, GoodFish, GoodGame, GoodFlour, GoodWheat}
+// Съедобное (по предпочтению). Разнообразный стол: хлеб/мясо/рыба/сыр/яйца/овощи/дичь/молоко,
+// а зерно (wheat) — ПОСЛЕДНЕЕ: его едят кашей, лишь когда прочего не осталось. Так в сытое время
+// зерно копится под сев само, а в голод люди проедают и посевной резерв — трагедия «съели семена».
+var edibles = []string{GoodBread, GoodMeat, GoodFish, GoodCheese, GoodEgg, GoodVeg, GoodGame, GoodMilk, GoodFlour, GoodWheat}
 
 // SeedPerField — сколько зерна уходит на засев пашни (для генерации стартовых запасов).
 func SeedPerField() float64 { return seedPerField }
@@ -60,9 +75,15 @@ func FoodOnHand(se *core.Entity) float64 {
 // По ней решаем, сыта ли деревня для рождений.
 func FeedableFood(se *core.Entity) float64 {
 	st := store(se)
-	t := st[GoodBread] + st[GoodFish] + st[GoodGame] + st[GoodFlour]
-	if surplus := st[GoodWheat] - sowReserve; surplus > 0 {
-		t += surplus
+	t := 0.0
+	for _, g := range edibles {
+		if g == GoodWheat {
+			if surplus := st[GoodWheat] - sowReserve; surplus > 0 {
+				t += surplus // зерно считаем едой лишь сверх посевного резерва
+			}
+			continue
+		}
+		t += st[g]
 	}
 	return t
 }
@@ -99,6 +120,12 @@ type EconomySystem struct{}
 
 func (EconomySystem) Name() string { return "economy" }
 
+// labor — рабочие руки поселения: сколько кого по ремёслам и всего душ (строится за один проход).
+type labor struct {
+	byRole map[string]int
+	people int
+}
+
 func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	if !clock.IsNewDay() {
 		return
@@ -107,10 +134,6 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	s := hub.Stream("economy")
 
 	// индекс «поселение → его жители по ремёслам» за ОДИН проход (масштабируемо)
-	type labor struct {
-		byRole map[string]int
-		people int
-	}
 	lab := map[core.ID]*labor{}
 	w.Each("place", func(e *core.Entity) {
 		id := core.Ident(e)
@@ -189,30 +212,41 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 	})
 
-	// 3) добыча трудом: работник ПЕРЕНОСИТ запас из узла в склад (не создаёт из воздуха).
-	//    рыбное место закрыто в нерест (весна) — ловить нельзя.
+	// 3) труд с угодий и стад. Общий принцип: труд ПЕРЕНОСИТ/СНИМАЕТ запас, не творит из воздуха.
 	w.Each("resnode", func(ne *core.Entity) {
 		n := Node(ne)
-		node, good := n.Node, n.Good
-		if node == NodeField { // пашню собирают жатвой, не ежедневно
+		if n.Node == NodeField { // пашню собирают жатвой, не ежедневно
 			return
 		}
 		l := lab[n.Settlement]
 		if l == nil {
 			return
 		}
-		workers := workersFor(l.byRole, node)
-		if workers == 0 || n.Stock <= 0 {
+		se := w.Get(n.Settlement)
+		if se == nil {
 			return
 		}
-		if node == NodeFishery && season == core.Spring {
-			return // нерест: лов закрыт
-		}
-		pull := min(n.Stock, float64(workers)*perWorkerDay)
-		n.Stock -= pull
-		se := w.Get(n.Settlement)
-		if se != nil {
-			store(se)[good] += pull
+		st := store(se)
+		switch n.Node {
+		case NodeGarden:
+			// огород: землепашцы снимают овощи в тёплый сезон (разнообразит стол)
+			if (season == core.Summer || season == core.Autumn) && l.byRole["farmer"] > 0 {
+				st[GoodVeg] += float64(l.byRole["farmer"]) * vegPerFarmerDay
+			}
+		case NodeHerd:
+			tendHerd(n, l, st, se, w)
+		default:
+			// лес/рыба/пастбище/шахта: промысловик снимает конечный запас
+			workers := workersFor(l.byRole, n.Node)
+			if workers == 0 || n.Stock <= 0 {
+				return
+			}
+			if n.Node == NodeFishery && season == core.Spring {
+				return // нерест: лов закрыт
+			}
+			pull := min(n.Stock, float64(workers)*perWorkerDay)
+			n.Stock -= pull
+			st[n.Good] += pull
 		}
 	})
 
@@ -239,14 +273,34 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			st[GoodOre] -= use
 			st[GoodTools] += use * toolsFromOre
 		}
+		// повар ещё и сыр из молока (хранится дольше молока)
+		if cooks := l.byRole["cook"]; cooks > 0 && st[GoodMilk] > 0 {
+			use := min(st[GoodMilk], float64(cooks)*cookCheeseDay)
+			st[GoodMilk] -= use
+			st[GoodCheese] += use * cheeseFromMilk
+		}
+		// ткач: шерсть→сукно, шкура→кожа (ремёсла из животноводства)
+		if weavers := l.byRole["weaver"]; weavers > 0 {
+			cap := float64(weavers) * weaveDay
+			if st[GoodWool] > 0 {
+				use := min(st[GoodWool], cap)
+				st[GoodWool] -= use
+				st[GoodCloth] += use * clothFromWool
+			}
+			if st[GoodHide] > 0 {
+				use := min(st[GoodHide], cap)
+				st[GoodHide] -= use
+				st[GoodLeather] += use * leatherFromHide
+			}
+		}
 	})
 
 	// 5) порча: запасы не живут вечно (еда гниёт) — важнейший тормоз инфляции склада
 	w.Each("settlement", func(se *core.Entity) {
 		st := store(se)
 		for g, v := range st {
-			if g == GoodTools || g == GoodMetal {
-				continue // инструмент/металл не гниют
+			if !perishable(g) {
+				continue // инструмент/металл/сукно/кожа/шерсть/шкура/перо не гниют
 			}
 			st[g] = v * (1 - spoilPerDay)
 			if st[g] < 0.01 {
@@ -347,6 +401,44 @@ func (TradeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			store(n.se)[GoodWheat] += share // приходит зерном (хлеб испекут на месте)
 		}
 	})
+}
+
+// tendHerd — живое стадо: пастухи снимают возобновляемое (молоко/шерсть/яйца, птица ещё перо),
+// а в голод или при переполнении выпаса скот пускают под нож (мясо+шкура), оставляя племя.
+// Голов добавляет приплод (общий regen в п.1), здесь — только съём и убой. Сохранение соблюдено.
+func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity, w *core.World) {
+	herders := l.byRole["herder"]
+	if herders > 0 && n.Stock > 0 {
+		if prod := herdProduct(n.HerdKind); prod != "" {
+			amount := min(float64(herders)*herderRate, n.Stock*perAnimalDay)
+			st[prod] += amount
+			if n.HerdKind == HerdPoultry {
+				st[GoodFeather] += amount * 0.3 // с птицы ещё перо
+			}
+		}
+	}
+	// забой: если деревня голодает или выпас переполнен — и есть кому забить, и есть что (сверх племени)
+	people := l.people
+	if people < 1 {
+		people = 1
+	}
+	hungry := FeedableFood(se)/float64(people) < slaughterHunger
+	crowded := n.Stock >= n.Cap*0.95
+	if (hungry || crowded) && herders > 0 && n.Stock > herdMinKeep {
+		k := min(slaughterPerDay, n.Stock-herdMinKeep)
+		n.Stock -= k
+		st[GoodMeat] += k * meatPerAnimal
+		st[GoodHide] += k * hidePerAnimal
+	}
+}
+
+// perishable — портится ли товар со временем. Еда и сырьё-органика гниют; изделия и металл нет.
+func perishable(good string) bool {
+	switch good {
+	case GoodTools, GoodMetal, GoodWool, GoodCloth, GoodHide, GoodLeather, GoodFeather, GoodWood, GoodOre:
+		return false
+	}
+	return true
 }
 
 // workersFor — сколько работников ремесла, кормящего данный узел.
