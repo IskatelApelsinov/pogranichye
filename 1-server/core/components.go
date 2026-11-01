@@ -15,6 +15,7 @@ func init() {
 	Register("home", func() Component { return &HomeC{} })
 	Register("place", func() Component { return &PlaceC{} })
 	Register("settlement", func() Component { return &SettlementC{Store: map[string]float64{}} })
+	Register("region", func() Component { return &RegionC{} })
 }
 
 // IdentC — кто это: имя и родовое, пол, ремесло, черта, происхождение. Фамилия согласуется
@@ -123,6 +124,19 @@ type SettlementC struct {
 }
 
 func (c *SettlementC) Kind() string { return "settlement" }
+
+// RegionC — регион-контейнер большого мира (провинция/край): группирует поселения по местности.
+// Биом задаёт характер земли (где рыбное место, где руда). Из регионов складывается материк.
+type RegionC struct {
+	Name  string  `json:"name"`
+	Biome string  `json:"biome"` // plain|forest|hills|coast|steppe
+	X     float64 `json:"x"`     // центр края на карте мира
+	Y     float64 `json:"y"`
+}
+
+func (c *RegionC) Kind() string { return "region" }
+
+func Region(e *Entity) *RegionC { c, _ := e.Get("region").(*RegionC); return c }
 
 // --- типизированные помощники: короче и безопаснее, чем Get+приведение ---
 

@@ -226,11 +226,13 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		w.Remove(id) // идентичность уходит из мира; хроника памяти — отдельный слой (позже)
 	}
 
-	// 2) рождения и рост поселений
+	// 2) рождения и рост поселений. Жителей по деревням берём из ИНДЕКСА (один проход),
+	// а не сканируем мир на каждую деревню — иначе O(деревни × жители) на тысячах поселений.
+	byHome := residentIndex(w)
 	birth := hub.Stream("life", "birth")
 	w.Each("settlement", func(se *core.Entity) {
 		set := core.Settle(se)
-		res := residentsOf(w, se.ID)
+		res := byHome[se.ID]
 		pop := len(res)
 		adults := 0
 		for _, r := range res {
@@ -316,14 +318,18 @@ func foundNewSettlement(w *core.World, s *dice.Stream) {
 	if len(band) < 3 {
 		return
 	}
-	ne := NewSettlement(w, s, procToponym(s))
-	// новая деревня встаёт НЕПОДАЛЁКУ от родной (переселенцы уходят не за тридевять земель),
-	// но часто за пределы досягаемости сборщиков — пограничье вольнее от податей
-	if src3 := core.Settle(source); src3 != nil {
+	src3 := core.Settle(source)
+	var reg *core.Entity
+	if src3 != nil {
+		reg = w.Get(src3.Region) // новая деревня — того же края, что родная
+	}
+	ne := NewSettlement(w, s, procToponym(s), reg)
+	// встаёт НЕПОДАЛЁКУ от родной (переселенцы уходят не за тридевять земель), но часто за
+	// пределы досягаемости сборщиков — так растёт вольное от податей пограничье
+	if src3 != nil {
 		ns := core.Settle(ne)
 		ns.X = clamp(src3.X+s.Uniform(-180, 180), 0, mapSize)
 		ns.Y = clamp(src3.Y+s.Uniform(-180, 180), 0, mapSize)
-		ns.Region = src3.Region
 	}
 	for _, r := range band {
 		if pl := core.Place(r); pl != nil {
@@ -406,6 +412,21 @@ func residentsOf(w *core.World, settlement core.ID) []*core.Entity {
 		}
 	})
 	return out
+}
+
+// residentIndex — жители по поселениям за ОДИН проход по миру. Заменяет вызов residentsOf на
+// каждую деревню (который давал O(деревни × жители)) — ключ к масштабу в тысячи поселений.
+func residentIndex(w *core.World) map[core.ID][]*core.Entity {
+	idx := map[core.ID][]*core.Entity{}
+	w.Each("place", func(e *core.Entity) {
+		if core.Ident(e) == nil {
+			return
+		}
+		if pl := core.Place(e); pl != nil && pl.Settlement != 0 {
+			idx[pl.Settlement] = append(idx[pl.Settlement], e)
+		}
+	})
+	return idx
 }
 
 func relocate(w *core.World, e *core.Entity, s *dice.Stream) {

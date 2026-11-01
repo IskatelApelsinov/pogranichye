@@ -25,9 +25,12 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 	hub := dice.NewHub(seed)
 	g := hub.Stream("worldgen")
 
+	regions := makeRegions(w, g, settlements)
+
 	var settleIDs []core.ID
 	for i := 0; i < settlements; i++ {
-		se := NewSettlement(w, g, settlementName(w, g, i))
+		reg := regions[i%len(regions)] // расселяем по краям по кругу — кластеры, а не каша
+		se := NewSettlement(w, g, settlementName(w, g, i), reg)
 		pop := g.Between(6, 10)
 		var residents []*core.Entity
 		for j := 0; j < pop; j++ {
@@ -58,16 +61,28 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 // NewSettlement создаёт ПОСЕЛЕНИЕ с рельефом и конечными угодьями (без жителей) — общий
 // код для стартовой генерации и для ОСНОВАНИЯ новых деревень живым миром. Так мир растёт
 // не только населением, но и числом мест.
-func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
-	coastal := g.Chance(0.4)
-	mountain := g.Chance(0.3)
+func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Entity) *core.Entity {
+	// положение и рельеф диктует КРАЙ (биом): у побережья — рыбное место, в холмах — руда и т.д.
+	x, y := g.Uniform(0, mapSize), g.Uniform(0, mapSize)
+	biome := "plain"
+	var regID core.ID
+	if region != nil {
+		if r := core.Region(region); r != nil {
+			biome = r.Biome
+			x = clampf(r.X+g.Uniform(-110, 110), 0, mapSize) // кучкуемся вокруг центра края
+			y = clampf(r.Y+g.Uniform(-110, 110), 0, mapSize)
+		}
+		regID = region.ID
+	}
+	coastal := biome == "coast" || (biome != "hills" && g.Chance(0.25))
+	mountain := biome == "hills" || (biome != "coast" && g.Chance(0.2))
+
 	se := w.Spawn(&core.SettlementC{
 		Name: name, Founded: 0, Tier: "village", Tavern: true,
-		X: g.Uniform(0, mapSize), Y: g.Uniform(0, mapSize), // положение на карте мира
+		X: x, Y: y, Region: regID,
 		Store: map[string]float64{
 			econ.GoodBread: 400,
-			// зерно: посевной резерв (его община бережёт под сев) + немного на кашу
-			econ.GoodWheat: econ.SowReserve() + 160,
+			econ.GoodWheat: econ.SowReserve() + 160, // посевной резерв + немного на кашу
 			econ.GoodWood:  30,
 		},
 	})
@@ -75,13 +90,20 @@ func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
 		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeField, Good: econ.GoodWheat,
 			Settlement: se.ID, Fallow: f == 4})
 	}
+	// лес гуще в лесном краю, пастбище шире в степи — живая география
+	forestStock := 400.0
+	pastureStock := 200.0
+	if biome == "forest" {
+		forestStock = 700
+	}
+	if biome == "steppe" {
+		pastureStock = 350
+	}
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeForest, Good: econ.GoodWood,
-		Settlement: se.ID, Stock: 400, Cap: 400, Regen: 3})
+		Settlement: se.ID, Stock: forestStock, Cap: forestStock, Regen: 3})
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodePasture, Good: econ.GoodGame,
-		Settlement: se.ID, Stock: 200, Cap: 200, Regen: 4})
-	// огород — овощи к столу (разнообразие сверх хлеба)
+		Settlement: se.ID, Stock: pastureStock, Cap: pastureStock, Regen: 4})
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeGarden, Good: econ.GoodVeg, Settlement: se.ID})
-	// стадо — вид по жребию; даёт возобновляемое + убой. Regen = приплод, Cap = предел выпаса.
 	herdKind := []string{econ.HerdCattle, econ.HerdSheep, econ.HerdPoultry}[g.Intn(3)]
 	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeHerd, HerdKind: herdKind,
 		Settlement: se.ID, Stock: g.Uniform(15, 30), Cap: 45, Regen: 0.4})
@@ -94,6 +116,43 @@ func NewSettlement(w *core.World, g *dice.Stream, name string) *core.Entity {
 			Settlement: se.ID, Stock: g.Uniform(300, 600), Cap: 600, Regen: 0})
 	}
 	return se
+}
+
+var biomeNames = map[string][]string{
+	"plain":  {"Ополье", "Равнина", "Раздолье"},
+	"forest": {"Дубрава", "Чащоба", "Бор"},
+	"hills":  {"Пригорье", "Каменный край", "Увалы"},
+	"coast":  {"Поморье", "Взморье", "Лукоморье"},
+	"steppe": {"Дикое поле", "Ковыльный край", "Степь"},
+}
+var biomeList = []string{"plain", "forest", "hills", "coast", "steppe"}
+
+// makeRegions создаёт края-контейнеры с центрами и биомами — каркас материка.
+func makeRegions(w *core.World, g *dice.Stream, settlements int) []*core.Entity {
+	n := settlements/6 + 1 // примерно край на ~6 поселений
+	var out []*core.Entity
+	for i := 0; i < n; i++ {
+		biome := biomeList[g.Intn(len(biomeList))]
+		names := biomeNames[biome]
+		re := w.Spawn(&core.RegionC{
+			Name:  names[g.Intn(len(names))],
+			Biome: biome,
+			X:     g.Uniform(80, mapSize-80),
+			Y:     g.Uniform(80, mapSize-80),
+		})
+		out = append(out, re)
+	}
+	return out
+}
+
+func clampf(x, lo, hi float64) float64 {
+	if x < lo {
+		return lo
+	}
+	if x > hi {
+		return hi
+	}
+	return x
 }
 
 // settlementName выдаёт имя: из списка, пока хватает, затем процедурно (мир растёт — имён

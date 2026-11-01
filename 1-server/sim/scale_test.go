@@ -12,7 +12,7 @@ import (
 func TestFounding(t *testing.T) {
 	w := core.NewWorld("found")
 	g := dice.NewStream(42)
-	src := NewSettlement(w, g, "Исток")
+	src := NewSettlement(w, g, "Исток", nil)
 	// набить деревню до скученности амбициозными взрослыми
 	for i := 0; i < birthCapPop; i++ {
 		p := spawnPerson(w, g, src.ID)
@@ -53,7 +53,7 @@ func countSettlements(w *core.World) int {
 // Бенчмарк масштаба: раз язык Go — проверим, тянет ли он большой мир. Печатает душ/угодий
 // и скорость тика. Запуск: go test ./sim/ -run x -bench BenchmarkTick -benchmem
 func BenchmarkTick(b *testing.B) {
-	w, hub := Generate("bench", 100) // 100 поселений
+	w, hub := Generate("bench", 300) // 300 поселений
 	r := core.NewRunnerWith(hub, core.Clock{}, Default()...)
 	// прогреть мир год, чтобы были дети/старики/запасы (реалистичная нагрузка)
 	r.Run(w, 200*core.HoursPerDay)
