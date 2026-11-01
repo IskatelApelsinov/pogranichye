@@ -51,7 +51,7 @@ The client sends intentions only. It never changes authoritative world state loc
 - `alive:false` is a valid terminal frame and contains no `me` object.
 - `place` and `neighbors` may be absent.
 - `last` is opaque display text. The client does not parse it into activity codes.
-- Snapshots are full state, approximately once per second.
+- Incoming WebSocket messages are assembled as bytes before UTF-8 decoding; the 1 MiB limit is measured in bytes and malformed UTF-8 is rejected.\n- Snapshots are full state, approximately once per second.
 - Neighbor positions are a temporary deterministic ring around the player, not server coordinates.
 
 ## Verification status
