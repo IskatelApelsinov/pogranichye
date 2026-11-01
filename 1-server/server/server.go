@@ -241,6 +241,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
 			"coins": meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
+			"stash": meStash(e),
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -326,4 +327,19 @@ func meBleeding(e *core.Entity) float64 {
 		return round1(b.Bleeding)
 	}
 	return 0
+}
+
+// meStash — личные закрома игрока (товар → сколько), пусто если ничего нет дома.
+func meStash(e *core.Entity) map[string]float64 {
+	s := econ.Stash(e)
+	if s == nil || len(s.Goods) == 0 {
+		return map[string]float64{}
+	}
+	out := map[string]float64{}
+	for g, v := range s.Goods {
+		if v >= 0.1 {
+			out[g] = round1(v)
+		}
+	}
+	return out
 }

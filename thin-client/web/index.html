@@ -64,6 +64,7 @@
   <div class="sub" id="last" style="margin-top:6px"></div>
   <div style="margin-top:6px" id="purse">💰 <span class="gold" id="coins">0</span> монет <span class="sub" id="debt"></span></div>
   <div class="sub" id="wounds" style="margin-top:6px"></div>
+  <div class="sub" id="stash" style="margin-top:4px"></div>
  </div>
 
  <div class="card">
@@ -145,6 +146,9 @@ function render(s){
    if(me.bleeding>0) t+=(ws.length?' · ':'раны: ')+'🩸 кровит '+me.bleeding;
    $('wounds').textContent=t;
  } else { $('wounds').textContent=''; }
+ const goods={wheat:'зерно',bread:'хлеб',fish:'рыба',meat:'мясо',milk:'молоко',veg:'овощи',cheese:'сыр',egg:'яйца',game:'дичь'};
+ const stash=me.stash||{}; const sk=Object.keys(stash);
+ $('stash').textContent = sk.length ? ('🧺 в закромах: '+sk.map(g=>(goods[g]||g)+' '+stash[g]).join(', ')) : '';
  if(s.place){
    $('place').textContent=s.place.name;
    $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;

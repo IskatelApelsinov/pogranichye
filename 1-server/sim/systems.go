@@ -56,8 +56,11 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
 		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
-			// покупает еду на рынке за монеты (или в долг) — личное имущество и торг
-			if s := settlementOf(w, e); s != nil && econ.BuyMeal(s, e) {
+			// сперва ест из СВОИХ закромов (домашняя кладовая); пусто дома — покупает на рынке
+			// у чужих излишков за монеты, а нет монет — в долг. Так работает личное имущество.
+			if econ.EatFromStash(e) {
+				v.Hunger = clamp(v.Hunger-45, 0, 100)
+			} else if s := settlementOf(w, e); s != nil && econ.BuyMeal(s, e) {
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			}
 		}
@@ -139,6 +142,10 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 			// (дороже товар — больше плата; часть сразу гасит долг по еде). Добычу считает econ.
 			if se := settlementOf(w, e); se != nil {
 				econ.Wage(se, e, ident.Role)
+				// кормилец уносит часть добытого домой в свои закрома (личное имущество)
+				if isFoodRole(ident.Role) {
+					econ.TakeHome(se, e, econ.FoodGoodOfRole(ident.Role))
+				}
 			}
 			m.LastAct = "работает (" + ident.Role + ")"
 		} else {
@@ -406,6 +413,15 @@ func clamp(x, lo, hi float64) float64 {
 		return hi
 	}
 	return x
+}
+
+// isFoodRole — ремесло, добывающее съестное (приносит часть добытого домой в закрома).
+func isFoodRole(role string) bool {
+	switch role {
+	case "farmer", "fisher", "hunter", "herder", "cook":
+		return true
+	}
+	return false
 }
 
 func settlementOf(w *core.World, e *core.Entity) *core.Entity {
