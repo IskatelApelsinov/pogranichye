@@ -13,7 +13,7 @@ This folder contains the first client implementation scaffold for the stable v1 
 
 ## Unity setup
 
-The repository did not contain a Unity project or a pinned Unity Editor patch version when this scaffold was started. To avoid silently choosing a render pipeline or pinning the wrong editor patch, this folder is currently a source project scaffold, not yet a fully opened Unity project.
+Target editor: Unity 6000.6.7f1 (provided by project owner). The repository did not contain an existing Unity project when this scaffold was started. This folder is being prepared against that exact editor version; render pipeline remains intentionally undecided pending a visual prototype.
 
 Create/open a Unity 6 project in this folder (or copy Assets/ and Packages/ into an existing Unity 6 project). The package manifest includes Newtonsoft JSON, used because Unity's built-in JsonUtility does not support the dynamic wounds and stash maps in the server frame.
 
