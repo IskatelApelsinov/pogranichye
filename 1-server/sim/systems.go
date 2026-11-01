@@ -80,6 +80,29 @@ func (MindSystem) Name() string { return "mind" }
 
 func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	st := hub.Stream("mind")
+	hour := clock.Hour()
+
+	// «Чувство продовольственной безопасности» деревни — на сколько дней еды на душу. Это то,
+	// что житель ЗНАЕТ о своём доме и из-за чего тревожится о завтрашнем хлебе. Считаем за один
+	// проход по поселениям (а не на каждого — масштабируемо).
+	foodDays := map[core.ID]float64{}
+	pop := map[core.ID]int{}
+	w.Each("place", func(e *core.Entity) {
+		if core.Ident(e) == nil {
+			return
+		}
+		if pl := core.Place(e); pl != nil && pl.Settlement != 0 {
+			pop[pl.Settlement]++
+		}
+	})
+	w.Each("settlement", func(se *core.Entity) {
+		p := pop[se.ID]
+		if p < 1 {
+			p = 1
+		}
+		foodDays[se.ID] = econ.FeedableFood(se) / float64(p)
+	})
+
 	w.Each("mind", func(e *core.Entity) {
 		m := core.Mind(e)
 		v := core.Vitals(e)
@@ -88,7 +111,11 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		pstream := hub.Stream("mind", sid(e.ID))
 		if clock.TotalHours >= m.GoalUntil || m.Goal == "" {
-			g, hold := mind.Decide(e, clock.Hour(), pstream)
+			ctx := mind.Context{Hour: hour, Season: clock.Season()}
+			if pl := core.Place(e); pl != nil {
+				ctx.FoodDays = foodDays[pl.Settlement]
+			}
+			g, hold := mind.Decide(e, ctx, pstream)
 			m.Goal = g
 			m.GoalUntil = clock.TotalHours + hold
 		}
