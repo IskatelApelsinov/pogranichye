@@ -14,7 +14,6 @@ namespace Pogranichye.Client
         [SerializeField] private string serverUrl = "http://127.0.0.1:8090";
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
-        private HttpAuthClient _auth;
         private WorldSocketClient _socket;
         private EntityViewRegistry _views;
         private string _login = "";
@@ -27,7 +26,6 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
-            _auth = new HttpAuthClient(serverUrl);
             var root = new GameObject("EntityViews").transform;
             _views = new EntityViewRegistry(root);
             SetupPresentationScene();
@@ -107,7 +105,7 @@ namespace Pogranichye.Client
             _busy = true;
             try
             {
-                var response = await _auth.RegisterAsync(_login, _password);
+                var response = await new HttpAuthClient(serverUrl).RegisterAsync(_login, _password);
                 Enqueue(() => _status = response.Ok ? "Учётная запись создана. Теперь войдите." : response.Message);
             }
             catch (Exception ex) { Enqueue(() => _status = ex.Message); }
@@ -120,7 +118,7 @@ namespace Pogranichye.Client
             _busy = true;
             try
             {
-                var response = await _auth.LoginAsync(_login, _password);
+                var response = await new HttpAuthClient(serverUrl).LoginAsync(_login, _password);
                 if (!response.Ok || string.IsNullOrEmpty(response.Token))
                     throw new InvalidOperationException(response.Message ?? "Вход не выполнен.");
                 Enqueue(() => { _token = response.Token; _status = "Вход выполнен. Подключитесь к миру."; });
@@ -137,7 +135,7 @@ namespace Pogranichye.Client
                 _socket?.Dispose();
                 _socket = new WorldSocketClient();
                 _socket.MessageReceived += OnSocketMessage;
-                _socket.Closed += reason => Enqueue(() => _status = "Связь закрыта: " + reason);
+                _socket.Closed += reason => Enqueue(() =>\n                {\n                    _frame = null;\n                    _views.Clear();\n                    _status = "Связь закрыта: " + reason;\n                });
                 await _socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() => _status = "WebSocket подключён. Ожидаю первый полный кадр…");
             }
