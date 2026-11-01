@@ -106,6 +106,8 @@ type RealmC struct {
 	Treasury  float64   `json:"treasury"`
 	TaxRate   float64   `json:"tax_rate"` // доля от произведённого (десятина ≈ 0.1)
 	Territory []core.ID `json:"territory"`
+	WarWith   core.ID   `json:"war_with"` // с кем держава воюет сейчас (0 — мир)
+	WarDays   int       `json:"war_days"` // сколько дней войне осталось идти
 }
 
 func (c *RealmC) Kind() string { return "realm" }

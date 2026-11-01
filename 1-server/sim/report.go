@@ -96,6 +96,15 @@ func Report(w *core.World, clock core.Clock) {
 	w.Each("caravan", func(*core.Entity) { inTransit++ })
 	fmt.Printf("Торговля держав:    караванов снаряжено=%d дошло=%d ограблено=%d · в пути сейчас=%d · казна держав=%.0f · шкур на рынках %.0f\n",
 		econ.DebugCaravans, econ.DebugArrived, econ.DebugRobbed, inTransit, treasury, hide)
+
+	atWar := 0
+	w.Each("realm", func(re *core.Entity) {
+		if econ.Realm(re).WarWith != 0 {
+			atWar++
+		}
+	})
+	fmt.Printf("Беды и хворь:       войн было=%d (сейчас воюют держав=%d) · павших в войне=%d · непогод=%d · умерших от хвори=%d\n",
+		DebugWars, atWar, DebugWarDead, DebugClimate, DebugPlague)
 }
 
 // Sample печатает выборку жителей (для -demo -v).

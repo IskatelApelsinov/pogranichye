@@ -469,7 +469,7 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, worldmut.System{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, WarSystem{}, ClimateSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, worldmut.System{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---
@@ -515,20 +515,30 @@ func (DiseaseSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			}
 		}
 		medicine := set.Store[econ.GoodRemedy] + float64(herb)*herbMedicine
-		warNear := set.Plague // (заготовка) войну/климат подмешаем, когда появятся: раны и беженцы
+
+		// давление хвори от реальных бед (война/климат) спадает само день ото дня
+		if set.Strain > 0 {
+			set.Strain *= 0.9
+			if set.Strain < 0.05 {
+				set.Strain = 0
+			}
+		}
 
 		if set.Plague <= 0 {
-			// ВОЗНИКНОВЕНИЕ — только если сошлись причины: скученность И нехватка медицины
-			crowded := pop >= plagueCrowdPop
+			// ВОЗНИКНОВЕНИЕ — только по РЕАЛЬНЫМ причинам и только при нехватке медицины:
+			// скученность большого города ИЛИ беда (война/климат, Strain). Сезон тут ни при чём.
 			undermediced := medicine < float64(pop)*medNeedPerCap
-			if crowded && undermediced {
-				// чем теснее и чем хуже с лекарем, тем вероятнее (но редко)
-				risk := outbreakBase * (float64(pop) / plagueCrowdPop) * (1 - medicine/(float64(pop)*medNeedPerCap+1))
+			cause := 0.0
+			if pop >= plagueCrowdPop {
+				cause += float64(pop) / plagueCrowdPop // теснота
+			}
+			cause += set.Strain // раны/беженцы войны, холод/сырость/недород непогоды
+			if cause > 1.0 && undermediced {
+				risk := outbreakBase * cause * (1 - medicine/(float64(pop)*medNeedPerCap+1))
 				if dis.Chance(risk) {
-					set.Plague = plagueStart // хворь вспыхнула (известим хроникой позже)
+					set.Plague = plagueStart // хворь вспыхнула
 				}
 			}
-			_ = warNear
 			return
 		}
 		// активная хворь: лечим снадобьем (тратим), знахарь помогает, сама стихает
