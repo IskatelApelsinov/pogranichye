@@ -62,6 +62,7 @@
   <div class="stat">силы <span id="ev"></span></div><div class="bar"><div id="ebar"></div></div>
   <div class="stat">настрой <span id="mv"></span></div><div class="bar"><div id="mbar"></div></div>
   <div class="sub" id="last" style="margin-top:6px"></div>
+  <div style="margin-top:6px" id="purse">💰 <span class="gold" id="coins">0</span> монет <span class="sub" id="debt"></span></div>
  </div>
 
  <div class="card">
@@ -134,10 +135,12 @@ function render(s){
  setBar('e',me.energy); setBar('m',me.morale);
  const goalNames={work:'работает',eat:'ест',rest:'отдыхает',socialize:'в таверне',seek_home:'ищет дом',leave:'в пути',wander:'бродит'};
  $('last').innerHTML='сейчас: <span class="gold">'+(goalNames[me.goal]||me.goal||'—')+'</span> · '+(me.last||'');
+ $('coins').textContent=me.coins;
+ $('debt').textContent=(me.debt>0)?('· 🧾 долг '+me.debt):'';
  if(s.place){
    $('place').textContent=s.place.name;
    $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;
-   $('placefood').textContent=`в закромах: еды ${s.place.food}, хлеба ${s.place.bread}`;
+   $('placefood').textContent=`на рынке: еды ${s.place.food}, хлеба ${s.place.bread} (цена ${s.place.bread_price}⌾)`;
    $('neighbors').innerHTML=(s.place.neighbors||[]).map(n=>
      `<div class="nb">${n.name} <span class="sub">— ${n.role}, ${n.act}</span></div>`).join('')||'<div class="sub">никого рядом</div>';
  }

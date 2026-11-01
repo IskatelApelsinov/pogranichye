@@ -280,6 +280,7 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 	// 4) переработка цепочками: wheat→bread (cook), ore→tools (smith). Ограничено сырьём и мастерами.
 	w.Each("settlement", func(se *core.Entity) {
+		updatePrices(se, popOf(lab, se.ID)) // рыночные цены дня: дефицит дорожает
 		st := store(se)
 		l := lab[se.ID]
 		if l == nil {
@@ -528,6 +529,13 @@ func workersFor(byRole map[string]int, node string) int {
 		return byRole["hunter"]
 	case NodeMine:
 		return byRole["miner"]
+	}
+	return 0
+}
+
+func popOf(lab map[core.ID]*labor, sid core.ID) int {
+	if l := lab[sid]; l != nil {
+		return l.people
 	}
 	return 0
 }

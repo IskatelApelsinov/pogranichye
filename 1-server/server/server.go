@@ -238,6 +238,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"age": round1(v.Age), "health": round0(v.Health), "hunger": round0(v.Hunger),
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
+			"coins": meCoins(e), "debt": meDebt(e),
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -259,9 +260,10 @@ func (s *Server) stateJSON(cid core.ID) string {
 			})
 			out["place"] = map[string]any{
 				"name": st.Name, "tier": st.Tier,
-				"food":      round0(econ.FoodOnHand(se)),
-				"bread":     round0(st.Store[econ.GoodBread]),
-				"neighbors": neighbors,
+				"food":        round0(econ.FoodOnHand(se)),
+				"bread":       round0(st.Store[econ.GoodBread]),
+				"bread_price": round1(econ.Price(se, econ.GoodBread)),
+				"neighbors":   neighbors,
 			}
 		}
 	}
@@ -284,3 +286,21 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 func round0(f float64) float64 { return float64(int(f + 0.5)) }
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
+
+func meCoins(e *core.Entity) float64 {
+	if p := core.Purse(e); p != nil {
+		return round1(p.Coins)
+	}
+	return 0
+}
+func meDebt(e *core.Entity) float64 {
+	p := core.Purse(e)
+	if p == nil {
+		return 0
+	}
+	d := 0.0
+	for _, v := range p.Debts {
+		d += v
+	}
+	return round1(d)
+}

@@ -53,7 +53,8 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
 		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
-			if s := settlementOf(w, e); s != nil && econ.Eat(s) {
+			// покупает еду на рынке за монеты (или в долг) — личное имущество и торг
+			if s := settlementOf(w, e); s != nil && econ.BuyMeal(s, e) {
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			}
 		}
@@ -130,9 +131,11 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 		ident := core.Ident(e)
 		sk := core.Skills(e)
 		if ident != nil && sk != nil && v.Energy > 8 {
-			sk.Train(ident.Role, 0.5) // труд растит навык и платит; саму добычу считает econ
-			if p := core.Purse(e); p != nil {
-				p.Coins = round1(p.Coins + s.Uniform(0.5, 2.5))
+			sk.Train(ident.Role, 0.5) // труд растит навык
+			// заработок: продал излишек своего ремесла на рынок, получил из котла торга
+			// (дороже товар — больше плата; часть сразу гасит долг по еде). Добычу считает econ.
+			if se := settlementOf(w, e); se != nil {
+				econ.Wage(se, e, ident.Role)
 			}
 			m.LastAct = "работает (" + ident.Role + ")"
 		} else {
@@ -219,6 +222,9 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			} else {
 				DebugOld++
 			}
+		}
+		if v.Age >= 16 {
+			econ.Upkeep(e) // дневной быт: трудящийся покрывает, незанятый влезает в долг
 		}
 	})
 	DebugDeaths += len(dead)

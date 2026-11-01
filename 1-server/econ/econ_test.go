@@ -280,3 +280,51 @@ func TestCraftChains2(t *testing.T) {
 		t.Fatal("корчмарь должен варить медовуху из мёда")
 	}
 }
+
+// Цена растёт при дефиците: пустой склад дороже полного.
+func TestPriceScarcity(t *testing.T) {
+	w := core.NewWorld("p")
+	poorSe := w.Spawn(&core.SettlementC{Name: "Голо", Store: map[string]float64{GoodBread: 1}})
+	richSe := w.Spawn(&core.SettlementC{Name: "Сыто", Store: map[string]float64{GoodBread: 2000}})
+	updatePrices(poorSe, 20)
+	updatePrices(richSe, 20)
+	if Price(poorSe, GoodBread) <= Price(richSe, GoodBread) {
+		t.Fatalf("дефицитный хлеб должен быть дороже: голо %.2f vs сыто %.2f",
+			Price(poorSe, GoodBread), Price(richSe, GoodBread))
+	}
+}
+
+// Покупка еды: с монетами платит (монеты убывают), без монет — ест в долг (долг растёт).
+func TestBuyMealAndDebt(t *testing.T) {
+	w := core.NewWorld("b")
+	se := w.Spawn(&core.SettlementC{Store: map[string]float64{GoodBread: 100}})
+	updatePrices(se, 10)
+	rich := w.Spawn(&core.IdentC{Name: "Б", Role: "smith"}, &core.PurseC{Coins: 100, Debts: map[string]float64{}})
+	BuyMeal(se, rich)
+	if core.Purse(rich).Coins >= 100 {
+		t.Fatal("с монетами за еду надо платить")
+	}
+	poor := w.Spawn(&core.IdentC{Name: "Н", Role: "smith"}, &core.PurseC{Coins: 0, Debts: map[string]float64{}})
+	BuyMeal(se, poor)
+	if core.Purse(poor).Debts[debtKey] <= 0 {
+		t.Fatal("без монет еда должна идти в долг")
+	}
+}
+
+// Труд приносит монеты и гасит долг.
+func TestWagePaysAndClearsDebt(t *testing.T) {
+	w := core.NewWorld("wg")
+	se := w.Spawn(&core.SettlementC{Store: map[string]float64{}})
+	updatePrices(se, 10)
+	e := w.Spawn(&core.IdentC{Name: "Р", Role: "farmer"},
+		&core.PurseC{Coins: 0, Debts: map[string]float64{debtKey: 10}})
+	for i := 0; i < 100; i++ {
+		Wage(se, e, "farmer")
+	}
+	if core.Purse(e).Debts[debtKey] > 0 {
+		t.Fatalf("труд должен был погасить долг, осталось %.1f", core.Purse(e).Debts[debtKey])
+	}
+	if core.Purse(e).Coins <= 0 {
+		t.Fatal("после погашения долга труд должен копить монеты")
+	}
+}

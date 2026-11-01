@@ -80,6 +80,7 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 	se := w.Spawn(&core.SettlementC{
 		Name: name, Founded: 0, Tier: "village", Tavern: true,
 		X: x, Y: y, Region: regID,
+		Coin: 600, // монеты в обороте рынка на старте (ходят покупатель→котёл→работник)
 		Store: map[string]float64{
 			econ.GoodBread: 400,
 			econ.GoodWheat: econ.SowReserve() + 160, // посевной резерв + немного на кашу
