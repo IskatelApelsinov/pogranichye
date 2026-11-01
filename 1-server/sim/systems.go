@@ -574,8 +574,10 @@ func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	idx := residentIndex(w)
 	hs := hub.Stream("battle")
 
-	// медицина деревни (0..~1): снадобье на складе + знахарь
+	// медицина деревни (0..~1): снадобье на складе + знахарь; плюс суточный приплод зверья
+	// (угодья живут своим чередом) и оберег мага, если он здесь есть (отваживает хищников).
 	med := map[core.ID]float64{}
+	ward := map[core.ID]float64{}
 	w.Each("settlement", func(se *core.Entity) {
 		res := idx[se.ID]
 		herb := 0
@@ -589,6 +591,10 @@ func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			m = 1
 		}
 		med[se.ID] = m
+		ward[se.ID] = core.Settle(se).Ward // оберег ставит магия (слой ниже); пока 0
+		if f := battle.Fauna(se); f != nil {
+			f.Breed() // зверьё плодится к своему пределу — выбитое угодье со временем снова оживает
+		}
 	})
 
 	var dead []core.ID
@@ -613,28 +619,41 @@ func (BattleSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			}
 		}
 
-		// 2) охотник вышел на зверя — риск/добыча (редко, чтобы не бойня)
-		if id.Role == "hunter" && v.Energy > 20 && hs.Chance(0.06) {
-			beast := battle.Pick(hs, "big") // (сюда же позже дорожные/военные встречи)
-			b := battle.Body(e)
-			if b == nil {
-				nb := &battle.BodyC{Wounds: map[string]float64{}}
-				w.Attach(e, nb)
-				b = nb
-			}
-			skill := 0.0
-			if sk := core.Skills(e); sk != nil {
-				skill = sk.Level("hunter")
-			}
-			out := battle.Resolve(skill, 0.3+skill/150.0, beast, b, hs)
-			DebugHunts++
-			if out.Hurt > 0 {
-				DebugWounds++
-			}
-			if out.Win && se != nil {
-				DebugWins++
-				core.Settle(se).Store[econ.GoodMeat] += out.Meat
-				core.Settle(se).Store[econ.GoodHide] += out.Hide
+		// 2) охота: встреча НЕ из воздуха. Охотник встречает зверя, только если РЕАЛЬНО вышел на
+		// промысел (его разум послал работать) и в здешних угодьях этот зверь ПРАВДА водится. Кого
+		// встретит — решает живое поголовье фауны (где гуще волки — вероятнее волк), а не кости из
+		// ниоткуда. Выбьет — встречать станет некого. Так осторожный (бьёт там, где зверь смирный,
+		// или под оберегом мага) цел, а лезущий в глухой угол места силы — рискует.
+		if id.Role == "hunter" && v.Energy > 20 && se != nil {
+			if mn := core.Mind(e); mn != nil && mn.Goal == mind.GoalWork {
+				if f := battle.Fauna(se); f != nil {
+					beast, dangerous := f.Encounter(ward[pl.Settlement], hs)
+					if dangerous {
+						b := battle.Body(e)
+						if b == nil {
+							nb := &battle.BodyC{Wounds: map[string]float64{}}
+							w.Attach(e, nb)
+							b = nb
+						}
+						skill := 0.0
+						if sk := core.Skills(e); sk != nil {
+							skill = sk.Level("hunter")
+						}
+						out := battle.Resolve(skill, 0.3+skill/150.0, beast, b, hs)
+						DebugHunts++
+						if out.Hurt > 0 {
+							DebugWounds++
+						}
+						if out.Win {
+							DebugWins++
+							f.Take(beast, 1) // добытый зверь убывает из популяции (сохранение)
+							core.Settle(se).Store[econ.GoodMeat] += out.Meat
+							core.Settle(se).Store[econ.GoodHide] += out.Hide
+						} else {
+							f.Take(beast, 0.3) // подранок/распуган — тоже чуть убывает/уходит
+						}
+					}
+				}
 			}
 		}
 	})

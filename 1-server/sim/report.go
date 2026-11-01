@@ -57,13 +57,28 @@ func Report(w *core.World, clock core.Clock) {
 		}
 	})
 	meat, hide := 0.0, 0.0
+	beasts := map[string]float64{}
+	manaSum, manaN := 0.0, 0
 	w.Each("settlement", func(se *core.Entity) {
 		s := core.Settle(se)
 		meat += s.Store[econ.GoodMeat]
 		hide += s.Store[econ.GoodHide]
+		manaSum += s.Mana
+		manaN++
+		if f := battle.Fauna(se); f != nil {
+			for sp, p := range f.Pop {
+				beasts[sp] += p
+			}
+		}
 	})
+	avgMana := 0.0
+	if manaN > 0 {
+		avgMana = manaSum / float64(manaN)
+	}
 	fmt.Printf("Охота и раны:       сейчас ранено=%d · охот=%d (добыто=%d, ранено в них=%d) · погибло в бою=%d · мяса=%.0f шкур=%.0f\n",
 		wounded, DebugHunts, DebugWins, DebugWounds, DebugBattleDeaths, meat, hide)
+	fmt.Printf("Зверьё в угодьях:   заяц=%.0f лиса=%.0f кабан=%.0f волк=%.0f медведь=%.0f · средняя мана %.2f\n",
+		beasts["hare"], beasts["fox"], beasts["boar"], beasts["wolf"], beasts["bear"], avgMana)
 }
 
 // Sample печатает выборку жителей (для -demo -v).

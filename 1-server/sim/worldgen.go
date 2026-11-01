@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 
+	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/dice"
 	"pogranichye/econ"
@@ -65,12 +66,16 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 	// положение и рельеф диктует КРАЙ (биом): у побережья — рыбное место, в холмах — руда и т.д.
 	x, y := g.Uniform(0, mapSize), g.Uniform(0, mapSize)
 	biome := "plain"
+	mana := 1.0
 	var regID core.ID
 	if region != nil {
 		if r := core.Region(region); r != nil {
 			biome = r.Biome
 			x = clampf(r.X+g.Uniform(-110, 110), 0, mapSize) // кучкуемся вокруг центра края
 			y = clampf(r.Y+g.Uniform(-110, 110), 0, mapSize)
+			if r.Mana > 0 {
+				mana = clampf(r.Mana*g.Uniform(0.8, 1.2), 0.3, 2.2) // место наследует ману края с разбросом
+			}
 		}
 		regID = region.ID
 	}
@@ -79,7 +84,7 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 
 	se := w.Spawn(&core.SettlementC{
 		Name: name, Founded: 0, Tier: "village", Tavern: true,
-		X: x, Y: y, Region: regID,
+		X: x, Y: y, Region: regID, Mana: mana,
 		Coin: 600, // монеты в обороте рынка на старте (ходят покупатель→котёл→работник)
 		Store: map[string]float64{
 			econ.GoodBread: 400,
@@ -87,6 +92,8 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 			econ.GoodWood:  30,
 		},
 	})
+	// живая фауна угодий: мелкая дичь везде, крупный зверь гуще там, где мана плотнее (канон)
+	w.Attach(se, battle.SeedFauna(biome, mana, g))
 	for f := 0; f < 5; f++ { // пять полей, одно под паром (трёхполье упрощённо)
 		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeField, Good: econ.GoodWheat,
 			Settlement: se.ID, Fallow: f == 4})
@@ -144,10 +151,26 @@ func makeRegions(w *core.World, g *dice.Stream, settlements int) []*core.Entity 
 			Biome: biome,
 			X:     g.Uniform(80, mapSize-80),
 			Y:     g.Uniform(80, mapSize-80),
+			Mana:  regionMana(g), // место силы / мёртвая зона / обычный край
 		})
 		out = append(out, re)
 	}
 	return out
+}
+
+// regionMana задаёт плотность маны края: большинство земель обычные (~1), изредка попадается
+// место силы (мана гуще — там и колдовать легче, и опаснейший зверь кучнее) или мёртвая зона
+// (маны мало — зверь смирный, магия чахнет). Так по миру разбросаны «горячие» и «глухие» углы.
+func regionMana(g *dice.Stream) float64 {
+	r := g.Uniform(0, 1)
+	switch {
+	case r < 0.15:
+		return g.Uniform(1.4, 2.0) // место силы
+	case r < 0.3:
+		return g.Uniform(0.4, 0.7) // мёртвая зона
+	default:
+		return g.Uniform(0.85, 1.2) // обычный край
+	}
 }
 
 func clampf(x, lo, hi float64) float64 {
