@@ -220,8 +220,8 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			if sk := core.Skills(e); sk != nil {
 				sk.Train(id.Role, role.Uniform(2, 8)) // юношеские азы ремесла
 			}
-			if id.Role == "mage" && arcane.Mage(e) == nil {
-				w.Attach(e, &arcane.MageC{}) // проснулся дар — запас маны
+			if arcane.Mage(e) == nil && role.Chance(mageSparkChance) {
+				w.Attach(e, &arcane.MageC{Awakened: false}) // искра могла проснуться к юности — латент
 			}
 		}
 		// Смерть — это прежде всего СТАРОСТЬ (оборот поколений идёт сам). Голод убивает

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"pogranichye/arcane"
 	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/econ"
@@ -80,15 +81,23 @@ func Report(w *core.World, clock core.Clock) {
 	fmt.Printf("Зверьё в угодьях:   заяц=%.0f лиса=%.0f кабан=%.0f волк=%.0f медведь=%.0f · средняя мана %.2f\n",
 		beasts["hare"], beasts["fox"], beasts["boar"], beasts["wolf"], beasts["bear"], avgMana)
 
-	mages, warded := 0, 0
-	w.Each("mage", func(e *core.Entity) { mages++ })
+	latent, awake, warded := 0, 0, 0
+	w.Each("mage", func(e *core.Entity) {
+		if mg := arcane.Mage(e); mg != nil && mg.Awakened {
+			awake++
+		} else {
+			latent++
+		}
+	})
 	w.Each("settlement", func(se *core.Entity) {
 		if core.Settle(se).Ward > 0.05 {
 			warded++
 		}
 	})
-	fmt.Printf("Магия:              магов=%d · плетений=%d (сорвано=%d) · исцелений=%d · оберегов=%d · сёл под оберегом=%d\n",
-		mages, DebugSpells, DebugSpellFails, DebugHeals, DebugWards, warded)
+	fmt.Printf("Магия:              пробуждённых=%d латентов=%d · пробуждений=%d искр от богов=%d\n",
+		awake, latent, DebugAwakened, DebugSparks)
+	fmt.Printf("                    плетений=%d (сорвано=%d) · исцелений=%d · оберегов=%d · сёл под оберегом=%d\n",
+		DebugSpells, DebugSpellFails, DebugHeals, DebugWards, warded)
 
 	treasury := 0.0
 	w.Each("realm", func(re *core.Entity) { treasury += econ.Realm(re).Treasury })
