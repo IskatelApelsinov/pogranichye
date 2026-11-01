@@ -25,14 +25,14 @@ namespace Pogranichye.Client.Presentation
                 var count = frame.Place.Neighbors.Count;
                 for (var i = 0; i < count; i++)
                 {
-                    var n = frame.Place.Neighbors[i];
-                    var id = WorldFrameParser.ParseEntityId(n.Id, $"neighbors[{i}].id");
+                    var neighbor = frame.Place.Neighbors[i];
+                    var id = WorldFrameParser.ParseEntityId(neighbor.Id, $"neighbors[{i}].id");
                     active.Add(id);
-                    var angle = (Mathf.PI * 2f * i / Mathf.Max(1, count));
-                    var pos = new Vector3(Mathf.Cos(angle) * 3.2f, 1, Mathf.Sin(angle) * 3.2f);
-                    var view = GetOrCreate(id, n.Name, pos, false);
-                    SetLabel(view, $"{n.Name}\n{n.Role}\n{n.Act}");
-                    view.transform.position = pos;
+                    var angle = Mathf.PI * 2f * i / Mathf.Max(1, count);
+                    var position = new Vector3(Mathf.Cos(angle) * 3.2f, 1, Mathf.Sin(angle) * 3.2f);
+                    var view = GetOrCreate(id, neighbor.Name, position, false);
+                    SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
+                    view.transform.position = position;
                 }
             }
 
@@ -60,17 +60,20 @@ namespace Pogranichye.Client.Presentation
             go.transform.SetParent(_root, false);
             go.transform.position = position;
             go.transform.localScale = new Vector3(0.7f, 1f, 0.7f);
-            var label = new GameObject("Label");
-            label.transform.SetParent(go.transform, false);
-            label.transform.localPosition = new Vector3(0, 1.25f, 0);
-            var text = label.AddComponent<TextMesh>();
+
+            var labelObject = new GameObject("Label");
+            labelObject.transform.SetParent(go.transform, false);
+            labelObject.transform.localPosition = new Vector3(0, 1.25f, 0);
+            var text = labelObject.AddComponent<TextMesh>();
             text.anchor = TextAnchor.LowerCenter;
             text.alignment = TextAlignment.Center;
             text.fontSize = 36;
             text.characterSize = 0.08f;
             text.color = Color.white;
-            var renderer = go.GetComponent<Renderer>();
-            renderer.material.color = isPlayer ? new Color(0.25f, 0.55f, 0.8f) : new Color(0.55f, 0.55f, 0.48f);
+
+            VerticalSliceController.ApplyUrpMaterial(
+                go.GetComponent<Renderer>(),
+                isPlayer ? new Color(0.25f, 0.55f, 0.8f) : new Color(0.55f, 0.55f, 0.48f));
             _views.Add(id, go);
             return go;
         }
