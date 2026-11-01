@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -222,7 +223,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 	defer s.mu.Unlock()
 	e := s.world.Get(cid)
 	if e == nil {
-		return `{"alive":false,"msg":"твоё тело покинуло мир"}`
+		return `{"v":1,"alive":false,"msg":"твоё тело покинуло мир"}`
 	}
 	id := core.Ident(e)
 	v := core.Vitals(e)
@@ -230,11 +231,13 @@ func (s *Server) stateJSON(cid core.ID) string {
 	home := core.Home(e)
 	pl := core.Place(e)
 	out := map[string]any{
+		"v":      1, // версия протокола (см. 3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md)
 		"alive":  true,
 		"day":    s.runner.Clock.Day(),
 		"year":   s.runner.Clock.Year(),
 		"season": s.runner.Clock.Season().String(),
 		"me": map[string]any{
+			"id":   eid(e.ID), // uint64 строкой — чтобы JS не терял точность; ключ Entity View
 			"name": id.Name, "surname": id.Surname, "role": id.Role, "sex": id.Sex,
 			"age": round1(v.Age), "health": round0(v.Health), "hunger": round0(v.Hunger),
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
@@ -256,7 +259,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				if p := core.Place(o); p != nil && p.Settlement == pl.Settlement {
 					if oi := core.Ident(o); oi != nil {
 						neighbors = append(neighbors, map[string]any{
-							"name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct})
+							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct})
 						n++
 					}
 				}
@@ -286,6 +289,9 @@ func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
 }
+
+// eid — идентификатор сущности для протокола: uint64 СТРОКОЙ (в JS число теряет точность за 2^53).
+func eid(id core.ID) string { return strconv.FormatUint(uint64(id), 10) }
 
 func round0(f float64) float64 { return float64(int(f + 0.5)) }
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
