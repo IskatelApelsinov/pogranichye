@@ -56,9 +56,15 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
 		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
-			// сперва ест из СВОИХ закромов (домашняя кладовая); пусто дома — покупает на рынке
-			// у чужих излишков за монеты, а нет монет — в долг. Так работает личное имущество.
-			if econ.EatFromStash(e) {
+			id := core.Ident(e)
+			if id != nil && v.Age < 15 {
+				// ребёнка кормит семья/община из общих запасов — без платы и без долга (дети
+				// на иждивении: едят, но ещё не работают). Нет еды в селе — голодают, как и все.
+				if s := settlementOf(w, e); s != nil && econ.Eat(s) {
+					v.Hunger = clamp(v.Hunger-45, 0, 100)
+				}
+			} else if econ.EatFromStash(e) {
+				// взрослый ест сперва из СВОИХ закромов; пусто — покупает на рынке (нет монет — в долг)
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			} else if s := settlementOf(w, e); s != nil && econ.BuyMeal(s, e) {
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
@@ -222,8 +228,14 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// лишь в НАСТОЯЩИЙ голод (hunger>=100 — еды нет совсем), а не при лёгком недоедании:
 		// иначе любой сезонный просад превращается в мор. Болезни/раны добавим отдельным слоем.
 		p := 0.0
-		if v.Age > 50 {
-			p += (v.Age - 50) / (maxAge - 50) * 0.03 // старость: чем старше, тем вероятнее
+		if v.Age > 55 {
+			// старость кусает мягко и ускоряется лишь к пределу (кубом) — так появляются
+			// старики, а не выкашивается всё: большинство доживает, немногие живут долго
+			t := (v.Age - 55) / (maxAge - 55)
+			if t > 1 {
+				t = 1
+			}
+			p += t * t * t * 0.02
 		}
 		if v.Hunger >= 100 {
 			p += 0.02 // голод истощает медленно (переживают лихой сезон); катастрофу делает СОБЫТИЕ, не фон
@@ -249,26 +261,35 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	// а не сканируем мир на каждую деревню — иначе O(деревни × жители) на тысячах поселений.
 	byHome := residentIndex(w)
 	birth := hub.Stream("life", "birth")
+	pairUp(w, byHome, hub.Stream("life", "pair")) // одинокие взрослые обоих полов сходятся в пары
 	w.Each("settlement", func(se *core.Entity) {
 		set := core.Settle(se)
 		res := byHome[se.ID]
 		pop := len(res)
-		adults := 0
-		for _, r := range res {
-			if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 48 {
-				adults++
-			}
-		}
-		// деревня жива и сыта → изредка рождается ребёнок (не выше потолка).
-		// Сытость меряем РЕАЛЬНОЙ едой на складе: нет хлеба/рыбы — не до детей.
-		if adults >= 2 && pop < birthCapPop && econ.FeedableFood(se) > float64(pop) {
-			chance := 0.05 * float64(adults) / 4.0
-			if birth.Chance(chance) {
-				bornTo := res[birth.Intn(len(res))]
-				spawnNewborn(w, birth, se.ID, bornTo)
-				DebugBirths++
-				for i := 0; i < 4; i++ {
-					econ.Eat(se) // прокорм младенца из реальных запасов
+		// Дети родятся у ПАРЫ (мужчина+женщина), а не «при двух взрослых». Считаем пары, где
+		// женщина детородного возраста и оба в этом селе — только у них может родиться. Нет
+		// взрослых обоих полов → нет пар → нет детей: пирамида выправляется сама, без скрипта.
+		fed := econ.FeedableFood(se) > float64(pop) && pop < birthCapPop
+		if fed {
+			for _, r := range res {
+				id := core.Ident(r)
+				v := core.Vitals(r)
+				if id == nil || v == nil || id.Sex != "ж" || v.Age < 16 || v.Age > 45 {
+					continue // рождает женщина детородного возраста
+				}
+				mate := partnerAlive(w, r)
+				if mate == nil {
+					continue // нет супруга рядом — нет ребёнка
+				}
+				// сытая семья изредка прибавляется; реже в тесноте (у предела села)
+				chance := 0.03 * (1 - float64(pop)/float64(birthCapPop))
+				if chance > 0 && birth.Chance(chance) {
+					spawnNewborn(w, birth, se.ID, r)
+					DebugBirths++
+					for i := 0; i < 4; i++ {
+						econ.Eat(se) // прокорм младенца из реальных запасов
+					}
+					pop++ // в этом дне село уже пополнилось
 				}
 			}
 		}
