@@ -135,7 +135,12 @@ namespace Pogranichye.Client
                 _socket?.Dispose();
                 _socket = new WorldSocketClient();
                 _socket.MessageReceived += OnSocketMessage;
-                _socket.Closed += reason => Enqueue(() =>\n                {\n                    _frame = null;\n                    _views.Clear();\n                    _status = "Связь закрыта: " + reason;\n                });
+                _socket.Closed += reason => Enqueue(() =>
+                {
+                    _frame = null;
+                    _views.Clear();
+                    _status = "Связь закрыта: " + reason;
+                });
                 await _socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() => _status = "WebSocket подключён. Ожидаю первый полный кадр…");
             }
