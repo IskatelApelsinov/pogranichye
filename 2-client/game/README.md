@@ -46,7 +46,7 @@ The repository initially contained a source scaffold rather than a fully initial
 4. Connect to the world. The client builds the prototype village and renders the animated player plus nearby NPCs. Their positions are temporary presentation layout, not server coordinates.
 5. Use the first-steps panel: tavern/socialize, work, eat, rest. These buttons send existing v1 goal intents; the server remains authoritative for the result.
 
-The client sends intentions only. It never changes authoritative world state locally.
+The client sends intentions only. It never changes authoritative world state locally. The four-step onboarding advances only after a snapshot reflects the requested server-side goal; it does not locally simulate success.
 
 ## Protocol rules
 
@@ -55,7 +55,7 @@ The client sends intentions only. It never changes authoritative world state loc
 - The Editor fixture validator also checks malformed IDs, missing `alive`, string-valued versions, unsupported versions, and the valid `alive:false` terminal frame.
 - `alive:false` is a valid terminal frame and contains no `me` object.
 - `place` and `neighbors` may be absent.
-- `last` is opaque display text. The client does not parse it into activity codes.
+- `last` / `act` remain opaque server display text for gameplay. The prototype character animation uses only lightweight presentation heuristics for recognizable words; it never derives or changes simulation state from them.
 - Incoming WebSocket messages are assembled as bytes before UTF-8 decoding; the 1 MiB limit is measured in bytes and malformed UTF-8 is rejected.
 - Snapshots are full state, approximately once per second.
 - Neighbor positions are a temporary deterministic ring around the player, not server coordinates.
