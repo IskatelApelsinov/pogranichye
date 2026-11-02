@@ -168,6 +168,9 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestTutorialGoal("work");
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
+                GUILayout.Space(5);
+                GUILayout.Label("🍺 ПИВО В ТАВЕРНЕ — обязательный этап тестового билда.");
+                GUILayout.Label("Покупка, выдача кружки, употребление и опьянение появятся после серверного drink-контракта. Сейчас кружки — только декорация.", GUILayout.Height(42));
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -206,7 +209,7 @@ namespace Pogranichye.Client
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
             if (_tutorialStep >= TutorialGoals.Length)
-                return "Знакомство завершено. Теперь наблюдайте за жителями и выбирайте занятия самостоятельно.";
+                return "Базовое знакомство с четырьмя действиями v1 завершено. Пиво, крафт, рыбалка, бой и магия подключаются отдельными этапами.";
             if (!string.IsNullOrEmpty(_tutorialPendingGoal))
                 return "Ожидаем подтверждение сервера. Последнее действие: " + _frame.Me.Last;
 
