@@ -644,7 +644,7 @@ namespace Pogranichye.Client.Presentation
             mill.position = new Vector3(-22f, 0f, 13f);
             CreatePrimitive("Windmill stone tower", PrimitiveType.Cylinder, mill,
                 new Vector3(0, 2.1f, 0), new Vector3(1.35f, 2.1f, 1.35f), _stoneMaterial);
-            CreatePrimitive("Windmill wooden cap", PrimitiveType.Cone, mill,
+            CreatePrimitive("Windmill wooden cap", PrimitiveType.Cylinder, mill,
                 new Vector3(0, 4.45f, 0), new Vector3(1.5f, 1.15f, 1.5f), _roofMaterial);
             var rotor = new GameObject("Windmill turning sails").transform;
             rotor.SetParent(mill, false);
