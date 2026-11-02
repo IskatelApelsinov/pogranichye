@@ -25,6 +25,7 @@ namespace Pogranichye.Client
         private WorldSocketClient _socket;
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
+        private bool _createdCameraRig;
         private Transform _presentationRoot;
         private string _login = "";
         private string _password = "";
@@ -375,6 +376,7 @@ namespace Pogranichye.Client
             if (camera == null)
             {
                 var go = new GameObject("Main Camera");
+                go.transform.SetParent(transform, false);
                 go.tag = "MainCamera";
                 camera = go.AddComponent<Camera>();
             }
@@ -385,11 +387,17 @@ namespace Pogranichye.Client
             camera.backgroundColor = new Color(0.58f, 0.70f, 0.78f);
             camera.fieldOfView = 48f;
             _cameraRig = camera.GetComponent<PresentationCameraRig>();
-            if (_cameraRig == null) _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
+            if (_cameraRig == null)
+            {
+                _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
+                _createdCameraRig = true;
+            }
 
             if (FindObjectOfType<Light>() == null)
             {
-                var light = new GameObject("Directional Light").AddComponent<Light>();
+                var lightObject = new GameObject("Directional Light");
+                lightObject.transform.SetParent(transform, false);
+                var light = lightObject.AddComponent<Light>();
                 light.type = LightType.Directional;
                 light.intensity = 1.25f;
                 light.color = new Color(1f, 0.91f, 0.76f);
@@ -409,6 +417,9 @@ namespace Pogranichye.Client
         {
             WorldPoi.Selected -= OnPoiSelected;
             _lifetime.Cancel();
+            if (_cameraRig != null) _cameraRig.SetTarget(null);
+            if (_createdCameraRig && _cameraRig != null)
+                Destroy(_cameraRig);
             _socket?.Dispose();
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
