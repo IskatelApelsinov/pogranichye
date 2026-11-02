@@ -184,6 +184,14 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(-0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
             var rightArm = CreatePart("Right arm", PrimitiveType.Capsule, go.transform,
                 new Vector3(0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
+            var leftHand = CreatePart("Left hand", PrimitiveType.Sphere, leftArm.transform,
+                new Vector3(0f, -0.82f, 0.04f), new Vector3(1.1f, 0.65f, 1.1f));
+            var rightHand = CreatePart("Right hand", PrimitiveType.Sphere, rightArm.transform,
+                new Vector3(0f, -0.82f, 0.04f), new Vector3(1.1f, 0.65f, 1.1f));
+            var leftThumb = CreatePart("Left thumb", PrimitiveType.Sphere, leftArm.transform,
+                new Vector3(0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
+            var rightThumb = CreatePart("Right thumb", PrimitiveType.Sphere, rightArm.transform,
+                new Vector3(-0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
             var leftLeg = CreatePart("Left leg", PrimitiveType.Capsule, go.transform,
                 new Vector3(-0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
             var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, go.transform,
@@ -194,6 +202,11 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(head.GetComponent<Renderer>(), new Color(0.72f, 0.55f, 0.40f));
             ApplyColor(leftArm.GetComponent<Renderer>(), tunic);
             ApplyColor(rightArm.GetComponent<Renderer>(), tunic);
+            var skin = new Color(0.72f, 0.55f, 0.40f);
+            ApplyColor(leftHand.GetComponent<Renderer>(), skin);
+            ApplyColor(rightHand.GetComponent<Renderer>(), skin);
+            ApplyColor(leftThumb.GetComponent<Renderer>(), skin);
+            ApplyColor(rightThumb.GetComponent<Renderer>(), skin);
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             AddFaceDetails(go.transform);
