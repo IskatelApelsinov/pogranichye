@@ -67,6 +67,21 @@ Minimum playable loop:
 6. Server exposes a small intoxication state (or equivalent status) in the snapshot/event. Unity may apply mild camera sway, altered post-process/blur, or reduced steadiness based on that server value; it must not invent the intoxication value locally.
 7. State decays according to server time/rules. Drinking again must respect stock, money, and any gameplay limits.
 
+### Shared beer with another player (planned multiplayer milestone)
+
+This should be a real shared network activity, not two clients independently playing the same local animation.
+
+- Both players must be present in the same server-authoritative world instance, with stable player/entity IDs and canonical positions.
+- A player approaches the innkeeper/bar and starts a **co-drink invitation** addressed to a specific nearby player. The other player explicitly accepts or declines; no forced animation or purchase.
+- The server validates both players' proximity to the tavern/table, availability, funds, stock, session state and each player's consent. It creates one shared session ID and emits an authoritative start/result event to both clients.
+- Each participant's beer purchase/consumption is recorded separately (unless a later design explicitly introduces a host-paid round). A failed purchase for one participant must not silently charge the other.
+- The server synchronizes the shared activity phase (invited → accepted → serving → toast/drink → finished/cancelled) and a common event timestamp/sequence. Clients align seating/standing positions, mug hand attachment, toast gesture, sound and animation to that phase.
+- Intoxication remains per-player server state. The shared animation is synchronized; the gameplay effects are not shared or inferred from the other player's client.
+- Disconnect, movement out of range, death, cancellation or insufficient stock/funds must resolve the session server-side and notify the remaining participant. Reconnect should recover the current session state from snapshot/event replay.
+- Do not use direct peer-to-peer authority. Server relays the accepted session state to both clients; clients only render it.
+
+**Important dependency:** the current v1 snapshot does not expose a roster of other connected player characters or canonical positions. A true co-drinking loop therefore needs a coordinated protocol extension (or agreed v2) for player presence/identity/position, targeted invitation/acceptance intents, shared activity events/state and per-player intoxication. This is a natural follow-up once the single-player beer loop and movement/position contract are agreed with Claude.
+
 The current v1 goals are **socialize**, **work**, **eat**, and **rest**; there is no confirmed beer/drink intent. Claude has been asked in PR #11 to propose the smallest server-authoritative contract and backward-compatible optional snapshot field or a separately agreed v2. Do not silently map beer consumption to **socialize** or **eat**.
 
 ## 6. Combat direction
