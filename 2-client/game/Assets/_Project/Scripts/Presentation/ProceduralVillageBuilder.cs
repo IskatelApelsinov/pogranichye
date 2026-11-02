@@ -188,21 +188,14 @@ namespace Pogranichye.Client.Presentation
             var hitArea = marker.gameObject.AddComponent<SphereCollider>();
             hitArea.center = new Vector3(0, 0.45f, 0);
             hitArea.radius = 0.8f;
-            var poi = marker.gameObject.AddComponent<WorldPoi>();
-            poi.Initialize(title, goal);
             var beacon = CreatePrimitive("Marker", PrimitiveType.Cylinder, marker,
                 new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
             var renderer = beacon.GetComponent<Renderer>();
-            var block = new MaterialPropertyBlock();
-            renderer.GetPropertyBlock(block);
-            block.SetColor("_BaseColor", color);
-            block.SetColor("_Color", color);
-            renderer.SetPropertyBlock(block);
+            var poi = marker.gameObject.AddComponent<WorldPoi>();
+            poi.Initialize(title, goal, renderer, color);
             var label = new GameObject("POI label").transform;
             label.SetParent(marker, false);
             label.localPosition = new Vector3(0, 0.75f, 0);
-            label.AddComponent<BillboardLabel>();
-            label.gameObject.AddComponent<BillboardLabel>();
             label.gameObject.AddComponent<BillboardLabel>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
