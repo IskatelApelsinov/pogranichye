@@ -653,12 +653,13 @@ namespace Pogranichye.Client.Presentation
                 Vector3.zero, new Vector3(0.34f, 0.34f, 0.34f), _metalMaterial);
             for (var i = 0; i < 4; i++)
             {
-                var sail = CreatePrimitive("Windmill timber sail", PrimitiveType.Cube, rotor,
-                    new Vector3(0, 1.45f, 0), new Vector3(0.20f, 1.45f, 0.10f), _woodMaterial);
-                sail.transform.localRotation = Quaternion.Euler(0, 0, i * 90f);
-                var canvas = CreatePrimitive("Windmill sail canvas", PrimitiveType.Cube, rotor,
-                    new Vector3(0, 1.75f, -0.02f), new Vector3(0.62f, 0.72f, 0.06f), _clothMaterial);
-                canvas.transform.localRotation = Quaternion.Euler(0, 0, i * 90f);
+                var arm = new GameObject("Windmill sail arm").transform;
+                arm.SetParent(rotor, false);
+                arm.localRotation = Quaternion.Euler(0, 0, i * 90f);
+                CreatePrimitive("Windmill timber spar", PrimitiveType.Cube, arm,
+                    new Vector3(0, 1.05f, 0), new Vector3(0.20f, 2.1f, 0.10f), _woodMaterial);
+                CreatePrimitive("Windmill sail canvas", PrimitiveType.Cube, arm,
+                    new Vector3(0, 1.12f, -0.02f), new Vector3(0.58f, 0.72f, 0.06f), _clothMaterial);
             }
             rotor.gameObject.AddComponent<WindmillRotor>().Initialize(8f);
         }
