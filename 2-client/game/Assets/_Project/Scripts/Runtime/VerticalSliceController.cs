@@ -436,9 +436,11 @@ namespace Pogranichye.Client
 
             if (moving)
             {
-                var next = player.position + worldMove.normalized * speed * Time.deltaTime;
+                var movementDelta = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
+                var next = player.position + worldMove.normalized * speed * movementDelta;
                 var flat = new Vector2(next.x, next.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                flat.x = Mathf.Clamp(flat.x, -29.5f, 29.5f);
+                flat.y = Mathf.Clamp(flat.y, -29.5f, 29.5f);
                 player.position = new Vector3(flat.x, 0f, flat.y);
 
                 if (!_firstPerson)
@@ -454,13 +456,13 @@ namespace Pogranichye.Client
 
             ApplyMovementCorrection(player);
 
-            _moveSendAccumulator += Time.unscaledDeltaTime;
+            _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
             if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
                 return;
 
             var elapsed = _lastMoveSentAt <= 0f
                 ? Mathf.Max(0.001f, _moveSendAccumulator)
-                : Mathf.Max(0.001f, Time.unscaledTime - _lastMoveSentAt);
+                : Mathf.Clamp(Time.unscaledTime - _lastMoveSentAt, 0.001f, 0.25f);
             _moveSendAccumulator = 0f;
             _lastMoveSentAt = Time.unscaledTime;
 
@@ -558,10 +560,8 @@ namespace Pogranichye.Client
 
                 position.x += direction.x * speed * dt;
                 position.z += direction.y * speed * dt;
-                var flat = new Vector2(position.x, position.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
-                position.x = flat.x;
-                position.z = flat.y;
+                position.x = Mathf.Clamp(position.x, -29.5f, 29.5f);
+                position.z = Mathf.Clamp(position.z, -29.5f, 29.5f);
             }
             else
             {
