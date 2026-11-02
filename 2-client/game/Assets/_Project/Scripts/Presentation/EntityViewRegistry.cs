@@ -30,7 +30,8 @@ namespace Pogranichye.Client.Presentation
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
 
-            var player = GetOrCreate(playerId, "Player", Vector3.zero, true);
+            var player = GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true);
+            SetActivity(player, frame.Me.Goal);
             PlayerTransform = player.transform;
             SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}\n{frame.Me.Role}\n{frame.Me.Last}");
 
@@ -49,7 +50,8 @@ namespace Pogranichye.Client.Presentation
                     active.Add(id);
                     var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
                     var position = new Vector3(Mathf.Cos(angle) * 4f, 0f, Mathf.Sin(angle) * 4f);
-                    var view = GetOrCreate(id, neighbor.Name, position, false);
+                    var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
+                    SetActivity(view, neighbor.Act);
                     view.transform.position = position;
                     if (position.sqrMagnitude > 0.01f)
                         view.transform.rotation = Quaternion.LookRotation(-position.normalized, Vector3.up);
@@ -77,7 +79,7 @@ namespace Pogranichye.Client.Presentation
             PlayerTransform = null;
         }
 
-        private GameObject GetOrCreate(ulong id, string displayName, Vector3 position, bool isPlayer)
+        private GameObject GetOrCreate(ulong id, string displayName, string role, Vector3 position, bool isPlayer)
         {
             if (_views.TryGetValue(id, out var existing)) return existing;
 
@@ -98,7 +100,7 @@ namespace Pogranichye.Client.Presentation
             var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, go.transform,
                 new Vector3(0.17f, 0.38f, 0), new Vector3(0.22f, 0.48f, 0.22f));
 
-            var tunic = isPlayer ? new Color(0.20f, 0.48f, 0.72f) : new Color(0.55f, 0.38f, 0.22f);
+            var tunic = RoleColor(role, isPlayer);
             ApplyColor(body.GetComponent<Renderer>(), tunic);
             ApplyColor(head.GetComponent<Renderer>(), new Color(0.72f, 0.55f, 0.40f));
             ApplyColor(leftArm.GetComponent<Renderer>(), tunic);
@@ -138,6 +140,28 @@ namespace Pogranichye.Client.Presentation
             var collider = part.GetComponent<Collider>();
             if (collider != null) Object.Destroy(collider);
             return part;
+        }
+
+        private static Color RoleColor(string role, bool isPlayer)
+        {
+            if (isPlayer) return new Color(0.20f, 0.48f, 0.72f);
+            switch ((role ?? string.Empty).ToLowerInvariant())
+            {
+                case "tavernkeeper": return new Color(0.48f, 0.24f, 0.48f);
+                case "smith": return new Color(0.35f, 0.38f, 0.42f);
+                case "farmer": return new Color(0.38f, 0.48f, 0.24f);
+                case "herbalist": return new Color(0.24f, 0.48f, 0.34f);
+                case "cook": return new Color(0.68f, 0.42f, 0.24f);
+                case "hunter": return new Color(0.36f, 0.40f, 0.24f);
+                case "fisher": return new Color(0.24f, 0.42f, 0.58f);
+                default: return new Color(0.55f, 0.38f, 0.22f);
+            }
+        }
+
+        private static void SetActivity(GameObject view, string activity)
+        {
+            var motion = view != null ? view.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.SetActivity(activity);
         }
 
         private void ApplyColor(Renderer renderer, Color color)
