@@ -86,7 +86,10 @@ func (s *Server) tickLoop() {
 	defer t.Stop()
 	for range t.C {
 		s.mu.Lock()
-		s.runner.Step(s.world)
+		s.runner.Step(s.world) // игровой час: нужды/цели/экономика
+		// физический шаг ходьбы НПС — в РЕАЛЬНОМ времени (длительность тика), отдельно от игровых
+		// часов; тела под управлением игроков пропускаем (их ведёт сам игрок).
+		sim.StepNPCMovement(s.world, s.tickEach.Seconds(), func(id core.ID) bool { return s.ctl[id] != 0 })
 		s.mu.Unlock()
 	}
 }
@@ -317,7 +320,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				}
 				if p := core.Place(o); p != nil && p.Settlement == pl.Settlement {
 					if oi := core.Ident(o); oi != nil {
-						nx, ny, nf := sim.NeighborPos(o.ID) // устойчивое положение соседа (сервер пока не симулирует каждого)
+						nx, ny, nf := neighborPos(o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct,
 							"pos": map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
@@ -336,6 +339,17 @@ func (s *Server) stateJSON(cid core.ID) string {
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+// neighborPos — позиция соседа для кадра: реальная ScenePos (её ведёт StepNPCMovement). Если житель
+// ещё не получил сцену (не попал под шаг движения), отдаём его детерминированное стартовое место —
+// то же, куда его поставит система ходьбы, чтобы не было «прыжка из центра».
+func neighborPos(e *core.Entity) (x, y, facing float64) {
+	if p := sim.ScenePos(e); p != nil {
+		return p.X, p.Y, p.Facing
+	}
+	sx, sy := sim.SpawnSpot(uint64(e.ID))
+	return sx, sy, 90
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
