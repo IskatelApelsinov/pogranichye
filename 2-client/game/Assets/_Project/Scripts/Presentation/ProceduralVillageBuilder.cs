@@ -163,6 +163,18 @@ namespace Pogranichye.Client.Presentation
             }
             CreatePrimitive("Chimney", PrimitiveType.Cube, house, new Vector3(1.0f, 3.0f, 0.45f),
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
+            CreatePrimitive("Chimney cap", PrimitiveType.Cube, house,
+                new Vector3(1.0f, 3.58f, 0.45f), new Vector3(0.62f, 0.12f, 0.62f), _roofMaterial);
+            var houseLightObject = new GameObject("Cottage warm interior light");
+            houseLightObject.transform.SetParent(house, false);
+            houseLightObject.transform.localPosition = new Vector3(0f, 1.75f, -0.45f);
+            var houseLight = houseLightObject.AddComponent<Light>();
+            houseLight.type = LightType.Point;
+            houseLight.range = 4.5f;
+            houseLight.intensity = 0.35f;
+            houseLight.color = new Color(1f, 0.58f, 0.30f);
+            var villageAmbient = root.GetComponent<VillageAmbientMotion>();
+            if (villageAmbient != null) villageAmbient.RegisterLight(houseLight, 0.06f, 1.6f);
             CreatePrimitive("Roof ridge", PrimitiveType.Cube, house, new Vector3(0, 3.02f, 0),
                 new Vector3(0.18f, 0.18f, 3.35f), _woodMaterial);
             CreatePrimitive("Front timber beam", PrimitiveType.Cube, house, new Vector3(0, 2.05f, -1.44f),
@@ -353,8 +365,9 @@ namespace Pogranichye.Client.Presentation
             for (var x = -1; x <= 1; x += 2)
                 CreatePrimitive("Laundry line post", PrimitiveType.Cylinder, laundry,
                     new Vector3(x * 1.8f, 1.25f, 0), new Vector3(0.06f, 1.25f, 0.06f), _woodMaterial);
-            CreatePrimitive("Laundry rope", PrimitiveType.Cylinder, laundry,
+            var rope = CreatePrimitive("Laundry rope", PrimitiveType.Cylinder, laundry,
                 new Vector3(0, 2.43f, 0), new Vector3(0.025f, 1.8f, 0.025f), _roofMaterial);
+            rope.transform.localRotation = Quaternion.Euler(0, 0, 90);
             for (var i = 0; i < 4; i++)
             {
                 var cloth = CreatePrimitive("Hanging linen", PrimitiveType.Cube, laundry,
@@ -741,8 +754,17 @@ namespace Pogranichye.Client.Presentation
             well.position = position;
             CreatePrimitive("Stone ring", PrimitiveType.Cylinder, well, new Vector3(0, 0.42f, 0),
                 new Vector3(1.1f, 0.42f, 1.1f), _stoneMaterial);
-            CreatePrimitive("Roof support", PrimitiveType.Cube, well, new Vector3(0, 1.25f, 0),
-                new Vector3(0.12f, 1.7f, 0.12f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Well roof support", PrimitiveType.Cube, well,
+                    new Vector3(x * 0.72f, 1.25f, 0), new Vector3(0.12f, 1.7f, 0.12f), _woodMaterial);
+            CreatePrimitive("Well crossbar", PrimitiveType.Cylinder, well,
+                new Vector3(0, 1.82f, 0), new Vector3(0.07f, 0.82f, 0.07f), _woodMaterial);
+            CreatePrimitive("Well crank handle", PrimitiveType.Cube, well,
+                new Vector3(0.92f, 1.82f, 0), new Vector3(0.12f, 0.12f, 0.62f), _metalMaterial);
+            CreatePrimitive("Well rope", PrimitiveType.Cylinder, well,
+                new Vector3(0, 1.15f, 0), new Vector3(0.025f, 0.62f, 0.025f), _roofMaterial);
+            CreatePrimitive("Well bucket", PrimitiveType.Cylinder, well,
+                new Vector3(0, 0.88f, 0), new Vector3(0.22f, 0.22f, 0.22f), _woodMaterial);
             CreatePrimitive("Well canopy", PrimitiveType.Cube, well, new Vector3(0, 2.1f, 0),
                 new Vector3(1.7f, 0.16f, 1.25f), _roofMaterial);
         }
