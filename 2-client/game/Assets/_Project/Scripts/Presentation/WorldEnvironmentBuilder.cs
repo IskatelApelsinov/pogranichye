@@ -14,6 +14,13 @@ namespace Pogranichye.Client.Presentation
         private static Material _starMaterial;
         private static Material _skyMaterial;
         private static Material _cloudMaterial;
+        private static Material _forestBarkMaterial;
+        private static Material _forestLeafMaterial;
+        private static Material _groundDetailMaterial;
+        private static Material _moteMaterial;
+        private static Mesh _forestMesh;
+        private static Mesh _groundDetailMesh;
+        private static Mesh _flowerMesh;
         private static Mesh _starMesh;
         private static Mesh _grassMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
@@ -28,8 +35,11 @@ namespace Pogranichye.Client.Presentation
             BuildDistantLandscape(environment);
             BuildClouds(environment);
             BuildGrass(environment);
+            BuildForest(environment);
+            BuildGroundDetails(environment);
+            BuildAmbientMotes(environment);
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
-            cycle.Initialize(_skyMaterial, _starMaterial, FindSun());
+            cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, FindSun());
         }
 
         private static void BuildSky(Transform root, Camera camera)
@@ -247,6 +257,255 @@ namespace Pogranichye.Client.Presentation
             return Mathf.Abs(x - centerX) < radiusX && Mathf.Abs(z - centerZ) < radiusZ;
         }
 
+
+        /// <summary>Low-poly tree belt that frames the playable settlement and suggests a larger biome beyond it.</summary>
+        private static void BuildForest(Transform root)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return;
+            _forestBarkMaterial = new Material(shader) { name = "Forest bark • warm umber", color = new Color(0.24f, 0.15f, 0.09f) };
+            _forestLeafMaterial = new Material(shader) { name = "Forest canopy • deep evergreen", color = new Color(0.16f, 0.29f, 0.17f) };
+
+            var vertices = new System.Collections.Generic.List<Vector3>(18000);
+            var bark = new System.Collections.Generic.List<int>(9000);
+            var leaves = new System.Collections.Generic.List<int>(12000);
+            var random = new System.Random(90210);
+            for (var i = 0; i < 78; i++)
+            {
+                var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                var radius = 29f + (float)random.NextDouble() * 29f;
+                var center = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                var height = 6.5f + (float)random.NextDouble() * 5.5f;
+                var width = 0.55f + (float)random.NextDouble() * 0.55f;
+                var yaw = (float)random.NextDouble() * Mathf.PI * 2f;
+                AppendTree(vertices, bark, leaves, center, height, width, yaw);
+            }
+
+            _forestMesh = new Mesh { name = "Outer woodland • combined low-poly trees" };
+            _forestMesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            _forestMesh.SetVertices(vertices);
+            _forestMesh.subMeshCount = 2;
+            _forestMesh.SetTriangles(bark, 0);
+            _forestMesh.SetTriangles(leaves, 1);
+            _forestMesh.RecalculateNormals();
+            _forestMesh.RecalculateBounds();
+
+            var woodland = new GameObject("Woodland belt • distant tree clusters");
+            woodland.transform.SetParent(root, false);
+            woodland.AddComponent<MeshFilter>().sharedMesh = _forestMesh;
+            var renderer = woodland.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = new[] { _forestBarkMaterial, _forestLeafMaterial };
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+        }
+
+        private static void AppendTree(System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> bark, System.Collections.Generic.List<int> leaves,
+            Vector3 center, float height, float width, float yaw)
+        {
+            const int sides = 7;
+            var trunkStart = vertices.Count;
+            for (var ring = 0; ring < 2; ring++)
+            {
+                var radius = ring == 0 ? width * 0.34f : width * 0.20f;
+                var y = ring == 0 ? 0.05f : height * 0.56f;
+                for (var side = 0; side < sides; side++)
+                {
+                    var a = yaw + side * Mathf.PI * 2f / sides;
+                    vertices.Add(center + new Vector3(Mathf.Cos(a) * radius, y, Mathf.Sin(a) * radius));
+                }
+            }
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                bark.Add(trunkStart + side); bark.Add(trunkStart + sides + side); bark.Add(trunkStart + next);
+                bark.Add(trunkStart + next); bark.Add(trunkStart + sides + side); bark.Add(trunkStart + sides + next);
+            }
+
+            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.27f), width * 1.75f, height * 0.43f, yaw);
+            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.49f), width * 1.42f, height * 0.37f, yaw + 0.17f);
+            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.70f), width * 1.08f, height * 0.34f, yaw + 0.31f);
+        }
+
+        private static void AppendCanopy(System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles, Vector3 center, float radius, float height, float yaw)
+        {
+            const int sides = 7;
+            var start = vertices.Count;
+            vertices.Add(center + Vector3.up * height);
+            for (var side = 0; side < sides; side++)
+            {
+                var a = yaw + side * Mathf.PI * 2f / sides;
+                vertices.Add(center + new Vector3(Mathf.Cos(a) * radius, -height * 0.48f, Mathf.Sin(a) * radius));
+            }
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                triangles.Add(start); triangles.Add(start + 1 + next); triangles.Add(start + 1 + side);
+            }
+        }
+
+        /// <summary>Small rock groups, wildflowers and scrub break up the uniform meadow without filling paths.</summary>
+        private static void BuildGroundDetails(Transform root)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return;
+            var rockMaterial = new Material(shader) { name = "Field stones • weathered grey", color = new Color(0.39f, 0.40f, 0.36f) };
+            var flowerMaterial = new Material(shader) { name = "Wildflowers • muted gold", color = new Color(0.78f, 0.66f, 0.38f) };
+            _landscapeMaterials.Add(rockMaterial);
+            _landscapeMaterials.Add(flowerMaterial);
+            if (flowerMaterial.HasProperty("_Cull")) flowerMaterial.SetInt("_Cull", 0);
+
+            var rockVertices = new System.Collections.Generic.List<Vector3>(1200);
+            var rockTriangles = new System.Collections.Generic.List<int>(1800);
+            var flowerVertices = new System.Collections.Generic.List<Vector3>(6000);
+            var flowerTriangles = new System.Collections.Generic.List<int>(6000);
+            var random = new System.Random(61027);
+
+            for (var i = 0; i < 42; i++)
+            {
+                var x = (float)random.NextDouble() * 54f - 27f;
+                var z = (float)random.NextDouble() * 54f - 27f;
+                if (Mathf.Abs(x) < 2.7f || Mathf.Abs(z) < 2.7f || NearFootprint(x, z, -20f, -13f, 4f, 4f) ||
+                    NearFootprint(x, z, -22f, 13f, 3f, 3f)) continue;
+                var scale = 0.25f + (float)random.NextDouble() * 0.65f;
+                AppendRock(rockVertices, rockTriangles, new Vector3(x, 0.10f, z), scale, (float)random.NextDouble() * 6.28f);
+            }
+
+            for (var i = 0; i < 115; i++)
+            {
+                var x = (float)random.NextDouble() * 48f - 24f;
+                var z = (float)random.NextDouble() * 48f - 24f;
+                if (Mathf.Abs(x) < 2.0f || Mathf.Abs(z) < 2.0f ||
+                    NearFootprint(x, z, -6f, 7f, 3f, 2.5f) ||
+                    NearFootprint(x, z, 7f, 4f, 3f, 2.5f) ||
+                    NearFootprint(x, z, -8f, -5f, 3f, 2.5f) ||
+                    NearFootprint(x, z, 1.5f, 2.5f, 4f, 3.2f) ||
+                    NearFootprint(x, z, 9f, -4.5f, 3f, 2.4f) ||
+                    NearFootprint(x, z, -4.5f, -1.5f, 2.8f, 2.2f) ||
+                    NearFootprint(x, z, 6f, -9f, 3.2f, 2.5f) ||
+                    NearFootprint(x, z, -20f, -13f, 4f, 4f) ||
+                    NearFootprint(x, z, -22f, 13f, 3f, 3f)) continue;
+
+                var blooms = 2 + random.Next(4);
+                for (var bloom = 0; bloom < blooms; bloom++)
+                {
+                    var a = (float)random.NextDouble() * Mathf.PI * 2f;
+                    var offset = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 0.10f;
+                    var basePoint = new Vector3(x, 0.04f, z) + offset;
+                    var height = 0.22f + (float)random.NextDouble() * 0.25f;
+                    var top = basePoint + Vector3.up * height;
+                    var stemSide = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)) * 0.018f;
+                    var stem = flowerVertices.Count;
+                    flowerVertices.Add(basePoint - stemSide);
+                    flowerVertices.Add(basePoint + stemSide);
+                    flowerVertices.Add(top + Vector3.down * 0.025f);
+                    flowerTriangles.Add(stem); flowerTriangles.Add(stem + 1); flowerTriangles.Add(stem + 2);
+
+                    // Five small radial petals form a readable flower head at the tip of each stem.
+                    for (var petal = 0; petal < 5; petal++)
+                    {
+                        var petalAngle = petal * Mathf.PI * 2f / 5f;
+                        var radial = new Vector3(Mathf.Cos(petalAngle), 0f, Mathf.Sin(petalAngle));
+                        var tangent = new Vector3(-radial.z, 0f, radial.x) * 0.035f;
+                        var center = top;
+                        var first = flowerVertices.Count;
+                        flowerVertices.Add(center + radial * 0.012f - tangent);
+                        flowerVertices.Add(center + radial * 0.012f + tangent);
+                        flowerVertices.Add(center + radial * 0.105f + Vector3.up * 0.018f);
+                        flowerTriangles.Add(first); flowerTriangles.Add(first + 1); flowerTriangles.Add(first + 2);
+                    }
+                }
+            }
+
+            var rockMesh = new Mesh { name = "Scattered field stones • combined" };
+            rockMesh.indexFormat = rockVertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            rockMesh.SetVertices(rockVertices);
+            rockMesh.SetTriangles(rockTriangles, 0);
+            rockMesh.RecalculateNormals();
+            rockMesh.RecalculateBounds();
+            var rocks = new GameObject("Scattered field stones");
+            rocks.transform.SetParent(root, false);
+            rocks.AddComponent<MeshFilter>().sharedMesh = rockMesh;
+            var rockRenderer = rocks.AddComponent<MeshRenderer>();
+            rockRenderer.sharedMaterial = rockMaterial;
+            rockRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _groundDetailMesh = rockMesh;
+
+            var flowerMesh = new Mesh { name = "Wildflower clusters • combined" };
+            flowerMesh.indexFormat = flowerVertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            flowerMesh.SetVertices(flowerVertices);
+            flowerMesh.SetTriangles(flowerTriangles, 0);
+            flowerMesh.RecalculateNormals();
+            flowerMesh.RecalculateBounds();
+            var flowers = new GameObject("Wildflowers along meadow edges");
+            flowers.transform.SetParent(root, false);
+            flowers.AddComponent<MeshFilter>().sharedMesh = flowerMesh;
+            var flowerRenderer = flowers.AddComponent<MeshRenderer>();
+            flowerRenderer.sharedMaterial = flowerMaterial;
+            flowerRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _flowerMesh = flowerMesh;
+        }
+
+        private static void AppendRock(System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles, Vector3 center, float scale, float yaw)
+        {
+            var start = vertices.Count;
+            vertices.Add(center + new Vector3(0f, scale, 0f));
+            for (var i = 0; i < 5; i++)
+            {
+                var a = yaw + i * Mathf.PI * 2f / 5f;
+                vertices.Add(center + new Vector3(Mathf.Cos(a) * scale, (float)Math.Sin(i * 1.7f) * scale * 0.12f, Mathf.Sin(a) * scale));
+            }
+            vertices.Add(center + new Vector3(0f, -scale * 0.55f, 0f));
+            for (var i = 0; i < 5; i++)
+            {
+                var next = (i + 1) % 5;
+                triangles.Add(start); triangles.Add(start + 1 + next); triangles.Add(start + 1 + i);
+                triangles.Add(start + 6); triangles.Add(start + 1 + i); triangles.Add(start + 1 + next);
+            }
+        }
+
+        private static void BuildAmbientMotes(Transform root)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+                         Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) return;
+            _moteMaterial = new Material(shader) { name = "Ambient pollen • soft glow" };
+            var material = _moteMaterial;
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", new Color(0.88f, 0.82f, 0.56f, 0.42f));
+            if (material.HasProperty("_Color")) material.SetColor("_Color", new Color(0.88f, 0.82f, 0.56f, 0.42f));
+            material.renderQueue = (int)RenderQueue.Transparent;
+
+            var holder = new GameObject("Ambient pollen • drifting in sunlight");
+            holder.transform.SetParent(root, false);
+            holder.transform.localPosition = new Vector3(0f, 2.2f, 0f);
+            var particles = holder.AddComponent<ParticleSystem>();
+            var main = particles.main;
+            main.loop = true;
+            main.duration = 18f;
+            main.maxParticles = 90;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(8f, 17f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.015f, 0.07f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.018f, 0.045f);
+            main.startColor = new Color(0.88f, 0.82f, 0.56f, 0.42f);
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            var emission = particles.emission;
+            emission.rateOverTime = 5.5f;
+            var shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 23f;
+            var noise = particles.noise;
+            noise.enabled = true;
+            noise.strength = 0.12f;
+            noise.frequency = 0.18f;
+            var renderer = holder.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
         private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
         {
             if (shader == null) return null;
@@ -290,11 +549,25 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_starMaterial);
             DestroyAsset(_grassMaterial);
             DestroyAsset(_cloudMaterial);
+            DestroyAsset(_forestBarkMaterial);
+            DestroyAsset(_forestLeafMaterial);
+            DestroyAsset(_groundDetailMaterial);
+            DestroyAsset(_moteMaterial);
+            DestroyAsset(_forestMesh);
+            DestroyAsset(_groundDetailMesh);
+            DestroyAsset(_flowerMesh);
             DestroyAsset(_starMesh);
             DestroyAsset(_grassMesh);
             foreach (var material in _landscapeMaterials) DestroyAsset(material);
             _landscapeMaterials.Clear();
             _cloudMaterial = null;
+            _forestBarkMaterial = null;
+            _forestLeafMaterial = null;
+            _groundDetailMaterial = null;
+            _moteMaterial = null;
+            _forestMesh = null;
+            _groundDetailMesh = null;
+            _flowerMesh = null;
             _starMesh = null;
             _grassMesh = null;
             _skyMaterial = null;
@@ -314,13 +587,15 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float visualDayLengthSeconds = 720f;
         private Material _sky;
         private Material _stars;
+        private Material _motes;
         private Light _sun;
         private float _phase;
 
-        public void Initialize(Material sky, Material stars, Light sun)
+        public void Initialize(Material sky, Material stars, Material motes, Light sun)
         {
             _sky = sky;
             _stars = stars;
+            _motes = motes;
             _sun = sun;
             _phase = 0.28f;
         }
@@ -347,6 +622,12 @@ namespace Pogranichye.Client.Presentation
                 var color = new Color(0.78f, 0.86f, 1f, alpha);
                 if (_stars.HasProperty("_BaseColor")) _stars.SetColor("_BaseColor", color);
                 else _stars.color = color;
+            }
+            if (_motes != null)
+            {
+                var color = new Color(0.88f, 0.82f, 0.56f, daylight * 0.42f);
+                if (_motes.HasProperty("_BaseColor")) _motes.SetColor("_BaseColor", color);
+                else if (_motes.HasProperty("_Color")) _motes.SetColor("_Color", color);
             }
             if (_sun != null)
             {
