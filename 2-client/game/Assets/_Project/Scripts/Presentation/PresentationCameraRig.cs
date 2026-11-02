@@ -14,6 +14,11 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float minZoomDistance = 5f;
         [SerializeField] private float maxZoomDistance = 17f;
         [SerializeField] private float collisionRadius = 0.22f;
+        [Header("First-person feel")]
+        [SerializeField] private float headBobAmplitude = 0.035f;
+        [SerializeField] private float headBobSideAmplitude = 0.012f;
+        [SerializeField] private float headBobFrequency = 9f;
+        private float _headBobPhase;
         private Transform _target;
         private bool _firstPerson;
         private float _yaw;
@@ -65,7 +70,14 @@ namespace Pogranichye.Client.Presentation
                     _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
 
-                transform.position = _target.position + Vector3.up * 1.62f;
+                var motion = _target.GetComponent<EntityMotion>();
+                var gait = motion != null ? motion.LocomotionAmount : 0f;
+                _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
+                var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
+                var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;
+                var idleBreath = Mathf.Sin(Time.unscaledTime * 1.15f) * 0.006f;
+                transform.position = _target.position + Vector3.up * (1.62f + walkBob + idleBreath)
+                    + _target.right * sideBob;
                 transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
                 return;
             }
