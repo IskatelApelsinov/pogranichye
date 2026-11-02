@@ -449,10 +449,10 @@ namespace Pogranichye.Client
             if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval) || _moveSendInFlight)
                 return;
 
-            _moveSendAccumulator = 0f;
             var elapsed = _lastMoveSentAt <= 0f
                 ? Mathf.Max(0.001f, _moveSendAccumulator)
                 : Mathf.Max(0.001f, Time.unscaledTime - _lastMoveSentAt);
+            _moveSendAccumulator = 0f;
             _lastMoveSentAt = Time.unscaledTime;
 
             var facingDegrees = Mathf.Repeat(90f - player.eulerAngles.y, 360f);
