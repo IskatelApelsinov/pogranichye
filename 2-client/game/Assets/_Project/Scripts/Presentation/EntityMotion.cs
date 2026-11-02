@@ -40,6 +40,7 @@ namespace Pogranichye.Client.Presentation
             var working = _activity.Contains("work") || _activity.Contains("работ");
             var social = _activity.Contains("social") || _activity.Contains("общ") || _activity.Contains("говор");
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
+            var drinking = _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
 
             var bob = resting ? 0.008f : 0.025f;
             _body.localPosition = new Vector3(0, 0.95f + Mathf.Sin(_phase) * bob, 0);
@@ -48,6 +49,7 @@ namespace Pogranichye.Client.Presentation
             var leftArmAngle = working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : 0f;
             var rightArmAngle = working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : 0f;
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
+            if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
             if (resting) { leftArmAngle = 8f; rightArmAngle = -8f; }
 
             if (_leftArm != null) _leftArm.localRotation = Quaternion.Euler(leftArmAngle, 0, -7f);
