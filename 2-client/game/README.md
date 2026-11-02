@@ -30,11 +30,12 @@ The repository initially contained a source scaffold rather than a fully initial
 - Full-snapshot JSON parsing and protocol validation (`v == 1`).
 - Entity View registry keyed by `ulong` parsed from string IDs.
 - Temporary client-side neighbor layout only; it is not world coordinates.
-- Low-poly humanoid player/NPC prototypes with procedural idle motion, camera-facing labels, and per-renderer colors via `MaterialPropertyBlock`.
-- Deterministic procedural village scene: meadow with generated tile texture, packed-earth paths, cottages, well, fence, trees, grass details, directional warm light, ambient light and distance fog.
+- Low-poly humanoid player/NPC prototypes with role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
+- Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, a tavern, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
+- Visible tutorial POI markers/signs for tavern, work, food and garden. Their labels are presentation-only; the v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
 - Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
-- Debug HUD and primitive capsule views to validate the end-to-end connection.
+- First-steps HUD explaining the four supported server goals and showing the latest server-side stats/activity.
 - A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts.
 
 ## Run
@@ -43,7 +44,7 @@ The repository initially contained a source scaffold rather than a fully initial
 2. Open `Assets/_Project/Scenes/VerticalSlice.unity`.
 3. Enter login and password. Register first if needed, then log in.
 4. Connect to the world. The client builds the prototype village and renders the animated player plus nearby NPCs. Their positions are temporary presentation layout, not server coordinates.
-5. Use the goal buttons to send v1 intent messages.
+5. Use the first-steps panel: tavern/socialize, work, eat, rest. These buttons send existing v1 goal intents; the server remains authoritative for the result.
 
 The client sends intentions only. It never changes authoritative world state locally.
 
@@ -58,6 +59,7 @@ The client sends intentions only. It never changes authoritative world state loc
 - Incoming WebSocket messages are assembled as bytes before UTF-8 decoding; the 1 MiB limit is measured in bytes and malformed UTF-8 is rejected.
 - Snapshots are full state, approximately once per second.
 - Neighbor positions are a temporary deterministic ring around the player, not server coordinates.
+- The prototype scene builder accepts a stable string seed (currently `tutorial-preview`) and hashes it deterministically. The current v1 snapshot does **not** expose the actual world seed, biome, settlement coordinates, building layout or POIs. When the server supplies agreed metadata, the client can pass the server seed into the generator and derive reproducible presentation geometry without treating it as simulation authority.
 
 ## Verification status
 
