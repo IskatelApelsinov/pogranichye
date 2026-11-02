@@ -36,10 +36,6 @@ namespace Pogranichye.Client.Editor
             light.intensity = 1.15f;
             light.transform.rotation = Quaternion.Euler(50, -30, 0);
 
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ground.name = "TemporaryPresentationGround";
-            ground.transform.localScale = new Vector3(2, 1, 2);
-
             var controller = new GameObject("PogranichyeVerticalSlice");
             controller.AddComponent<VerticalSliceController>();
 
@@ -47,7 +43,7 @@ namespace Pogranichye.Client.Editor
                 throw new InvalidOperationException("Unity could not save the generated scene to " + ScenePath);
 
             AssetDatabase.Refresh();
-            Debug.Log("Created " + ScenePath + ". Assign a URP Asset in Project Settings > Graphics before Play, then start the Go server.");
+            Debug.Log("Created " + ScenePath + ". The runtime controller builds the prototype village on Play. Assign a URP Asset in Project Settings > Graphics, then start the Go server.");
         }
     }
 }
