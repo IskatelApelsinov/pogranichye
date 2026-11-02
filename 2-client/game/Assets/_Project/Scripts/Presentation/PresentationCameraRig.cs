@@ -8,6 +8,8 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private Vector3 offset = new Vector3(0, 8, -10);
         [SerializeField] private float followSharpness = 5f;
         [SerializeField] private float mouseSensitivity = 2.2f;
+        [SerializeField] private float thirdPersonMinPitch = 18f;
+        [SerializeField] private float thirdPersonMaxPitch = 62f;
         [SerializeField] private float zoomSpeed = 5f;
         [SerializeField] private float minZoomDistance = 5f;
         [SerializeField] private float maxZoomDistance = 17f;
@@ -29,13 +31,14 @@ namespace Pogranichye.Client.Presentation
         {
             _target = target;
             if (target != null) _yaw = target.eulerAngles.y;
+            _pitch = 28f;
         }
 
         public void SetFirstPerson(bool enabled)
         {
             _firstPerson = enabled;
             if (_target != null) _yaw = _target.eulerAngles.y;
-            _pitch = 0f;
+            _pitch = enabled ? 0f : 28f;
         }
 
         private void LateUpdate()
@@ -61,8 +64,16 @@ namespace Pogranichye.Client.Presentation
                 _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
                     minZoomDistance, maxZoomDistance);
 
+            // RMB drag orbits the camera without rotating the character's world representation.
+            if (Input.GetMouseButton(1))
+            {
+                _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
+                _pitch = Mathf.Clamp(_pitch + Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
+                    thirdPersonMinPitch, thirdPersonMaxPitch);
+            }
+
             var focus = _target.position + Vector3.up * 1.25f;
-            var direction = Quaternion.Euler(0f, _target.eulerAngles.y, 0f) * offset.normalized;
+            var direction = Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.back;
             var desired = focus + direction * _zoomDistance;
 
             // Keep the camera from clipping through tavern walls, houses and other solid geometry.
