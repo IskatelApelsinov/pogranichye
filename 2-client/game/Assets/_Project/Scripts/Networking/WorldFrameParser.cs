@@ -108,15 +108,21 @@ namespace Pogranichye.Client.Networking
 
             if (!IsNumber(token["x"]) || !IsNumber(token["y"]) || !IsNumber(token["facing"]))
                 throw new FormatException(fieldName + " должен содержать числовые x, y и facing.");
+            var facingValue = token["facing"].Value<double>();
+            if (facingValue < 0d || facingValue >= 360d)
+                throw new FormatException(fieldName + ".facing должен быть в диапазоне [0, 360).");
 
             if (player)
             {
                 var stamina = token["stam"];
                 var sequence = token["seq"];
-                if (stamina != null && stamina.Type != JTokenType.Null && !IsNumber(stamina))
+                if (!IsNumber(stamina))
                     throw new FormatException(fieldName + ".stam должен быть числом.");
-                if (sequence != null && sequence.Type != JTokenType.Null && sequence.Type != JTokenType.Integer)
-                    throw new FormatException(fieldName + ".seq должен быть целым числом.");
+                if (sequence == null || sequence.Type != JTokenType.Integer || sequence.Value<long>() < 0)
+                    throw new FormatException(fieldName + ".seq должен быть неотрицательным целым числом.");
+                var staminaValue = stamina.Value<double>();
+                if (staminaValue < 0d || staminaValue > 1d)
+                    throw new FormatException(fieldName + ".stam должен находиться в диапазоне 0..1.");
             }
         }
 
