@@ -32,11 +32,11 @@ The repository initially contained a source scaffold rather than a fully initial
 - Temporary client-side neighbor layout only; it is not world coordinates.
 - Low-poly humanoid player/NPC prototypes with role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
 - Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, a tavern, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
-- Clickable tutorial POI markers/signs for tavern, work, food and garden. Clicking a marker sends its mapped existing v1 goal; the marker does not locally perform the activity. The v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
+- Clickable tutorial POI markers/signs for tavern, work, food and garden. Markers brighten on pointer hover; clicking sends the mapped existing v1 goal. The marker does not locally perform the activity. The v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
 - Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - First-steps HUD explaining the four supported server goals and showing the latest server-side stats/activity.
-- A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts.
+- A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts. Any camera/light created at runtime is parented to the controller lifecycle, and the controller removes only a camera rig component it added itself.
 
 ## Run
 
