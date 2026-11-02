@@ -49,7 +49,7 @@ namespace Pogranichye.Client.Presentation
 
                     active.Add(id);
                     var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
-                    var position = new Vector3(Mathf.Cos(angle) * 4f, 0f, Mathf.Sin(angle) * 4f);
+                    var position = new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
                     SetActivity(view, neighbor.Act);
                     view.transform.position = position;
