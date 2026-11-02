@@ -17,6 +17,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _forestBarkMaterial;
         private static Material _forestLeafMaterial;
         private static Material _groundDetailMaterial;
+        private static Material _moteMaterial;
         private static Mesh _forestMesh;
         private static Mesh _groundDetailMesh;
         private static Mesh _flowerMesh;
@@ -38,7 +39,7 @@ namespace Pogranichye.Client.Presentation
             BuildGroundDetails(environment);
             BuildAmbientMotes(environment);
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
-            cycle.Initialize(_skyMaterial, _starMaterial, FindSun());
+            cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, FindSun());
         }
 
         private static void BuildSky(Transform root, Camera camera)
@@ -470,11 +471,11 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
                          Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) return;
-            var material = new Material(shader) { name = "Ambient pollen • soft glow" };
+            _moteMaterial = new Material(shader) { name = "Ambient pollen • soft glow" };
+            var material = _moteMaterial;
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", new Color(0.88f, 0.82f, 0.56f, 0.42f));
             if (material.HasProperty("_Color")) material.SetColor("_Color", new Color(0.88f, 0.82f, 0.56f, 0.42f));
             material.renderQueue = (int)RenderQueue.Transparent;
-            _landscapeMaterials.Add(material);
 
             var holder = new GameObject("Ambient pollen • drifting in sunlight");
             holder.transform.SetParent(root, false);
@@ -551,6 +552,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_forestBarkMaterial);
             DestroyAsset(_forestLeafMaterial);
             DestroyAsset(_groundDetailMaterial);
+            DestroyAsset(_moteMaterial);
             DestroyAsset(_forestMesh);
             DestroyAsset(_groundDetailMesh);
             DestroyAsset(_flowerMesh);
@@ -562,6 +564,7 @@ namespace Pogranichye.Client.Presentation
             _forestBarkMaterial = null;
             _forestLeafMaterial = null;
             _groundDetailMaterial = null;
+            _moteMaterial = null;
             _forestMesh = null;
             _groundDetailMesh = null;
             _flowerMesh = null;
@@ -584,13 +587,15 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float visualDayLengthSeconds = 720f;
         private Material _sky;
         private Material _stars;
+        private Material _motes;
         private Light _sun;
         private float _phase;
 
-        public void Initialize(Material sky, Material stars, Light sun)
+        public void Initialize(Material sky, Material stars, Material motes, Light sun)
         {
             _sky = sky;
             _stars = stars;
+            _motes = motes;
             _sun = sun;
             _phase = 0.28f;
         }
@@ -617,6 +622,12 @@ namespace Pogranichye.Client.Presentation
                 var color = new Color(0.78f, 0.86f, 1f, alpha);
                 if (_stars.HasProperty("_BaseColor")) _stars.SetColor("_BaseColor", color);
                 else _stars.color = color;
+            }
+            if (_motes != null)
+            {
+                var color = new Color(0.88f, 0.82f, 0.56f, daylight * 0.42f);
+                if (_motes.HasProperty("_BaseColor")) _motes.SetColor("_BaseColor", color);
+                else if (_motes.HasProperty("_Color")) _motes.SetColor("_Color", color);
             }
             if (_sun != null)
             {
