@@ -128,7 +128,7 @@ namespace Pogranichye.Client.Presentation
 
             var labelObject = new GameObject("Label");
             labelObject.transform.SetParent(go.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.08f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.28f, 0f);
             labelObject.AddComponent<BillboardLabel>();
 
             var text = labelObject.AddComponent<TextMesh>();
