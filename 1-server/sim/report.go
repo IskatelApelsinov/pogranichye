@@ -116,6 +116,9 @@ func Report(w *core.World, clock core.Clock) {
 	fmt.Printf("Беды и хворь:       войн было=%d (сейчас воюют держав=%d) · павших в войне=%d · непогод=%d · умерших от хвори=%d\n",
 		DebugWars, atWar, DebugWarDead, DebugClimate, DebugPlague)
 
+	allies, rivals := relationsSnapshot(w)
+	fmt.Printf("Дипломатия держав:  союзных пар=%d · враждебных пар=%d\n", allies, rivals)
+
 	if c := chronicle.Of(w); c != nil {
 		keys := make([]string, 0, len(c.Tally))
 		for k := range c.Tally {

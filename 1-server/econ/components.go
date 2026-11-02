@@ -9,7 +9,9 @@ import "pogranichye/core"
 
 func init() {
 	core.Register("resnode", func() core.Component { return &ResourceNodeC{} })
-	core.Register("realm", func() core.Component { return &RealmC{Territory: []core.ID{}} })
+	core.Register("realm", func() core.Component {
+		return &RealmC{Territory: []core.ID{}, Relations: map[core.ID]float64{}}
+	})
 }
 
 // Виды узлов и товаров — строками, чтобы клиент и инструменты читали без магии.
@@ -108,9 +110,46 @@ type RealmC struct {
 	Territory []core.ID `json:"territory"`
 	WarWith   core.ID   `json:"war_with"` // с кем держава воюет сейчас (0 — мир)
 	WarDays   int       `json:"war_days"` // сколько дней войне осталось идти
+	// Отношения с другими державами: id державы → «стояние» (-100..+100). + дружба (к союзу),
+	// - вражда (к войне), ~0 нейтралитет. Торговля растит дружбу, война — рушит. Так дипломатия
+	// складывается сама из дел, а не из скрипта.
+	Relations map[core.ID]float64 `json:"relations"`
 }
 
 func (c *RealmC) Kind() string { return "realm" }
+
+// Stand — текущее «стояние» к другой державе (0, если ещё не знакомы).
+func (c *RealmC) Stand(other core.ID) float64 {
+	if c.Relations == nil {
+		return 0
+	}
+	return c.Relations[other]
+}
+
+// Nudge — сдвинуть стояние к другой державе на delta, с пределами [-100, 100].
+func (c *RealmC) Nudge(other core.ID, delta float64) {
+	if c.Relations == nil {
+		c.Relations = map[core.ID]float64{}
+	}
+	v := c.Relations[other] + delta
+	if v > 100 {
+		v = 100
+	}
+	if v < -100 {
+		v = -100
+	}
+	c.Relations[other] = v
+}
+
+// Пороги дипломатии: выше AllyAt — союзники (не воюют, роднятся торговлей), ниже RivalAt — враги.
+const (
+	AllyAt  = 50.0
+	RivalAt = -40.0
+)
+
+// Allied / IsRival — классификация отношения одной державы к другой по «стоянию».
+func Allied(a *RealmC, other core.ID) bool  { return a != nil && a.Stand(other) >= AllyAt }
+func IsRival(a *RealmC, other core.ID) bool { return a != nil && a.Stand(other) <= RivalAt }
 
 // Node / Realm — типизированные помощники.
 func Node(e *core.Entity) *ResourceNodeC { c, _ := e.Get("resnode").(*ResourceNodeC); return c }
