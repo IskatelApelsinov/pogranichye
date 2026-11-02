@@ -28,8 +28,13 @@ namespace Pogranichye.Client.Editor
                 if (!frame.Alive || frame.Me == null || frame.Place == null)
                     throw new FormatException("The shared example is expected to be a living frame with place data.");
 
+                if (frame.Me.Position == null || frame.Me.Position.Sequence != 0)
+                    throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
+                if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count == 0 || frame.Place.Neighbors[0].Position == null)
+                    throw new FormatException("The shared v1.1 fixture must include a positioned neighbor.");
+
                 ValidateNegativeCases();
-                Debug.Log($"v1 fixture valid. Player ID: {frame.Me.Id}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
+                Debug.Log($"v1.1 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
             }
             catch (Exception ex)
             {
