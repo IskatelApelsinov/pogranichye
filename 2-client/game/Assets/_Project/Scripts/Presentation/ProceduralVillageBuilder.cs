@@ -175,7 +175,7 @@ namespace Pogranichye.Client.Presentation
             warmLight.intensity = 1.6f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, 2.45f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
