@@ -2,17 +2,28 @@ using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
 {
+    /// <summary>Presentation-only hybrid camera. It never changes authoritative world position.</summary>
     public sealed class PresentationCameraRig : MonoBehaviour
     {
         [SerializeField] private Vector3 offset = new Vector3(0, 8, -10);
         [SerializeField] private float followSharpness = 5f;
         [SerializeField] private float mouseSensitivity = 2.2f;
+        [SerializeField] private float zoomSpeed = 5f;
+        [SerializeField] private float minZoomDistance = 5f;
+        [SerializeField] private float maxZoomDistance = 17f;
+        [SerializeField] private float collisionRadius = 0.22f;
         private Transform _target;
         private bool _firstPerson;
         private float _yaw;
         private float _pitch;
+        private float _zoomDistance;
 
         public bool IsFirstPerson => _firstPerson;
+
+        private void Awake()
+        {
+            _zoomDistance = offset.magnitude;
+        }
 
         public void SetTarget(Transform target)
         {
@@ -45,11 +56,27 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            var desired = _target.position + Quaternion.Euler(0f, _target.eulerAngles.y, 0f) * offset;
+            var scroll = Input.GetAxisRaw("Mouse ScrollWheel");
+            if (Mathf.Abs(scroll) > 0.001f)
+                _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
+                    minZoomDistance, maxZoomDistance);
+
+            var focus = _target.position + Vector3.up * 1.25f;
+            var direction = Quaternion.Euler(0f, _target.eulerAngles.y, 0f) * offset.normalized;
+            var desired = focus + direction * _zoomDistance;
+
+            // Keep the camera from clipping through tavern walls, houses and other solid geometry.
+            var ray = desired - focus;
+            var distance = ray.magnitude;
+            if (distance > 0.001f && Physics.SphereCast(focus, collisionRadius, ray.normalized,
+                out var hit, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                desired = focus + ray.normalized * Mathf.Max(0.35f, hit.distance - 0.18f);
+            }
+
             transform.position = Vector3.Lerp(transform.position, desired,
                 1f - Mathf.Exp(-followSharpness * Time.deltaTime));
-            transform.rotation = Quaternion.LookRotation(_target.position + Vector3.up - transform.position,
-                Vector3.up);
+            transform.rotation = Quaternion.LookRotation(focus - transform.position, Vector3.up);
         }
     }
 }
