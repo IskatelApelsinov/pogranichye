@@ -77,6 +77,7 @@ namespace Pogranichye.Client
             WorldNpc.Selected += OnNpcSelected;
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
+            WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
         }
 
         private void Update()
@@ -762,6 +763,7 @@ namespace Pogranichye.Client
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
+            WorldEnvironmentBuilder.Cleanup();
             ProceduralVillageBuilder.Cleanup();
         }
     }

@@ -90,6 +90,7 @@ namespace Pogranichye.Client.Presentation
             BuildHandCart(village, new Vector3(-6.2f, 0, -7.4f));
             BuildCreekAndFootbridge(village);
             BuildDistantTreeLine(village);
+            BuildOutskirts(village);
             BuildPracticeStations(village);
             BuildVillageLife(village, ambientMotion);
 
@@ -615,6 +616,53 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+
+        private static void BuildOutskirts(Transform root)
+        {
+            // A small farmstead and windmill give the village a readable edge rather than an abrupt end.
+            var barn = new GameObject("Outlying farm barn").transform;
+            barn.SetParent(root, false);
+            barn.position = new Vector3(-20f, 0f, -13f);
+            CreatePrimitive("Barn stone footing", PrimitiveType.Cube, barn,
+                new Vector3(0, 0.18f, 0), new Vector3(5.2f, 0.36f, 4.2f), _stoneMaterial);
+            CreatePrimitive("Barn timber body", PrimitiveType.Cube, barn,
+                new Vector3(0, 1.65f, 0), new Vector3(5f, 3f, 4f), _woodMaterial);
+            var barnRoofA = CreatePrimitive("Barn roof slope A", PrimitiveType.Cube, barn,
+                new Vector3(-1.25f, 3.35f, 0), new Vector3(2.8f, 0.22f, 4.5f), _roofMaterial);
+            barnRoofA.transform.localRotation = Quaternion.Euler(0, 0, -27f);
+            var barnRoofB = CreatePrimitive("Barn roof slope B", PrimitiveType.Cube, barn,
+                new Vector3(1.25f, 3.35f, 0), new Vector3(2.8f, 0.22f, 4.5f), _roofMaterial);
+            barnRoofB.transform.localRotation = Quaternion.Euler(0, 0, 27f);
+            CreatePrimitive("Barn double door left", PrimitiveType.Cube, barn,
+                new Vector3(-0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
+            CreatePrimitive("Barn double door right", PrimitiveType.Cube, barn,
+                new Vector3(0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
+            BuildFence(root, new Vector3(-20f, 0f, -17f), 8, 0.65f);
+
+            var mill = new GameObject("Old windmill").transform;
+            mill.SetParent(root, false);
+            mill.position = new Vector3(-22f, 0f, 13f);
+            CreatePrimitive("Windmill stone tower", PrimitiveType.Cylinder, mill,
+                new Vector3(0, 2.1f, 0), new Vector3(1.35f, 2.1f, 1.35f), _stoneMaterial);
+            CreatePrimitive("Windmill wooden cap", PrimitiveType.Cylinder, mill,
+                new Vector3(0, 4.45f, 0), new Vector3(1.5f, 1.15f, 1.5f), _roofMaterial);
+            var rotor = new GameObject("Windmill turning sails").transform;
+            rotor.SetParent(mill, false);
+            rotor.localPosition = new Vector3(0, 3.85f, -1.18f);
+            CreatePrimitive("Windmill hub", PrimitiveType.Sphere, rotor,
+                Vector3.zero, new Vector3(0.34f, 0.34f, 0.34f), _metalMaterial);
+            for (var i = 0; i < 4; i++)
+            {
+                var arm = new GameObject("Windmill sail arm").transform;
+                arm.SetParent(rotor, false);
+                arm.localRotation = Quaternion.Euler(0, 0, i * 90f);
+                CreatePrimitive("Windmill timber spar", PrimitiveType.Cube, arm,
+                    new Vector3(0, 1.05f, 0), new Vector3(0.20f, 2.1f, 0.10f), _woodMaterial);
+                CreatePrimitive("Windmill sail canvas", PrimitiveType.Cube, arm,
+                    new Vector3(0, 1.12f, -0.02f), new Vector3(0.58f, 0.72f, 0.06f), _clothMaterial);
+            }
+            rotor.gameObject.AddComponent<WindmillRotor>().Initialize(8f);
+        }
 
         private static void BuildPracticeStations(Transform root)
         {
