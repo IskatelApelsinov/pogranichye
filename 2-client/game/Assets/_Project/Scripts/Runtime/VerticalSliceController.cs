@@ -223,7 +223,7 @@ namespace Pogranichye.Client
         {
             _firstPerson = firstPerson;
             if (_cameraRig != null) _cameraRig.SetFirstPerson(firstPerson);
-            if (_views != null) _views.SetPlayerFirstPerson(firstPerson);
+            if (_views != null) _views.SetPlayerFirstPerson(firstPerson, _cameraRig != null ? _cameraRig.transform : null);
             _status = firstPerson
                 ? "Первое лицо: мышь управляет взглядом; ПКМ — контекстный альтернативный режим (в разработке)."
                 : "Третье лицо: мышь вращает камеру; ПКМ — контекстный альтернативный режим.";
@@ -394,7 +394,7 @@ namespace Pogranichye.Client
                             _cameraRig.SetTarget(_views.PlayerTransform);
                             _cameraRig.SetFirstPerson(_firstPerson);
                         }
-                        _views.SetPlayerFirstPerson(_firstPerson);
+                        _views.SetPlayerFirstPerson(_firstPerson, _cameraRig != null ? _cameraRig.transform : null);
                         _status = frame.Me.Position != null ? "Получен полный кадр v1.1; движение синхронизируется." : "Получен кадр v1.0; движение отключено.";
                     }
                 });
