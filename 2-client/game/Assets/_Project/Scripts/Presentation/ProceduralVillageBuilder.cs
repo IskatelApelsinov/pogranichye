@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Builds a deterministic, disposable prototype village. Geometry and textures are presentation assets,
+    /// Builds a deterministic, disposable prototype village from a stable seed. Geometry and textures are presentation assets,
     /// not authoritative world data; replace them with authored assets as the art direction matures.
     /// </summary>
     public static class ProceduralVillageBuilder
@@ -17,7 +17,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _grassMaterial;
         private static Texture2D _groundTexture;
 
-        public static void Build(Transform root)
+        public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
             if (root == null || root.Find("PrototypeVillage") != null) return;
 
@@ -54,7 +54,7 @@ namespace Pogranichye.Client.Presentation
             BuildWell(village, new Vector3(3.2f, 0, -2.4f));
             BuildFence(village, new Vector3(0, 0, -13), 12, 0.5f);
 
-            var random = new System.Random(1701);
+            var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
             {
                 var x = (float)(random.NextDouble() * 30 - 15);
@@ -288,6 +288,22 @@ namespace Pogranichye.Client.Presentation
             var collider = go.GetComponent<Collider>();
             if (collider != null) Object.Destroy(collider);
             return go;
+        }
+
+        // Stable across machines/runs; unlike string.GetHashCode(), this is not runtime-randomized.
+        private static int StableSeed(string value)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                var text = value ?? string.Empty;
+                for (var i = 0; i < text.Length; i++)
+                {
+                    hash ^= text[i];
+                    hash *= 16777619;
+                }
+                return (int)hash;
+            }
         }
 
         private static Material CreateMaterial(string name, Color color)
