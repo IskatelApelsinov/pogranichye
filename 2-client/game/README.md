@@ -30,17 +30,19 @@ The repository initially contained a source scaffold rather than a fully initial
 - Full-snapshot JSON parsing and protocol validation (`v == 1`).
 - Entity View registry keyed by `ulong` parsed from string IDs.
 - Temporary client-side neighbor layout only; it is not world coordinates.
-- Camera-facing world-space labels for the player and nearby NPCs; per-renderer colors use `MaterialPropertyBlock` rather than allocating one material per entity.
+- Low-poly humanoid player/NPC prototypes with procedural idle motion, camera-facing labels, and per-renderer colors via `MaterialPropertyBlock`.
+- Deterministic procedural village scene: meadow with generated tile texture, packed-earth paths, cottages, well, fence, trees, grass details, directional warm light, ambient light and distance fog.
+- Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - Debug HUD and primitive capsule views to validate the end-to-end connection.
-- A generated starter scene with camera, directional light, ground plane and the runtime client controller.
+- A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts.
 
 ## Run
 
 1. Start the Go server on `http://127.0.0.1:8090`.
 2. Open `Assets/_Project/Scenes/VerticalSlice.unity`.
 3. Enter login and password. Register first if needed, then log in.
-4. Connect to the world. The client renders the player plus up to eight neighbors.
+4. Connect to the world. The client builds the prototype village and renders the animated player plus nearby NPCs. Their positions are temporary presentation layout, not server coordinates.
 5. Use the goal buttons to send v1 intent messages.
 
 The client sends intentions only. It never changes authoritative world state locally.
