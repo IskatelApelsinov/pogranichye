@@ -14,6 +14,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _starMaterial;
         private static Material _skyMaterial;
         private static Material _cloudMaterial;
+        private static Mesh _starMesh;
+        private static Mesh _grassMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
 
         public static void Build(Transform root, Camera camera)
@@ -44,6 +46,7 @@ namespace Pogranichye.Client.Presentation
                 _skyMaterial.SetColor("_GroundColor", new Color(0.34f, 0.37f, 0.31f));
                 _skyMaterial.SetFloat("_Exposure", 1.1f);
                 RenderSettings.skybox = _skyMaterial;
+                RenderSettings.sun = FindSun();
             }
 
             _starMaterial = CreateTransparentMaterial(
@@ -51,7 +54,7 @@ namespace Pogranichye.Client.Presentation
                 "Distant stars", new Color(0.78f, 0.86f, 1f, 0f));
             if (_starMaterial == null) return;
 
-            var starMesh = new Mesh { name = "Procedural star field" };
+            _starMesh = new Mesh { name = "Procedural star field" };
             var vertices = new Vector3[420 * 4];
             var triangles = new int[420 * 6];
             var random = new System.Random(7919);
@@ -77,13 +80,13 @@ namespace Pogranichye.Client.Presentation
                 triangles[t] = v; triangles[t + 1] = v + 1; triangles[t + 2] = v + 2;
                 triangles[t + 3] = v; triangles[t + 4] = v + 2; triangles[t + 5] = v + 3;
             }
-            starMesh.vertices = vertices;
-            starMesh.triangles = triangles;
-            starMesh.RecalculateBounds();
+            _starMesh.vertices = vertices;
+            _starMesh.triangles = triangles;
+            _starMesh.RecalculateBounds();
             var stars = new GameObject("Stars • high atmosphere");
             stars.transform.SetParent(root, false);
             var filter = stars.AddComponent<MeshFilter>();
-            filter.sharedMesh = starMesh;
+            filter.sharedMesh = _starMesh;
             var renderer = stars.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = _starMaterial;
             stars.AddComponent<WorldSkyFollowCamera>();
@@ -205,19 +208,19 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
-            var mesh = new Mesh { name = "Meadow grass blades" };
-            mesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-            mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+            _grassMesh = new Mesh { name = "Meadow grass blades" };
+            _grassMesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            _grassMesh.SetVertices(vertices);
+            _grassMesh.SetTriangles(triangles, 0);
+            _grassMesh.RecalculateNormals();
+            _grassMesh.RecalculateBounds();
 
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             _grassMaterial = new Material(shader) { name = "Meadow grass • deep green", color = new Color(0.35f, 0.46f, 0.23f) };
             if (_grassMaterial.HasProperty("_Cull")) _grassMaterial.SetInt("_Cull", 0);
             var grass = new GameObject("Meadow grass • dense field detail");
             grass.transform.SetParent(root, false);
-            grass.AddComponent<MeshFilter>().sharedMesh = mesh;
+            grass.AddComponent<MeshFilter>().sharedMesh = _grassMesh;
             grass.AddComponent<MeshRenderer>().sharedMaterial = _grassMaterial;
             grass.isStatic = true;
         }
@@ -249,9 +252,13 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_starMaterial);
             DestroyAsset(_grassMaterial);
             DestroyAsset(_cloudMaterial);
+            DestroyAsset(_starMesh);
+            DestroyAsset(_grassMesh);
             foreach (var material in _landscapeMaterials) DestroyAsset(material);
             _landscapeMaterials.Clear();
             _cloudMaterial = null;
+            _starMesh = null;
+            _grassMesh = null;
             _skyMaterial = null;
             _starMaterial = null;
             _grassMaterial = null;
