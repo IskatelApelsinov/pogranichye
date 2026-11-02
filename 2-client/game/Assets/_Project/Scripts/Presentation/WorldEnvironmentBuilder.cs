@@ -50,7 +50,7 @@ namespace Pogranichye.Client.Presentation
             }
 
             _starMaterial = CreateTransparentMaterial(
-                Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color"),
+                Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Standard"),
                 "Distant stars", new Color(0.78f, 0.86f, 1f, 0f));
             if (_starMaterial == null) return;
 
@@ -89,6 +89,8 @@ namespace Pogranichye.Client.Presentation
             filter.sharedMesh = _starMesh;
             var renderer = stars.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = _starMaterial;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
             stars.AddComponent<WorldSkyFollowCamera>();
         }
 
@@ -222,6 +224,7 @@ namespace Pogranichye.Client.Presentation
             grass.transform.SetParent(root, false);
             grass.AddComponent<MeshFilter>().sharedMesh = _grassMesh;
             grass.AddComponent<MeshRenderer>().sharedMaterial = _grassMaterial;
+            grass.AddComponent<MeadowGrassWind>().Initialize(_grassMesh);
             grass.isStatic = true;
         }
 
@@ -229,7 +232,20 @@ namespace Pogranichye.Client.Presentation
         {
             if (shader == null) return null;
             var material = new Material(shader) { name = name, color = color };
-            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            material.SetOverrideTag("RenderType", "Transparent");
+            if (material.HasProperty("_Surface"))
+            {
+                material.SetFloat("_Surface", 1f);
+                material.SetFloat("_Blend", 0f);
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            }
+            else if (material.HasProperty("_Mode"))
+            {
+                material.SetFloat("_Mode", 3f);
+                material.EnableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            }
             if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
             material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
             material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
@@ -248,6 +264,8 @@ namespace Pogranichye.Client.Presentation
         public static void Cleanup()
         {
             if (RenderSettings.skybox == _skyMaterial) RenderSettings.skybox = null;
+            if (RenderSettings.sun != null && RenderSettings.sun.type == LightType.Directional)
+                RenderSettings.sun = null;
             DestroyAsset(_skyMaterial);
             DestroyAsset(_starMaterial);
             DestroyAsset(_grassMaterial);
@@ -319,6 +337,38 @@ namespace Pogranichye.Client.Presentation
             }
             RenderSettings.ambientLight = Color.Lerp(new Color(0.10f, 0.13f, 0.22f), new Color(0.58f, 0.61f, 0.64f), daylight);
             RenderSettings.fogColor = Color.Lerp(new Color(0.10f, 0.14f, 0.23f), new Color(0.61f, 0.70f, 0.73f), daylight);
+        }
+    }
+
+    /// <summary>Subtle vertex sway for the combined meadow mesh; no per-blade GameObjects are created.</summary>
+    public sealed class MeadowGrassWind : MonoBehaviour
+    {
+        private Mesh _mesh;
+        private Vector3[] _rest;
+        private Vector3[] _vertices;
+
+        public void Initialize(Mesh mesh)
+        {
+            _mesh = mesh;
+            if (_mesh == null) return;
+            _rest = _mesh.vertices;
+            _vertices = new Vector3[_rest.Length];
+            Array.Copy(_rest, _vertices, _rest.Length);
+        }
+
+        private void Update()
+        {
+            if (_mesh == null || _rest == null) return;
+            var time = Time.time * 1.15f;
+            for (var i = 0; i < _rest.Length; i++)
+            {
+                var vertex = _rest[i];
+                if (i % 3 == 2)
+                    vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f;
+                _vertices[i] = vertex;
+            }
+            _mesh.vertices = _vertices;
+            _mesh.RecalculateBounds();
         }
     }
 
