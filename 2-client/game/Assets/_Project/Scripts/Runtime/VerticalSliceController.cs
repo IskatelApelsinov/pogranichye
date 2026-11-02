@@ -621,6 +621,7 @@ namespace Pogranichye.Client
             _frame = null;
             _goalToSend = null;
             _moveSendInFlight = false;
+            _pendingMoveIntents.Clear();
             _moveSendAccumulator = 0f;
             _movementCorrection = Vector3.zero;
             _movementCorrectionRemaining = 0f;
