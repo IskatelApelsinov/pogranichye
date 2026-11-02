@@ -46,7 +46,7 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
-            SetActivity(player, frame.Me.Goal);
+            // Goal is an intention, not a confirmed activity; do not animate from it.
             PlayerTransform = player.transform;
             SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}");
 
