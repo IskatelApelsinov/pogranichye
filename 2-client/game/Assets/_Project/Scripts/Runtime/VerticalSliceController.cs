@@ -11,6 +11,14 @@ namespace Pogranichye.Client
 {
     public sealed class VerticalSliceController : MonoBehaviour
     {
+        private enum WorldConnectionState
+        {
+            Closed,
+            Connecting,
+            AwaitingSnapshot,
+            Active
+        }
+
         [SerializeField] private string serverUrl = "http://127.0.0.1:8090";
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
@@ -22,6 +30,7 @@ namespace Pogranichye.Client
         private string _token;
         private string _goalToSend;
         private WorldFrame _frame;
+        private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
 
         private void Awake()
@@ -34,7 +43,8 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
-            if (!string.IsNullOrEmpty(_goalToSend))
+
+            if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
             {
                 var goal = _goalToSend;
                 _goalToSend = null;
@@ -44,10 +54,13 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
-            GUI.Box(new Rect(12, 12, 360, 350), "ПОГРАНИЧЬЕ — Unity v1 Vertical Slice");
-            GUILayout.BeginArea(new Rect(24, 42, 336, 310));
+            GUI.Box(new Rect(12, 12, 380, 390), "ПОГРАНИЧЬЕ — Unity v1 Vertical Slice");
+            GUILayout.BeginArea(new Rect(24, 42, 356, 350));
             GUILayout.Label("Сервер");
+            GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
             serverUrl = GUILayout.TextField(serverUrl);
+            GUI.enabled = true;
+
             if (string.IsNullOrEmpty(_token))
             {
                 GUILayout.Space(8);
@@ -60,10 +73,22 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("Зарегистрировать")) _ = RegisterAsync();
                 GUI.enabled = true;
             }
-            else if (_frame == null || !_frame.Alive)
+            else if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive)
             {
-                if (GUILayout.Button("Подключиться к миру") && !_busy) _ = ConnectAsync();
-                if (GUILayout.Button("Выйти")) Disconnect();
+                GUILayout.Space(10);
+                GUILayout.Label(ConnectionStateLabel());
+                if (_connectionState == WorldConnectionState.Closed)
+                {
+                    GUI.enabled = !_busy;
+                    if (GUILayout.Button("Подключиться к миру")) _ = ConnectAsync();
+                    GUI.enabled = true;
+                }
+                else if (GUILayout.Button("Отменить подключение"))
+                {
+                    DisconnectWorld("Подключение отменено.");
+                }
+
+                if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
             else
             {
@@ -87,11 +112,28 @@ namespace Pogranichye.Client
                 GoalButton("socialize"); GoalButton("seek_home"); GoalButton("wander");
                 GUILayout.EndHorizontal();
                 if (GUILayout.Button("leave")) _goalToSend = "leave";
-                if (GUILayout.Button("Отключиться")) Disconnect();
+                if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
+                if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
+
             GUILayout.Space(8);
             GUILayout.Label(_status, GUILayout.Height(56));
             GUILayout.EndArea();
+        }
+
+        private string ConnectionStateLabel()
+        {
+            switch (_connectionState)
+            {
+                case WorldConnectionState.Connecting:
+                    return "Устанавливаю WebSocket-соединение…";
+                case WorldConnectionState.AwaitingSnapshot:
+                    return "Соединение установлено. Ожидаю первый полный кадр мира…";
+                case WorldConnectionState.Active:
+                    return "Мир подключён.";
+                default:
+                    return "Нет подключения к миру.";
+            }
         }
 
         private void GoalButton(string goal)
@@ -129,67 +171,136 @@ namespace Pogranichye.Client
 
         private async Task ConnectAsync()
         {
+            if (_connectionState != WorldConnectionState.Closed || _busy || string.IsNullOrEmpty(_token))
+                return;
+
             _busy = true;
+            _connectionState = WorldConnectionState.Connecting;
+            _frame = null;
+            _views.Clear();
+
+            var socket = new WorldSocketClient();
+            _socket = socket;
+            socket.MessageReceived += json => OnSocketMessage(socket, json);
+            socket.Closed += reason => Enqueue(() => HandleSocketClosed(socket, reason));
+
             try
             {
-                _socket?.Dispose();
-                _socket = new WorldSocketClient();
-                _socket.MessageReceived += OnSocketMessage;
-                _socket.Closed += reason => Enqueue(() =>
+                await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
+                Enqueue(() =>
                 {
-                    _frame = null;
-                    _views.Clear();
-                    _status = "Связь закрыта: " + reason;
+                    if (!ReferenceEquals(_socket, socket) || _connectionState != WorldConnectionState.Connecting)
+                        return;
+
+                    _connectionState = WorldConnectionState.AwaitingSnapshot;
+                    _status = "WebSocket подключён. Ожидаю первый полный кадр…";
                 });
-                await _socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
-                Enqueue(() => _status = "WebSocket подключён. Ожидаю первый полный кадр…");
             }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось подключиться: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (!ReferenceEquals(_socket, socket)) return;
+                    _socket = null;
+                    _connectionState = WorldConnectionState.Closed;
+                    socket.Dispose();
+                    _status = "Не удалось подключиться: " + ex.Message;
+                });
+            }
             finally { Enqueue(() => _busy = false); }
         }
 
-        private void OnSocketMessage(string json)
+        private void HandleSocketClosed(WorldSocketClient socket, string reason)
+        {
+            // A delayed close from an older socket must not tear down a newer session.
+            if (!ReferenceEquals(_socket, socket)) return;
+
+            _socket = null;
+            _connectionState = WorldConnectionState.Closed;
+            _frame = null;
+            _views.Clear();
+            socket.Dispose();
+            _status = "Связь закрыта: " + reason;
+        }
+
+        private void OnSocketMessage(WorldSocketClient socket, string json)
         {
             try
             {
                 var frame = WorldFrameParser.Parse(json);
                 Enqueue(() =>
                 {
+                    // Ignore frames queued by a socket that has already been replaced or closed.
+                    if (!ReferenceEquals(_socket, socket) || _connectionState == WorldConnectionState.Closed)
+                        return;
+
                     _frame = frame;
                     if (!frame.Alive)
                     {
                         _views.Clear();
+                        _socket = null;
+                        _connectionState = WorldConnectionState.Closed;
+                        socket.Dispose();
                         _status = frame.Message ?? "Персонаж покинул мир.";
                     }
                     else
                     {
+                        _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
                         _status = "Получен полный кадр v1.";
                     }
                 });
             }
-            catch (Exception ex) { Enqueue(() => _status = "Ошибка кадра: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Ошибка кадра: " + ex.Message;
+                });
+            }
         }
 
         private async Task SendGoalAsync(string goal)
         {
+            var socket = _socket;
             try
             {
-                if (_socket == null) throw new InvalidOperationException("Нет подключения к миру.");
-                await _socket.SendGoalAsync(goal, _lifetime.Token);
-                Enqueue(() => _status = "Намерение отправлено: " + goal);
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendGoalAsync(goal, _lifetime.Token);
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Намерение отправлено: " + goal;
+                });
             }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось отправить намерение: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось отправить намерение: " + ex.Message;
+                });
+            }
         }
 
-        private void Disconnect()
+        private void DisconnectWorld(string status)
         {
-            _socket?.Dispose();
+            var socket = _socket;
             _socket = null;
-            _token = null;
+            _connectionState = WorldConnectionState.Closed;
             _frame = null;
+            _goalToSend = null;
             _views.Clear();
-            _status = "Отключено.";
+            socket?.Dispose();
+            _status = status;
+        }
+
+        private void Logout()
+        {
+            DisconnectWorld("Вы вышли из аккаунта.");
+            _token = null;
         }
 
         private bool ValidateCredentials()
@@ -249,6 +360,8 @@ namespace Pogranichye.Client
         {
             _lifetime.Cancel();
             _socket?.Dispose();
+            _socket = null;
+            _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
         }
     }
