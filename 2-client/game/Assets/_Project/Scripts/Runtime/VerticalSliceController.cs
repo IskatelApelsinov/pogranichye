@@ -49,6 +49,7 @@ namespace Pogranichye.Client
             entityRoot.SetParent(_presentationRoot, false);
             _views = new EntityViewRegistry(entityRoot);
             WorldPoi.Selected += OnPoiSelected;
+            WorldNpc.Selected += OnNpcSelected;
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
         }
@@ -192,6 +193,20 @@ namespace Pogranichye.Client
 
             RequestTutorialGoal(poi.Goal);
             _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
+        }
+
+        private void OnNpcSelected(WorldNpc npc)
+        {
+            if (npc == null) return;
+            if (_connectionState != WorldConnectionState.Active)
+            {
+                _status = "Подключитесь к миру, чтобы обратиться к жителю.";
+                return;
+            }
+
+            RequestTutorialGoal("socialize");
+            _status = "Вы обратились к " + npc.DisplayName +
+                ". Отправляю общую цель общения; адресный диалог пока не входит в v1.";
         }
 
         private void RequestTutorialGoal(string goal)
@@ -437,6 +452,7 @@ namespace Pogranichye.Client
         private void OnDestroy()
         {
             WorldPoi.Selected -= OnPoiSelected;
+            WorldNpc.Selected -= OnNpcSelected;
             _lifetime.Cancel();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_createdCameraRig && _cameraRig != null)
