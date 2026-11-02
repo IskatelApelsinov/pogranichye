@@ -50,7 +50,6 @@ namespace Pogranichye.Client
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
-        private float _predictedMoveSpeed;
 
         private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
@@ -394,7 +393,7 @@ namespace Pogranichye.Client
             if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
 
             var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            input = Vector2.ClampMagnitude(input, 1f);
+            input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(input, 1f);
 
             var camera = Camera.main;
             var forward = camera != null ? camera.transform.forward : player.forward;
@@ -410,7 +409,6 @@ namespace Pogranichye.Client
             var moving = worldMove.sqrMagnitude > 0.001f;
             var running = moving && Input.GetKey(KeyCode.LeftShift);
             var speed = running ? 3.2f : 1.4f;
-            _predictedMoveSpeed = moving ? speed : 0f;
 
             if (moving)
             {
@@ -434,7 +432,7 @@ namespace Pogranichye.Client
 
             _moveSendAccumulator = 0f;
             var elapsed = _lastMoveSentAt <= 0f
-                ? Mathf.Max(0.02f, Time.unscaledDeltaTime)
+                ? Mathf.Max(0.001f, _moveSendAccumulator)
                 : Mathf.Max(0.001f, Time.unscaledTime - _lastMoveSentAt);
             _lastMoveSentAt = Time.unscaledTime;
 
