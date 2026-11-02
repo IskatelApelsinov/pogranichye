@@ -457,18 +457,21 @@ func recordNotableDeath(w *core.World, day int64, id core.ID) {
 	if who.Surname != "" {
 		name += " " + who.Surname
 	}
+	// ЯВНЫЙ приоритет (чтобы роль не терялась, если их несколько): хозяин села → маг → старец.
+	// Хозяин — глава поселения, его уход civic-событие; потому он важнее даже старости/дара.
+	keeper := false
+	if pl := core.Place(e); pl != nil {
+		if se := w.Get(pl.Settlement); se != nil && core.Settle(se).Keeper == id {
+			keeper = true
+		}
+	}
 	switch {
+	case keeper:
+		chronicle.Record(w, day, "смерть", "не стало хозяина села "+name)
 	case who.Role == "mage" && arcane.Mage(e) != nil:
 		chronicle.Record(w, day, "смерть", "ушёл маг "+name)
 	case v != nil && v.Age >= 60:
 		chronicle.Record(w, day, "смерть", "преставился старец "+name)
-	default:
-		// корчмарь-хозяин: проверяем, числится ли он Keeper своего села
-		if pl := core.Place(e); pl != nil {
-			if se := w.Get(pl.Settlement); se != nil && core.Settle(se).Keeper == id {
-				chronicle.Record(w, day, "смерть", "не стало хозяина корчмы "+name)
-			}
-		}
 	}
 }
 

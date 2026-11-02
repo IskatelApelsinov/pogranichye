@@ -108,7 +108,16 @@ func Report(w *core.World, clock core.Clock) {
 		DebugWars, atWar, DebugWarDead, DebugClimate, DebugPlague)
 
 	if c := chronicle.Of(w); c != nil {
-		fmt.Printf("\nЛетопись мира (всего записей по родам): %v\n", c.Tally)
+		keys := make([]string, 0, len(c.Tally))
+		for k := range c.Tally {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys) // стабильный порядок отчёта (карта сама по себе неупорядочена)
+		tally := ""
+		for _, k := range keys {
+			tally += fmt.Sprintf("%s=%d  ", k, c.Tally[k])
+		}
+		fmt.Printf("\nЛетопись мира (всего по родам): %s\n", tally)
 		fmt.Println("Последнее, что помнит мир:")
 		from := len(c.Entries) - 8
 		if from < 0 {
