@@ -30,7 +30,7 @@ The repository initially contained a source scaffold rather than a fully initial
 - Full-snapshot JSON parsing and protocol validation (`v == 1`).
 - Entity View registry keyed by `ulong` parsed from string IDs.
 - Temporary client-side neighbor layout only; it is not world coordinates.
-- Low-poly humanoid player/NPC prototypes with role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
+- Low-poly humanoid player/NPC prototypes with simple facial features, profession accessories (caps, hats and headbands), role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
 - Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, a tavern, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
 - Clickable tutorial POI markers/signs for tavern, work, food and garden. Markers brighten on pointer hover; clicking sends the mapped existing v1 goal. The marker does not locally perform the activity. The v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
 - Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
