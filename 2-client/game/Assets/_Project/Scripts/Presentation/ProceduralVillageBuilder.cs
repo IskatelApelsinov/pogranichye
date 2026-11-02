@@ -185,11 +185,11 @@ namespace Pogranichye.Client.Presentation
             var marker = new GameObject("POI • " + title).transform;
             marker.SetParent(root, false);
             marker.position = position;
-            var poi = marker.gameObject.AddComponent<WorldPoi>();
-            poi.Initialize(title, goal);
             var hitArea = marker.gameObject.AddComponent<SphereCollider>();
             hitArea.center = new Vector3(0, 0.45f, 0);
             hitArea.radius = 0.8f;
+            var poi = marker.gameObject.AddComponent<WorldPoi>();
+            poi.Initialize(title, goal);
             var beacon = CreatePrimitive("Marker", PrimitiveType.Cylinder, marker,
                 new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
             var renderer = beacon.GetComponent<Renderer>();
