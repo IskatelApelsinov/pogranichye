@@ -302,7 +302,7 @@ namespace Pogranichye.Client.Presentation
             BuildStreetLantern(root, ambient, new Vector3(-9.8f, 0, -1.8f));
 
             // Everyday objects: a place to sit, draw water, wash clothes and unload goods.
-            BuildVillageBench(root, new Vector3(4.8f, 0, -2.8f));
+            BuildVillageBench(root, new Vector3(5.4f, 0, -5.4f));
             BuildLaundryLine(root, ambient, new Vector3(-10.0f, 0, 10.0f));
             BuildMarketCrates(root, new Vector3(-6.2f, 0, -2.6f));
             BuildHitchingPost(root, new Vector3(5.0f, 0, 4.2f));
@@ -711,7 +711,7 @@ namespace Pogranichye.Client.Presentation
             var label = new GameObject("Sign text").transform;
             label.SetParent(parent, false);
             label.localPosition = position + new Vector3(0, 0, -0.07f);
-            label.localRotation = Quaternion.identity;
+            label.localRotation = Quaternion.Euler(0f, 180f, 0f); // face the village approach, not the wall
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
