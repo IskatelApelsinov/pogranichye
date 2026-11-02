@@ -448,8 +448,7 @@ namespace Pogranichye.Client
                 var movementDelta = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
                 var next = player.position + worldMove.normalized * speed * movementDelta;
                 var flat = new Vector2(next.x, next.z);
-                flat.x = Mathf.Clamp(flat.x, -29.5f, 29.5f);
-                flat.y = Mathf.Clamp(flat.y, -29.5f, 29.5f);
+                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
                 player.position = new Vector3(flat.x, 0f, flat.y);
 
                 if (!_firstPerson)
@@ -569,8 +568,10 @@ namespace Pogranichye.Client
 
                 position.x += direction.x * speed * dt;
                 position.z += direction.y * speed * dt;
-                position.x = Mathf.Clamp(position.x, -29.5f, 29.5f);
-                position.z = Mathf.Clamp(position.z, -29.5f, 29.5f);
+                var flat = new Vector2(position.x, position.z);
+                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                position.x = flat.x;
+                position.z = flat.y;
             }
             else
             {
