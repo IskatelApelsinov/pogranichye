@@ -30,7 +30,13 @@ namespace Pogranichye.Client.Presentation
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
 
-            var player = GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true);
+            var playerExisted = _views.TryGetValue(playerId, out var existingPlayer);
+            var player = playerExisted ? existingPlayer : GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true);
+            if (!playerExisted && frame.Me.Position != null)
+            {
+                player.transform.position = ToUnityPosition(frame.Me.Position);
+                player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
+            }
             SetActivity(player, frame.Me.Goal);
             PlayerTransform = player.transform;
             SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}\n{frame.Me.Role}\n{frame.Me.Last}");
@@ -49,11 +55,15 @@ namespace Pogranichye.Client.Presentation
 
                     active.Add(id);
                     var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
-                    var position = new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
+                    var position = neighbor.Position != null
+                        ? ToUnityPosition(neighbor.Position)
+                        : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
                     SetActivity(view, neighbor.Act);
                     view.transform.position = position;
-                    if (position.sqrMagnitude > 0.01f)
+                    if (neighbor.Position != null)
+                        view.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f);
+                    else if (position.sqrMagnitude > 0.01f)
                         view.transform.rotation = Quaternion.LookRotation(-position.normalized, Vector3.up);
                     SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
                     visibleCount++;
@@ -69,6 +79,19 @@ namespace Pogranichye.Client.Presentation
                 if (_views[id] != null) Object.Destroy(_views[id]);
                 _views.Remove(id);
             }
+        }
+
+
+        public static Vector3 ToUnityPosition(ScenePositionFrame position)
+        {
+            return position == null
+                ? Vector3.zero
+                : new Vector3((float)position.X, 0f, (float)position.Y);
+        }
+
+        public static float FacingToUnityYaw(double facingDegrees)
+        {
+            return Mathf.Repeat(90f - (float)facingDegrees, 360f);
         }
 
         public void SetPlayerFirstPerson(bool enabled)
