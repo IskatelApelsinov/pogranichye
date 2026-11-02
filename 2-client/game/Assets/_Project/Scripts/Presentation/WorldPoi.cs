@@ -15,6 +15,7 @@ namespace Pogranichye.Client.Presentation
         private Renderer _visual;
         private Color _baseColor;
         private MaterialPropertyBlock _propertyBlock;
+        private bool _focused;
 
         public static event Action<WorldPoi> Selected;
         public string Title { get; private set; }
@@ -36,15 +37,21 @@ namespace Pogranichye.Client.Presentation
                 Selected?.Invoke(this);
         }
 
-        private void OnMouseEnter()
+        /// <summary>Highlights the POI currently under the interaction reticle.</summary>
+        public void SetFocused(bool focused)
         {
-            if (enabled && _visual != null)
-                ApplyColor(Color.Lerp(_baseColor, Color.white, 0.55f));
+            if (_focused == focused) return;
+            _focused = focused;
+            ApplyColor(_focused ? Color.Lerp(_baseColor, Color.white, 0.62f) : _baseColor);
         }
 
-        private void OnMouseExit()
+        private void OnDisable()
         {
-            if (_visual != null) ApplyColor(_baseColor);
+            if (_focused)
+            {
+                _focused = false;
+                ApplyColor(_baseColor);
+            }
         }
 
         private void ApplyColor(Color color)

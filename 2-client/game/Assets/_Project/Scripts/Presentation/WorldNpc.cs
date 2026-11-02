@@ -15,6 +15,7 @@ namespace Pogranichye.Client.Presentation
         private Renderer _bodyRenderer;
         private Color _baseColor;
         private MaterialPropertyBlock _block;
+        private bool _focused;
 
         public static event Action<WorldNpc> Selected;
         public ulong EntityId { get; private set; }
@@ -29,6 +30,7 @@ namespace Pogranichye.Client.Presentation
             {
                 _baseColor = bodyColor;
                 _block = new MaterialPropertyBlock();
+                ApplyColor(_baseColor);
             }
         }
 
@@ -37,15 +39,21 @@ namespace Pogranichye.Client.Presentation
             if (enabled) Selected?.Invoke(this);
         }
 
-        private void OnMouseEnter()
+        /// <summary>Highlights the NPC currently under the interaction reticle.</summary>
+        public void SetFocused(bool focused)
         {
-            if (_bodyRenderer != null)
-                ApplyColor(Color.Lerp(_baseColor, Color.white, 0.32f));
+            if (_focused == focused) return;
+            _focused = focused;
+            ApplyColor(_focused ? Color.Lerp(_baseColor, Color.white, 0.38f) : _baseColor);
         }
 
-        private void OnMouseExit()
+        private void OnDisable()
         {
-            if (_bodyRenderer != null) ApplyColor(_baseColor);
+            if (_focused)
+            {
+                _focused = false;
+                ApplyColor(_baseColor);
+            }
         }
 
         private void ApplyColor(Color color)

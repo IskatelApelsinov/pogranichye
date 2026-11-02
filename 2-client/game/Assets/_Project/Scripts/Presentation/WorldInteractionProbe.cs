@@ -22,16 +22,32 @@ namespace Pogranichye.Client.Presentation
 
         private void Update()
         {
-            _poi = null;
-            _npc = null;
-            if (_camera == null) return;
+            WorldPoi nextPoi = null;
+            WorldNpc nextNpc = null;
 
-            if (Physics.Raycast(_camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)),
-                out var hit, interactRange, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            if (_camera != null)
             {
-                _poi = hit.collider.GetComponentInParent<WorldPoi>();
-                if (_poi == null)
-                    _npc = hit.collider.GetComponentInParent<WorldNpc>();
+                if (Physics.Raycast(_camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)),
+                    out var hit, interactRange, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    nextPoi = hit.collider.GetComponentInParent<WorldPoi>();
+                    if (nextPoi == null)
+                        nextNpc = hit.collider.GetComponentInParent<WorldNpc>();
+                }
+            }
+
+            if (_poi != nextPoi)
+            {
+                if (_poi != null) _poi.SetFocused(false);
+                _poi = nextPoi;
+                if (_poi != null) _poi.SetFocused(true);
+            }
+
+            if (_npc != nextNpc)
+            {
+                if (_npc != null) _npc.SetFocused(false);
+                _npc = nextNpc;
+                if (_npc != null) _npc.SetFocused(true);
             }
 
             if (Input.GetKeyDown(interactKey))
@@ -39,6 +55,14 @@ namespace Pogranichye.Client.Presentation
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();
             }
+        }
+
+        private void OnDisable()
+        {
+            if (_poi != null) _poi.SetFocused(false);
+            if (_npc != null) _npc.SetFocused(false);
+            _poi = null;
+            _npc = null;
         }
 
         private void OnGUI()
