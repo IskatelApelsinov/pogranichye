@@ -34,6 +34,10 @@ namespace Pogranichye.Client
         private WorldFrame _frame;
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
+        private int _tutorialStep;
+        private string _tutorialPendingGoal;
+
+        private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
         private void Awake()
         {
@@ -113,10 +117,10 @@ namespace Pogranichye.Client
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
                 GUILayout.Label("Выберите занятие — сервер выполнит действие по правилам мира:");
-                if (GUILayout.Button("🍺 Таверна — поговорить")) _goalToSend = "socialize";
-                if (GUILayout.Button("🔨 Кузница / огород — работать")) _goalToSend = "work";
-                if (GUILayout.Button("🍞 Рынок — поесть")) _goalToSend = "eat";
-                if (GUILayout.Button("🏠 Дом — отдохнуть")) _goalToSend = "rest";
+                if (GUILayout.Button("🍺 Таверна — поговорить")) RequestTutorialGoal("socialize");
+                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestTutorialGoal("work");
+                if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
+                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -145,20 +149,24 @@ namespace Pogranichye.Client
         {
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
+            if (_tutorialStep >= TutorialGoals.Length)
+                return "Знакомство завершено. Теперь наблюдайте за жителями и выбирайте занятия самостоятельно.";
+            if (!string.IsNullOrEmpty(_tutorialPendingGoal))
+                return "Ожидаем подтверждение сервера. Последнее действие: " + _frame.Me.Last;
 
-            switch (_frame.Me.Goal)
+            switch (_tutorialStep)
             {
-                case "socialize":
-                    return "Вы выбрали общение. Посмотрите, как меняются настроение и последнее действие персонажа.";
-                case "work":
-                    return "Вы выбрали работу. Результат зависит от профессии, запасов и правил симуляции.";
-                case "eat":
-                    return "Вы выбрали еду. Следите за показателем голода и запасами поселения.";
-                case "rest":
-                    return "Вы выбрали отдых. Энергия персонажа восстанавливается по правилам сервера.";
-                default:
-                    return "Начните с таверны: выберите общение, затем попробуйте работу, еду и отдых.";
+                case 0: return "Шаг 1/4 — зайдите в таверну и выберите общение. Познакомьтесь с жителями.";
+                case 1: return "Шаг 2/4 — попробуйте работу. Профессия персонажа влияет на результат.";
+                case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
+                default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
             }
+        }
+
+        private void RequestTutorialGoal(string goal)
+        {
+            _tutorialPendingGoal = goal;
+            _goalToSend = goal;
         }
 
         private async Task RegisterAsync()
@@ -256,6 +264,12 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
+                    {
+                        if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
+                            _tutorialStep++;
+                        _tutorialPendingGoal = null;
+                    }
                     if (!frame.Alive)
                     {
                         _views.Clear();
