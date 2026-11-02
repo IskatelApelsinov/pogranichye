@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
 using Pogranichye.Client;
 using UnityEditor;
@@ -15,7 +16,10 @@ namespace Pogranichye.Client.Editor
         [MenuItem("Tools/Pogranichye/Create v1 Vertical Slice Scene")]
         public static void CreateScene()
         {
-            Directory.CreateDirectory("Assets/_Project/Scenes");
+            // Resolve the physical directory from this Unity project, not the process working directory.
+            var scenesDirectory = Path.Combine(Application.dataPath, "_Project", "Scenes");
+            Directory.CreateDirectory(scenesDirectory);
+
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var cameraObject = new GameObject("Main Camera");
@@ -39,7 +43,9 @@ namespace Pogranichye.Client.Editor
             var controller = new GameObject("PogranichyeVerticalSlice");
             controller.AddComponent<VerticalSliceController>();
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            if (!EditorSceneManager.SaveScene(scene, ScenePath))
+                throw new InvalidOperationException("Unity could not save the generated scene to " + ScenePath);
+
             AssetDatabase.Refresh();
             Debug.Log("Created " + ScenePath + ". Assign a URP Asset in Project Settings > Graphics before Play, then start the Go server.");
         }
