@@ -179,6 +179,12 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict)
 		return
 	}
+	// дать телу место в сцене (ходьба v1.1) — игрок появляется в центре деревенской площадки
+	s.mu.Lock()
+	if e := s.world.Get(cid); e != nil {
+		sim.EnsureScenePos(s.world, e)
+	}
+	s.mu.Unlock()
 	conn, err := wsUpgrade(w, r)
 	if err != nil {
 		s.release(cid, sid) // upgrade не удался — снимаем свою резервацию
@@ -222,17 +228,35 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	var in struct {
 		Op   string `json:"op"`
 		Goal string `json:"goal"`
+		// движение (v1.1): направление (единичный вектор задаёт клиент), бег, взгляд (град), шаг dt, seq
+		MX   float64 `json:"mx"`
+		MY   float64 `json:"my"`
+		Run  bool    `json:"run"`
+		Face float64 `json:"face"`
+		Dt   float64 `json:"dt"`
+		Seq  int64   `json:"seq"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
 	}
-	if in.Op == "goal" && in.Goal != "" {
+	switch in.Op {
+	case "goal":
+		if in.Goal == "" {
+			return
+		}
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
 			if m := core.Mind(e); m != nil {
 				m.Goal = in.Goal
 				m.GoalUntil = s.runner.Clock.TotalHours + 100000
 			}
+		}
+		s.mu.Unlock()
+	case "move":
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			p := sim.EnsureScenePos(s.world, e)
+			sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
 		}
 		s.mu.Unlock()
 	}
@@ -266,6 +290,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"coins": meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash": meStash(e),
+			"pos":   mePos(e), // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -279,8 +304,10 @@ func (s *Server) stateJSON(cid core.ID) string {
 				}
 				if p := core.Place(o); p != nil && p.Settlement == pl.Settlement {
 					if oi := core.Ident(o); oi != nil {
+						nx, ny, nf := sim.NeighborPos(o.ID) // устойчивое положение соседа (сервер пока не симулирует каждого)
 						neighbors = append(neighbors, map[string]any{
-							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct})
+							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct,
+							"pos": map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
 						n++
 					}
 				}
@@ -354,6 +381,19 @@ func meBleeding(e *core.Entity) float64 {
 		return round1(b.Bleeding)
 	}
 	return 0
+}
+
+// mePos — каноническая позиция тела игрока в сцене (ходьба v1.1): координаты (м), взгляд (град),
+// запал бега (0..1) и номер последнего обработанного ввода движения (для сверки на клиенте).
+func mePos(e *core.Entity) map[string]any {
+	p := sim.ScenePos(e)
+	if p == nil {
+		return map[string]any{"x": 0.0, "y": 0.0, "facing": 90.0, "stam": 1.0, "seq": int64(0)}
+	}
+	return map[string]any{
+		"x": round1(p.X), "y": round1(p.Y), "facing": round0(p.Facing),
+		"stam": round1(p.Stam), "seq": p.Seq,
+	}
 }
 
 // meStash — личные закрома игрока (товар → сколько), пусто если ничего нет дома.

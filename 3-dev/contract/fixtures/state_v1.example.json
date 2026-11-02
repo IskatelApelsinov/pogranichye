@@ -22,7 +22,8 @@
     "debt": 0,
     "wounds": { "leg": 3.0 },
     "bleeding": 0,
-    "stash": { "bread": 4 }
+    "stash": { "bread": 4 },
+    "pos": { "x": 0.0, "y": 0.0, "facing": 90, "stam": 1.0, "seq": 0 }
   },
   "place": {
     "name": "Белогорье",
@@ -31,7 +32,13 @@
     "bread": 248,
     "bread_price": 0.4,
     "neighbors": [
-      { "id": "43", "name": "Благана", "role": "farmer", "act": "отдыхает" }
+      {
+        "id": "43",
+        "name": "Благана",
+        "role": "farmer",
+        "act": "отдыхает",
+        "pos": { "x": 5.2, "y": -3.1, "facing": 210 }
+      }
     ]
   }
 }
