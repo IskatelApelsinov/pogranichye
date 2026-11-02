@@ -24,6 +24,8 @@ namespace Pogranichye.Client
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private WorldSocketClient _socket;
         private EntityViewRegistry _views;
+        private PresentationCameraRig _cameraRig;
+        private Transform _presentationRoot;
         private string _login = "";
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
@@ -35,9 +37,12 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
-            var root = new GameObject("EntityViews").transform;
-            _views = new EntityViewRegistry(root);
+            _presentationRoot = new GameObject("PresentationWorld").transform;
+            var entityRoot = new GameObject("EntityViews").transform;
+            entityRoot.SetParent(_presentationRoot, false);
+            _views = new EntityViewRegistry(entityRoot);
             SetupPresentationScene();
+            ProceduralVillageBuilder.Build(_presentationRoot);
         }
 
         private void Update()
@@ -219,6 +224,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
             _views.Clear();
+            if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
             _status = "Связь закрыта: " + reason;
         }
@@ -238,6 +244,7 @@ namespace Pogranichye.Client
                     if (!frame.Alive)
                     {
                         _views.Clear();
+                        if (_cameraRig != null) _cameraRig.SetTarget(null);
                         _socket = null;
                         _connectionState = WorldConnectionState.Closed;
                         socket.Dispose();
@@ -247,6 +254,7 @@ namespace Pogranichye.Client
                     {
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
+                        if (_cameraRig != null) _cameraRig.SetTarget(_views.PlayerTransform);
                         _status = "Получен полный кадр v1.";
                     }
                 });
@@ -293,6 +301,7 @@ namespace Pogranichye.Client
             _frame = null;
             _goalToSend = null;
             _views.Clear();
+            if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket?.Dispose();
             _status = status;
         }
@@ -324,27 +333,31 @@ namespace Pogranichye.Client
                 go.tag = "MainCamera";
                 camera = go.AddComponent<Camera>();
             }
-            camera.transform.position = new Vector3(0, 8, -12);
-            camera.transform.rotation = Quaternion.Euler(28, 0, 0);
+
+            camera.transform.position = new Vector3(0, 8, -10);
+            camera.transform.rotation = Quaternion.Euler(35, 0, 0);
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.12f, 0.15f, 0.17f);
+            camera.backgroundColor = new Color(0.58f, 0.70f, 0.78f);
+            camera.fieldOfView = 48f;
+            _cameraRig = camera.GetComponent<PresentationCameraRig>();
+            if (_cameraRig == null) _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
 
             if (FindObjectOfType<Light>() == null)
             {
                 var light = new GameObject("Directional Light").AddComponent<Light>();
                 light.type = LightType.Directional;
-                light.intensity = 1.15f;
-                light.transform.rotation = Quaternion.Euler(50, -30, 0);
+                light.intensity = 1.25f;
+                light.color = new Color(1f, 0.91f, 0.76f);
+                light.transform.rotation = Quaternion.Euler(48, -32, 0);
             }
 
-            var ground = GameObject.Find("TemporaryPresentationGround");
-            if (ground == null)
-            {
-                ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                ground.name = "TemporaryPresentationGround";
-                ground.transform.localScale = new Vector3(2, 1, 2);
-            }
-            ApplyUrpMaterial(ground.GetComponent<Renderer>(), new Color(0.34f, 0.31f, 0.25f));
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.55f, 0.58f, 0.62f);
+            RenderSettings.fog = true;
+            RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = 22f;
+            RenderSettings.fogEndDistance = 65f;
         }
 
         internal static void ApplyUrpMaterial(Renderer renderer, Color color)
