@@ -14,15 +14,21 @@ const (
 	//                        Это НЕ закон движка, а бережливость жителей: повар не мелет ниже,
 	//                        торговцы не продают ниже. Но в голод отчаявшиеся проедают и его —
 	//                        и остаются без сева. «Священность» делают НПС, не код.
-	yieldRatioMin  = 3.0   // урожай: сам-3 в плохой год...
-	yieldRatioMax  = 6.0   // ...сам-6 в хороший (реальные средневековые цифры)
-	harvestRipe    = 0.75  // ниже спелости жатва почти пустая
-	perWorkerDay   = 5.0   // сколько единиц в день тянет один работник из узла (лес/рыба/руда/дичь)
-	spoilPerDay    = 0.002 // порча запасов в день (еда не копится вечно — лечит инфляцию склада)
-	breadFromWheat = 0.8   // 1 зерно → 0.8 хлеба (помол+выпечка, потери) — цепочка wheat→bread
-	cookGrindDay   = 30.0  // сколько зерна перемалывает один повар в день
-	toolsFromOre   = 0.5   // 2 руды → 1 инструмент
-	smithOreDay    = 4.0   // руды в день на кузнеца
+	yieldRatioMin = 3.0   // урожай: сам-3 в плохой год...
+	yieldRatioMax = 6.0   // ...сам-6 в хороший (реальные средневековые цифры)
+	harvestRipe   = 0.75  // ниже спелости жатва почти пустая
+	perWorkerDay  = 5.0   // сколько единиц в день тянет один работник из узла (лес/рыба/руда/дичь)
+	spoilPerDay   = 0.002 // порча запасов в день (еда не копится вечно — лечит инфляцию склада)
+	// хлеб — цепочкой в ДВА передела: зерно → мука (помол) → хлеб (выпечка). Чистый выход
+	// 0.9*0.9≈0.81 как прежде (~0.8), но мука теперь реальный промежуток (еда и товар на торг).
+	flourFromWheat = 0.9  // помол: зерно → мука
+	breadFromFlour = 0.9  // выпечка: мука → хлеб
+	cookGrindDay   = 30.0 // сколько сырья перерабатывает повар за передел в день
+	// металл — цепочкой: руда → металл (плавка) → инструмент (ковка). Чистый выход 0.6*0.8≈0.48
+	// (~0.5 как прежде), но металл теперь реальный промежуток (товар на межгосударственный торг).
+	metalFromOre   = 0.6   // плавка: руда → металл
+	toolsFromMetal = 0.8   // ковка: металл → инструмент
+	smithOreDay    = 4.0   // сколько сырья перерабатывает кузнец за передел в день
 	taxReach       = 350.0 // дальше этого от столицы сборщик налога не доходит (верст)
 	titheRate      = 0.1   // десятина
 
@@ -307,17 +313,34 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// печём из ИЗЛИШКА зерна, а не из того, что нужно весной на сев. Это и есть «бережливость
 		// жителей» вместо запрета в движке — в голод её нарушит само поедание зерна (edibles).
 		if cooks := l.byRole["cook"]; cooks > 0 {
-			grindable := st[GoodWheat] - sowReserve
-			if grindable > 0 {
-				use := min(grindable, float64(cooks)*cookGrindDay)
+			capacity := float64(cooks) * cookGrindDay
+			// помол: излишек зерна (сверх посевного резерва) → мука
+			if grindable := st[GoodWheat] - sowReserve; grindable > 0 {
+				use := min(grindable, capacity)
 				st[GoodWheat] -= use
-				st[GoodBread] += use * breadFromWheat
+				st[GoodFlour] += use * flourFromWheat
+			}
+			// выпечка: мука → хлеб (отдельный передел той же цепочки)
+			if st[GoodFlour] > 0 {
+				use := min(st[GoodFlour], capacity)
+				st[GoodFlour] -= use
+				st[GoodBread] += use * breadFromFlour
 			}
 		}
-		if smiths := l.byRole["smith"]; smiths > 0 && st[GoodOre] > 0 {
-			use := min(st[GoodOre], float64(smiths)*smithOreDay)
-			st[GoodOre] -= use
-			st[GoodTools] += use * toolsFromOre
+		if smiths := l.byRole["smith"]; smiths > 0 {
+			capacity := float64(smiths) * smithOreDay
+			// плавка: руда → металл
+			if st[GoodOre] > 0 {
+				use := min(st[GoodOre], capacity)
+				st[GoodOre] -= use
+				st[GoodMetal] += use * metalFromOre
+			}
+			// ковка: металл → инструмент
+			if st[GoodMetal] > 0 {
+				use := min(st[GoodMetal], capacity)
+				st[GoodMetal] -= use
+				st[GoodTools] += use * toolsFromMetal
+			}
 		}
 		// сенокос: летом и осенью пастухи запасают сено на зиму (зимой трава не растёт)
 		if season == core.Summer || season == core.Autumn {

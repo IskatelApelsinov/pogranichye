@@ -202,10 +202,7 @@ func makeRealms(w *core.World, g *dice.Stream, settles []core.ID) {
 	if len(settles) == 0 {
 		return
 	}
-	nRealms := 1 + len(settles)/5 // примерно одна держава на ~5 поселений
-	if nRealms > len(realmNames) {
-		nRealms = len(realmNames)
-	}
+	nRealms := 1 + len(settles)/5 // примерно одна держава на ~5 поселений; БЕЗ потолка (имён хватит)
 	buckets := make([][]core.ID, nRealms)
 	for i, sid := range settles {
 		b := i % nRealms
@@ -216,12 +213,20 @@ func makeRealms(w *core.World, g *dice.Stream, settles []core.ID) {
 			continue
 		}
 		w.Spawn(&econ.RealmC{
-			Name:      realmNames[i],
+			Name:      realmName(g, i), // из списка, пока хватает, затем процедурно — без потолка
 			Capital:   buckets[i][0],
 			TaxRate:   0.1, // десятина
 			Territory: buckets[i],
 		})
 	}
+}
+
+// realmName — имя державы: из списка, пока хватает, затем процедурно (держав сколько угодно).
+func realmName(g *dice.Stream, i int) string {
+	if i < len(realmNames) {
+		return realmNames[i]
+	}
+	return procRealmName(g)
 }
 
 func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity {
