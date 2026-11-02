@@ -45,6 +45,7 @@ namespace Pogranichye.Client
         private float _lastMoveSentAt;
         private long _moveSequence;
         private long _lastConfirmedMoveSequence;
+        private bool _hasMovementBaseline;
         private bool _moveSendInFlight;
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
@@ -282,6 +283,11 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
             _views.Clear();
+            _hasMovementBaseline = false;
+            _moveSequence = 0;
+            _lastConfirmedMoveSequence = 0;
+            _lastMoveSentAt = 0f;
+            _moveSendAccumulator = 0f;
 
             var socket = new WorldSocketClient();
             _socket = socket;
@@ -341,8 +347,6 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
-                    if (frame.Alive && frame.Me != null && frame.Me.Position != null)
-                        ReconcileMovement(frame.Me.Position);
                     if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
                     {
                         if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
@@ -362,6 +366,7 @@ namespace Pogranichye.Client
                     {
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
+                        if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
                         if (_cameraRig != null)
                         {
                             _cameraRig.SetTarget(_views.PlayerTransform);
@@ -453,6 +458,19 @@ namespace Pogranichye.Client
         {
             if (position == null) return;
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
+            if (!_hasMovementBaseline)
+            {
+                _moveSequence = position.Sequence;
+                _lastConfirmedMoveSequence = position.Sequence;
+                _hasMovementBaseline = true;
+                if (_views?.PlayerTransform != null)
+                {
+                    _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
+                    _views.PlayerTransform.rotation = Quaternion.Euler(0f,
+                        EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
+                }
+                return;
+            }
             if (position.Sequence < _lastConfirmedMoveSequence) return;
             _lastConfirmedMoveSequence = position.Sequence;
 
