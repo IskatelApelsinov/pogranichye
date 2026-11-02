@@ -51,6 +51,8 @@ namespace Pogranichye.Client.Presentation
 
             var bob = walking ? Mathf.Lerp(0.035f, 0.075f, _locomotion) : resting ? 0.008f : 0.025f;
             _body.localPosition = new Vector3(0, 0.95f + Mathf.Sin(_phase) * bob, 0);
+            _body.localRotation = Quaternion.Euler(walking ? Mathf.Lerp(1.5f, 7f, _locomotion) : 0f, 0f,
+                walking ? Mathf.Sin(_phase * 0.5f) * 1.4f * _locomotion : 0f);
 
             var swing = Mathf.Sin(_phase * 1.4f);
             var leftArmAngle = walking ? swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : 0f;
