@@ -293,13 +293,7 @@ namespace Pogranichye.Client.Presentation
             signpost.position = new Vector3(2.8f, 0, -3.8f);
             CreatePrimitive("Signpost upright", PrimitiveType.Cylinder, signpost,
                 new Vector3(0, 1.45f, 0), new Vector3(0.09f, 1.45f, 0.09f), _woodMaterial);
-            var tavernArrow = CreatePrimitive("Tavern direction board", PrimitiveType.Cube, signpost,
-                new Vector3(-0.58f, 2.25f, 0), new Vector3(1.25f, 0.22f, 0.10f), _roofMaterial);
-            tavernArrow.transform.localRotation = Quaternion.Euler(0, 0, -4f);
             CreateSign(signpost, "КОРЧМА  ←", new Vector3(-0.58f, 2.25f, -0.07f), 0.52f);
-            var smithArrow = CreatePrimitive("Smith direction board", PrimitiveType.Cube, signpost,
-                new Vector3(0.55f, 1.92f, 0), new Vector3(1.15f, 0.22f, 0.10f), _roofMaterial);
-            smithArrow.transform.localRotation = Quaternion.Euler(0, 0, 3f);
             CreateSign(signpost, "КУЗНЕЦ  →", new Vector3(0.55f, 1.92f, -0.07f), 0.48f);
 
             // Warm lanterns break up the long empty road and provide a visual path at dusk.
