@@ -69,11 +69,19 @@ namespace Pogranichye.Client.Presentation
                         : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
                     SetActivity(view, neighbor.Act);
-                    view.transform.position = position;
-                    if (neighbor.Position != null)
-                        view.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f);
-                    else if (position.sqrMagnitude > 0.01f)
-                        view.transform.rotation = Quaternion.LookRotation(-position.normalized, Vector3.up);
+                    var targetRotation = neighbor.Position != null
+                        ? Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f)
+                        : position.sqrMagnitude > 0.01f
+                            ? Quaternion.LookRotation(-position.normalized, Vector3.up)
+                            : view.transform.rotation;
+                    var motion = view.GetComponent<EntityMotion>();
+                    if (motion != null)
+                        motion.SetNetworkTarget(position, targetRotation);
+                    else
+                    {
+                        view.transform.position = position;
+                        view.transform.rotation = targetRotation;
+                    }
                     SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
                     visibleCount++;
                 }
