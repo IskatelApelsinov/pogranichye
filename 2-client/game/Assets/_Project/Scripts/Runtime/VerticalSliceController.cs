@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Pogranichye.Client.Networking;
@@ -47,9 +48,20 @@ namespace Pogranichye.Client
         private long _lastConfirmedMoveSequence;
         private bool _hasMovementBaseline;
         private bool _moveSendInFlight;
+        private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
+
+        private struct PendingMoveIntent
+        {
+            public long Sequence;
+            public float Mx;
+            public float My;
+            public bool Run;
+            public float Face;
+            public float DeltaTime;
+        }
 
         private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
@@ -287,6 +299,7 @@ namespace Pogranichye.Client
             _lastConfirmedMoveSequence = 0;
             _lastMoveSentAt = 0f;
             _moveSendAccumulator = 0f;
+            _pendingMoveIntents.Clear();
 
             var socket = new WorldSocketClient();
             _socket = socket;
@@ -328,6 +341,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
             _moveSendInFlight = false;
+            _pendingMoveIntents.Clear();
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
@@ -438,8 +452,18 @@ namespace Pogranichye.Client
 
             var facingDegrees = Mathf.Repeat(90f - player.eulerAngles.y, 360f);
             _moveSequence++;
+            var intent = new PendingMoveIntent
+            {
+                Sequence = _moveSequence,
+                Mx = worldMove.x,
+                My = worldMove.z,
+                Run = running,
+                Face = facingDegrees,
+                DeltaTime = elapsed
+            };
+            _pendingMoveIntents.Add(intent);
             _moveSendInFlight = true;
-            _ = SendMoveAsync(worldMove.x, worldMove.z, running, facingDegrees, elapsed, _moveSequence);
+            _ = SendMoveAsync(intent);
         }
 
         private void ApplyMovementCorrection(Transform player)
@@ -454,52 +478,91 @@ namespace Pogranichye.Client
 
         private void ReconcileMovement(ScenePositionFrame position)
         {
-            if (position == null) return;
+            if (position == null || _views?.PlayerTransform == null) return;
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
             if (!_hasMovementBaseline)
             {
                 _moveSequence = position.Sequence;
                 _lastConfirmedMoveSequence = position.Sequence;
                 _hasMovementBaseline = true;
-                if (_views?.PlayerTransform != null)
-                {
-                    _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
-                    _views.PlayerTransform.rotation = Quaternion.Euler(0f,
-                        EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
-                }
+                _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
+                _views.PlayerTransform.rotation = Quaternion.Euler(0f,
+                    EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
                 return;
             }
-            if (position.Sequence < _lastConfirmedMoveSequence) return;
+            if (position.Sequence <= _lastConfirmedMoveSequence) return;
             _lastConfirmedMoveSequence = position.Sequence;
 
-            // Only reconcile once the server has acknowledged the newest local intent.
-            // This avoids pulling the predicted body backwards while newer inputs are still in flight.
-            if (position.Sequence < _moveSequence || _views?.PlayerTransform == null) return;
+            // Drop inputs already represented by the authoritative snapshot, then replay
+            // newer local intents over that canonical position before smoothing the correction.
+            for (var i = _pendingMoveIntents.Count - 1; i >= 0; i--)
+                if (_pendingMoveIntents[i].Sequence <= position.Sequence)
+                    _pendingMoveIntents.RemoveAt(i);
 
-            var canonical = EntityViewRegistry.ToUnityPosition(position);
-            var error = canonical - _views.PlayerTransform.position;
+            var replayedPosition = EntityViewRegistry.ToUnityPosition(position);
+            var replayedStamina = _serverStamina;
+            var replayedFacing = position.Facing;
+            for (var i = 0; i < _pendingMoveIntents.Count; i++)
+            {
+                var intent = _pendingMoveIntents[i];
+                PredictServerMove(ref replayedPosition, ref replayedStamina, intent);
+                replayedFacing = intent.Face;
+            }
+
+            _serverStamina = replayedStamina;
+            var error = replayedPosition - _views.PlayerTransform.position;
             if (error.sqrMagnitude > 0.0001f)
             {
                 _movementCorrection = error;
                 _movementCorrectionRemaining = 0.18f;
             }
             _views.PlayerTransform.rotation = Quaternion.Euler(
-                0f, EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
+                0f, EntityViewRegistry.FacingToUnityYaw(replayedFacing), 0f);
         }
 
-        private async Task SendMoveAsync(float mx, float my, bool run, float face, float dt, long sequence)
+        private static void PredictServerMove(ref Vector3 position, ref float stamina, PendingMoveIntent intent)
+        {
+            var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
+            var direction = new Vector2(intent.Mx, intent.My);
+            var length = direction.magnitude;
+            if (length > 0.000001f)
+            {
+                direction /= length;
+                var canRun = intent.Run && stamina > 0f;
+                var speed = canRun ? 3.2f : 1.4f;
+                if (canRun) stamina = Mathf.Max(0f, stamina - 0.18f * dt);
+                else stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+
+                position.x += direction.x * speed * dt;
+                position.z += direction.y * speed * dt;
+                var flat = new Vector2(position.x, position.z);
+                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                position.x = flat.x;
+                position.z = flat.y;
+            }
+            else
+            {
+                stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+            }
+        }
+
+        private async Task SendMoveAsync(PendingMoveIntent intent)
         {
             var socket = _socket;
             try
             {
-                await socket.SendMoveAsync(mx, my, run, face, dt, sequence, _lifetime.Token);
+                await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Face,
+                    intent.DeltaTime, intent.Sequence, _lifetime.Token);
             }
             catch (Exception ex)
             {
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
+                    {
+                        _pendingMoveIntents.RemoveAll(item => item.Sequence == intent.Sequence);
                         _status = "Ошибка отправки движения: " + ex.Message;
+                    }
                 });
             }
             finally
