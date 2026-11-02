@@ -102,6 +102,7 @@ namespace Pogranichye.Client.Presentation
             house.SetParent(root, false);
             house.position = position;
             house.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
+            CreateCameraObstacle(house, "Camera collision • cottage", Vector3.zero, new Vector3(3.5f, 2.7f, 2.9f));
 
             CreatePrimitive("Timber walls", PrimitiveType.Cube, house, new Vector3(0, 1.15f, 0),
                 new Vector3(3.4f, 2.3f, 2.8f), _woodMaterial);
@@ -132,6 +133,9 @@ namespace Pogranichye.Client.Presentation
             var tavern = new GameObject("Tutorial Tavern").transform;
             tavern.SetParent(root, false);
             tavern.position = position;
+            CreateCameraObstacle(tavern, "Camera collision • back wall", new Vector3(0, 1.35f, 1.95f), new Vector3(5.2f, 2.7f, 0.18f));
+            CreateCameraObstacle(tavern, "Camera collision • left wall", new Vector3(-2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f));
+            CreateCameraObstacle(tavern, "Camera collision • right wall", new Vector3(2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f));
 
             // Open-front shell keeps the interior readable from the village square.
             CreatePrimitive("Tavern floor", PrimitiveType.Cube, tavern,
@@ -543,6 +547,17 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(count * spacing, 0.12f, 0.12f), _woodMaterial);
             CreatePrimitive("Fence rail", PrimitiveType.Cube, fence, new Vector3(0, 0.35f, 0),
                 new Vector3(count * spacing, 0.12f, 0.12f), _woodMaterial);
+        }
+
+
+        private static void CreateCameraObstacle(Transform parent, string name, Vector3 center, Vector3 size)
+        {
+            var obstacle = new GameObject(name);
+            obstacle.layer = 2; // Ignore Raycast: camera collision only, never blocks the interaction probe.
+            obstacle.transform.SetParent(parent, false);
+            obstacle.transform.localPosition = center;
+            var box = obstacle.AddComponent<BoxCollider>();
+            box.size = size;
         }
 
         private static GameObject CreatePrimitive(string name, PrimitiveType type, Transform parent,
