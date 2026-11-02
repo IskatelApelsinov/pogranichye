@@ -63,6 +63,35 @@ func TestLatentStallsInDeadZone(t *testing.T) {
 	}
 }
 
+// Магия работает только на НОВЫЙ игровой день: в прочие 23 часа латент не учится и искр нет.
+func TestMagicOnlyOncePerDay(t *testing.T) {
+	w := core.NewWorld("mg4")
+	hub := dice.NewHub("mg4")
+	se := w.Spawn(&core.SettlementC{Tier: "city", Mana: 2.0, Store: map[string]float64{}})
+	e := w.Spawn(
+		&core.IdentC{Name: "ученик", Sex: "м", Role: "farmer"},
+		&core.VitalsC{Age: 25, Health: 100, Energy: 90},
+		&core.MindC{},
+		&core.SkillsC{Skills: map[string]float64{"mage": 20}},
+		&core.PlaceC{Settlement: se.ID},
+		&core.HomeC{Status: "owned", Settlement: se.ID},
+	)
+	w.Attach(e, &arcane.MageC{Awakened: false})
+	before := core.Skills(e).Level("mage")
+	beforeSparks := DebugSparks
+	// час НЕ на границе суток (TotalHours % 24 != 0) — система должна выйти сразу
+	notNewDay := core.Clock{TotalHours: 25}
+	for i := 0; i < 100; i++ {
+		MagicSystem{}.Hour(w, notNewDay, hub)
+	}
+	if core.Skills(e).Level("mage") != before {
+		t.Fatal("вне нового дня латент не должен учиться")
+	}
+	if DebugSparks != beforeSparks {
+		t.Fatal("вне нового дня боги искр не раздают")
+	}
+}
+
 // Боги даруют искру: grantSpark навешивает латентный дар случайному взрослому без дара.
 func TestGrantSpark(t *testing.T) {
 	w := core.NewWorld("mg3")

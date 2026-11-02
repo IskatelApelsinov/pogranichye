@@ -62,11 +62,13 @@ func (MagicSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 	idx := residentIndex(w)
 
-	// Проход 1: по сёлам — сила учителей (пробуждённые маги; старцы учат сильнее) и есть ли школа
-	// (большой город с пробуждённым магом). Заодно считаем, сколько магов уже пробудилось в мире.
+	// Проход 1: по сёлам — сила учителей и есть ли школа (большой город с пробуждённым магом).
+	// УПРОЩЕНИЕ (v1): учительство ПАССИВНОЕ — любой пробуждённый маг в селе уже помогает латентам
+	// самим присутствием (старцы — сильнее). Явный выбор цели «учить» отдельным ярусом — потом.
+	// Заодно считаем, сколько магов уже пробудилось в мире.
 	teach := map[core.ID]float64{}
 	school := map[core.ID]bool{}
-	var schools, placesOfPower []core.ID
+	var schools []core.ID
 	awakenedTotal := 0
 	people := 0
 	w.Each("mage", func(e *core.Entity) {
@@ -93,9 +95,6 @@ func (MagicSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			school[se.ID] = true
 			schools = append(schools, se.ID)
 		}
-		if set.Mana >= 1.3 {
-			placesOfPower = append(placesOfPower, se.ID)
-		}
 	})
 
 	// Проход 2: каждый носитель дара — латент учится/пробуждается/ищет, пробуждённый плетёт
@@ -118,7 +117,7 @@ func (MagicSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 
 		if !mg.Awakened {
-			latentStep(w, e, mg, sk, skill, set, pl.Settlement, teach, school, schools, placesOfPower, ms)
+			latentStep(w, e, mg, sk, skill, set, pl.Settlement, teach, school, schools, ms)
 			return
 		}
 
@@ -178,7 +177,7 @@ func (MagicSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 // на магию месте может уйти искать школу или место силы (тяга высвободить дар — в автоматном мозгу).
 func latentStep(w *core.World, e *core.Entity, mg *arcane.MageC, sk *core.SkillsC, skill float64,
 	set *core.SettlementC, settlement core.ID, teach map[core.ID]float64, school map[core.ID]bool,
-	schools, placesOfPower []core.ID, s *dice.Stream) {
+	schools []core.ID, s *dice.Stream) {
 	m := core.Mind(e)
 	// скорость учения: мана места + учителя + школа
 	rate := manaLearn*set.Mana + teach[settlement]
@@ -207,7 +206,6 @@ func latentStep(w *core.World, e *core.Entity, mg *arcane.MageC, sk *core.Skills
 	// уйти туда учиться. Редко (переселение дорого миру), и только в школу (не в любое место силы),
 	// чтобы не растаскивать малолюдные сёла.
 	poor := set.Mana < 0.9 && teach[settlement] <= 0
-	_ = placesOfPower
 	if poor && len(schools) > 0 && s.Chance(seekChance) {
 		dest := schools[s.Intn(len(schools))]
 		if dest != settlement {
