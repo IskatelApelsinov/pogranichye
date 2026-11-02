@@ -27,6 +27,7 @@ namespace Pogranichye.Client.Presentation
         private static Texture2D _woodTexture;
         private static Texture2D _roofTexture;
         private static Texture2D _stoneTexture;
+        private static Texture2D _waterTexture;
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
@@ -65,6 +66,9 @@ namespace Pogranichye.Client.Presentation
             _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
             _waterMaterial = CreateMaterial("Creek water", new Color(0.20f, 0.39f, 0.43f));
+            _waterTexture = MakeSurfaceTexture("Creek current texture", 5);
+            _waterMaterial.mainTexture = _waterTexture;
+            _waterMaterial.mainTextureScale = new Vector2(1.5f, 8f);
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
                 new Vector3(6, 1, 6), _groundMaterial);
@@ -578,8 +582,10 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildCreekAndFootbridge(Transform root)
         {
-            CreatePrimitive("Narrow village creek", PrimitiveType.Cube, root,
+            var creek = CreatePrimitive("Narrow village creek", PrimitiveType.Cube, root,
                 new Vector3(15.5f, -0.08f, 0), new Vector3(2.2f, 0.12f, 32f), _waterMaterial);
+            var waterMotion = creek.AddComponent<CreekWaterDrift>();
+            waterMotion.Initialize(_waterMaterial, 0.018f);
             CreatePrimitive("Creek bank near", PrimitiveType.Cube, root,
                 new Vector3(14.25f, 0.02f, 0), new Vector3(0.35f, 0.18f, 32f), _pathMaterial);
             CreatePrimitive("Creek bank far", PrimitiveType.Cube, root,
@@ -898,6 +904,7 @@ namespace Pogranichye.Client.Presentation
             if (_woodTexture != null) Object.Destroy(_woodTexture);
             if (_roofTexture != null) Object.Destroy(_roofTexture);
             if (_stoneTexture != null) Object.Destroy(_stoneTexture);
+            if (_waterTexture != null) Object.Destroy(_waterTexture);
             _groundMaterial = null;
             _pathMaterial = null;
             _woodMaterial = null;
@@ -917,6 +924,7 @@ namespace Pogranichye.Client.Presentation
             _woodTexture = null;
             _roofTexture = null;
             _stoneTexture = null;
+            _waterTexture = null;
         }
 
         private static void DestroyAsset(Object asset)
@@ -959,6 +967,12 @@ namespace Pogranichye.Client.Presentation
                 else if (pattern == 4) // stone: irregular mortar joints
                 {
                     if (y % 17 < 2 || (x + (y / 17) * 8) % 23 < 2) shade -= 0.26f;
+                }
+                else if (pattern == 5) // water: broken horizontal highlights and soft current streaks
+                {
+                    var ripple = (x * 7 + y * 3) % 29;
+                    if (ripple < 3) shade += 0.18f;
+                    if ((x + y * 11) % 47 < 2) shade -= 0.10f;
                 }
 
                 shade = Mathf.Clamp(shade, 0.45f, 1.08f);
