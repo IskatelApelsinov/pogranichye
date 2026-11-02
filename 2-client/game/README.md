@@ -30,10 +30,10 @@ The repository initially contained a source scaffold rather than a fully initial
 - Full-snapshot JSON parsing and protocol validation (`v == 1`).
 - Entity View registry keyed by `ulong` parsed from string IDs.
 - Temporary client-side neighbor layout only; it is not world coordinates.
-- Low-poly humanoid player/NPC prototypes with simple facial features, profession accessories (caps, hats and headbands), role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
-- Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, a tavern, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
+- Low-poly humanoid player/NPC prototypes scaled to approximately 1.8 m, with simple facial features, profession accessories (caps, hats and headbands), role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
+- Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, an open-front tavern interior with bar counter, tables, stools, casks and decorative beer mugs, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
 - Clickable tutorial POI markers/signs for tavern, work, food and garden. Markers brighten on pointer hover; clicking sends the mapped existing v1 goal. The marker does not locally perform the activity. The v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
-- Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
+- Hybrid camera prototype: third-person smooth follow by default; optional first-person view with RMB mouse-look and visible arms. NPCs can be selected by clicking them, which sends only the existing generic socialize goal (not targeted dialogue). Environment/entity positions remain presentation-only.
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - First-steps HUD explaining the four supported server goals and showing the latest server-side stats/activity.
 - A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts. Any camera/light created at runtime is parented to the controller lifecycle, and the controller removes only a camera rig component it added itself.
@@ -59,7 +59,7 @@ The client sends intentions only. It never changes authoritative world state loc
 - Incoming WebSocket messages are assembled as bytes before UTF-8 decoding; the 1 MiB limit is measured in bytes and malformed UTF-8 is rejected.
 - Snapshots are full state, approximately once per second.
 - Neighbor positions are a temporary deterministic ring around the player, not server coordinates.
-- The prototype scene builder accepts a stable string seed (currently `tutorial-preview`) and hashes it deterministically. The current v1 snapshot does **not** expose the actual world seed, biome, settlement coordinates, building layout or POIs. When the server supplies agreed metadata, the client can pass the server seed into the generator and derive reproducible presentation geometry without treating it as simulation authority.
+- The prototype scene builder accepts a stable string seed (currently `tutorial-preview`) and hashes it deterministically. The tavern mugs are currently visual props only: actual beer purchase/consumption is a required test-build feature, but must wait for an agreed server-authoritative drink intent and snapshot result. The current v1 snapshot does **not** expose the actual world seed, biome, settlement coordinates, building layout or POIs. When the server supplies agreed metadata, the client can pass the server seed into the generator and derive reproducible presentation geometry without treating it as simulation authority.
 
 ## Verification status
 
