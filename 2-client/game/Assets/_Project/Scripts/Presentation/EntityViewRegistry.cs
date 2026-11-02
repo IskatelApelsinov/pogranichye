@@ -46,9 +46,9 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
-            SetActivity(player, frame.Me.Goal);
+            // A goal is an intention, not a confirmed action. The local player has no world nameplate.
             PlayerTransform = player.transform;
-            SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}\n{frame.Me.Role}\n{frame.Me.Last}");
+            SetLabel(player, string.Empty);
 
             var neighbors = frame.Place?.Neighbors;
             if (neighbors != null)
@@ -82,7 +82,8 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
-                    SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
+                    // v1 has no server-authoritative familiarity flag. Unknown/missing means hidden.
+                    SetLabel(view, string.Empty);
                     visibleCount++;
                 }
             }
