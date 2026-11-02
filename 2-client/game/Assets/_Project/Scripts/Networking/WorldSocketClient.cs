@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Pogranichye.Client.Networking
 {
@@ -40,7 +41,7 @@ namespace Pogranichye.Client.Networking
             if (!IsConnected)
                 throw new InvalidOperationException("WebSocket не подключён.");
 
-            var json = "{\\"v\\":1,\\"op\\":\\"goal\\",\\"goal\\":\\"" + EscapeJson(goal) + "\\"}";
+            var json = "{\"v\":1,\"op\":\"goal\",\"goal\":" + JsonConvert.SerializeObject(goal ?? string.Empty) + "}";
             var bytes = Encoding.UTF8.GetBytes(json);
             await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -92,17 +93,11 @@ namespace Pogranichye.Client.Networking
             }
         }
 
-        private static string EscapeJson(string value)
-        {
-            return (value ?? string.Empty).Replace("\\\\", "\\\\\\\\").Replace("\\\"", "\\\\\\"");
-        }
-
         public void Dispose()
         {
             try { _lifetime?.Cancel(); } catch { }
             try { _socket?.Abort(); _socket?.Dispose(); } catch { }
             _lifetime?.Dispose();
-            _sendGate.Dispose();
         }
     }
 }
