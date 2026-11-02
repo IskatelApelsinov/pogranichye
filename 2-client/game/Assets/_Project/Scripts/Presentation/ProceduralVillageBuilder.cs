@@ -23,6 +23,10 @@ namespace Pogranichye.Client.Presentation
         private static Material _produceMaterial;
         private static Material _waterMaterial;
         private static Texture2D _groundTexture;
+        private static Texture2D _pathTexture;
+        private static Texture2D _woodTexture;
+        private static Texture2D _roofTexture;
+        private static Texture2D _stoneTexture;
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
@@ -35,10 +39,22 @@ namespace Pogranichye.Client.Presentation
             _groundTexture = MakeGroundTexture();
             _groundMaterial.mainTexture = _groundTexture;
             _groundMaterial.mainTextureScale = new Vector2(40, 40);
+            _pathTexture = MakeSurfaceTexture("Packed earth texture", 1);
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
+            _pathMaterial.mainTexture = _pathTexture;
+            _pathMaterial.mainTextureScale = new Vector2(3, 8);
+            _woodTexture = MakeSurfaceTexture("Weathered timber texture", 2);
             _woodMaterial = CreateMaterial("Wood • warm timber", new Color(0.30f, 0.19f, 0.12f));
+            _woodMaterial.mainTexture = _woodTexture;
+            _woodMaterial.mainTextureScale = new Vector2(2, 2);
+            _roofTexture = MakeSurfaceTexture("Thatched roof texture", 3);
             _roofMaterial = CreateMaterial("Roof • dark thatch", new Color(0.22f, 0.20f, 0.16f));
+            _roofMaterial.mainTexture = _roofTexture;
+            _roofMaterial.mainTextureScale = new Vector2(2, 2);
+            _stoneTexture = MakeSurfaceTexture("Rough stone texture", 4);
             _stoneMaterial = CreateMaterial("Stone", new Color(0.39f, 0.39f, 0.35f));
+            _stoneMaterial.mainTexture = _stoneTexture;
+            _stoneMaterial.mainTextureScale = new Vector2(2, 2);
             _leafMaterial = CreateMaterial("Leaves", new Color(0.20f, 0.34f, 0.19f));
             _grassMaterial = CreateMaterial("Grass", new Color(0.46f, 0.53f, 0.29f));
             _beerMaterial = CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f));
@@ -616,6 +632,10 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_produceMaterial);
             DestroyAsset(_waterMaterial);
             if (_groundTexture != null) Object.Destroy(_groundTexture);
+            if (_pathTexture != null) Object.Destroy(_pathTexture);
+            if (_woodTexture != null) Object.Destroy(_woodTexture);
+            if (_roofTexture != null) Object.Destroy(_roofTexture);
+            if (_stoneTexture != null) Object.Destroy(_stoneTexture);
             _groundMaterial = null;
             _pathMaterial = null;
             _woodMaterial = null;
@@ -631,11 +651,59 @@ namespace Pogranichye.Client.Presentation
             _produceMaterial = null;
             _waterMaterial = null;
             _groundTexture = null;
+            _pathTexture = null;
+            _woodTexture = null;
+            _roofTexture = null;
+            _stoneTexture = null;
         }
 
         private static void DestroyAsset(Object asset)
         {
             if (asset != null) Object.Destroy(asset);
+        }
+
+
+        private static Texture2D MakeSurfaceTexture(string textureName, int pattern)
+        {
+            const int size = 64;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear
+            };
+            var random = new System.Random(100 + pattern * 37);
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var noise = (float)random.NextDouble() * 0.12f - 0.06f;
+                var shade = 0.92f + noise;
+                if (pattern == 1) // packed earth: scattered grit and compacted tracks
+                {
+                    if ((x * 17 + y * 29) % 41 == 0) shade -= 0.22f;
+                    if ((x + y * 3) % 53 == 0) shade += 0.12f;
+                }
+                else if (pattern == 2) // timber: long grain with occasional knots
+                {
+                    if (y % 13 < 2) shade -= 0.20f;
+                    if ((x - y * 2 + 64) % 47 < 3) shade -= 0.08f;
+                    if ((x % 29 < 4) && (y % 31 < 5)) shade += 0.10f;
+                }
+                else if (pattern == 3) // thatch: overlapping straw courses
+                {
+                    if (y % 9 < 2) shade -= 0.24f;
+                    if (((x + (y / 9) * 11) % 19) < 2) shade -= 0.12f;
+                }
+                else if (pattern == 4) // stone: irregular mortar joints
+                {
+                    if (y % 17 < 2 || (x + (y / 17) * 8) % 23 < 2) shade -= 0.26f;
+                }
+
+                shade = Mathf.Clamp(shade, 0.45f, 1.08f);
+                texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
+            }
+            texture.Apply();
+            return texture;
         }
 
         private static Texture2D MakeGroundTexture()
