@@ -13,6 +13,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _grassMaterial;
         private static Material _starMaterial;
         private static Material _skyMaterial;
+        private static Material _cloudMaterial;
+        private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
 
         public static void Build(Transform root, Camera camera)
         {
@@ -127,16 +129,22 @@ namespace Pogranichye.Client.Presentation
         private static Material CreateLandscapeMaterial(int seed)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var material = new Material(shader);
-            var variation = (seed % 5) * 0.018f;
-            material.color = new Color(0.24f + variation, 0.32f + variation, 0.25f + variation);
-            return material;
+            var index = Mathf.Abs(seed % 5);
+            while (_landscapeMaterials.Count <= index)
+            {
+                var paletteIndex = _landscapeMaterials.Count;
+                var material = new Material(shader) { name = "Far hills • palette " + paletteIndex };
+                var variation = paletteIndex * 0.018f;
+                material.color = new Color(0.24f + variation, 0.32f + variation, 0.25f + variation);
+                _landscapeMaterials.Add(material);
+            }
+            return _landscapeMaterials[index];
         }
 
         private static void BuildClouds(Transform root)
         {
             var cloudShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var cloudMaterial = new Material(cloudShader)
+            _cloudMaterial = new Material(cloudShader)
             {
                 name = "High cloud • soft ivory",
                 color = new Color(0.82f, 0.86f, 0.88f)
@@ -163,7 +171,7 @@ namespace Pogranichye.Client.Presentation
                         0.65f + (float)random.NextDouble() * 0.45f, 1.4f + (float)random.NextDouble());
                     var collider = puff.GetComponent<Collider>();
                     if (collider != null) UnityEngine.Object.Destroy(collider);
-                    puff.GetComponent<Renderer>().sharedMaterial = cloudMaterial;
+                    puff.GetComponent<Renderer>().sharedMaterial = _cloudMaterial;
                 }
                 cloud.gameObject.AddComponent<WorldCloudDrift>().Initialize(0.22f + (float)random.NextDouble() * 0.18f);
             }
@@ -240,6 +248,10 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_skyMaterial);
             DestroyAsset(_starMaterial);
             DestroyAsset(_grassMaterial);
+            DestroyAsset(_cloudMaterial);
+            foreach (var material in _landscapeMaterials) DestroyAsset(material);
+            _landscapeMaterials.Clear();
+            _cloudMaterial = null;
             _skyMaterial = null;
             _starMaterial = null;
             _grassMaterial = null;
@@ -312,6 +324,13 @@ namespace Pogranichye.Client.Presentation
             transform.position += Vector3.right * (_speed * Time.deltaTime);
             if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
         }
+    }
+
+    public sealed class WindmillRotor : MonoBehaviour
+    {
+        private float _degreesPerSecond;
+        public void Initialize(float degreesPerSecond) { _degreesPerSecond = degreesPerSecond; }
+        private void Update() { transform.Rotate(0f, 0f, _degreesPerSecond * Time.deltaTime, Space.Self); }
     }
 
     public sealed class WorldSkyFollowCamera : MonoBehaviour
