@@ -49,6 +49,7 @@ namespace Pogranichye.Client
         private bool _hasMovementBaseline;
         private bool _moveSendInFlight;
         private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
+        private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
@@ -304,6 +305,8 @@ namespace Pogranichye.Client
             _lastMoveSentAt = 0f;
             _moveSendAccumulator = 0f;
             _pendingMoveIntents.Clear();
+            _moveSendQueue.Clear();
+            _moveSendInFlight = false;
 
             var socket = new WorldSocketClient();
             _socket = socket;
@@ -346,6 +349,8 @@ namespace Pogranichye.Client
             _frame = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
+            _moveSendQueue.Clear();
+            _moveSendInFlight = false;
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
@@ -446,7 +451,7 @@ namespace Pogranichye.Client
             ApplyMovementCorrection(player);
 
             _moveSendAccumulator += Time.unscaledDeltaTime;
-            if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval) || _moveSendInFlight)
+            if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
                 return;
 
             var elapsed = _lastMoveSentAt <= 0f
@@ -467,8 +472,8 @@ namespace Pogranichye.Client
                 DeltaTime = elapsed
             };
             _pendingMoveIntents.Add(intent);
-            _moveSendInFlight = true;
-            _ = SendMoveAsync(intent);
+            _moveSendQueue.Enqueue(intent);
+            StartNextMoveSend();
         }
 
         private void ApplyMovementCorrection(Transform player)
@@ -560,9 +565,20 @@ namespace Pogranichye.Client
             }
         }
 
-        private async Task SendMoveAsync(PendingMoveIntent intent)
+        private void StartNextMoveSend()
         {
-            var socket = _socket;
+            if (_moveSendInFlight || _moveSendQueue.Count == 0 || _socket == null ||
+                !_socket.IsConnected || _connectionState != WorldConnectionState.Active)
+                return;
+
+            var intent = _moveSendQueue.Dequeue();
+            _moveSendInFlight = true;
+            _ = SendMoveAsync(intent, _socket);
+        }
+
+        private async Task SendMoveAsync(PendingMoveIntent intent, WorldSocketClient socket)
+        {
+            Exception failure = null;
             try
             {
                 await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Face,
@@ -570,23 +586,25 @@ namespace Pogranichye.Client
             }
             catch (Exception ex)
             {
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                    {
-                        _pendingMoveIntents.RemoveAll(item => item.Sequence == intent.Sequence);
-                        _status = "Ошибка отправки движения: " + ex.Message;
-                    }
-                });
+                failure = ex;
             }
-            finally
+
+            Enqueue(() =>
             {
-                Enqueue(() =>
+                if (!ReferenceEquals(_socket, socket)) return;
+
+                if (failure != null)
                 {
-                    if (ReferenceEquals(_socket, socket))
-                        _moveSendInFlight = false;
-                });
-            }
+                    // The failed packet and any later queued inputs were never confirmed by
+                    // the transport. Drop that tail and let the next server snapshot correct prediction.
+                    _pendingMoveIntents.RemoveAll(item => item.Sequence >= intent.Sequence);
+                    _moveSendQueue.Clear();
+                    _status = "Ошибка отправки движения: " + failure.Message;
+                }
+
+                _moveSendInFlight = false;
+                StartNextMoveSend();
+            });
         }
 
         private async Task SendGoalAsync(string goal)
@@ -622,6 +640,7 @@ namespace Pogranichye.Client
             _goalToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
+            _moveSendQueue.Clear();
             _moveSendAccumulator = 0f;
             _movementCorrection = Vector3.zero;
             _movementCorrectionRemaining = 0f;
