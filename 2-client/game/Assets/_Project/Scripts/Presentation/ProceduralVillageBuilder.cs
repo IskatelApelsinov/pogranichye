@@ -120,8 +120,23 @@ namespace Pogranichye.Client.Presentation
             house.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
             CreateCameraObstacle(house, "Camera collision • cottage", Vector3.zero, new Vector3(3.5f, 2.7f, 2.9f));
 
+            // Stone plinth lifts the timber frame clear of the damp ground.
+            CreatePrimitive("Stone foundation", PrimitiveType.Cube, house, new Vector3(0, 0.20f, 0),
+                new Vector3(3.55f, 0.40f, 2.95f), _stoneMaterial);
             CreatePrimitive("Timber walls", PrimitiveType.Cube, house, new Vector3(0, 1.15f, 0),
                 new Vector3(3.4f, 2.3f, 2.8f), _woodMaterial);
+            // Exposed framing, corner posts and a lower wall rail break up the large flat wall planes.
+            for (var x = -1; x <= 1; x += 2)
+            {
+                CreatePrimitive("Front corner post", PrimitiveType.Cube, house,
+                    new Vector3(x * 1.58f, 1.18f, -1.43f), new Vector3(0.18f, 2.25f, 0.16f), _roofMaterial);
+                CreatePrimitive("Rear corner post", PrimitiveType.Cube, house,
+                    new Vector3(x * 1.58f, 1.18f, 1.43f), new Vector3(0.18f, 2.25f, 0.16f), _roofMaterial);
+            }
+            CreatePrimitive("Front lower rail", PrimitiveType.Cube, house,
+                new Vector3(0, 0.48f, -1.44f), new Vector3(3.2f, 0.13f, 0.13f), _roofMaterial);
+            CreatePrimitive("Front upper rail", PrimitiveType.Cube, house,
+                new Vector3(0, 2.02f, -1.44f), new Vector3(3.2f, 0.13f, 0.13f), _roofMaterial);
             var leftRoof = CreatePrimitive("Thatched roof left", PrimitiveType.Cube, house,
                 new Vector3(-0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
             leftRoof.transform.localRotation = Quaternion.Euler(0, 0, -25f);
@@ -130,10 +145,20 @@ namespace Pogranichye.Client.Presentation
             rightRoof.transform.localRotation = Quaternion.Euler(0, 0, 25f);
             CreatePrimitive("Door", PrimitiveType.Cube, house, new Vector3(0, 0.72f, -1.415f),
                 new Vector3(0.75f, 1.45f, 0.08f), _roofMaterial);
-            CreatePrimitive("Window left", PrimitiveType.Cube, house, new Vector3(-1.05f, 1.45f, -1.43f),
-                new Vector3(0.48f, 0.55f, 0.08f), _stoneMaterial);
-            CreatePrimitive("Window right", PrimitiveType.Cube, house, new Vector3(1.05f, 1.45f, -1.43f),
-                new Vector3(0.48f, 0.55f, 0.08f), _stoneMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            {
+                var windowX = x * 1.05f;
+                CreatePrimitive("Window frame", PrimitiveType.Cube, house,
+                    new Vector3(windowX, 1.45f, -1.49f), new Vector3(0.58f, 0.66f, 0.10f), _roofMaterial);
+                CreatePrimitive("Window dark opening", PrimitiveType.Cube, house,
+                    new Vector3(windowX, 1.45f, -1.55f), new Vector3(0.40f, 0.48f, 0.035f), _metalMaterial);
+                CreatePrimitive("Window crossbar", PrimitiveType.Cube, house,
+                    new Vector3(windowX, 1.45f, -1.58f), new Vector3(0.42f, 0.045f, 0.04f), _woodMaterial);
+                for (var shutterSide = -1; shutterSide <= 1; shutterSide += 2)
+                    CreatePrimitive("Window shutter", PrimitiveType.Cube, house,
+                        new Vector3(windowX + shutterSide * 0.34f, 1.45f, -1.50f),
+                        new Vector3(0.12f, 0.58f, 0.12f), _woodMaterial);
+            }
             CreatePrimitive("Chimney", PrimitiveType.Cube, house, new Vector3(1.0f, 3.0f, 0.45f),
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
             CreatePrimitive("Roof ridge", PrimitiveType.Cube, house, new Vector3(0, 3.02f, 0),
@@ -188,9 +213,28 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
 
+            // Exposed timber frame and interior wall rails give the open-front room depth.
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Tavern front frame post", PrimitiveType.Cube, tavern,
+                    new Vector3(x * 2.38f, 1.35f, -1.82f), new Vector3(0.18f, 2.65f, 0.18f), _roofMaterial);
+            CreatePrimitive("Tavern back crossbeam", PrimitiveType.Cube, tavern,
+                new Vector3(0, 2.48f, 1.82f), new Vector3(5.0f, 0.18f, 0.18f), _roofMaterial);
+            CreatePrimitive("Tavern back lower rail", PrimitiveType.Cube, tavern,
+                new Vector3(0, 0.42f, 1.83f), new Vector3(5.0f, 0.12f, 0.12f), _roofMaterial);
+
             // Bar counter, casks, tables and stools.
             CreatePrimitive("Bar counter", PrimitiveType.Cube, tavern,
                 new Vector3(0, 0.62f, 1.25f), new Vector3(3.5f, 1.15f, 0.72f), _woodMaterial);
+            CreatePrimitive("Counter front lower moulding", PrimitiveType.Cube, tavern,
+                new Vector3(0, 0.18f, 0.875f), new Vector3(3.42f, 0.12f, 0.08f), _roofMaterial);
+            CreatePrimitive("Counter front upper moulding", PrimitiveType.Cube, tavern,
+                new Vector3(0, 1.02f, 0.875f), new Vector3(3.42f, 0.10f, 0.08f), _roofMaterial);
+            for (var x = -1; x <= 1; x++)
+                CreatePrimitive("Counter inset panel", PrimitiveType.Cube, tavern,
+                    new Vector3(x * 1.02f, 0.61f, 0.86f), new Vector3(0.88f, 0.62f, 0.045f), _roofMaterial);
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Brass beer tap", PrimitiveType.Cylinder, tavern,
+                    new Vector3(x * 0.72f, 1.42f, 1.02f), new Vector3(0.045f, 0.20f, 0.045f), _metalMaterial);
             CreatePrimitive("Bar counter top", PrimitiveType.Cube, tavern,
                 new Vector3(0, 1.23f, 1.20f), new Vector3(3.75f, 0.12f, 0.9f), _roofMaterial);
             CreatePrimitive("Back bar shelf", PrimitiveType.Cube, tavern,
