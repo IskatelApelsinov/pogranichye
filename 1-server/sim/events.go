@@ -114,7 +114,8 @@ func (WarSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	}
 }
 
-// nearestPeacefulRealm — ближайшая по столице мирная держава (на неё и пойти войной).
+// nearestPeacefulRealm — на кого пойти войной: мирная держава, НЕ союзник, предпочтительно близкая и
+// враждебная. Союзников не трогаем (дипломатия держит мир), к врагам и далёким соседям тянет сильнее.
 func nearestPeacefulRealm(w *core.World, realms []*core.Entity, self *core.Entity) *core.Entity {
 	sr := econ.Realm(self)
 	sc := w.Get(sr.Capital)
@@ -123,7 +124,7 @@ func nearestPeacefulRealm(w *core.World, realms []*core.Entity, self *core.Entit
 	}
 	ss := core.Settle(sc)
 	var best *core.Entity
-	bestD := 1e18
+	bestScore := 1e18
 	for _, re := range realms {
 		if re.ID == self.ID {
 			continue
@@ -132,14 +133,20 @@ func nearestPeacefulRealm(w *core.World, realms []*core.Entity, self *core.Entit
 		if r == nil || r.WarWith != 0 {
 			continue
 		}
+		if econ.Allied(sr, re.ID) {
+			continue // на союзника не идут войной
+		}
 		oc := w.Get(r.Capital)
 		if oc == nil {
 			continue
 		}
 		os := core.Settle(oc)
 		dx, dy := ss.X-os.X, ss.Y-os.Y
-		if d := dx*dx + dy*dy; d < bestD {
-			bestD, best = d, re
+		d := dx*dx + dy*dy
+		// чем враждебнее (ниже стояние) и ближе — тем «привлекательнее» как цель
+		score := sr.Stand(re.ID)*1e6 + d
+		if score < bestScore {
+			bestScore, best = score, re
 		}
 	}
 	return best

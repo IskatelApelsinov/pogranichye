@@ -40,7 +40,23 @@ const (
 	surplusAt      = 60.0 // столько товара в столице — уже излишек на вывоз
 	deficitAt      = 15.0 // меньше столько — нужда (есть куда везти)
 	shipMax        = 40.0 // не грузят больше за раз
+	tradeGoodwill  = 3.0  // насколько дошедший обоз роднит державы (растит дружбу к союзу)
 )
+
+// settlementRealm строит индекс «поселение → держава-владелец» за один проход по державам.
+func settlementRealm(w *core.World) map[core.ID]core.ID {
+	owner := map[core.ID]core.ID{}
+	w.Each("realm", func(re *core.Entity) {
+		r := Realm(re)
+		if r == nil {
+			return
+		}
+		for _, sid := range r.Territory {
+			owner[sid] = re.ID
+		}
+	})
+	return owner
+}
 
 // товары межгосударственной торговли: durable изделия и сырьё, которых где-то густо, где-то пусто.
 var tradeGoods = []string{GoodLeather, GoodCloth, GoodTools, GoodMetal, GoodHide, GoodLinen, GoodMead, GoodCheese}
@@ -58,6 +74,7 @@ func (CaravanSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		return
 	}
 	s := hub.Stream("caravan")
+	owner := settlementRealm(w) // поселение → его держава (для дипломатии дорог/торговли)
 
 	// 1) двигаем караваны в пути; разбой на лихих дорогах; разгрузка по прибытии
 	var arrived, lost []core.ID
@@ -71,8 +88,17 @@ func (CaravanSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			lost = append(lost, e.ID)
 			return
 		}
-		// лихость дороги — от маны краёв, что она соединяет (гуще мана → злее зверь и разбойник)
+		// лихость дороги — от маны краёв (гуще мана → злее зверь/разбойник) И от ДИПЛОМАТИИ:
+		// меж союзниками дороги патрулируют (безопаснее), меж врагами — грабят охотнее.
 		road := (core.Settle(from).Mana + core.Settle(to).Mana) / 2
+		destRealm := owner[c.To]
+		if sr := Realm(w.Get(c.Seller)); sr != nil && destRealm != 0 {
+			if Allied(sr, destRealm) {
+				road *= 0.4
+			} else if IsRival(sr, destRealm) {
+				road *= 1.6
+			}
+		}
 		if s.Chance(banditBase * road) {
 			c.Amount *= (1 - banditLoss) // обоз обобрали в пути (товар реально пропал)
 			DebugRobbed++
@@ -94,6 +120,13 @@ func (CaravanSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			if re := w.Get(c.Seller); re != nil {
 				if r := Realm(re); r != nil {
 					r.Treasury += pay
+					// дошедший обоз роднит державы: растим дружбу обеих сторон (симметрично)
+					if destRealm != 0 && destRealm != c.Seller {
+						r.Nudge(destRealm, tradeGoodwill)
+						if dr := Realm(w.Get(destRealm)); dr != nil {
+							dr.Nudge(c.Seller, tradeGoodwill)
+						}
+					}
 				}
 			}
 			arrived = append(arrived, e.ID)
