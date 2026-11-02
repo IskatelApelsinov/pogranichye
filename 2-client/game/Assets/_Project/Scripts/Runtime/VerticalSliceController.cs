@@ -42,6 +42,7 @@ namespace Pogranichye.Client
         private void Awake()
         {
             _presentationRoot = new GameObject("PresentationWorld").transform;
+            _presentationRoot.SetParent(transform, false);
             var entityRoot = new GameObject("EntityViews").transform;
             entityRoot.SetParent(_presentationRoot, false);
             _views = new EntityViewRegistry(entityRoot);
@@ -330,6 +331,7 @@ namespace Pogranichye.Client
             _frame = null;
             _goalToSend = null;
             _views.Clear();
+            _tutorialPendingGoal = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket?.Dispose();
             _status = status;
