@@ -105,26 +105,105 @@ namespace Pogranichye.Client.Presentation
             var tavern = new GameObject("Tutorial Tavern").transform;
             tavern.SetParent(root, false);
             tavern.position = position;
-            CreatePrimitive("Tavern timber hall", PrimitiveType.Cube, tavern,
-                new Vector3(0, 1.35f, 0), new Vector3(5.2f, 2.7f, 4.2f), _woodMaterial);
+
+            // Open-front shell keeps the interior readable from the village square.
+            CreatePrimitive("Tavern floor", PrimitiveType.Cube, tavern,
+                new Vector3(0, 0.08f, 0), new Vector3(5.0f, 0.16f, 4.0f), _pathMaterial);
+            CreatePrimitive("Tavern back wall", PrimitiveType.Cube, tavern,
+                new Vector3(0, 1.35f, 1.95f), new Vector3(5.2f, 2.7f, 0.18f), _woodMaterial);
+            CreatePrimitive("Tavern left wall", PrimitiveType.Cube, tavern,
+                new Vector3(-2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f), _woodMaterial);
+            CreatePrimitive("Tavern right wall", PrimitiveType.Cube, tavern,
+                new Vector3(2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f), _woodMaterial);
+            CreatePrimitive("Tavern front left", PrimitiveType.Cube, tavern,
+                new Vector3(-2.0f, 1.15f, -1.95f), new Vector3(1.2f, 2.3f, 0.18f), _woodMaterial);
+            CreatePrimitive("Tavern front right", PrimitiveType.Cube, tavern,
+                new Vector3(2.0f, 1.15f, -1.95f), new Vector3(1.2f, 2.3f, 0.18f), _woodMaterial);
+            CreatePrimitive("Tavern front lintel", PrimitiveType.Cube, tavern,
+                new Vector3(0, 2.45f, -1.95f), new Vector3(2.8f, 0.35f, 0.18f), _woodMaterial);
+
             var roofA = CreatePrimitive("Tavern roof left", PrimitiveType.Cube, tavern,
                 new Vector3(-1.35f, 2.95f, 0), new Vector3(3.1f, 0.3f, 4.8f), _roofMaterial);
             roofA.transform.localRotation = Quaternion.Euler(0, 0, -27f);
             var roofB = CreatePrimitive("Tavern roof right", PrimitiveType.Cube, tavern,
                 new Vector3(1.35f, 2.95f, 0), new Vector3(3.1f, 0.3f, 4.8f), _roofMaterial);
             roofB.transform.localRotation = Quaternion.Euler(0, 0, 27f);
-            CreatePrimitive("Tavern door", PrimitiveType.Cube, tavern,
-                new Vector3(0, 0.85f, -2.13f), new Vector3(0.95f, 1.7f, 0.1f), _roofMaterial);
+
+            // The door is deliberately ajar; the prototype has no collision-based movement yet.
+            var door = CreatePrimitive("Tavern open door", PrimitiveType.Cube, tavern,
+                new Vector3(-0.53f, 0.9f, -1.92f), new Vector3(0.9f, 1.8f, 0.12f), _roofMaterial);
+            door.transform.localRotation = Quaternion.Euler(0, -32f, 0);
             CreatePrimitive("Tavern window left", PrimitiveType.Cube, tavern,
-                new Vector3(-1.65f, 1.65f, -2.14f), new Vector3(0.75f, 0.75f, 0.1f), _stoneMaterial);
+                new Vector3(-1.65f, 1.65f, -2.08f), new Vector3(0.55f, 0.65f, 0.08f), _stoneMaterial);
             CreatePrimitive("Tavern window right", PrimitiveType.Cube, tavern,
-                new Vector3(1.65f, 1.65f, -2.14f), new Vector3(0.75f, 0.75f, 0.1f), _stoneMaterial);
-            CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.24f), 0.9f);
+                new Vector3(1.65f, 1.65f, -2.08f), new Vector3(0.55f, 0.65f, 0.08f), _stoneMaterial);
+            CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.12f), 0.9f);
             CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
-            CreatePrimitive("Tavern bench", PrimitiveType.Cube, tavern,
-                new Vector3(-3.4f, 0.35f, -1f), new Vector3(1.8f, 0.18f, 0.45f), _woodMaterial);
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f), new Color(0.75f, 0.48f, 0.22f), "socialize");
+
+            // Bar counter, casks, tables and stools.
+            CreatePrimitive("Bar counter", PrimitiveType.Cube, tavern,
+                new Vector3(0, 0.62f, 1.25f), new Vector3(3.5f, 1.15f, 0.72f), _woodMaterial);
+            CreatePrimitive("Bar counter top", PrimitiveType.Cube, tavern,
+                new Vector3(0, 1.23f, 1.20f), new Vector3(3.75f, 0.12f, 0.9f), _roofMaterial);
+            for (var i = 0; i < 3; i++)
+            {
+                var x = -1.1f + i * 1.1f;
+                CreatePrimitive("Beer cask", PrimitiveType.Cylinder, tavern,
+                    new Vector3(x, 0.48f, 1.72f), new Vector3(0.32f, 0.48f, 0.32f), _woodMaterial);
+                CreateBeerMug(tavern, new Vector3(x, 1.34f, 0.92f));
+            }
+
+            BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
+            BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
+            CreatePrimitive("Fireplace hearth", PrimitiveType.Cube, tavern,
+                new Vector3(-2.15f, 0.45f, 1.0f), new Vector3(0.55f, 0.9f, 0.7f), _stoneMaterial);
+            CreatePrimitive("Fire glow", PrimitiveType.Sphere, tavern,
+                new Vector3(-2.15f, 0.78f, 0.58f), new Vector3(0.22f, 0.30f, 0.12f),
+                CreateMaterial("Fire glow", new Color(1f, 0.36f, 0.08f)));
+            var warmLightObject = new GameObject("Tavern warm light");
+            warmLightObject.transform.SetParent(tavern, false);
+            warmLightObject.transform.localPosition = new Vector3(0, 2.15f, 0.2f);
+            var warmLight = warmLightObject.AddComponent<Light>();
+            warmLight.type = LightType.Point;
+            warmLight.range = 9f;
+            warmLight.intensity = 1.6f;
+            warmLight.color = new Color(1f, 0.66f, 0.36f);
+
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f),
+                new Color(0.75f, 0.48f, 0.22f), "socialize");
+        }
+
+        private static void BuildTavernTable(Transform tavern, Vector3 position)
+        {
+            var table = new GameObject("Tavern table").transform;
+            table.SetParent(tavern, false);
+            table.localPosition = position;
+            CreatePrimitive("Table top", PrimitiveType.Cylinder, table,
+                new Vector3(0, 0.82f, 0), new Vector3(0.72f, 0.10f, 0.72f), _woodMaterial);
+            for (var i = 0; i < 3; i++)
+            {
+                var angle = i * Mathf.PI * 2f / 3f;
+                CreatePrimitive("Table leg", PrimitiveType.Cylinder, table,
+                    new Vector3(Mathf.Cos(angle) * 0.45f, 0.40f, Mathf.Sin(angle) * 0.45f),
+                    new Vector3(0.07f, 0.42f, 0.07f), _roofMaterial);
+                CreatePrimitive("Stool", PrimitiveType.Cylinder, table,
+                    new Vector3(Mathf.Cos(angle) * 1.0f, 0.35f, Mathf.Sin(angle) * 1.0f),
+                    new Vector3(0.28f, 0.08f, 0.28f), _woodMaterial);
+            }
+            CreateBeerMug(table, new Vector3(0.1f, 0.98f, 0.05f));
+        }
+
+        private static void CreateBeerMug(Transform parent, Vector3 position)
+        {
+            var mug = CreatePrimitive("Wooden beer mug", PrimitiveType.Cylinder, parent,
+                position, new Vector3(0.13f, 0.17f, 0.13f),
+                CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f)));
+            CreatePrimitive("Beer foam", PrimitiveType.Sphere, mug.transform,
+                new Vector3(0, 0.92f, 0), new Vector3(1.0f, 0.18f, 1.0f),
+                CreateMaterial("Beer foam", new Color(0.92f, 0.84f, 0.62f)));
+            CreatePrimitive("Mug handle", PrimitiveType.Cube, mug.transform,
+                new Vector3(0.95f, 0, 0), new Vector3(0.22f, 0.12f, 0.10f), _woodMaterial);
         }
 
         private static void BuildBlacksmith(Transform root, Vector3 position)
