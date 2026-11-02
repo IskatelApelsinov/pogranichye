@@ -151,6 +151,8 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
                 if (_frame.Me.Position != null)
                     GUILayout.Label($"Сцена X {_frame.Me.Position.X:0.00} / Z {_frame.Me.Position.Y:0.00} | взгляд {_frame.Me.Position.Facing:0}° | seq {_frame.Me.Position.Sequence}/{_moveSequence}");
+                if (_frame.Me.Position != null)
+                    GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")}");
                 else
                     GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
                 GUILayout.Space(6);
@@ -380,6 +382,10 @@ namespace Pogranichye.Client
                     }
                     if (!frame.Alive)
                     {
+                        _moveSendInFlight = false;
+                        _pendingMoveIntents.Clear();
+                        _moveSendQueue.Clear();
+                        _moveSendAccumulator = 0f;
                         _views.Clear();
                         if (_cameraRig != null) _cameraRig.SetTarget(null);
                         _socket = null;
