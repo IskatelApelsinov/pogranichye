@@ -5,9 +5,14 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -353,11 +358,37 @@ func neighborPos(e *core.Entity) (x, y, facing float64) {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
+	if r.URL.Path == "/" {
+		http.ServeContent(w, r, "index.html", time.Now(), openIndex(s.webDir))
+		return
+	}
+	// статика тонкого клиента (карта village-scene.svg, атлас и пр.) из webDir.
+	// без webDir отдавать нечего — только корневая страница-заглушка.
+	if s.webDir == "" {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeContent(w, r, "index.html", time.Now(), openIndex(s.webDir))
+	// защита от выхода за каталог: чистим путь и держим его внутри webDir.
+	clean := filepath.Clean("/" + strings.TrimPrefix(r.URL.Path, "/"))
+	full := filepath.Join(s.webDir, clean)
+	root, _ := filepath.Abs(s.webDir)
+	abs, _ := filepath.Abs(full)
+	if root == "" || !strings.HasPrefix(abs, root+string(os.PathSeparator)) {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	// тип по расширению; Go не всегда знает .svg — проставим явно.
+	if ct := mime.TypeByExtension(filepath.Ext(abs)); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	} else if strings.EqualFold(filepath.Ext(abs), ".svg") {
+		w.Header().Set("Content-Type", "image/svg+xml")
+	}
+	http.ServeContent(w, r, filepath.Base(abs), time.Now(), bytes.NewReader(data))
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
