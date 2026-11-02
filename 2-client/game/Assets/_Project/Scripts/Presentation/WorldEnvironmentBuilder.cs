@@ -386,20 +386,34 @@ namespace Pogranichye.Client.Presentation
                     NearFootprint(x, z, -20f, -13f, 4f, 4f) ||
                     NearFootprint(x, z, -22f, 13f, 3f, 3f)) continue;
 
-                var petals = 3 + random.Next(3);
-                var height = 0.22f + (float)random.NextDouble() * 0.25f;
-                for (var petal = 0; petal < petals; petal++)
+                var blooms = 2 + random.Next(4);
+                for (var bloom = 0; bloom < blooms; bloom++)
                 {
                     var a = (float)random.NextDouble() * Mathf.PI * 2f;
-                    var offset = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 0.12f;
+                    var offset = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 0.10f;
                     var basePoint = new Vector3(x, 0.04f, z) + offset;
+                    var height = 0.22f + (float)random.NextDouble() * 0.25f;
                     var top = basePoint + Vector3.up * height;
-                    var side = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)) * 0.025f;
-                    var first = flowerVertices.Count;
-                    flowerVertices.Add(basePoint - side);
-                    flowerVertices.Add(basePoint + side);
-                    flowerVertices.Add(top);
-                    flowerTriangles.Add(first); flowerTriangles.Add(first + 1); flowerTriangles.Add(first + 2);
+                    var stemSide = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)) * 0.018f;
+                    var stem = flowerVertices.Count;
+                    flowerVertices.Add(basePoint - stemSide);
+                    flowerVertices.Add(basePoint + stemSide);
+                    flowerVertices.Add(top + Vector3.down * 0.025f);
+                    flowerTriangles.Add(stem); flowerTriangles.Add(stem + 1); flowerTriangles.Add(stem + 2);
+
+                    // Five small radial petals form a readable flower head at the tip of each stem.
+                    for (var petal = 0; petal < 5; petal++)
+                    {
+                        var petalAngle = petal * Mathf.PI * 2f / 5f;
+                        var radial = new Vector3(Mathf.Cos(petalAngle), 0f, Mathf.Sin(petalAngle));
+                        var tangent = new Vector3(-radial.z, 0f, radial.x) * 0.035f;
+                        var center = top;
+                        var first = flowerVertices.Count;
+                        flowerVertices.Add(center + radial * 0.012f - tangent);
+                        flowerVertices.Add(center + radial * 0.012f + tangent);
+                        flowerVertices.Add(center + radial * 0.105f + Vector3.up * 0.018f);
+                        flowerTriangles.Add(first); flowerTriangles.Add(first + 1); flowerTriangles.Add(first + 2);
+                    }
                 }
             }
 
