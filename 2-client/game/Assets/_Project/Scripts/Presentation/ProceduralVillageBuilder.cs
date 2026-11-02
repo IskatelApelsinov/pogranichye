@@ -66,7 +66,7 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial = CreateMaterial("Creek water", new Color(0.20f, 0.39f, 0.43f));
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
-                new Vector3(12, 1, 12), _groundMaterial);
+                new Vector3(6, 1, 6), _groundMaterial);
             ground.isStatic = true;
 
             CreatePrimitive("Village path", PrimitiveType.Cube, village, new Vector3(0, 0.025f, 0),
