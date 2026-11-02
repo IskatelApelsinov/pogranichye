@@ -71,6 +71,18 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        public void SetPlayerFirstPerson(bool enabled)
+        {
+            if (PlayerTransform == null) return;
+            var renderers = PlayerTransform.GetComponentsInChildren<Renderer>(true);
+            foreach (var renderer in renderers)
+            {
+                var partName = renderer.transform.name;
+                var isArm = partName == "Left arm" || partName == "Right arm";
+                renderer.enabled = !enabled || isArm;
+            }
+        }
+
         public void Clear()
         {
             foreach (var view in _views.Values)
