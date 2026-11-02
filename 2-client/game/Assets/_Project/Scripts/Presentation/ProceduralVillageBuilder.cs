@@ -18,6 +18,10 @@ namespace Pogranichye.Client.Presentation
         private static Material _beerMaterial;
         private static Material _foamMaterial;
         private static Material _fireMaterial;
+        private static Material _metalMaterial;
+        private static Material _clothMaterial;
+        private static Material _produceMaterial;
+        private static Material _waterMaterial;
         private static Texture2D _groundTexture;
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
@@ -40,6 +44,10 @@ namespace Pogranichye.Client.Presentation
             _beerMaterial = CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f));
             _foamMaterial = CreateMaterial("Beer foam", new Color(0.92f, 0.84f, 0.62f));
             _fireMaterial = CreateMaterial("Fire glow", new Color(1f, 0.36f, 0.08f));
+            _metalMaterial = CreateMaterial("Forged iron", new Color(0.20f, 0.22f, 0.23f));
+            _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
+            _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
+            _waterMaterial = CreateMaterial("Creek water", new Color(0.20f, 0.39f, 0.43f));
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
                 new Vector3(12, 1, 12), _groundMaterial);
@@ -59,6 +67,12 @@ namespace Pogranichye.Client.Presentation
             BuildGarden(village, new Vector3(6f, 0, -9f));
             BuildWell(village, new Vector3(3.2f, 0, -2.4f));
             BuildFence(village, new Vector3(0, 0, -13), 12, 0.5f);
+            BuildBarrel(village, new Vector3(4.1f, 0, 7.0f), 0.85f);
+            BuildBarrel(village, new Vector3(4.8f, 0, 7.0f), 0.72f);
+            BuildWoodPile(village, new Vector3(-8.2f, 0, -2.4f));
+            BuildHandCart(village, new Vector3(-6.2f, 0, -7.4f));
+            BuildCreekAndFootbridge(village);
+            BuildDistantTreeLine(village);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -104,6 +118,12 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.48f, 0.55f, 0.08f), _stoneMaterial);
             CreatePrimitive("Chimney", PrimitiveType.Cube, house, new Vector3(1.0f, 3.0f, 0.45f),
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
+            CreatePrimitive("Roof ridge", PrimitiveType.Cube, house, new Vector3(0, 3.02f, 0),
+                new Vector3(0.18f, 0.18f, 3.35f), _woodMaterial);
+            CreatePrimitive("Front timber beam", PrimitiveType.Cube, house, new Vector3(0, 2.05f, -1.44f),
+                new Vector3(3.35f, 0.13f, 0.12f), _roofMaterial);
+            CreatePrimitive("Door handle", PrimitiveType.Sphere, house, new Vector3(0.23f, 0.72f, -1.48f),
+                new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
         }
 
         private static void BuildTavern(Transform root, Vector3 position)
@@ -152,6 +172,11 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0, 0.62f, 1.25f), new Vector3(3.5f, 1.15f, 0.72f), _woodMaterial);
             CreatePrimitive("Bar counter top", PrimitiveType.Cube, tavern,
                 new Vector3(0, 1.23f, 1.20f), new Vector3(3.75f, 0.12f, 0.9f), _roofMaterial);
+            CreatePrimitive("Back bar shelf", PrimitiveType.Cube, tavern,
+                new Vector3(0, 1.95f, 1.78f), new Vector3(3.5f, 0.10f, 0.42f), _woodMaterial);
+            for (var i = 0; i < 5; i++)
+                CreatePrimitive("Shelf bottle", PrimitiveType.Cylinder, tavern,
+                    new Vector3(-1.35f + i * 0.675f, 2.18f, 1.72f), new Vector3(0.09f, 0.18f, 0.09f), _beerMaterial);
             for (var i = 0; i < 3; i++)
             {
                 var x = -1.1f + i * 1.1f;
@@ -221,7 +246,11 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Forge", PrimitiveType.Cube, smithy,
                 new Vector3(-1.1f, 0.65f, -1.6f), new Vector3(1.0f, 1.3f, 0.8f), _stoneMaterial);
             CreatePrimitive("Anvil", PrimitiveType.Cube, smithy,
-                new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _stoneMaterial);
+                new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _metalMaterial);
+            CreatePrimitive("Anvil horn", PrimitiveType.Cylinder, smithy,
+                new Vector3(1.55f, 0.92f, -1.7f), new Vector3(0.16f, 0.12f, 0.16f), _metalMaterial);
+            CreatePrimitive("Forge glow", PrimitiveType.Sphere, smithy,
+                new Vector3(-1.1f, 1.02f, -1.45f), new Vector3(0.48f, 0.32f, 0.22f), _fireMaterial);
             CreateSign(smithy, "КУЗНИЦА", new Vector3(0, 1.8f, -1.58f), 0.75f);
             CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -2.8f), new Color(0.55f, 0.55f, 0.58f), "work");
         }
@@ -234,12 +263,17 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Market stall", PrimitiveType.Cube, market,
                 new Vector3(0, 1.0f, 0), new Vector3(3.2f, 0.16f, 1.4f), _woodMaterial);
             CreatePrimitive("Market canopy", PrimitiveType.Cube, market,
-                new Vector3(0, 2.0f, 0), new Vector3(3.6f, 0.15f, 1.8f), _roofMaterial);
+                new Vector3(0, 2.0f, 0), new Vector3(3.6f, 0.15f, 1.8f), _clothMaterial);
+            CreatePrimitive("Canopy front valance", PrimitiveType.Cube, market,
+                new Vector3(0, 1.88f, -0.88f), new Vector3(3.6f, 0.28f, 0.10f), _clothMaterial);
             for (var x = -1; x <= 1; x += 2)
                 CreatePrimitive("Market post", PrimitiveType.Cube, market,
                     new Vector3(x * 1.45f, 1.0f, 0), new Vector3(0.12f, 2.0f, 0.12f), _woodMaterial);
             CreatePrimitive("Bread basket", PrimitiveType.Sphere, market,
                 new Vector3(-0.7f, 1.28f, -0.1f), new Vector3(0.55f, 0.28f, 0.55f), _grassMaterial);
+            for (var i = 0; i < 4; i++)
+                CreatePrimitive("Loaf of bread", PrimitiveType.Sphere, market,
+                    new Vector3(-0.9f + i * 0.18f, 1.43f, -0.12f), new Vector3(0.20f, 0.13f, 0.13f), _produceMaterial);
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
             CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
         }
@@ -260,6 +294,98 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(x, 0.42f, z), new Vector3(0.34f, 0.55f, 0.34f), _leafMaterial);
             }
             CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f), "work");
+        }
+
+
+        private static void BuildBarrel(Transform root, Vector3 position, float scale)
+        {
+            var barrel = new GameObject("Oak barrel").transform;
+            barrel.SetParent(root, false);
+            barrel.position = position;
+            barrel.localScale = Vector3.one * scale;
+            CreatePrimitive("Barrel body", PrimitiveType.Cylinder, barrel, new Vector3(0, 0.48f, 0),
+                new Vector3(0.38f, 0.48f, 0.38f), _woodMaterial);
+            for (var y = 0.18f; y <= 0.78f; y += 0.48f)
+                CreatePrimitive("Barrel iron hoop", PrimitiveType.Cylinder, barrel, new Vector3(0, y, 0),
+                    new Vector3(0.395f, 0.035f, 0.395f), _metalMaterial);
+            CreatePrimitive("Barrel lid", PrimitiveType.Cylinder, barrel, new Vector3(0, 0.97f, 0),
+                new Vector3(0.36f, 0.035f, 0.36f), _woodMaterial);
+        }
+
+        private static void BuildWoodPile(Transform root, Vector3 position)
+        {
+            var pile = new GameObject("Stacked firewood").transform;
+            pile.SetParent(root, false);
+            pile.position = position;
+            for (var row = 0; row < 3; row++)
+            for (var col = 0; col < 4; col++)
+            {
+                var log = CreatePrimitive("Firewood log", PrimitiveType.Cylinder, pile,
+                    new Vector3(col * 0.34f - 0.5f, 0.18f + row * 0.28f, 0),
+                    new Vector3(0.13f, 0.22f, 0.13f), _woodMaterial);
+                log.transform.localRotation = Quaternion.Euler(90, 0, (row % 2) * 18);
+            }
+        }
+
+        private static void BuildHandCart(Transform root, Vector3 position)
+        {
+            var cart = new GameObject("Village handcart").transform;
+            cart.SetParent(root, false);
+            cart.position = position;
+            CreatePrimitive("Cart bed", PrimitiveType.Cube, cart, new Vector3(0, 0.58f, 0),
+                new Vector3(1.25f, 0.14f, 0.85f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Cart side", PrimitiveType.Cube, cart, new Vector3(x * 0.58f, 0.95f, z * 0.38f),
+                    new Vector3(0.10f, 0.62f, 0.85f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            {
+                var wheel = CreatePrimitive("Cart wheel", PrimitiveType.Cylinder, cart,
+                    new Vector3(x * 0.72f, 0.42f, 0), new Vector3(0.12f, 0.55f, 0.55f), _woodMaterial);
+                wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
+            }
+            CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
+                new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
+        }
+
+        private static void BuildCreekAndFootbridge(Transform root)
+        {
+            CreatePrimitive("Narrow village creek", PrimitiveType.Cube, root,
+                new Vector3(15.5f, -0.08f, 0), new Vector3(2.2f, 0.12f, 32f), _waterMaterial);
+            CreatePrimitive("Creek bank near", PrimitiveType.Cube, root,
+                new Vector3(14.25f, 0.02f, 0), new Vector3(0.35f, 0.18f, 32f), _pathMaterial);
+            CreatePrimitive("Creek bank far", PrimitiveType.Cube, root,
+                new Vector3(16.75f, 0.02f, 0), new Vector3(0.35f, 0.18f, 32f), _pathMaterial);
+            var bridge = new GameObject("Old plank footbridge").transform;
+            bridge.SetParent(root, false);
+            bridge.position = new Vector3(15.5f, 0.12f, -2.5f);
+            for (var i = -2; i <= 2; i++)
+                CreatePrimitive("Bridge plank", PrimitiveType.Cube, bridge,
+                    new Vector3(i * 0.36f, 0, 0), new Vector3(0.34f, 0.12f, 2.7f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            {
+                CreatePrimitive("Bridge rail post", PrimitiveType.Cube, bridge,
+                    new Vector3(x * 0.9f, 0.48f, 0), new Vector3(0.12f, 0.95f, 0.12f), _woodMaterial);
+                CreatePrimitive("Bridge handrail", PrimitiveType.Cube, bridge,
+                    new Vector3(x * 0.9f, 0.85f, 0), new Vector3(0.12f, 0.12f, 2.7f), _woodMaterial);
+            }
+        }
+
+        private static void BuildDistantTreeLine(Transform root)
+        {
+            for (var i = 0; i < 18; i++)
+            {
+                var x = -20f + i * 2.35f;
+                var z = 20f + Mathf.Sin(i * 0.7f) * 2.5f;
+                var tree = new GameObject("Distant tree silhouette").transform;
+                tree.SetParent(root, false);
+                tree.position = new Vector3(x, 0, z);
+                tree.localScale = Vector3.one * (1.8f + (i % 4) * 0.25f);
+                CreatePrimitive("Silhouette trunk", PrimitiveType.Cylinder, tree,
+                    new Vector3(0, 1.1f, 0), new Vector3(0.16f, 1.1f, 0.16f), _woodMaterial);
+                CreatePrimitive("Silhouette crown", PrimitiveType.Sphere, tree,
+                    new Vector3(0, 2.7f, 0), new Vector3(1.4f, 1.8f, 1.3f), _leafMaterial);
+            }
         }
 
         private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color, string goal)
@@ -406,6 +532,10 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_beerMaterial);
             DestroyAsset(_foamMaterial);
             DestroyAsset(_fireMaterial);
+            DestroyAsset(_metalMaterial);
+            DestroyAsset(_clothMaterial);
+            DestroyAsset(_produceMaterial);
+            DestroyAsset(_waterMaterial);
             if (_groundTexture != null) Object.Destroy(_groundTexture);
             _groundMaterial = null;
             _pathMaterial = null;
@@ -417,6 +547,10 @@ namespace Pogranichye.Client.Presentation
             _beerMaterial = null;
             _foamMaterial = null;
             _fireMaterial = null;
+            _metalMaterial = null;
+            _clothMaterial = null;
+            _produceMaterial = null;
+            _waterMaterial = null;
             _groundTexture = null;
         }
 
