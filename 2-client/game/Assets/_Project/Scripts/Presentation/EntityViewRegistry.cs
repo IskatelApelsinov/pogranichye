@@ -158,6 +158,10 @@ namespace Pogranichye.Client.Presentation
 
         public void Clear()
         {
+            if (PlayerTransform != null && _firstPersonArmsAttached)
+                SetPlayerFirstPerson(false, null);
+            _leftPlayerArm = null;
+            _rightPlayerArm = null;
             foreach (var view in _views.Values)
                 if (view != null) Object.Destroy(view);
             _views.Clear();
