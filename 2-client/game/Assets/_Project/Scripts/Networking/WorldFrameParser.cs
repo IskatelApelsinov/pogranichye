@@ -108,9 +108,13 @@ namespace Pogranichye.Client.Networking
 
             if (!IsNumber(token["x"]) || !IsNumber(token["y"]) || !IsNumber(token["facing"]))
                 throw new FormatException(fieldName + " должен содержать числовые x, y и facing.");
+            var xValue = token["x"].Value<double>();
+            var yValue = token["y"].Value<double>();
             var facingValue = token["facing"].Value<double>();
-            if (facingValue < 0d || facingValue >= 360d)
-                throw new FormatException(fieldName + ".facing должен быть в диапазоне [0, 360).");
+            if (!IsFinite(xValue) || !IsFinite(yValue) || Math.Abs(xValue) > 30.001d || Math.Abs(yValue) > 30.001d)
+                throw new FormatException(fieldName + " координаты должны быть конечными и находиться в границах площадки ±30 м.");
+            if (!IsFinite(facingValue) || facingValue < 0d || facingValue >= 360d)
+                throw new FormatException(fieldName + ".facing должен быть конечным числом в диапазоне [0, 360).");
 
             if (player)
             {
@@ -123,9 +127,14 @@ namespace Pogranichye.Client.Networking
                     sequenceValue < 0)
                     throw new FormatException(fieldName + ".seq должен быть неотрицательным целым числом в диапазоне int64.");
                 var staminaValue = stamina.Value<double>();
-                if (staminaValue < 0d || staminaValue > 1d)
+                if (!IsFinite(staminaValue) || staminaValue < 0d || staminaValue > 1d)
                     throw new FormatException(fieldName + ".stam должен находиться в диапазоне 0..1.");
             }
+        }
+
+        private static bool IsFinite(double value)
+        {
+            return !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
         private static bool IsNumber(JToken token)
