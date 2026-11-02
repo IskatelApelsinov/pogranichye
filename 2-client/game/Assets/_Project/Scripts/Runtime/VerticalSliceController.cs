@@ -441,8 +441,12 @@ namespace Pogranichye.Client
                 if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
                 player.position = new Vector3(flat.x, 0f, flat.y);
 
-                var facing = Mathf.Atan2(worldMove.z, worldMove.x) * Mathf.Rad2Deg;
-                player.rotation = Quaternion.Euler(0f, EntityViewRegistry.FacingToUnityYaw(facing), 0f);
+                if (!_firstPerson)
+                {
+                    var facing = Mathf.Atan2(worldMove.z, worldMove.x) * Mathf.Rad2Deg;
+                    var targetRotation = Quaternion.Euler(0f, EntityViewRegistry.FacingToUnityYaw(facing), 0f);
+                    player.rotation = Quaternion.RotateTowards(player.rotation, targetRotation, 720f * Time.deltaTime);
+                }
             }
 
             var motion = player.GetComponent<EntityMotion>();
