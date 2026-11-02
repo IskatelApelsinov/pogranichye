@@ -92,7 +92,7 @@ namespace Pogranichye.Client.Presentation
             var ray = desired - focus;
             var distance = ray.magnitude;
             if (distance > 0.001f && Physics.SphereCast(focus, collisionRadius, ray.normalized,
-                out var hit, distance, ~0, QueryTriggerInteraction.Ignore))
+                out var hit, distance, 1 << 2, QueryTriggerInteraction.Ignore))
             {
                 desired = focus + ray.normalized * Mathf.Max(0.35f, hit.distance - 0.18f);
             }
