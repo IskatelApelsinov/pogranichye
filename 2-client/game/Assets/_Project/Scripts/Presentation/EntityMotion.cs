@@ -14,6 +14,7 @@ namespace Pogranichye.Client.Presentation
         private bool _isPlayer;
         private string _activity = "";
         private float _locomotion;
+        private float _locomotionTarget;
 
         public void Initialize(Transform body, Transform leftArm, Transform rightArm,
             Transform leftLeg, Transform rightLeg, bool isPlayer)
@@ -29,7 +30,7 @@ namespace Pogranichye.Client.Presentation
 
         public void SetLocomotion(float normalizedSpeed)
         {
-            _locomotion = Mathf.Clamp01(normalizedSpeed);
+            _locomotionTarget = Mathf.Clamp01(normalizedSpeed);
         }
 
         public void SetActivity(string activity)
@@ -40,6 +41,7 @@ namespace Pogranichye.Client.Presentation
         private void Update()
         {
             if (_body == null) return;
+            _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
             _phase += Time.deltaTime * (walking ? Mathf.Lerp(5.5f, 8.5f, _locomotion) : (_isPlayer ? 2.2f : 1.7f));
 
