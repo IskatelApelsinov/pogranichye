@@ -38,6 +38,7 @@ namespace Pogranichye.Client
         private int _tutorialStep;
         private string _tutorialPendingGoal;
         private bool _firstPerson;
+        private Vector2 _hudScroll;
 
         private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
@@ -70,6 +71,7 @@ namespace Pogranichye.Client
         {
             GUI.Box(new Rect(12, 12, 430, 510), "ПОГРАНИЧЬЕ — первая деревня");
             GUILayout.BeginArea(new Rect(24, 42, 406, 470));
+            _hudScroll = GUILayout.BeginScrollView(_hudScroll, GUILayout.Width(406), GUILayout.Height(470));
             GUILayout.Label("Сервер");
             GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
             serverUrl = GUILayout.TextField(serverUrl);
@@ -136,6 +138,7 @@ namespace Pogranichye.Client
 
             GUILayout.Space(8);
             GUILayout.Label(_status, GUILayout.Height(56));
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
 
             if (_firstPerson && _connectionState == WorldConnectionState.Active)
