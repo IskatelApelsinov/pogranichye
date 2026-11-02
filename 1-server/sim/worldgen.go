@@ -65,6 +65,78 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 	return w, hub
 }
 
+// GenerateStarter — ОДНА стартовая деревня для начала игры и тестов тонкого клиента: предсказуемый,
+// самодостаточный мирок с полным живым составом (все ключевые ремёсла, несколько пар для прироста),
+// запасами на гладкий старт. Детерминирован от семени — удобно подключаться всегда к одному месту.
+func GenerateStarter(seed string) (*core.World, *dice.Hub) {
+	w := core.NewWorld(seed)
+	hub := dice.NewHub(seed)
+	g := hub.Stream("worldgen")
+
+	reg := w.Spawn(&core.RegionC{Name: "Ополье", Biome: "plain", X: 500, Y: 500, Mana: 1.0})
+	se := NewSettlement(w, g, "Починок", reg)
+	// припасы на гладкий старт: сверх базового склада немного руды/снадобья/инструмента
+	st := core.Settle(se).Store
+	st[econ.GoodOre] += 40
+	st[econ.GoodRemedy] += 20
+	st[econ.GoodTools] += 10
+	// шахта, чтобы кузнецу/рудокопу было из чего работать (равнина сама по себе без руды)
+	w.Spawn(&econ.ResourceNodeC{Node: econ.NodeMine, Good: econ.GoodOre,
+		Settlement: se.ID, Stock: 500, Cap: 600, Regen: 0})
+
+	// состав деревни: роль, пол, возраст, свой ли дом
+	roster := []struct {
+		role string
+		sex  string
+		age  float64
+		home bool
+	}{
+		{"farmer", "м", 34, true}, {"farmer", "ж", 31, true},
+		{"farmer", "м", 27, false}, {"cook", "ж", 40, true},
+		{"herder", "м", 45, true}, {"hunter", "м", 29, false},
+		{"herbalist", "ж", 38, true}, {"smith", "м", 42, true},
+		{"woodcutter", "м", 24, false}, {"weaver", "ж", 33, true},
+		{"miner", "м", 36, false}, {"tavernkeeper", "ж", 48, true},
+		{"idler", "м", 7, false}, {"idler", "ж", 4, false}, // дети
+	}
+	var people []*core.Entity
+	for _, r := range roster {
+		people = append(people, starterPerson(w, g, se.ID, r.role, r.sex, r.age, r.home))
+	}
+	// корчмарь — хозяин села
+	core.Settle(se).Keeper = people[11].ID
+	// две семьи — чтобы деревня прирастала сама (М+Ж в паре)
+	bond(w, people[0], people[1]) // пахари-супруги
+	bond(w, people[4], people[6]) // пастух и знахарка
+
+	makeRealms(w, g, []core.ID{se.ID})
+	return w, hub
+}
+
+// starterPerson — житель стартовой деревни с заданной ролью/полом/возрастом (азы ремесла, монеты).
+func starterPerson(w *core.World, g *dice.Stream, se core.ID, role, sex string, age float64, owned bool) *core.Entity {
+	ident := makeIdentity(g, sex, "", role)
+	home := "none"
+	if owned {
+		home = "owned"
+	}
+	skill := 10.0
+	if role == "idler" {
+		skill = 0
+	}
+	e := w.Spawn(
+		ident,
+		&core.VitalsC{Age: age, Health: 95, Hunger: 20, Energy: 85, Morale: 70},
+		&core.DrivesC{Ambition: g.Uniform(0, 40), Social: g.Uniform(0, 40), Dwelling: g.Uniform(0, 40)},
+		&core.MindC{Goal: "", LastAct: "—"},
+		&core.SkillsC{Skills: map[string]float64{role: skill}},
+		&core.PurseC{Coins: 30, Debts: map[string]float64{}},
+		&core.HomeC{Status: home, Comfort: 0, Settlement: se},
+		&core.PlaceC{Settlement: se},
+	)
+	return e
+}
+
 // NewSettlement создаёт ПОСЕЛЕНИЕ с рельефом и конечными угодьями (без жителей) — общий
 // код для стартовой генерации и для ОСНОВАНИЯ новых деревень живым миром. Так мир растёт
 // не только населением, но и числом мест.

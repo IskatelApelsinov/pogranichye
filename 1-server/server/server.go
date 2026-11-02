@@ -44,6 +44,19 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 	}
 }
 
+// NewStarter — сервер на ОДНОЙ стартовой деревне (для тонкого клиента/тестов): предсказуемый мир.
+func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
+	w, hub := sim.GenerateStarter(seed)
+	r := core.NewRunnerWith(hub, core.Clock{}, sim.Default()...)
+	return &Server{
+		world: w, runner: r,
+		acc:      accounts.NewStore(accPath, secret),
+		webDir:   webDir,
+		tickEach: 400 * time.Millisecond,
+		ctl:      map[core.ID]bool{},
+	}
+}
+
 // Handler собирает маршруты (отдельно от Run — удобно для тестов).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
