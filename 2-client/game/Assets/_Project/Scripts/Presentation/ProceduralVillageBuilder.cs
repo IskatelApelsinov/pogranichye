@@ -24,10 +24,10 @@ namespace Pogranichye.Client.Presentation
             var village = new GameObject("PrototypeVillage").transform;
             village.SetParent(root, false);
 
-            _groundMaterial = CreateMaterial("Ground • moss", new Color(0.34f, 0.40f, 0.27f));
+            _groundMaterial = CreateMaterial("Ground • moss", Color.white);
             _groundTexture = MakeGroundTexture();
             _groundMaterial.mainTexture = _groundTexture;
-            _groundMaterial.mainTextureScale = new Vector2(8, 8);
+            _groundMaterial.mainTextureScale = new Vector2(40, 40);
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
             _woodMaterial = CreateMaterial("Wood • warm timber", new Color(0.30f, 0.19f, 0.12f));
             _roofMaterial = CreateMaterial("Roof • dark thatch", new Color(0.22f, 0.20f, 0.16f));
@@ -80,8 +80,12 @@ namespace Pogranichye.Client.Presentation
 
             CreatePrimitive("Timber walls", PrimitiveType.Cube, house, new Vector3(0, 1.15f, 0),
                 new Vector3(3.4f, 2.3f, 2.8f), _woodMaterial);
-            CreatePrimitive("Thatched roof", PrimitiveType.Cube, house, new Vector3(0, 2.55f, 0),
-                new Vector3(3.9f, 0.35f, 3.2f), _roofMaterial).transform.rotation *= Quaternion.Euler(0, 0, 0);
+            var leftRoof = CreatePrimitive("Thatched roof left", PrimitiveType.Cube, house,
+                new Vector3(-0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
+            leftRoof.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+            var rightRoof = CreatePrimitive("Thatched roof right", PrimitiveType.Cube, house,
+                new Vector3(0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
+            rightRoof.transform.localRotation = Quaternion.Euler(0, 0, 25f);
             CreatePrimitive("Door", PrimitiveType.Cube, house, new Vector3(0, 0.72f, -1.415f),
                 new Vector3(0.75f, 1.45f, 0.08f), _roofMaterial);
             CreatePrimitive("Window left", PrimitiveType.Cube, house, new Vector3(-1.05f, 1.45f, -1.43f),
