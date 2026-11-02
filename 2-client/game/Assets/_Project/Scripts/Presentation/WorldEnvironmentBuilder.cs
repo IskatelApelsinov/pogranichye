@@ -340,7 +340,7 @@ namespace Pogranichye.Client.Presentation
             for (var side = 0; side < sides; side++)
             {
                 var next = (side + 1) % sides;
-                triangles.Add(start); triangles.Add(start + 1 + side); triangles.Add(start + 1 + next);
+                triangles.Add(start); triangles.Add(start + 1 + next); triangles.Add(start + 1 + side);
             }
         }
 
