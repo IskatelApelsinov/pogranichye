@@ -142,7 +142,7 @@ namespace Pogranichye.Client
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                     SetCameraMode(!_firstPerson);
                 GUILayout.Label(_firstPerson
-                    ? "Мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента (в разработке)."
+                    ? "WASD — движение; Shift — бег; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
                     : "Мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
                 GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
@@ -391,7 +391,7 @@ namespace Pogranichye.Client
         private void UpdateMovement()
         {
             var player = _views != null ? _views.PlayerTransform : null;
-            if (player == null || _socket == null || !_socket.IsConnected) return;
+            if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
 
             var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             input = Vector2.ClampMagnitude(input, 1f);
