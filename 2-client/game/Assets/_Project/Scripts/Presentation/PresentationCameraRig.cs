@@ -37,13 +37,15 @@ namespace Pogranichye.Client.Presentation
 
         public void SetTarget(Transform target)
         {
+            if (_target == target) return;
             _target = target;
             if (target != null) _yaw = target.eulerAngles.y;
-            _pitch = 28f;
+            _pitch = _firstPerson ? 0f : 28f;
         }
 
         public void SetFirstPerson(bool enabled)
         {
+            if (_firstPerson == enabled) return;
             _firstPerson = enabled;
             if (_target != null) _yaw = _target.eulerAngles.y;
             _pitch = enabled ? 0f : 28f;
