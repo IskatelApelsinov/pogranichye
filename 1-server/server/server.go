@@ -27,7 +27,8 @@ type Server struct {
 	webDir   string
 	tickEach time.Duration
 
-	ctl map[core.ID]bool // какие персонажи сейчас под игроком (их цель не трогает AI)
+	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
+	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
 }
 
 // New создаёт сервер: генерирует мир и службу аккаунтов.
@@ -39,7 +40,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond, // один час мира за 0.4с → сутки ~10с (видно жизнь)
-		ctl:      map[core.ID]bool{},
+		ctl:      map[core.ID]uint64{},
 	}
 }
 
@@ -108,29 +109,57 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 // --- выбор/привязка персонажа ---
 
-// embody находит игроку тело: уже привязанное (если живо) или свободного взрослого NPC.
-func (s *Server) embody(uid uint64) core.ID {
+// reserveBody АТОМАРНО (под одним замком) находит игроку тело и СРАЗУ резервирует его за новой
+// сессией — чтобы второй WS с тем же токеном не завладел тем же телом. Возвращает тело, id сессии и
+// статус: "ok" — зарезервировано, "busy" — тело уже под управлением (конфликт), "none" — свободного
+// тела в мире нет. Привязанное персонаж-тело предпочитается; иначе берём свободного взрослого НПС.
+func (s *Server) reserveBody(uid uint64) (core.ID, uint64, string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if cid := s.acc.CharOf(uid); cid != 0 {
-		if e := s.world.Get(core.ID(cid)); e != nil && core.Ident(e) != nil {
-			return core.ID(cid)
+
+	var cid core.ID
+	if bound := s.acc.CharOf(uid); bound != 0 {
+		if e := s.world.Get(core.ID(bound)); e != nil && core.Ident(e) != nil {
+			cid = core.ID(bound)
 		}
 	}
-	// выбрать свободного взрослого (не под игроком)
-	var pick core.ID
-	s.world.Each("ident", func(e *core.Entity) {
-		if pick != 0 || s.ctl[e.ID] {
-			return
+	if cid == 0 { // привязанного нет/умер — ищем свободного взрослого, не занятого другой сессией
+		s.world.Each("ident", func(e *core.Entity) {
+			if cid != 0 || s.ctl[e.ID] != 0 {
+				return
+			}
+			if v := core.Vitals(e); v != nil && v.Age >= 16 {
+				cid = e.ID
+			}
+		})
+		if cid == 0 {
+			return 0, 0, "none"
 		}
-		if v := core.Vitals(e); v != nil && v.Age >= 16 {
-			pick = e.ID
-		}
-	})
-	if pick != 0 {
-		_ = s.acc.Bind(uid, uint64(pick))
+		_ = s.acc.Bind(uid, uint64(cid))
 	}
-	return pick
+	if s.ctl[cid] != 0 {
+		return cid, 0, "busy" // это тело уже кто-то ведёт — второй сессии не даём
+	}
+	s.nextSID++
+	sid := s.nextSID
+	s.ctl[cid] = sid // зарезервировали ДО upgrade
+	return cid, sid, "ok"
+}
+
+// release снимает резервацию тела, но ТОЛЬКО если её держит именно эта сессия (sid) — чтобы
+// запоздалое закрытие старой сессии не освободило чужое новое управление. Отпустил — цель снова за AI.
+func (s *Server) release(cid core.ID, sid uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ctl[cid] != sid {
+		return // телом уже владеет другая (новая) сессия — не трогаем
+	}
+	delete(s.ctl, cid)
+	if e := s.world.Get(cid); e != nil {
+		if m := core.Mind(e); m != nil {
+			m.GoalUntil = 0 // отпустил тело → AI снова решает (лестница присутствия)
+		}
+	}
 }
 
 // --- WebSocket: управление телом ---
@@ -141,30 +170,22 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "нужен токен", http.StatusUnauthorized)
 		return
 	}
-	cid := s.embody(uid)
-	if cid == 0 {
+	cid, sid, status := s.reserveBody(uid)
+	switch status {
+	case "none":
 		http.Error(w, "нет свободного тела в мире", http.StatusServiceUnavailable)
+		return
+	case "busy":
+		http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict)
 		return
 	}
 	conn, err := wsUpgrade(w, r)
 	if err != nil {
+		s.release(cid, sid) // upgrade не удался — снимаем свою резервацию
 		return
 	}
 	defer conn.Close()
-
-	s.mu.Lock()
-	s.ctl[cid] = true
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		delete(s.ctl, cid)
-		if e := s.world.Get(cid); e != nil {
-			if m := core.Mind(e); m != nil {
-				m.GoalUntil = 0 // отпустил тело → AI снова решает (лестница присутствия)
-			}
-		}
-		s.mu.Unlock()
-	}()
+	defer s.release(cid, sid) // отпускаем только СВОЮ резервацию
 
 	// единственный ридер намерений; на ошибке/закрытии закрывает done
 	done := make(chan struct{})
