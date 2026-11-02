@@ -37,6 +37,7 @@ namespace Pogranichye.Client
         private bool _busy;
         private int _tutorialStep;
         private string _tutorialPendingGoal;
+        private bool _firstPerson;
 
         private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
@@ -117,6 +118,10 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
                 GUILayout.Space(6);
                 GUILayout.Space(8);
+                if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
+                    SetCameraMode(!_firstPerson);
+                GUILayout.Label("В первом лице: удерживайте ПКМ и двигайте мышь для осмотра.");
+                GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
                 GUILayout.Label("Выберите занятие — сервер выполнит действие по правилам мира:");
@@ -164,6 +169,16 @@ namespace Pogranichye.Client
                 case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
                 default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
             }
+        }
+
+        private void SetCameraMode(bool firstPerson)
+        {
+            _firstPerson = firstPerson;
+            if (_cameraRig != null) _cameraRig.SetFirstPerson(firstPerson);
+            if (_views != null) _views.SetPlayerFirstPerson(firstPerson);
+            _status = firstPerson
+                ? "Вид от первого лица. Удерживайте ПКМ для осмотра."
+                : "Вид от третьего лица.";
         }
 
         private void OnPoiSelected(WorldPoi poi)
@@ -299,7 +314,12 @@ namespace Pogranichye.Client
                     {
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
-                        if (_cameraRig != null) _cameraRig.SetTarget(_views.PlayerTransform);
+                        if (_cameraRig != null)
+                        {
+                            _cameraRig.SetTarget(_views.PlayerTransform);
+                            _cameraRig.SetFirstPerson(_firstPerson);
+                        }
+                        _views.SetPlayerFirstPerson(_firstPerson);
                         _status = "Получен полный кадр v1.";
                     }
                 });
@@ -348,6 +368,7 @@ namespace Pogranichye.Client
             _views.Clear();
             _tutorialPendingGoal = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
+            if (_firstPerson) SetCameraMode(false);
             socket?.Dispose();
             _status = status;
         }
