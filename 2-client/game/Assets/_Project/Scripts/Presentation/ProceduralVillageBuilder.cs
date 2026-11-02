@@ -170,11 +170,12 @@ namespace Pogranichye.Client.Presentation
             for (var row = 0; row < 3; row++)
             for (var col = 0; col < 4; col++)
             {
-                var bed = CreatePrimitive("Garden bed", PrimitiveType.Cube, garden,
-                    new Vector3(col * 0.8f - 1.2f, 0.12f, row * 0.9f),
-                    new Vector3(0.62f, 0.22f, 0.68f), _pathMaterial);
-                CreatePrimitive("Crop", PrimitiveType.Sphere, bed.transform,
-                    new Vector3(0, 0.8f, 0), new Vector3(0.55f, 0.9f, 0.55f), _leafMaterial);
+                var x = col * 0.8f - 1.2f;
+                var z = row * 0.9f;
+                CreatePrimitive("Garden bed", PrimitiveType.Cube, garden,
+                    new Vector3(x, 0.12f, z), new Vector3(0.62f, 0.22f, 0.68f), _pathMaterial);
+                CreatePrimitive("Crop", PrimitiveType.Sphere, garden,
+                    new Vector3(x, 0.42f, z), new Vector3(0.34f, 0.55f, 0.34f), _leafMaterial);
             }
             CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f));
         }
@@ -186,11 +187,17 @@ namespace Pogranichye.Client.Presentation
             marker.position = position;
             var beacon = CreatePrimitive("Marker", PrimitiveType.Cylinder, marker,
                 new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
-            beacon.GetComponent<Renderer>().material.color = color;
+            var renderer = beacon.GetComponent<Renderer>();
+            var block = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(block);
+            block.SetColor("_BaseColor", color);
+            block.SetColor("_Color", color);
+            renderer.SetPropertyBlock(block);
             var label = new GameObject("POI label").transform;
             label.SetParent(marker, false);
             label.localPosition = new Vector3(0, 0.75f, 0);
             label.AddComponent<BillboardLabel>();
+            label.gameObject.AddComponent<BillboardLabel>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
