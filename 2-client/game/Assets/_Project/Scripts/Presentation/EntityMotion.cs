@@ -42,7 +42,7 @@ namespace Pogranichye.Client.Presentation
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
 
             var bob = resting ? 0.008f : 0.025f;
-            _body.localPosition = new Vector3(0, 1.05f + Mathf.Sin(_phase) * bob, 0);
+            _body.localPosition = new Vector3(0, 0.95f + Mathf.Sin(_phase) * bob, 0);
 
             var swing = Mathf.Sin(_phase * 1.4f);
             var leftArmAngle = working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : 0f;
