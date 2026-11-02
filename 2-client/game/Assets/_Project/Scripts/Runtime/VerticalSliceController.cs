@@ -166,7 +166,10 @@ namespace Pogranichye.Client
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
                 GUILayout.Label("Выберите занятие — сервер выполнит действие по правилам мира:");
-                if (GUILayout.Button("🍺 Таверна — поговорить")) RequestTutorialGoal("socialize");
+                if (_tutorialStep == 0 && !IsNearTavern())
+                    GUILayout.Label("Подойдите к входу в таверну и нажмите E у указателя. Сейчас вы ещё далеко.");
+                else if (GUILayout.Button("🍺 Таверна — поговорить"))
+                    RequestTutorialGoal("socialize");
                 if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestTutorialGoal("work");
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
@@ -261,8 +264,25 @@ namespace Pogranichye.Client
                 ". Отправляю общую цель общения; адресный диалог пока не входит в v1.";
         }
 
+        private bool IsNearTavern()
+        {
+            var player = _views != null ? _views.PlayerTransform : null;
+            if (player == null) return false;
+
+            // The POI is placed just outside the open tavern entrance in the generated starter scene.
+            // This is a tutorial affordance only; server-side interaction validation remains authoritative.
+            var offset = new Vector2(player.position.x - 1.1f, player.position.z + 2.0f);
+            return offset.sqrMagnitude <= 1.8f * 1.8f;
+        }
+
         private void RequestTutorialGoal(string goal)
         {
+            if (goal == "socialize" && _tutorialStep == 0 && !IsNearTavern())
+            {
+                _status = "Сначала подойдите к входу в таверну. Наведите камеру на указатель и нажмите E.";
+                return;
+            }
+
             _tutorialPendingGoal = goal;
             _goalToSend = goal;
         }
