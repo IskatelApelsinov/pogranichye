@@ -14,6 +14,7 @@ import (
 	"os"
 
 	"pogranichye/core"
+	"pogranichye/dice"
 	"pogranichye/memory"
 	"pogranichye/server"
 	"pogranichye/sim"
@@ -28,22 +29,35 @@ func main() {
 		demo     = flag.Bool("demo", false, "headless-прогон с отчётом вместо сервера")
 		days     = flag.Int("days", 2000, "дней для -demo")
 		verbose  = flag.Bool("v", false, "в -demo печатать выборку жителей")
+		starter  = flag.Bool("starter", false, "ОДНА стартовая деревня (для тонкого клиента/тестов)")
 	)
 	flag.Parse()
 
 	if *demo {
-		runDemo(*seed, *villages, *days, *verbose)
+		runDemo(*seed, *villages, *days, *verbose, *starter)
 		return
 	}
 	secret := []byte(os.Getenv("POG_SECRET")) // в проде задать; иначе эфемерный ключ
-	srv := server.New(*seed, *villages, "accounts.json", secret, *web)
-	log.Printf("Приграничье: сервер на %s, мир «%s» (%d поселений). Открой http://localhost%s/",
-		*addr, *seed, *villages, *addr)
+	var srv *server.Server
+	if *starter {
+		srv = server.NewStarter(*seed, "accounts.json", secret, *web)
+		log.Printf("Приграничье: сервер на %s, СТАРТОВАЯ деревня. Открой http://localhost%s/", *addr, *addr)
+	} else {
+		srv = server.New(*seed, *villages, "accounts.json", secret, *web)
+		log.Printf("Приграничье: сервер на %s, мир «%s» (%d поселений). Открой http://localhost%s/",
+			*addr, *seed, *villages, *addr)
+	}
 	log.Fatal(srv.Run(*addr))
 }
 
-func runDemo(seed string, villages, days int, verbose bool) {
-	w, hub := sim.Generate(seed, villages)
+func runDemo(seed string, villages, days int, verbose, starter bool) {
+	var w *core.World
+	var hub *dice.Hub
+	if starter {
+		w, hub = sim.GenerateStarter(seed)
+	} else {
+		w, hub = sim.Generate(seed, villages)
+	}
 	r := core.NewRunnerWith(hub, core.Clock{}, sim.Default()...)
 	fmt.Printf("Старт: %s\n", sim.Describe(w))
 	r.Run(w, days*core.HoursPerDay)
