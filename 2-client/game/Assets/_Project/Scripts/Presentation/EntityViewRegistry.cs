@@ -17,6 +17,15 @@ namespace Pogranichye.Client.Presentation
         private readonly Dictionary<ulong, GameObject> _views = new Dictionary<ulong, GameObject>();
         private readonly MaterialPropertyBlock _propertyBlock = new MaterialPropertyBlock();
         private readonly Transform _root;
+        private Transform _leftPlayerArm;
+        private Transform _rightPlayerArm;
+        private Vector3 _leftArmHomePosition;
+        private Vector3 _rightArmHomePosition;
+        private Quaternion _leftArmHomeRotation;
+        private Quaternion _rightArmHomeRotation;
+        private Vector3 _leftArmHomeScale;
+        private Vector3 _rightArmHomeScale;
+        private bool _firstPersonArmsAttached;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -94,15 +103,56 @@ namespace Pogranichye.Client.Presentation
             return Mathf.Repeat(90f - (float)facingDegrees, 360f);
         }
 
-        public void SetPlayerFirstPerson(bool enabled)
+        public void SetPlayerFirstPerson(bool enabled, Transform cameraTransform)
         {
             if (PlayerTransform == null) return;
-            var renderers = PlayerTransform.GetComponentsInChildren<Renderer>(true);
-            foreach (var renderer in renderers)
+
+            if (_leftPlayerArm == null) _leftPlayerArm = PlayerTransform.Find("Left arm");
+            if (_rightPlayerArm == null) _rightPlayerArm = PlayerTransform.Find("Right arm");
+
+            if (enabled && !_firstPersonArmsAttached && cameraTransform != null &&
+                _leftPlayerArm != null && _rightPlayerArm != null)
             {
-                var partName = renderer.transform.name;
-                var isArm = partName == "Left arm" || partName == "Right arm";
-                renderer.enabled = !enabled || isArm;
+                _leftArmHomePosition = _leftPlayerArm.localPosition;
+                _rightArmHomePosition = _rightPlayerArm.localPosition;
+                _leftArmHomeRotation = _leftPlayerArm.localRotation;
+                _rightArmHomeRotation = _rightPlayerArm.localRotation;
+                _leftArmHomeScale = _leftPlayerArm.localScale;
+                _rightArmHomeScale = _rightPlayerArm.localScale;
+
+                // These are presentation-only viewmodel sleeves. They follow the camera,
+                // while the networked player root remains at its canonical world position.
+                _leftPlayerArm.SetParent(cameraTransform, false);
+                _rightPlayerArm.SetParent(cameraTransform, false);
+                _leftPlayerArm.localPosition = new Vector3(-0.31f, -0.34f, 0.52f);
+                _rightPlayerArm.localPosition = new Vector3(0.31f, -0.34f, 0.52f);
+                _leftPlayerArm.localRotation = Quaternion.identity;
+                _rightPlayerArm.localRotation = Quaternion.identity;
+                _leftPlayerArm.localScale = new Vector3(0.19f, 0.44f, 0.19f);
+                _rightPlayerArm.localScale = new Vector3(0.19f, 0.44f, 0.19f);
+                _firstPersonArmsAttached = true;
+            }
+            else if (!enabled && _firstPersonArmsAttached)
+            {
+                _leftPlayerArm.SetParent(PlayerTransform, false);
+                _rightPlayerArm.SetParent(PlayerTransform, false);
+                _leftPlayerArm.localPosition = _leftArmHomePosition;
+                _rightPlayerArm.localPosition = _rightArmHomePosition;
+                _leftPlayerArm.localRotation = _leftArmHomeRotation;
+                _rightPlayerArm.localRotation = _rightArmHomeRotation;
+                _leftPlayerArm.localScale = _leftArmHomeScale;
+                _rightPlayerArm.localScale = _rightArmHomeScale;
+                _firstPersonArmsAttached = false;
+            }
+
+            var renderers = PlayerTransform.GetComponentsInChildren<Renderer>(true);
+            foreach (var renderer in renderers) renderer.enabled = !enabled;
+            if (enabled)
+            {
+                if (_leftPlayerArm != null)
+                    foreach (var renderer in _leftPlayerArm.GetComponentsInChildren<Renderer>(true)) renderer.enabled = true;
+                if (_rightPlayerArm != null)
+                    foreach (var renderer in _rightPlayerArm.GetComponentsInChildren<Renderer>(true)) renderer.enabled = true;
             }
         }
 
