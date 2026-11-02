@@ -6,26 +6,30 @@
 <meta name="theme-color" content="#1b1b21">
 <title>Приграничье</title>
 <style>
- :root{--bg:#1b1b21;--card:#26262e;--line:#34343f;--ink:#e8e6e3;--sub:#9b9a97;
-   --gold:#e1b12c;--good:#6ab04c;--warn:#f0932b;--bad:#eb4d4b;--accent:#7b68ee}
+ :root{--bg:#24251f;--card:#39352b;--line:#66533c;--ink:#f1e5c9;--sub:#c2b18e;
+   --gold:#e8bd66;--good:#8da96a;--warn:#d99b4e;--bad:#c96b58;--accent:#9b6541}
  *{box-sizing:border-box} html,body{overflow-x:hidden}
- body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;
-   max-width:620px;margin:0 auto;padding:16px}
- h1{font-size:22px;margin:.2em 0} .sub{color:var(--sub);font-size:13px}
- .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
- input{width:100%;background:#1b1b21;color:var(--ink);border:1px solid var(--line);
+ body{background:radial-gradient(ellipse at 50% 0%,#4a4934 0,#24251f 62%);color:var(--ink);font:16px/1.5 Georgia,serif;
+   max-width:680px;margin:0 auto;padding:16px}
+ h1{font-size:25px;margin:.2em 0;color:#f2d9a7;text-shadow:0 2px #39291e} .sub{color:var(--sub);font-size:13px}
+ .card{background:linear-gradient(145deg,#454032,#332f27);border:1px solid var(--line);border-radius:9px;padding:16px;margin:12px 0;box-shadow:0 5px 14px #1117}
+ .village-art{padding:5px;overflow:hidden;background:#4a4635;border-color:#9b7951}
+ .village-art img{display:block;width:100%;height:auto;image-rendering:pixelated;border:3px solid #7b6242;border-radius:4px}
+ .scene-caption{display:flex;justify-content:space-between;gap:8px;padding:5px 7px 1px;color:#e7d3a7;font-size:12px}
+ .scene-caption span:last-child{color:#c5b18b}
+ input{width:100%;background:#26251f;color:var(--ink);border:1px solid var(--line);
    border-radius:10px;padding:12px;font:inherit;margin:6px 0;min-height:46px}
- button{background:#30303a;color:var(--ink);border:1px solid var(--line);border-radius:11px;
+ button{background:linear-gradient(#67533b,#493a2b);color:var(--ink);border:1px solid #8b704b;border-radius:7px;
    padding:12px 14px;font:inherit;cursor:pointer;min-height:46px;touch-action:manipulation}
- button.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%}
+ button.primary{background:linear-gradient(#b77b4e,#865334);border-color:#d3a06a;color:#fff4dc;width:100%}
  button:active{filter:brightness(1.2)}
  .row{display:flex;gap:8px;flex-wrap:wrap}
  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
- .bar{height:10px;border-radius:6px;background:#15151a;overflow:hidden;margin:3px 0 10px}
+ .bar{height:10px;border-radius:3px;background:#211f1a;border:1px solid #5c4a35;overflow:hidden;margin:3px 0 10px}
  .bar>div{height:100%}
  .stat{font-size:13px;color:var(--sub)}
  .big{font-size:20px;font-weight:700}
- .tag{font-size:12px;padding:2px 9px;border-radius:12px;background:#30303a;color:var(--sub)}
+ .tag{font-size:12px;padding:2px 9px;border-radius:4px;background:#514431;color:#ead4a7;border:1px solid #786143}
  .nb{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
  .nb:last-child{border:0}
  #err{color:var(--bad);font-size:13px;min-height:18px}
@@ -52,6 +56,10 @@
 
 <!-- игра -->
 <div id="game" class="hidden">
+ <div class="card village-art">
+  <img src="village-scene.svg" alt="Карта деревни: таверна, кузница, рынок, огород и река">
+  <div class="scene-caption"><span>ПОСЕЛЕНИЕ · ПЕРВАЯ ДЕРЕВНЯ</span><span>живой мир · серверная симуляция</span></div>
+ </div>
  <div class="card">
   <div class="row" style="justify-content:space-between;align-items:center">
    <div><span class="big" id="who">—</span> <span class="sub" id="role"></span></div>
@@ -72,7 +80,7 @@
   <div class="sub" id="placefood" style="margin:4px 0 8px"></div>
   <b class="sub">чем займёшься</b>
   <div class="acts">
-   <button onclick="goal('work')">🛠 Работать</button>
+   <button onclick="goal('work')">⚒ Работать</button>
    <button onclick="goal('eat')">🍞 Поесть</button>
    <button onclick="goal('rest')">💤 Отдохнуть</button>
    <button onclick="goal('socialize')">🍯 В таверну</button>
