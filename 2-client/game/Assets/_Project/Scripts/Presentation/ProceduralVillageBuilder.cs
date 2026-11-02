@@ -637,6 +637,7 @@ namespace Pogranichye.Client.Presentation
                         vertices.Add(basePoint + tangent);
                         vertices.Add(tip);
                         triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+                        triangles.Add(first + 2); triangles.Add(first + 1); triangles.Add(first);
                         // A second crossed blade keeps the clump readable from either bank.
                         var cross = new Vector3(-tangent.z, 0f, tangent.x);
                         first = vertices.Count;
@@ -644,6 +645,7 @@ namespace Pogranichye.Client.Presentation
                         vertices.Add(basePoint + cross);
                         vertices.Add(tip + direction * 0.015f);
                         triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+                        triangles.Add(first + 2); triangles.Add(first + 1); triangles.Add(first);
                     }
                 }
             }
