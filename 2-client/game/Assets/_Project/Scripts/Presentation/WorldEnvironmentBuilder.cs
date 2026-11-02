@@ -18,6 +18,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _forestLeafMaterial;
         private static Material _groundDetailMaterial;
         private static Material _moteMaterial;
+        private static Material _mistMaterial;
         private static Mesh _forestMesh;
         private static Mesh _groundDetailMesh;
         private static Mesh _flowerMesh;
@@ -38,8 +39,9 @@ namespace Pogranichye.Client.Presentation
             BuildForest(environment);
             BuildGroundDetails(environment);
             BuildAmbientMotes(environment);
+            BuildLowlandMist(environment);
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
-            cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, FindSun());
+            cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, _mistMaterial, FindSun());
         }
 
         private static void BuildSky(Transform root, Camera camera)
@@ -550,6 +552,62 @@ namespace Pogranichye.Client.Presentation
             renderer.receiveShadows = false;
         }
 
+        /// <summary>Thin lowland mist drifting near the meadow floor; kept subtle so it never obscures play.</summary>
+        private static void BuildLowlandMist(Transform root)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+                         Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) return;
+
+            _mistMaterial = new Material(shader) { name = "Lowland mist • translucent" };
+            var mistColor = new Color(0.72f, 0.79f, 0.82f, 0.075f);
+            if (_mistMaterial.HasProperty("_BaseColor")) _mistMaterial.SetColor("_BaseColor", mistColor);
+            if (_mistMaterial.HasProperty("_Color")) _mistMaterial.SetColor("_Color", mistColor);
+            _mistMaterial.renderQueue = (int)RenderQueue.Transparent;
+
+            var holder = new GameObject("Lowland mist • drifting ribbons");
+            holder.transform.SetParent(root, false);
+            holder.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+            var particles = holder.AddComponent<ParticleSystem>();
+            var main = particles.main;
+            main.loop = true;
+            main.duration = 32f;
+            main.maxParticles = 24;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(18f, 32f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.012f, 0.035f);
+            main.startSize = new ParticleSystem.MinMaxCurve(3.5f, 7f);
+            main.startColor = mistColor;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            var emission = particles.emission;
+            emission.rateOverTime = 0.8f;
+            var shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(48f, 0.16f, 48f);
+            var velocity = particles.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.x = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
+            velocity.z = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
+            var noise = particles.noise;
+            noise.enabled = true;
+            noise.strength = 0.18f;
+            noise.frequency = 0.08f;
+            var color = particles.colorOverLifetime;
+            color.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.72f, 0.18f),
+                    new GradientAlphaKey(0.72f, 0.78f), new GradientAlphaKey(0f, 1f) });
+            color.color = gradient;
+            var renderer = holder.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = _mistMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
         private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
         {
             if (shader == null) return null;
@@ -597,6 +655,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_forestLeafMaterial);
             DestroyAsset(_groundDetailMaterial);
             DestroyAsset(_moteMaterial);
+            DestroyAsset(_mistMaterial);
             DestroyAsset(_forestMesh);
             DestroyAsset(_groundDetailMesh);
             DestroyAsset(_flowerMesh);
@@ -609,6 +668,7 @@ namespace Pogranichye.Client.Presentation
             _forestLeafMaterial = null;
             _groundDetailMaterial = null;
             _moteMaterial = null;
+            _mistMaterial = null;
             _forestMesh = null;
             _groundDetailMesh = null;
             _flowerMesh = null;
@@ -632,14 +692,16 @@ namespace Pogranichye.Client.Presentation
         private Material _sky;
         private Material _stars;
         private Material _motes;
+        private Material _mist;
         private Light _sun;
         private float _phase;
 
-        public void Initialize(Material sky, Material stars, Material motes, Light sun)
+        public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
             _sky = sky;
             _stars = stars;
             _motes = motes;
+            _mist = mist;
             _sun = sun;
             _phase = 0.28f;
         }
@@ -682,6 +744,15 @@ namespace Pogranichye.Client.Presentation
             }
             RenderSettings.ambientLight = Color.Lerp(new Color(0.10f, 0.13f, 0.22f), new Color(0.58f, 0.61f, 0.64f), daylight);
             RenderSettings.fogColor = Color.Lerp(new Color(0.10f, 0.14f, 0.23f), new Color(0.61f, 0.70f, 0.73f), daylight);
+            if (_mist != null)
+            {
+                // Mist gathers around dawn and dusk, then thins during bright daylight.
+                var mistAmount = Mathf.Lerp(0.95f, 0.35f, daylight);
+                mistAmount = Mathf.Max(mistAmount, dusk * 0.9f);
+                var color = new Color(0.72f, 0.79f, 0.82f, 0.075f * mistAmount);
+                if (_mist.HasProperty("_BaseColor")) _mist.SetColor("_BaseColor", color);
+                else if (_mist.HasProperty("_Color")) _mist.SetColor("_Color", color);
+            }
         }
     }
 
