@@ -10,20 +10,57 @@ namespace Pogranichye.Client.Presentation
     [RequireComponent(typeof(Collider))]
     public sealed class WorldNpc : MonoBehaviour
     {
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+        private Renderer _bodyRenderer;
+        private Color _baseColor;
+        private MaterialPropertyBlock _block;
+
         public static event Action<WorldNpc> Selected;
 
         public ulong EntityId { get; private set; }
         public string DisplayName { get; private set; }
 
-        public void Initialize(ulong entityId, string displayName)
+        public void Initialize(ulong entityId, string displayName, Renderer bodyRenderer)
         {
             EntityId = entityId;
             DisplayName = displayName ?? "Житель";
+            _bodyRenderer = bodyRenderer;
+            if (_bodyRenderer != null)
+            {
+                _baseColor = _bodyRenderer.sharedMaterial != null
+                    ? _bodyRenderer.sharedMaterial.color
+                    : Color.white;
+                _block = new MaterialPropertyBlock();
+            }
+        }
+
+        private void OnMouseEnter()
+        {
+            if (_bodyRenderer != null)
+                ApplyColor(Color.Lerp(_baseColor, Color.white, 0.32f));
+        }
+
+        private void OnMouseExit()
+        {
+            if (_bodyRenderer != null)
+                ApplyColor(_baseColor);
         }
 
         private void OnMouseDown()
         {
             Selected?.Invoke(this);
+        }
+
+        private void ApplyColor(Color color)
+        {
+            if (_bodyRenderer == null) return;
+            if (_block == null) _block = new MaterialPropertyBlock();
+            _bodyRenderer.GetPropertyBlock(_block);
+            _block.SetColor(BaseColorId, color);
+            _block.SetColor(ColorId, color);
+            _bodyRenderer.SetPropertyBlock(_block);
         }
     }
 }
