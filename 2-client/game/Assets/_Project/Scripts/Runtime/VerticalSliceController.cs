@@ -376,6 +376,7 @@ namespace Pogranichye.Client
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
+            ProceduralVillageBuilder.Cleanup();
         }
     }
 }
