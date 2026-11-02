@@ -126,7 +126,9 @@ namespace Pogranichye.Client
                 GUILayout.Space(8);
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                     SetCameraMode(!_firstPerson);
-                GUILayout.Label("В первом лице: удерживайте ПКМ и двигайте мышь для осмотра.");
+                GUILayout.Label(_firstPerson
+                    ? "Первое лицо: удерживайте ПКМ и двигайте мышь для осмотра."
+                    : "Третье лицо: ПКМ + мышь — обзор камеры; колесо — приближение/отдаление.");
                 GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
