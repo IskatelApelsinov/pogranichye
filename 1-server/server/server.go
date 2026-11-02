@@ -53,7 +53,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond,
-		ctl:      map[core.ID]bool{},
+		ctl:      map[core.ID]uint64{},
 	}
 }
 
