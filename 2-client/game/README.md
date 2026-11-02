@@ -32,7 +32,7 @@ The repository initially contained a source scaffold rather than a fully initial
 - Temporary client-side neighbor layout only; it is not world coordinates.
 - Low-poly humanoid player/NPC prototypes with role-based tunic colors, camera-facing labels, and procedural idle/work/social/eat/rest motion loops.
 - Deterministic first-village scene: meadow with generated tile texture, packed-earth paths, cottages, a tavern, blacksmith, market stall, garden, well, fence, trees, grass details, warm directional light, ambient light and distance fog.
-- Visible tutorial POI markers/signs for tavern, work, food and garden. Their labels are presentation-only; the v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
+- Clickable tutorial POI markers/signs for tavern, work, food and garden. Clicking a marker sends its mapped existing v1 goal; the marker does not locally perform the activity. The v1 server currently accepts the four existing goals `socialize`, `work`, `eat`, `rest`.
 - Smooth follow camera that activates on the first valid player snapshot; environment/entity positions remain presentation-only.
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - First-steps HUD explaining the four supported server goals and showing the latest server-side stats/activity.
@@ -44,7 +44,7 @@ The repository initially contained a source scaffold rather than a fully initial
 2. Open `Assets/_Project/Scenes/VerticalSlice.unity`.
 3. Enter login and password. Register first if needed, then log in.
 4. Connect to the world. The client builds the prototype village and renders the animated player plus nearby NPCs. Their positions are temporary presentation layout, not server coordinates.
-5. Use the first-steps panel: tavern/socialize, work, eat, rest. These buttons send existing v1 goal intents; the server remains authoritative for the result.
+5. Click a village POI or use the first-steps panel: tavern/socialize, work, eat, rest. Both paths send existing v1 goal intents; the server remains authoritative for the result.
 
 The client sends intentions only. It never changes authoritative world state locally. The four-step onboarding advances only after a snapshot reflects the requested server-side goal; it does not locally simulate success.
 
