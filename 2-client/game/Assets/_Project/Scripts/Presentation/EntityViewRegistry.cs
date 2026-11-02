@@ -147,7 +147,7 @@ namespace Pogranichye.Client.Presentation
                 hitbox.height = 1.84f;
                 hitbox.radius = 0.30f;
                 var npc = go.AddComponent<WorldNpc>();
-                npc.Initialize(id, displayName);
+                npc.Initialize(id, displayName, body.GetComponent<Renderer>(), tunic);
             }
 
             _views.Add(id, go);
