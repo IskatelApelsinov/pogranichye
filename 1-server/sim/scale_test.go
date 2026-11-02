@@ -25,7 +25,7 @@ func TestFounding(t *testing.T) {
 	// прогнать много попыток основания (событие редкое — даём костям шанс сработать)
 	founded := false
 	for d := 0; d < 400 && !founded; d++ {
-		foundNewSettlement(w, dice.NewStream(uint64(1000+d)))
+		foundNewSettlement(w, dice.NewStream(uint64(1000+d)), int64(d+1))
 		if countSettlements(w) > before {
 			founded = true
 		}

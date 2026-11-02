@@ -2,6 +2,7 @@ package sim
 
 import (
 	"pogranichye/battle"
+	"pogranichye/chronicle"
 	"pogranichye/core"
 	"pogranichye/dice"
 	"pogranichye/econ"
@@ -56,6 +57,7 @@ func (WarSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		r.WarWith, r.WarDays = foe.ID, days
 		fr.WarWith, fr.WarDays = re.ID, days
 		DebugWars++
+		chronicle.Record(w, clock.Day(), "война", r.Name+" пошла войной на "+fr.Name)
 	}
 
 	// 2) ход войны: стычки на границе — раненые и убитые ратники, рост давления хвори
@@ -67,6 +69,9 @@ func (WarSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		r.WarDays--
 		if r.WarDays <= 0 {
+			if foe := w.Get(r.WarWith); foe != nil && econ.Realm(foe) != nil {
+				chronicle.Record(w, clock.Day(), "мир", "затих спор: "+r.Name+" и "+econ.Realm(foe).Name)
+			}
 			r.WarWith = 0 // война выдохлась
 			continue
 		}

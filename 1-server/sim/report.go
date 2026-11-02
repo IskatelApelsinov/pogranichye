@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"pogranichye/battle"
+	"pogranichye/chronicle"
 	"pogranichye/core"
 	"pogranichye/econ"
 )
@@ -105,6 +106,27 @@ func Report(w *core.World, clock core.Clock) {
 	})
 	fmt.Printf("Беды и хворь:       войн было=%d (сейчас воюют держав=%d) · павших в войне=%d · непогод=%d · умерших от хвори=%d\n",
 		DebugWars, atWar, DebugWarDead, DebugClimate, DebugPlague)
+
+	if c := chronicle.Of(w); c != nil {
+		keys := make([]string, 0, len(c.Tally))
+		for k := range c.Tally {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys) // стабильный порядок отчёта (карта сама по себе неупорядочена)
+		tally := ""
+		for _, k := range keys {
+			tally += fmt.Sprintf("%s=%d  ", k, c.Tally[k])
+		}
+		fmt.Printf("\nЛетопись мира (всего по родам): %s\n", tally)
+		fmt.Println("Последнее, что помнит мир:")
+		from := len(c.Entries) - 8
+		if from < 0 {
+			from = 0
+		}
+		for _, e := range c.Entries[from:] {
+			fmt.Printf("  день %-5d [%-9s] %s\n", e.Day, e.Kind, e.Text)
+		}
+	}
 }
 
 // Sample печатает выборку жителей (для -demo -v).

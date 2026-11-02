@@ -5,6 +5,7 @@ import (
 
 	"pogranichye/arcane"
 	"pogranichye/battle"
+	"pogranichye/chronicle"
 	"pogranichye/core"
 	"pogranichye/dice"
 	"pogranichye/econ"
@@ -304,8 +305,10 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 	})
 	DebugDeaths += len(dead)
+	day := clock.Day()
 	for _, id := range dead {
-		w.Remove(id) // идентичность уходит из мира; хроника памяти — отдельный слой (позже)
+		recordNotableDeath(w, day, id) // мир помнит уход заметных (летопись)
+		w.Remove(id)                   // идентичность уходит из мира
 	}
 
 	// 2) рождения и рост поселений. Жителей по деревням берём из ИНДЕКСА (один проход),
@@ -348,6 +351,7 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		switch {
 		case pop >= cityAtPop && set.Tier != "city":
 			set.Tier = "city"
+			chronicle.Record(w, clock.Day(), "город", set.Name+" поднялся до города")
 		case pop >= townAtPop && set.Tier == "village":
 			set.Tier = "town"
 		}
@@ -355,12 +359,12 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 	// основание НОВЫХ поселений: из переполненной деревни с амбициозными — переселенцы ставят
 	// новую (мир растёт не только населением, но и числом мест). Ограничено потолком.
-	foundNewSettlement(w, hub.Stream("life", "found"))
+	foundNewSettlement(w, hub.Stream("life", "found"), clock.Day())
 }
 
 const maxSettlements = 400 // потолок числа поселений (производительность; поднимается легко)
 
-func foundNewSettlement(w *core.World, s *dice.Stream) {
+func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 	if !s.Chance(0.05) { // редкое событие в масштабе мира
 		return
 	}
@@ -439,6 +443,7 @@ func foundNewSettlement(w *core.World, s *dice.Stream) {
 	if len(band) > 1 {
 		setRole(band[1], "cook")
 	}
+	chronicle.Record(w, day, "основание", "переселенцы основали "+core.Settle(ne).Name)
 	core.Settle(ne).Keeper = band[len(band)-1].ID
 	core.Ident(band[len(band)-1]).Role = "tavernkeeper"
 	// приписать к державе источника (если есть)
@@ -485,6 +490,40 @@ func clamp(x, lo, hi float64) float64 {
 		return hi
 	}
 	return x
+}
+
+// recordNotableDeath — мир помнит уход ЗАМЕТНЫХ: пробуждённого мага, корчмаря-хозяина села, старца.
+// Рядовые смерти в летопись не идут (их тьма) — остаются оборотом поколений.
+func recordNotableDeath(w *core.World, day int64, id core.ID) {
+	e := w.Get(id)
+	if e == nil {
+		return
+	}
+	who := core.Ident(e)
+	v := core.Vitals(e)
+	if who == nil {
+		return
+	}
+	name := who.Name
+	if who.Surname != "" {
+		name += " " + who.Surname
+	}
+	// ЯВНЫЙ приоритет (чтобы роль не терялась, если их несколько): хозяин села → маг → старец.
+	// Хозяин — глава поселения, его уход civic-событие; потому он важнее даже старости/дара.
+	keeper := false
+	if pl := core.Place(e); pl != nil {
+		if se := w.Get(pl.Settlement); se != nil && core.Settle(se).Keeper == id {
+			keeper = true
+		}
+	}
+	switch {
+	case keeper:
+		chronicle.Record(w, day, "смерть", "не стало хозяина села "+name)
+	case who.Role == "mage" && arcane.Mage(e) != nil:
+		chronicle.Record(w, day, "смерть", "ушёл маг "+name)
+	case v != nil && v.Age >= 60:
+		chronicle.Record(w, day, "смерть", "преставился старец "+name)
+	}
 }
 
 // isFoodRole — ремесло, добывающее съестное (приносит часть добытого домой в закрома).
@@ -625,6 +664,7 @@ func (DiseaseSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				risk := outbreakBase * cause * (1 - medicine/(float64(pop)*medNeedPerCap+1))
 				if dis.Chance(risk) {
 					set.Plague = plagueStart // хворь вспыхнула
+					chronicle.Record(w, clock.Day(), "мор", "в "+set.Name+" вспыхнула хворь")
 				}
 			}
 			return
