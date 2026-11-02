@@ -51,6 +51,8 @@ namespace Pogranichye.Client.Presentation
                     var position = new Vector3(Mathf.Cos(angle) * 4f, 0f, Mathf.Sin(angle) * 4f);
                     var view = GetOrCreate(id, neighbor.Name, position, false);
                     view.transform.position = position;
+                    if (position.sqrMagnitude > 0.01f)
+                        view.transform.rotation = Quaternion.LookRotation(-position.normalized, Vector3.up);
                     SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
                     visibleCount++;
                 }
