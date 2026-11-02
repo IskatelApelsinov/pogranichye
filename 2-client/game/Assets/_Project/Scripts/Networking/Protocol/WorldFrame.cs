@@ -38,6 +38,17 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("wounds")] public Dictionary<string, double> Wounds { get; set; }
         [JsonProperty("bleeding")] public double Bleeding { get; set; }
         [JsonProperty("stash")] public Dictionary<string, double> Stash { get; set; }
+        [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+    }
+
+    [Serializable]
+    public sealed class ScenePositionFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("facing")] public double Facing { get; set; }
+        [JsonProperty("stam")] public double Stamina { get; set; }
+        [JsonProperty("seq")] public long Sequence { get; set; }
     }
 
     [Serializable]
@@ -58,6 +69,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
+        [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
     }
 
     [Serializable]
