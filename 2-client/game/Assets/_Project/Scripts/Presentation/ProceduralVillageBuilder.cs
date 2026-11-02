@@ -124,7 +124,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
             CreatePrimitive("Tavern bench", PrimitiveType.Cube, tavern,
                 new Vector3(-3.4f, 0.35f, -1f), new Vector3(1.8f, 0.18f, 0.45f), _woodMaterial);
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f), new Color(0.75f, 0.48f, 0.22f));
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f), new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
         private static void BuildBlacksmith(Transform root, Vector3 position)
@@ -141,7 +141,7 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Anvil", PrimitiveType.Cube, smithy,
                 new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _stoneMaterial);
             CreateSign(smithy, "КУЗНИЦА", new Vector3(0, 1.8f, -1.58f), 0.75f);
-            CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -2.8f), new Color(0.55f, 0.55f, 0.58f));
+            CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -2.8f), new Color(0.55f, 0.55f, 0.58f), "work");
         }
 
         private static void BuildMarket(Transform root, Vector3 position)
@@ -159,7 +159,7 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Bread basket", PrimitiveType.Sphere, market,
                 new Vector3(-0.7f, 1.28f, -0.1f), new Vector3(0.55f, 0.28f, 0.55f), _grassMaterial);
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
-            CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f));
+            CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
         }
 
         private static void BuildGarden(Transform root, Vector3 position)
@@ -177,14 +177,19 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Crop", PrimitiveType.Sphere, garden,
                     new Vector3(x, 0.42f, z), new Vector3(0.34f, 0.55f, 0.34f), _leafMaterial);
             }
-            CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f));
+            CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f), "work");
         }
 
-        private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color)
+        private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color, string goal)
         {
             var marker = new GameObject("POI • " + title).transform;
             marker.SetParent(root, false);
             marker.position = position;
+            var poi = marker.gameObject.AddComponent<WorldPoi>();
+            poi.Initialize(title, goal);
+            var hitArea = marker.gameObject.AddComponent<SphereCollider>();
+            hitArea.center = new Vector3(0, 0.45f, 0);
+            hitArea.radius = 0.8f;
             var beacon = CreatePrimitive("Marker", PrimitiveType.Cylinder, marker,
                 new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
             var renderer = beacon.GetComponent<Renderer>();
