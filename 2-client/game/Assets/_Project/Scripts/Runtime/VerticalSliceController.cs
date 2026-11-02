@@ -127,8 +127,8 @@ namespace Pogranichye.Client
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                     SetCameraMode(!_firstPerson);
                 GUILayout.Label(_firstPerson
-                    ? "Мышь — осмотр; ПКМ — плетение (осмотр временно фиксируется)."
-                    : "Мышь — обзор камеры; колесо — зум; ПКМ — плетение.");
+                    ? "Мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
+                    : "Мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
                 GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
@@ -194,8 +194,8 @@ namespace Pogranichye.Client
             if (_cameraRig != null) _cameraRig.SetFirstPerson(firstPerson);
             if (_views != null) _views.SetPlayerFirstPerson(firstPerson);
             _status = firstPerson
-                ? "Первое лицо: мышь управляет взглядом; ПКМ зарезервирована под плетение."
-                : "Третье лицо: мышь вращает камеру; ПКМ зарезервирована под плетение.";
+                ? "Первое лицо: мышь управляет взглядом; ПКМ — контекстный альтернативный режим."
+                : "Третье лицо: мышь вращает камеру; ПКМ — контекстный альтернативный режим.";
         }
 
         private void OnPoiSelected(WorldPoi poi)
