@@ -260,8 +260,7 @@ namespace Pogranichye.Client
             }
 
             RequestTutorialGoal("socialize");
-            _status = "Вы обратились к " + npc.DisplayName +
-                ". Отправляю общую цель общения; адресный диалог пока не входит в v1.";
+            _status = "Вы обращаетесь к жителю. Отправляю общую цель общения; адресный диалог пока не входит в v1.";
         }
 
         private bool IsNearTavern()
