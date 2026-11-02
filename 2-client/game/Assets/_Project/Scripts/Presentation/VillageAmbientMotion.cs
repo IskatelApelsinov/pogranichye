@@ -77,4 +77,26 @@ namespace Pogranichye.Client.Presentation
             }
         }
     }
+
+    /// <summary>Very slow UV drift gives the decorative creek a readable current without moving gameplay objects.</summary>
+    public sealed class CreekWaterDrift : MonoBehaviour
+    {
+        private Material _material;
+        private float _speed;
+        private Vector2 _origin;
+
+        public void Initialize(Material material, float speed)
+        {
+            _material = material;
+            _speed = speed;
+            if (_material != null) _origin = _material.mainTextureOffset;
+        }
+
+        private void Update()
+        {
+            if (_material == null) return;
+            _material.mainTextureOffset = _origin + Vector2.up * (Time.time * _speed);
+        }
+    }
+
 }
