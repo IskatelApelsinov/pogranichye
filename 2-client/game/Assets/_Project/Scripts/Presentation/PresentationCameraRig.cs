@@ -19,8 +19,16 @@ namespace Pogranichye.Client.Presentation
         private float _yaw;
         private float _pitch;
         private float _zoomDistance;
+        private bool _captureMouseForGesture;
 
         public bool IsFirstPerson => _firstPerson;
+        public bool CaptureMouseForGesture => _captureMouseForGesture;
+
+        /// <summary>Called by a future contextual tool/magic mode when raw mouse motion is a gesture, not camera look.</summary>
+        public void SetMouseGestureCapture(bool active)
+        {
+            _captureMouseForGesture = active;
+        }
 
         private void Awake()
         {
@@ -47,9 +55,8 @@ namespace Pogranichye.Client.Presentation
 
             if (_firstPerson)
             {
-                // Mouse always controls view. RMB is reserved for future spell-weaving input;
-                // while it is held, camera look pauses so cursor motion can trace the weave.
-                if (!Input.GetMouseButton(1))
+                // Mouse always controls view unless an active tool explicitly captures it for a gesture.
+                if (!_captureMouseForGesture)
                 {
                     _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity, -75f, 75f);
@@ -66,9 +73,9 @@ namespace Pogranichye.Client.Presentation
                 _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
                     minZoomDistance, maxZoomDistance);
 
-            // Mouse always orbits the third-person camera. RMB is reserved for spell weaving;
-            // camera orbit pauses while held so the same mouse movement can trace a pattern.
-            if (!Input.GetMouseButton(1))
+            // Mouse always orbits the camera. RMB alone does not freeze look: a contextual mode
+            // must explicitly request gesture capture (e.g. tracing a spell or casting a fishing line).
+            if (!_captureMouseForGesture)
             {
                 _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
