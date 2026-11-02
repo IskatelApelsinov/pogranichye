@@ -147,7 +147,11 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Здоровье {_frame.Me.Health:0} | Голод {_frame.Me.Hunger:0} | Энергия {_frame.Me.Energy:0} | Настрой {_frame.Me.Morale:0}");
                 GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
-                GUILayout.Label($"Запал бега: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
+                GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
+                if (_frame.Me.Position != null)
+                    GUILayout.Label($"Сцена X {_frame.Me.Position.X:0.00} / Z {_frame.Me.Position.Y:0.00} | взгляд {_frame.Me.Position.Facing:0}° | seq {_frame.Me.Position.Sequence}/{_moveSequence}");
+                else
+                    GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
                 GUILayout.Space(6);
                 GUILayout.Space(8);
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
@@ -386,7 +390,7 @@ namespace Pogranichye.Client
                             _cameraRig.SetFirstPerson(_firstPerson);
                         }
                         _views.SetPlayerFirstPerson(_firstPerson);
-                        _status = "Получен полный кадр v1.";
+                        _status = frame.Me.Position != null ? "Получен полный кадр v1.1; движение синхронизируется." : "Получен кадр v1.0; движение отключено.";
                     }
                 });
             }
