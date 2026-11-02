@@ -264,7 +264,8 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             if (shader == null) return;
             _forestBarkMaterial = new Material(shader) { name = "Forest bark • warm umber", color = new Color(0.24f, 0.15f, 0.09f) };
-            _forestLeafMaterial = new Material(shader) { name = "Forest canopy • deep evergreen", color = new Color(0.16f, 0.29f, 0.17f) };
+            _forestLeafMaterial = new Material(shader) { name = "Forest canopy • deep evergreen", color = new Color(0.20f, 0.34f, 0.19f) };
+            if (_forestLeafMaterial.HasProperty("_Cull")) _forestLeafMaterial.SetInt("_Cull", 0);
 
             var vertices = new System.Collections.Generic.List<Vector3>(18000);
             var bark = new System.Collections.Generic.List<int>(9000);
@@ -278,7 +279,18 @@ namespace Pogranichye.Client.Presentation
                 var height = 6.5f + (float)random.NextDouble() * 5.5f;
                 var width = 0.55f + (float)random.NextDouble() * 0.55f;
                 var yaw = (float)random.NextDouble() * Mathf.PI * 2f;
-                AppendTree(vertices, bark, leaves, center, height, width, yaw);
+                AppendTree(vertices, bark, leaves, center, height, width, yaw, random.NextDouble() < 0.42);
+            }
+
+            // Shrubs soften the transition from open meadow to the tree belt.
+            for (var i = 0; i < 34; i++)
+            {
+                var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                var radius = 19f + (float)random.NextDouble() * 10f;
+                var center = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                if (Mathf.Abs(center.x) < 3.2f || Mathf.Abs(center.z) < 3.2f) continue;
+                var size = 0.65f + (float)random.NextDouble() * 0.55f;
+                AppendCanopyBlob(vertices, leaves, center + Vector3.up * (size * 0.72f), size, size * 0.78f, size, (float)random.NextDouble() * Mathf.PI * 2f);
             }
 
             _forestMesh = new Mesh { name = "Outer woodland • combined low-poly trees" };
@@ -301,7 +313,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void AppendTree(System.Collections.Generic.List<Vector3> vertices,
             System.Collections.Generic.List<int> bark, System.Collections.Generic.List<int> leaves,
-            Vector3 center, float height, float width, float yaw)
+            Vector3 center, float height, float width, float yaw, bool broadleaf)
         {
             const int sides = 7;
             var trunkStart = vertices.Count;
@@ -322,9 +334,41 @@ namespace Pogranichye.Client.Presentation
                 bark.Add(trunkStart + next); bark.Add(trunkStart + sides + side); bark.Add(trunkStart + sides + next);
             }
 
-            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.27f), width * 1.75f, height * 0.43f, yaw);
-            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.49f), width * 1.42f, height * 0.37f, yaw + 0.17f);
-            AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.70f), width * 1.08f, height * 0.34f, yaw + 0.31f);
+            if (broadleaf)
+            {
+                var crownY = height * 0.68f;
+                AppendCanopyBlob(vertices, leaves, center + Vector3.up * crownY, width * 1.55f, height * 0.23f, width * 1.42f, yaw);
+                AppendCanopyBlob(vertices, leaves, center + new Vector3(width * 0.82f, crownY - height * 0.06f, 0f), width * 0.92f, height * 0.19f, width * 0.94f, yaw + 0.4f);
+                AppendCanopyBlob(vertices, leaves, center + new Vector3(-width * 0.78f, crownY - height * 0.04f, width * 0.18f), width * 0.88f, height * 0.18f, width * 0.92f, yaw + 1.1f);
+                AppendCanopyBlob(vertices, leaves, center + new Vector3(0f, crownY + height * 0.12f, -width * 0.42f), width * 0.88f, height * 0.17f, width * 0.90f, yaw + 0.8f);
+            }
+            else
+            {
+                AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.27f), width * 1.75f, height * 0.43f, yaw);
+                AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.49f), width * 1.42f, height * 0.37f, yaw + 0.17f);
+                AppendCanopy(vertices, leaves, center + Vector3.up * (height * 0.70f), width * 1.08f, height * 0.34f, yaw + 0.31f);
+            }
+        }
+
+        private static void AppendCanopyBlob(System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles, Vector3 center, float radiusX, float radiusY, float radiusZ, float yaw)
+        {
+            var start = vertices.Count;
+            var sin = Mathf.Sin(yaw);
+            var cos = Mathf.Cos(yaw);
+            vertices.Add(center + Vector3.up * radiusY);
+            vertices.Add(center - Vector3.up * radiusY);
+            vertices.Add(center + new Vector3(cos * radiusX, 0f, sin * radiusX));
+            vertices.Add(center + new Vector3(-cos * radiusX, 0f, -sin * radiusX));
+            vertices.Add(center + new Vector3(-sin * radiusZ, 0f, cos * radiusZ));
+            vertices.Add(center + new Vector3(sin * radiusZ, 0f, -cos * radiusZ));
+            var faces = new int[] { 0,2,4, 0,4,3, 0,3,5, 0,5,2, 1,4,2, 1,3,4, 1,5,3, 1,2,5 };
+            for (var i = 0; i < faces.Length; i += 3)
+            {
+                triangles.Add(start + faces[i]);
+                triangles.Add(start + faces[i + 1]);
+                triangles.Add(start + faces[i + 2]);
+            }
         }
 
         private static void AppendCanopy(System.Collections.Generic.List<Vector3> vertices,
