@@ -139,6 +139,17 @@ namespace Pogranichye.Client.Presentation
             text.color = Color.white;
             text.richText = false;
 
+            if (!isPlayer)
+            {
+                var hitbox = go.AddComponent<CapsuleCollider>();
+                hitbox.direction = 1;
+                hitbox.center = new Vector3(0f, 0.92f, 0f);
+                hitbox.height = 1.84f;
+                hitbox.radius = 0.30f;
+                var npc = go.AddComponent<WorldNpc>();
+                npc.Initialize(id, displayName);
+            }
+
             _views.Add(id, go);
             return go;
         }
