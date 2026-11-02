@@ -75,3 +75,45 @@ func TestSeqMonotonic(t *testing.T) {
 		t.Fatalf("seq не должен откатываться: %d", p.Seq)
 	}
 }
+
+// #16: устаревший И равный seq не меняют НИ ОДНО поле состояния (не только Seq).
+func TestStaleSeqNoStateChange(t *testing.T) {
+	p := &ScenePosC{Stam: 1}
+	ApplyMove(p, 1, 0, true, 33, moveMaxDt, 5) // приняли seq=5
+	snap := *p
+	ApplyMove(p, 0, 1, true, 180, moveMaxDt, 5) // дубль (равный seq) — всё игнор
+	if *p != snap {
+		t.Fatalf("равный seq не должен менять состояние: было %+v стало %+v", snap, *p)
+	}
+	ApplyMove(p, 0, 1, true, 180, moveMaxDt, 2) // опоздавший (меньший) — тоже игнор
+	if *p != snap {
+		t.Fatalf("меньший seq не должен менять состояние: было %+v стало %+v", snap, *p)
+	}
+}
+
+// #16: при начальном seq=0 первый ввод с seq=0 отвергается (первый принимаемый — строго >0).
+func TestInitialSeqZeroRejected(t *testing.T) {
+	p := &ScenePosC{Stam: 1}
+	ApplyMove(p, 1, 0, false, 10, moveMaxDt, 0) // seq=0 при p.Seq=0 → отказ
+	if p.X != 0 || p.Y != 0 || p.Facing != 0 || p.Seq != 0 {
+		t.Fatalf("seq=0 не должен применяться первым: %+v", *p)
+	}
+}
+
+// #17: диагональ не должна выпускать за КРУГЛУЮ границу (квадратный clamp пропускал углы ~(30,30)).
+func TestRadialBoundaryDiagonal(t *testing.T) {
+	p := &ScenePosC{Stam: 1}
+	for i := 0; i < 2000; i++ {
+		ApplyMove(p, 1, 1, false, 45, moveMaxDt, int64(i+1)) // упорно на северо-восток
+	}
+	d := math.Hypot(p.X, p.Y)
+	if d > SceneRadius+1e-6 {
+		t.Fatalf("диагональ вышла за круг: |pos|=%.3f > R=%.0f (x=%.2f y=%.2f)", d, SceneRadius, p.X, p.Y)
+	}
+	// и угловая точка (30,30) не должна считаться допустимой
+	q := &ScenePosC{X: 29, Y: 29, Stam: 1}
+	ApplyMove(q, 1, 1, false, 45, moveMaxDt, 1)
+	if math.Hypot(q.X, q.Y) > SceneRadius+1e-6 {
+		t.Fatalf("угол ~(30,30) должен поджиматься к кругу: |pos|=%.3f", math.Hypot(q.X, q.Y))
+	}
+}

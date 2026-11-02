@@ -58,6 +58,11 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 	if p == nil {
 		return
 	}
+	// #16: устаревший/повторный ввод отбрасываем ДО любых изменений состояния. Начальный seq=0,
+	// поэтому первый принимаемый ввод обязан иметь seq>0. При равном seq (дубль) — тоже ничего не меняем.
+	if seq <= p.Seq {
+		return
+	}
 	if dt < 0 {
 		dt = 0
 	}
@@ -80,8 +85,9 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 				p.Stam = 1
 			}
 		}
-		p.X = clampScene(p.X + mx*speed*dt)
-		p.Y = clampScene(p.Y + my*speed*dt)
+		p.X += mx * speed * dt
+		p.Y += my * speed * dt
+		clampRadial(p) // #17: круглая граница площадки, а не квадратная
 	} else {
 		// стоит — запал восстанавливается
 		p.Stam += stamRegen * dt
@@ -94,19 +100,18 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 	if p.Facing < 0 {
 		p.Facing += 360
 	}
-	if seq > p.Seq {
-		p.Seq = seq
-	}
+	p.Seq = seq
 }
 
-func clampScene(v float64) float64 {
-	if v > SceneRadius {
-		return SceneRadius
+// clampRadial держит тело в КРУГЕ радиуса SceneRadius (x²+y² ≤ R²). Квадратный clamp по осям
+// пропускал диагональные углы (напр. ~(30,30)), что выходило за круглую границу из контракта v1.1.
+func clampRadial(p *ScenePosC) {
+	d2 := p.X*p.X + p.Y*p.Y
+	if d2 > SceneRadius*SceneRadius {
+		d := math.Sqrt(d2)
+		p.X = p.X / d * SceneRadius
+		p.Y = p.Y / d * SceneRadius
 	}
-	if v < -SceneRadius {
-		return -SceneRadius
-	}
-	return v
 }
 
 // NeighborPos — устойчивое «декоративное» положение соседа по его id (сервер пока не симулирует
