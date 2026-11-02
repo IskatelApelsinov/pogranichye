@@ -47,8 +47,12 @@ namespace Pogranichye.Client.Presentation
             BuildHouse(village, "North cottage", new Vector3(-6, 0, 7), 0.2f);
             BuildHouse(village, "East cottage", new Vector3(7, 0, 4), -0.25f);
             BuildHouse(village, "West cottage", new Vector3(-8, 0, -5), 0.35f);
+            BuildTavern(village, new Vector3(1.5f, 0, 8f));
+            BuildBlacksmith(village, new Vector3(9f, 0, -4.5f));
+            BuildMarket(village, new Vector3(-4.5f, 0, -1.5f));
+            BuildGarden(village, new Vector3(6f, 0, -9f));
             BuildWell(village, new Vector3(3.2f, 0, -2.4f));
-            BuildFence(village, new Vector3(0, 0, -8), 12, 0.5f);
+            BuildFence(village, new Vector3(0, 0, -13), 12, 0.5f);
 
             var random = new System.Random(1701);
             for (var i = 0; i < 24; i++)
@@ -94,6 +98,125 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.48f, 0.55f, 0.08f), _stoneMaterial);
             CreatePrimitive("Chimney", PrimitiveType.Cube, house, new Vector3(1.0f, 3.0f, 0.45f),
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
+        }
+
+        private static void BuildTavern(Transform root, Vector3 position)
+        {
+            var tavern = new GameObject("Tutorial Tavern").transform;
+            tavern.SetParent(root, false);
+            tavern.position = position;
+            CreatePrimitive("Tavern timber hall", PrimitiveType.Cube, tavern,
+                new Vector3(0, 1.35f, 0), new Vector3(5.2f, 2.7f, 4.2f), _woodMaterial);
+            var roofA = CreatePrimitive("Tavern roof left", PrimitiveType.Cube, tavern,
+                new Vector3(-1.35f, 2.95f, 0), new Vector3(3.1f, 0.3f, 4.8f), _roofMaterial);
+            roofA.transform.localRotation = Quaternion.Euler(0, 0, -27f);
+            var roofB = CreatePrimitive("Tavern roof right", PrimitiveType.Cube, tavern,
+                new Vector3(1.35f, 2.95f, 0), new Vector3(3.1f, 0.3f, 4.8f), _roofMaterial);
+            roofB.transform.localRotation = Quaternion.Euler(0, 0, 27f);
+            CreatePrimitive("Tavern door", PrimitiveType.Cube, tavern,
+                new Vector3(0, 0.85f, -2.13f), new Vector3(0.95f, 1.7f, 0.1f), _roofMaterial);
+            CreatePrimitive("Tavern window left", PrimitiveType.Cube, tavern,
+                new Vector3(-1.65f, 1.65f, -2.14f), new Vector3(0.75f, 0.75f, 0.1f), _stoneMaterial);
+            CreatePrimitive("Tavern window right", PrimitiveType.Cube, tavern,
+                new Vector3(1.65f, 1.65f, -2.14f), new Vector3(0.75f, 0.75f, 0.1f), _stoneMaterial);
+            CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.24f), 0.9f);
+            CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
+                new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
+            CreatePrimitive("Tavern bench", PrimitiveType.Cube, tavern,
+                new Vector3(-3.4f, 0.35f, -1f), new Vector3(1.8f, 0.18f, 0.45f), _woodMaterial);
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.5f, 0.08f, 3.2f), new Color(0.75f, 0.48f, 0.22f));
+        }
+
+        private static void BuildBlacksmith(Transform root, Vector3 position)
+        {
+            var smithy = new GameObject("Blacksmith workshop").transform;
+            smithy.SetParent(root, false);
+            smithy.position = position;
+            CreatePrimitive("Smithy walls", PrimitiveType.Cube, smithy,
+                new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f), _woodMaterial);
+            CreatePrimitive("Smithy roof", PrimitiveType.Cube, smithy,
+                new Vector3(0, 2.35f, 0), new Vector3(4.2f, 0.35f, 3.4f), _roofMaterial);
+            CreatePrimitive("Forge", PrimitiveType.Cube, smithy,
+                new Vector3(-1.1f, 0.65f, -1.6f), new Vector3(1.0f, 1.3f, 0.8f), _stoneMaterial);
+            CreatePrimitive("Anvil", PrimitiveType.Cube, smithy,
+                new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _stoneMaterial);
+            CreateSign(smithy, "КУЗНИЦА", new Vector3(0, 1.8f, -1.58f), 0.75f);
+            CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -2.8f), new Color(0.55f, 0.55f, 0.58f));
+        }
+
+        private static void BuildMarket(Transform root, Vector3 position)
+        {
+            var market = new GameObject("Village market").transform;
+            market.SetParent(root, false);
+            market.position = position;
+            CreatePrimitive("Market stall", PrimitiveType.Cube, market,
+                new Vector3(0, 1.0f, 0), new Vector3(3.2f, 0.16f, 1.4f), _woodMaterial);
+            CreatePrimitive("Market canopy", PrimitiveType.Cube, market,
+                new Vector3(0, 2.0f, 0), new Vector3(3.6f, 0.15f, 1.8f), _roofMaterial);
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Market post", PrimitiveType.Cube, market,
+                    new Vector3(x * 1.45f, 1.0f, 0), new Vector3(0.12f, 2.0f, 0.12f), _woodMaterial);
+            CreatePrimitive("Bread basket", PrimitiveType.Sphere, market,
+                new Vector3(-0.7f, 1.28f, -0.1f), new Vector3(0.55f, 0.28f, 0.55f), _grassMaterial);
+            CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
+            CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f));
+        }
+
+        private static void BuildGarden(Transform root, Vector3 position)
+        {
+            var garden = new GameObject("Village garden").transform;
+            garden.SetParent(root, false);
+            garden.position = position;
+            for (var row = 0; row < 3; row++)
+            for (var col = 0; col < 4; col++)
+            {
+                var bed = CreatePrimitive("Garden bed", PrimitiveType.Cube, garden,
+                    new Vector3(col * 0.8f - 1.2f, 0.12f, row * 0.9f),
+                    new Vector3(0.62f, 0.22f, 0.68f), _pathMaterial);
+                CreatePrimitive("Crop", PrimitiveType.Sphere, bed.transform,
+                    new Vector3(0, 0.8f, 0), new Vector3(0.55f, 0.9f, 0.55f), _leafMaterial);
+            }
+            CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f));
+        }
+
+        private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color)
+        {
+            var marker = new GameObject("POI • " + title).transform;
+            marker.SetParent(root, false);
+            marker.position = position;
+            var beacon = CreatePrimitive("Marker", PrimitiveType.Cylinder, marker,
+                new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
+            beacon.GetComponent<Renderer>().material.color = color;
+            var label = new GameObject("POI label").transform;
+            label.SetParent(marker, false);
+            label.localPosition = new Vector3(0, 0.75f, 0);
+            label.AddComponent<BillboardLabel>();
+            var text = label.gameObject.AddComponent<TextMesh>();
+            text.text = title;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 34;
+            text.characterSize = 0.055f;
+            text.color = Color.white;
+            text.richText = false;
+        }
+
+        private static void CreateSign(Transform parent, string title, Vector3 position, float width)
+        {
+            CreatePrimitive("Sign board", PrimitiveType.Cube, parent, position,
+                new Vector3(width * 2.2f, 0.38f, 0.1f), _roofMaterial);
+            var label = new GameObject("Sign text").transform;
+            label.SetParent(parent, false);
+            label.localPosition = position + new Vector3(0, 0, -0.07f);
+            label.localRotation = Quaternion.identity;
+            var text = label.gameObject.AddComponent<TextMesh>();
+            text.text = title;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 40;
+            text.characterSize = 0.045f;
+            text.color = new Color(1f, 0.88f, 0.62f);
+            text.richText = false;
         }
 
         private static void BuildTree(Transform root, Vector3 position, float scale)
