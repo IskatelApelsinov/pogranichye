@@ -252,6 +252,7 @@ namespace Pogranichye.Client.Presentation
             if (shader == null) return null;
             var material = new Material(shader) { name = name, color = color };
             material.SetOverrideTag("RenderType", "Transparent");
+            if (material.HasProperty("_Cull")) material.SetInt("_Cull", 0);
             if (material.HasProperty("_Surface"))
             {
                 material.SetFloat("_Surface", 1f);
