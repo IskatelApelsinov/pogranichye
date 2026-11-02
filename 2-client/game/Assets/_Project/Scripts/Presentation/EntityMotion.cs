@@ -15,6 +15,42 @@ namespace Pogranichye.Client.Presentation
         private string _activity = "";
         private float _locomotion;
         private float _locomotionTarget;
+        private bool _hasNetworkTarget;
+        private Vector3 _networkTargetPosition;
+        private Vector3 _networkPositionVelocity;
+        private Quaternion _networkTargetRotation;
+        private float _lastNetworkTargetAt;
+        private const float NetworkSmoothTime = 0.42f;
+
+        /// <summary>
+        /// Applies a server-authoritative remote entity sample. Position is interpolated locally
+        /// for presentation only; this never sends or invents world state.
+        /// </summary>
+        public void SetNetworkTarget(Vector3 position, Quaternion rotation)
+        {
+            var now = Time.unscaledTime;
+            if (!_hasNetworkTarget)
+            {
+                transform.position = position;
+                transform.rotation = rotation;
+                _hasNetworkTarget = true;
+                _lastNetworkTargetAt = now;
+                _networkTargetPosition = position;
+                _networkTargetRotation = rotation;
+                return;
+            }
+
+            var elapsed = Mathf.Max(0.1f, now - _lastNetworkTargetAt);
+            var distance = Vector3.Distance(_networkTargetPosition, position);
+            var estimatedSpeed = distance / elapsed;
+            _locomotionTarget = estimatedSpeed > 0.2f
+                ? Mathf.Clamp01(estimatedSpeed / 3.2f)
+                : 0f;
+
+            _networkTargetPosition = position;
+            _networkTargetRotation = rotation;
+            _lastNetworkTargetAt = now;
+        }
 
         public void Initialize(Transform body, Transform leftArm, Transform rightArm,
             Transform leftLeg, Transform rightLeg, bool isPlayer)
@@ -40,6 +76,15 @@ namespace Pogranichye.Client.Presentation
 
         private void Update()
         {
+            if (_hasNetworkTarget)
+            {
+                transform.position = Vector3.SmoothDamp(
+                    transform.position, _networkTargetPosition, ref _networkPositionVelocity,
+                    NetworkSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation, _networkTargetRotation, 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime));
+            }
+
             if (_body == null) return;
             _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
