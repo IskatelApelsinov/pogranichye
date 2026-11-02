@@ -15,6 +15,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _stoneMaterial;
         private static Material _leafMaterial;
         private static Material _grassMaterial;
+        private static Texture2D _groundTexture;
 
         public static void Build(Transform root)
         {
@@ -24,7 +25,8 @@ namespace Pogranichye.Client.Presentation
             village.SetParent(root, false);
 
             _groundMaterial = CreateMaterial("Ground • moss", new Color(0.34f, 0.40f, 0.27f));
-            _groundMaterial.mainTexture = MakeGroundTexture();
+            _groundTexture = MakeGroundTexture();
+            _groundMaterial.mainTexture = _groundTexture;
             _groundMaterial.mainTextureScale = new Vector2(8, 8);
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
             _woodMaterial = CreateMaterial("Wood • warm timber", new Color(0.30f, 0.19f, 0.12f));
@@ -159,6 +161,31 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var material = new Material(shader) { name = name, color = color };
             return material;
+        }
+
+        public static void Cleanup()
+        {
+            DestroyAsset(_groundMaterial);
+            DestroyAsset(_pathMaterial);
+            DestroyAsset(_woodMaterial);
+            DestroyAsset(_roofMaterial);
+            DestroyAsset(_stoneMaterial);
+            DestroyAsset(_leafMaterial);
+            DestroyAsset(_grassMaterial);
+            if (_groundTexture != null) Object.Destroy(_groundTexture);
+            _groundMaterial = null;
+            _pathMaterial = null;
+            _woodMaterial = null;
+            _roofMaterial = null;
+            _stoneMaterial = null;
+            _leafMaterial = null;
+            _grassMaterial = null;
+            _groundTexture = null;
+        }
+
+        private static void DestroyAsset(Object asset)
+        {
+            if (asset != null) Object.Destroy(asset);
         }
 
         private static Texture2D MakeGroundTexture()
