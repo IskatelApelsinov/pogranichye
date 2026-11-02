@@ -40,6 +40,16 @@ namespace Pogranichye.Client
         private string _tutorialPendingGoal;
         private bool _firstPerson;
         private Vector2 _hudScroll;
+        [SerializeField] private float moveSendInterval = 0.05f;
+        private float _moveSendAccumulator;
+        private float _lastMoveSentAt;
+        private long _moveSequence;
+        private long _lastConfirmedMoveSequence;
+        private bool _moveSendInFlight;
+        private Vector3 _movementCorrection;
+        private float _movementCorrectionRemaining;
+        private float _serverStamina = 1f;
+        private float _predictedMoveSpeed;
 
         private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
@@ -61,6 +71,9 @@ namespace Pogranichye.Client
             while (_mainThread.TryDequeue(out var action)) action();
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
+
+            if (_connectionState == WorldConnectionState.Active)
+                UpdateMovement();
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
             {
@@ -122,6 +135,7 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Здоровье {_frame.Me.Health:0} | Голод {_frame.Me.Hunger:0} | Энергия {_frame.Me.Energy:0} | Настрой {_frame.Me.Morale:0}");
                 GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
+                GUILayout.Label($"Запал бега: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
                 GUILayout.Space(6);
                 GUILayout.Space(8);
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
@@ -308,6 +322,7 @@ namespace Pogranichye.Client
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
+            _moveSendInFlight = false;
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
@@ -326,6 +341,8 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    if (frame.Alive && frame.Me != null && frame.Me.Position != null)
+                        ReconcileMovement(frame.Me.Position);
                     if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
                     {
                         if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
@@ -365,6 +382,120 @@ namespace Pogranichye.Client
             }
         }
 
+
+        private void UpdateMovement()
+        {
+            var player = _views != null ? _views.PlayerTransform : null;
+            if (player == null || _socket == null || !_socket.IsConnected) return;
+
+            var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            input = Vector2.ClampMagnitude(input, 1f);
+
+            var camera = Camera.main;
+            var forward = camera != null ? camera.transform.forward : player.forward;
+            var right = camera != null ? camera.transform.right : player.right;
+            forward.y = 0f;
+            right.y = 0f;
+            forward.Normalize();
+            right.Normalize();
+
+            var worldMove = forward * input.y + right * input.x;
+            if (worldMove.sqrMagnitude > 1f) worldMove.Normalize();
+
+            var moving = worldMove.sqrMagnitude > 0.001f;
+            var running = moving && Input.GetKey(KeyCode.LeftShift);
+            var speed = running ? 3.2f : 1.4f;
+            _predictedMoveSpeed = moving ? speed : 0f;
+
+            if (moving)
+            {
+                var next = player.position + worldMove.normalized * speed * Time.deltaTime;
+                var flat = new Vector2(next.x, next.z);
+                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                player.position = new Vector3(flat.x, 0f, flat.y);
+
+                var facing = Mathf.Atan2(worldMove.z, worldMove.x) * Mathf.Rad2Deg;
+                player.rotation = Quaternion.Euler(0f, EntityViewRegistry.FacingToUnityYaw(facing), 0f);
+            }
+
+            var motion = player.GetComponent<EntityMotion>();
+            if (motion != null) motion.SetLocomotion(moving ? (running ? 1f : 0.58f) : 0f);
+
+            ApplyMovementCorrection(player);
+
+            _moveSendAccumulator += Time.unscaledDeltaTime;
+            if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval) || _moveSendInFlight)
+                return;
+
+            _moveSendAccumulator = 0f;
+            var elapsed = _lastMoveSentAt <= 0f
+                ? Mathf.Max(0.02f, Time.unscaledDeltaTime)
+                : Mathf.Max(0.001f, Time.unscaledTime - _lastMoveSentAt);
+            _lastMoveSentAt = Time.unscaledTime;
+
+            var facingDegrees = Mathf.Repeat(90f - player.eulerAngles.y, 360f);
+            _moveSequence++;
+            _moveSendInFlight = true;
+            _ = SendMoveAsync(worldMove.x, worldMove.z, running, facingDegrees, elapsed, _moveSequence);
+        }
+
+        private void ApplyMovementCorrection(Transform player)
+        {
+            if (_movementCorrectionRemaining <= 0f) return;
+            var portion = Mathf.Clamp01(Time.deltaTime / _movementCorrectionRemaining);
+            var correction = _movementCorrection * portion;
+            player.position += correction;
+            _movementCorrection -= correction;
+            _movementCorrectionRemaining = Mathf.Max(0f, _movementCorrectionRemaining - Time.deltaTime);
+        }
+
+        private void ReconcileMovement(ScenePositionFrame position)
+        {
+            if (position == null) return;
+            _serverStamina = Mathf.Clamp01((float)position.Stamina);
+            if (position.Sequence < _lastConfirmedMoveSequence) return;
+            _lastConfirmedMoveSequence = position.Sequence;
+
+            // Only reconcile once the server has acknowledged the newest local intent.
+            // This avoids pulling the predicted body backwards while newer inputs are still in flight.
+            if (position.Sequence < _moveSequence || _views?.PlayerTransform == null) return;
+
+            var canonical = EntityViewRegistry.ToUnityPosition(position);
+            var error = canonical - _views.PlayerTransform.position;
+            if (error.sqrMagnitude > 0.0001f)
+            {
+                _movementCorrection = error;
+                _movementCorrectionRemaining = 0.18f;
+            }
+            _views.PlayerTransform.rotation = Quaternion.Euler(
+                0f, EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
+        }
+
+        private async Task SendMoveAsync(float mx, float my, bool run, float face, float dt, long sequence)
+        {
+            var socket = _socket;
+            try
+            {
+                await socket.SendMoveAsync(mx, my, run, face, dt, sequence, _lifetime.Token);
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Ошибка отправки движения: " + ex.Message;
+                });
+            }
+            finally
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _moveSendInFlight = false;
+                });
+            }
+        }
+
         private async Task SendGoalAsync(string goal)
         {
             var socket = _socket;
@@ -396,6 +527,10 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
             _goalToSend = null;
+            _moveSendInFlight = false;
+            _moveSendAccumulator = 0f;
+            _movementCorrection = Vector3.zero;
+            _movementCorrectionRemaining = 0f;
             _views.Clear();
             _tutorialPendingGoal = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
