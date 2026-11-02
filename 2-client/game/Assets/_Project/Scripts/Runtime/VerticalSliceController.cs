@@ -421,8 +421,9 @@ namespace Pogranichye.Client
             if (worldMove.sqrMagnitude > 1f) worldMove.Normalize();
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            var running = moving && Input.GetKey(KeyCode.LeftShift);
-            var speed = running ? 3.2f : 1.4f;
+            var runRequested = moving && Input.GetKey(KeyCode.LeftShift);
+            var canRun = runRequested && GetPredictedStamina() > 0f;
+            var speed = canRun ? 3.2f : 1.4f;
 
             if (moving)
             {
@@ -436,7 +437,7 @@ namespace Pogranichye.Client
             }
 
             var motion = player.GetComponent<EntityMotion>();
-            if (motion != null) motion.SetLocomotion(moving ? (running ? 1f : 0.58f) : 0f);
+            if (motion != null) motion.SetLocomotion(moving ? (canRun ? 1f : 0.58f) : 0f);
 
             ApplyMovementCorrection(player);
 
@@ -457,7 +458,7 @@ namespace Pogranichye.Client
                 Sequence = _moveSequence,
                 Mx = worldMove.x,
                 My = worldMove.z,
-                Run = running,
+                Run = runRequested,
                 Face = facingDegrees,
                 DeltaTime = elapsed
             };
@@ -509,7 +510,6 @@ namespace Pogranichye.Client
                 replayedFacing = intent.Face;
             }
 
-            _serverStamina = replayedStamina;
             var error = replayedPosition - _views.PlayerTransform.position;
             if (error.sqrMagnitude > 0.0001f)
             {
@@ -518,6 +518,16 @@ namespace Pogranichye.Client
             }
             _views.PlayerTransform.rotation = Quaternion.Euler(
                 0f, EntityViewRegistry.FacingToUnityYaw(replayedFacing), 0f);
+        }
+
+
+        private float GetPredictedStamina()
+        {
+            var stamina = _serverStamina;
+            var unusedPosition = Vector3.zero;
+            for (var i = 0; i < _pendingMoveIntents.Count; i++)
+                PredictServerMove(ref unusedPosition, ref stamina, _pendingMoveIntents[i]);
+            return stamina;
         }
 
         private static void PredictServerMove(ref Vector3 position, ref float stamina, PendingMoveIntent intent)
