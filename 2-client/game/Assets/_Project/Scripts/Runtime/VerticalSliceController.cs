@@ -425,7 +425,7 @@ namespace Pogranichye.Client
             if (worldMove.sqrMagnitude > 1f) worldMove.Normalize();
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            var runRequested = moving && Input.GetKey(KeyCode.LeftShift);
+            var runRequested = moving && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
             var canRun = runRequested && GetPredictedStamina() > 0f;
             var speed = canRun ? 3.2f : 1.4f;
 
