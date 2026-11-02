@@ -44,9 +44,9 @@ The repository initially contained a source scaffold rather than a fully initial
 2. Open `Assets/_Project/Scenes/VerticalSlice.unity`.
 3. Enter login and password. Register first if needed, then log in.
 4. Connect to the world. The client builds the prototype village and renders the animated player plus nearby NPCs. Their positions are temporary presentation layout, not server coordinates.
-5. Aim at a nearby POI/NPC and press E, or use the first-steps panel: tavern/socialize, work, eat, rest. Contextual interactions are range-limited to 3.2 m and send only existing v1 goal intents; the server remains authoritative for the result.
+5. In third-person, hold RMB and move the mouse to orbit the camera; use the wheel to zoom. Switch to first-person from the HUD for precise looking (RMB + mouse). Aim at a nearby POI/NPC and press E, or use the first-steps panel: tavern/socialize, work, eat, rest. Contextual interactions are range-limited to 3.2 m and send only existing v1 goal intents; the server remains authoritative for the result.
 
-The client sends intentions only. It never changes authoritative world state locally. The four-step onboarding advances only after a snapshot reflects the requested server-side goal; it does not locally simulate success.
+Proposed full keyboard/mouse scheme and the intended weighty-but-responsive character feel are documented in `../../3-dev/comms/0025-chatgpt-control-and-puppet-feel-proposal.md`; it is a design proposal, not a claim that movement/combat inputs are implemented. The client sends intentions only. It never changes authoritative world state locally. The four-step onboarding advances only after a snapshot reflects the requested server-side goal; it does not locally simulate success.
 
 ## Protocol rules
 
