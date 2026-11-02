@@ -13,6 +13,8 @@ import (
 
 const mapSize = 1000.0 // сторона карты мира в верстах (для путей, торговли, досягаемости налога)
 
+const mageSparkChance = 0.015 // редкая врождённая искра дара (латент); пробуждение — отдельно (magic.go)
+
 var villageNames = []string{"Белогорье", "Отрадное", "Соловьёво", "Усть-Ворон", "Лещина",
 	"Яворово", "Тихий Брод", "Межгорье", "Краснолесье", "Студёное", "Вербное", "Залесье",
 	"Каменка", "Рыбное", "Горелово", "Светлояр", "Новосёлки", "Дубрава", "Погост", "Броды"}
@@ -247,8 +249,8 @@ func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity
 		&core.HomeC{Status: home, Comfort: 0, Settlement: settlement},
 		&core.PlaceC{Settlement: settlement},
 	)
-	if ident.Role == "mage" {
-		w.Attach(e, &arcane.MageC{}) // дар мага — запас маны (наполнится из поля места)
+	if s.Chance(mageSparkChance) {
+		w.Attach(e, &arcane.MageC{Awakened: false}) // врождённая искра: латент (ремесло обычное, пока не пробудился)
 	}
 	return e
 }
