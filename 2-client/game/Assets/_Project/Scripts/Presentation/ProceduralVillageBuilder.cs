@@ -73,6 +73,7 @@ namespace Pogranichye.Client.Presentation
             BuildHandCart(village, new Vector3(-6.2f, 0, -7.4f));
             BuildCreekAndFootbridge(village);
             BuildDistantTreeLine(village);
+            BuildPracticeStations(village);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -386,6 +387,68 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Silhouette crown", PrimitiveType.Sphere, tree,
                     new Vector3(0, 2.7f, 0), new Vector3(1.4f, 1.8f, 1.3f), _leafMaterial);
             }
+        }
+
+
+        private static void BuildPracticeStations(Transform root)
+        {
+            // Visual training props only. They become usable after movement and action contracts exist.
+            var range = new GameObject("Training yard • archery and combat").transform;
+            range.SetParent(root, false);
+            range.position = new Vector3(-13f, 0, -3.5f);
+            CreatePrimitive("Target backboard", PrimitiveType.Cube, range,
+                new Vector3(0, 1.35f, 0), new Vector3(1.7f, 1.7f, 0.16f), _woodMaterial);
+            var outer = CreatePrimitive("Archery target outer ring", PrimitiveType.Cylinder, range,
+                new Vector3(0, 1.45f, -0.12f), new Vector3(0.72f, 0.08f, 0.72f), _foamMaterial);
+            outer.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            var middle = CreatePrimitive("Archery target middle ring", PrimitiveType.Cylinder, range,
+                new Vector3(0, 1.45f, -0.19f), new Vector3(0.46f, 0.09f, 0.46f), _fireMaterial);
+            middle.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            var bullseye = CreatePrimitive("Archery target bullseye", PrimitiveType.Cylinder, range,
+                new Vector3(0, 1.45f, -0.25f), new Vector3(0.19f, 0.10f, 0.19f), _produceMaterial);
+            bullseye.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            CreatePrimitive("Target support left", PrimitiveType.Cube, range,
+                new Vector3(-0.62f, 0.55f, 0.05f), new Vector3(0.10f, 1.1f, 0.10f), _woodMaterial);
+            CreatePrimitive("Target support right", PrimitiveType.Cube, range,
+                new Vector3(0.62f, 0.55f, 0.05f), new Vector3(0.10f, 1.1f, 0.10f), _woodMaterial);
+            CreatePrimitive("Practice dummy torso", PrimitiveType.Capsule, range,
+                new Vector3(2.3f, 1.05f, 0.2f), new Vector3(0.58f, 0.75f, 0.42f), _produceMaterial);
+            CreatePrimitive("Practice dummy head", PrimitiveType.Sphere, range,
+                new Vector3(2.3f, 2.0f, 0.2f), new Vector3(0.42f, 0.42f, 0.42f), _woodMaterial);
+            CreatePrimitive("Dummy crossbar", PrimitiveType.Cube, range,
+                new Vector3(2.3f, 1.42f, 0.2f), new Vector3(1.25f, 0.12f, 0.12f), _woodMaterial);
+            CreateSign(range, "УЧЕБНЫЙ ДВОР", new Vector3(1.0f, 2.55f, 0.35f), 0.8f);
+
+            var bench = new GameObject("Crafting practice bench").transform;
+            bench.SetParent(root, false);
+            bench.position = new Vector3(-1.5f, 0, -10.2f);
+            CreatePrimitive("Workbench top", PrimitiveType.Cube, bench,
+                new Vector3(0, 0.95f, 0), new Vector3(2.2f, 0.18f, 0.9f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Workbench leg", PrimitiveType.Cube, bench,
+                    new Vector3(x * 0.85f, 0.45f, z * 0.30f), new Vector3(0.12f, 0.9f, 0.12f), _woodMaterial);
+            CreatePrimitive("Crafting hammer handle", PrimitiveType.Cylinder, bench,
+                new Vector3(-0.45f, 1.18f, 0), new Vector3(0.045f, 0.22f, 0.045f), _woodMaterial);
+            CreatePrimitive("Crafting hammer head", PrimitiveType.Cube, bench,
+                new Vector3(-0.45f, 1.42f, 0), new Vector3(0.28f, 0.10f, 0.12f), _metalMaterial);
+            CreatePrimitive("Crafting cloth", PrimitiveType.Cube, bench,
+                new Vector3(0.42f, 1.08f, 0.05f), new Vector3(0.45f, 0.035f, 0.42f), _clothMaterial);
+            CreateSign(bench, "МАСТЕРСКАЯ", new Vector3(0, 1.65f, -0.48f), 0.7f);
+
+            var dock = new GameObject("Fishing dock").transform;
+            dock.SetParent(root, false);
+            dock.position = new Vector3(13.45f, 0.10f, 7.0f);
+            for (var i = 0; i < 5; i++)
+                CreatePrimitive("Dock plank", PrimitiveType.Cube, dock,
+                    new Vector3(i * 0.32f - 0.64f, 0, 0), new Vector3(0.29f, 0.12f, 2.6f), _woodMaterial);
+            CreatePrimitive("Dock post near", PrimitiveType.Cylinder, dock,
+                new Vector3(-0.78f, -0.2f, -1.1f), new Vector3(0.12f, 0.6f, 0.12f), _woodMaterial);
+            CreatePrimitive("Dock post far", PrimitiveType.Cylinder, dock,
+                new Vector3(0.78f, -0.2f, -1.1f), new Vector3(0.12f, 0.6f, 0.12f), _woodMaterial);
+            CreatePrimitive("Fishing rod", PrimitiveType.Cylinder, dock,
+                new Vector3(0.95f, 0.55f, 0.2f), new Vector3(0.035f, 0.95f, 0.035f), _woodMaterial);
+            CreateSign(dock, "РЫБНОЕ МЕСТО", new Vector3(0, 1.1f, -1.35f), 0.8f);
         }
 
         private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color, string goal)
