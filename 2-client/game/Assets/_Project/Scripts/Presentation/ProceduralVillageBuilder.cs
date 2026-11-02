@@ -77,7 +77,7 @@ namespace Pogranichye.Client.Presentation
             BuildHouse(village, "North cottage", new Vector3(-6, 0, 7), 0.2f);
             BuildHouse(village, "East cottage", new Vector3(7, 0, 4), -0.25f);
             BuildHouse(village, "West cottage", new Vector3(-8, 0, -5), 0.35f);
-            BuildTavern(village, new Vector3(1.5f, 0, 8f));
+            BuildTavern(village, new Vector3(1.5f, 0, 2.5f));
             BuildBlacksmith(village, new Vector3(9f, 0, -4.5f));
             BuildMarket(village, new Vector3(-4.5f, 0, -1.5f));
             BuildGarden(village, new Vector3(6f, 0, -9f));
@@ -265,7 +265,7 @@ namespace Pogranichye.Client.Presentation
             warmLight.intensity = 1.6f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, 5.75f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, -2.0f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
