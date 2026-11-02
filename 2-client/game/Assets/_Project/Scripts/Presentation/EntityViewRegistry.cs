@@ -100,17 +100,17 @@ namespace Pogranichye.Client.Presentation
             go.transform.position = position;
 
             var body = CreatePart("Body", PrimitiveType.Capsule, go.transform,
-                new Vector3(0, 1.05f, 0), new Vector3(0.58f, 0.62f, 0.38f));
+                new Vector3(0, 0.95f, 0), new Vector3(0.48f, 0.52f, 0.32f));
             var head = CreatePart("Head", PrimitiveType.Sphere, go.transform,
-                new Vector3(0, 1.92f, 0), new Vector3(0.42f, 0.46f, 0.42f));
+                new Vector3(0, 1.62f, 0), new Vector3(0.36f, 0.40f, 0.36f));
             var leftArm = CreatePart("Left arm", PrimitiveType.Capsule, go.transform,
-                new Vector3(-0.39f, 1.08f, 0), new Vector3(0.19f, 0.48f, 0.19f));
+                new Vector3(-0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
             var rightArm = CreatePart("Right arm", PrimitiveType.Capsule, go.transform,
-                new Vector3(0.39f, 1.08f, 0), new Vector3(0.19f, 0.48f, 0.19f));
+                new Vector3(0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
             var leftLeg = CreatePart("Left leg", PrimitiveType.Capsule, go.transform,
-                new Vector3(-0.17f, 0.38f, 0), new Vector3(0.22f, 0.48f, 0.22f));
+                new Vector3(-0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
             var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, go.transform,
-                new Vector3(0.17f, 0.38f, 0), new Vector3(0.22f, 0.48f, 0.22f));
+                new Vector3(0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
 
             var tunic = RoleColor(role, isPlayer);
             ApplyColor(body.GetComponent<Renderer>(), tunic);
@@ -128,7 +128,7 @@ namespace Pogranichye.Client.Presentation
 
             var labelObject = new GameObject("Label");
             labelObject.transform.SetParent(go.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.45f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.08f, 0f);
             labelObject.AddComponent<BillboardLabel>();
 
             var text = labelObject.AddComponent<TextMesh>();
@@ -146,11 +146,11 @@ namespace Pogranichye.Client.Presentation
         private void AddFaceDetails(Transform root)
         {
             var leftEye = CreatePart("Left eye", PrimitiveType.Sphere, root,
-                new Vector3(-0.09f, 1.98f, 0.195f), new Vector3(0.045f, 0.055f, 0.025f));
+                new Vector3(-0.075f, 1.66f, 0.165f), new Vector3(0.035f, 0.045f, 0.02f));
             var rightEye = CreatePart("Right eye", PrimitiveType.Sphere, root,
-                new Vector3(0.09f, 1.98f, 0.195f), new Vector3(0.045f, 0.055f, 0.025f));
+                new Vector3(0.075f, 1.66f, 0.165f), new Vector3(0.035f, 0.045f, 0.02f));
             var mouth = CreatePart("Mouth", PrimitiveType.Sphere, root,
-                new Vector3(0f, 1.84f, 0.205f), new Vector3(0.075f, 0.025f, 0.018f));
+                new Vector3(0f, 1.54f, 0.175f), new Vector3(0.06f, 0.02f, 0.015f));
             var features = new Color(0.12f, 0.09f, 0.07f);
             ApplyColor(leftEye.GetComponent<Renderer>(), features);
             ApplyColor(rightEye.GetComponent<Renderer>(), features);
@@ -167,7 +167,7 @@ namespace Pogranichye.Client.Presentation
                     break;
                 case "smith":
                     var smithCap = CreatePart("Smith leather cap", PrimitiveType.Cube, root,
-                        new Vector3(0f, 2.17f, 0f), new Vector3(0.42f, 0.13f, 0.38f));
+                        new Vector3(0f, 1.86f, 0f), new Vector3(0.38f, 0.12f, 0.34f));
                     ApplyColor(smithCap.GetComponent<Renderer>(), new Color(0.22f, 0.23f, 0.25f));
                     break;
                 case "farmer":
@@ -175,18 +175,18 @@ namespace Pogranichye.Client.Presentation
                     break;
                 case "herbalist":
                     var herbBand = CreatePart("Herbalist headband", PrimitiveType.Cylinder, root,
-                        new Vector3(0f, 2.12f, 0f), new Vector3(0.25f, 0.045f, 0.25f));
+                        new Vector3(0f, 1.78f, 0f), new Vector3(0.23f, 0.04f, 0.23f));
                     ApplyColor(herbBand.GetComponent<Renderer>(), new Color(0.22f, 0.42f, 0.25f));
                     break;
                 case "cook":
                     var cookHat = CreatePart("Cook hat", PrimitiveType.Cylinder, root,
-                        new Vector3(0f, 2.25f, 0f), new Vector3(0.20f, 0.15f, 0.20f));
+                        new Vector3(0f, 1.94f, 0f), new Vector3(0.18f, 0.13f, 0.18f));
                     ApplyColor(cookHat.GetComponent<Renderer>(), new Color(0.84f, 0.81f, 0.72f));
                     break;
                 case "hunter":
                 case "fisher":
                     var fieldCap = CreatePart("Field cap", PrimitiveType.Cylinder, root,
-                        new Vector3(0f, 2.17f, 0f), new Vector3(0.27f, 0.07f, 0.27f));
+                        new Vector3(0f, 1.86f, 0f), new Vector3(0.25f, 0.06f, 0.25f));
                     ApplyColor(fieldCap.GetComponent<Renderer>(), normalized == "hunter"
                         ? new Color(0.25f, 0.31f, 0.18f)
                         : new Color(0.20f, 0.34f, 0.43f));
@@ -197,12 +197,12 @@ namespace Pogranichye.Client.Presentation
         private void AddHat(Transform root, string name, Color color, float brimRadius, bool flatBrim)
         {
             var brim = CreatePart(name + " brim", PrimitiveType.Cylinder, root,
-                new Vector3(0f, 2.15f, 0f), new Vector3(brimRadius, 0.035f, brimRadius));
+                new Vector3(0f, 1.82f, 0f), new Vector3(brimRadius, 0.035f, brimRadius));
             ApplyColor(brim.GetComponent<Renderer>(), color);
             if (flatBrim) return;
 
             var crown = CreatePart(name + " crown", PrimitiveType.Cylinder, root,
-                new Vector3(0f, 2.24f, 0f), new Vector3(brimRadius * 0.62f, 0.10f, brimRadius * 0.62f));
+                new Vector3(0f, 1.90f, 0f), new Vector3(brimRadius * 0.62f, 0.09f, brimRadius * 0.62f));
             ApplyColor(crown.GetComponent<Renderer>(), color);
         }
 
