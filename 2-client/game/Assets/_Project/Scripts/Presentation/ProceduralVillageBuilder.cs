@@ -28,6 +28,7 @@ namespace Pogranichye.Client.Presentation
         private static Texture2D _roofTexture;
         private static Texture2D _stoneTexture;
         private static Texture2D _waterTexture;
+        private static Mesh _creekReedMesh;
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
@@ -93,6 +94,7 @@ namespace Pogranichye.Client.Presentation
             BuildWoodPile(village, new Vector3(-8.2f, 0, -2.4f));
             BuildHandCart(village, new Vector3(-6.2f, 0, -7.4f));
             BuildCreekAndFootbridge(village);
+            BuildCreekBankVegetation(village);
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
             BuildPracticeStations(village);
@@ -605,6 +607,65 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        private static void BuildCreekBankVegetation(Transform root)
+        {
+            var vertices = new System.Collections.Generic.List<Vector3>(900);
+            var triangles = new System.Collections.Generic.List<int>(900);
+            var random = new System.Random(44017);
+
+            // Reeds follow both banks, leaving the old footbridge approach clear.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                for (var i = 0; i < 15; i++)
+                {
+                    var z = -14.5f + i * 2.05f + (float)random.NextDouble() * 0.55f;
+                    if (z > -4.4f && z < 0.4f) continue;
+                    var x = 15.5f + side * (1.18f + (float)random.NextDouble() * 0.32f);
+                    var clump = new Vector3(x, 0.08f, z);
+                    var stalks = 3 + random.Next(3);
+                    for (var stalk = 0; stalk < stalks; stalk++)
+                    {
+                        var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                        var height = 0.55f + (float)random.NextDouble() * 0.72f;
+                        var lean = 0.10f + (float)random.NextDouble() * 0.14f;
+                        var direction = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                        var tangent = new Vector3(-direction.z, 0f, direction.x) * 0.035f;
+                        var basePoint = clump + direction * ((float)random.NextDouble() * 0.18f);
+                        var tip = basePoint + Vector3.up * height + direction * lean;
+                        var first = vertices.Count;
+                        vertices.Add(basePoint - tangent);
+                        vertices.Add(basePoint + tangent);
+                        vertices.Add(tip);
+                        triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+                        triangles.Add(first + 2); triangles.Add(first + 1); triangles.Add(first);
+                        // A second crossed blade keeps the clump readable from either bank.
+                        var cross = new Vector3(-tangent.z, 0f, tangent.x);
+                        first = vertices.Count;
+                        vertices.Add(basePoint - cross);
+                        vertices.Add(basePoint + cross);
+                        vertices.Add(tip + direction * 0.015f);
+                        triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+                        triangles.Add(first + 2); triangles.Add(first + 1); triangles.Add(first);
+                    }
+                }
+            }
+
+            _creekReedMesh = new Mesh { name = "Creek bank reeds • combined mesh" };
+            _creekReedMesh.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            _creekReedMesh.SetVertices(vertices);
+            _creekReedMesh.SetTriangles(triangles, 0);
+            _creekReedMesh.RecalculateNormals();
+            _creekReedMesh.RecalculateBounds();
+
+            var reeds = new GameObject("Creek bank reeds");
+            reeds.transform.SetParent(root, false);
+            reeds.AddComponent<MeshFilter>().sharedMesh = _creekReedMesh;
+            var renderer = reeds.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _leafMaterial;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
         private static void BuildDistantTreeLine(Transform root)
         {
             for (var i = 0; i < 18; i++)
@@ -905,6 +966,7 @@ namespace Pogranichye.Client.Presentation
             if (_roofTexture != null) Object.Destroy(_roofTexture);
             if (_stoneTexture != null) Object.Destroy(_stoneTexture);
             if (_waterTexture != null) Object.Destroy(_waterTexture);
+            DestroyAsset(_creekReedMesh);
             _groundMaterial = null;
             _pathMaterial = null;
             _woodMaterial = null;
@@ -925,6 +987,7 @@ namespace Pogranichye.Client.Presentation
             _roofTexture = null;
             _stoneTexture = null;
             _waterTexture = null;
+            _creekReedMesh = null;
         }
 
         private static void DestroyAsset(Object asset)
