@@ -30,6 +30,8 @@ The repository initially contained a source scaffold rather than a fully initial
 - Full-snapshot JSON parsing and protocol validation (`v == 1`).
 - Entity View registry keyed by `ulong` parsed from string IDs.
 - Temporary client-side neighbor layout only; it is not world coordinates.
+- Camera-facing world-space labels for the player and nearby NPCs; per-renderer colors use `MaterialPropertyBlock` rather than allocating one material per entity.
+- Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - Debug HUD and primitive capsule views to validate the end-to-end connection.
 - A generated starter scene with camera, directional light, ground plane and the runtime client controller.
 
