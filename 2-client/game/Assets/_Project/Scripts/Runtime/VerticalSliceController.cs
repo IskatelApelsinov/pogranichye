@@ -360,15 +360,6 @@ namespace Pogranichye.Client
             RenderSettings.fogEndDistance = 65f;
         }
 
-        internal static void ApplyUrpMaterial(Renderer renderer, Color color)
-        {
-            if (renderer == null) return;
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            if (shader == null) return;
-            var material = new Material(shader) { color = color };
-            renderer.sharedMaterial = material;
-        }
-
         private void OnDestroy()
         {
             _lifetime.Cancel();
