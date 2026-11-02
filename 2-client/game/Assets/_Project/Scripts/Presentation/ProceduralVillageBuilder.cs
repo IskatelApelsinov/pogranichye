@@ -198,6 +198,7 @@ namespace Pogranichye.Client.Presentation
             label.localPosition = new Vector3(0, 0.75f, 0);
             label.AddComponent<BillboardLabel>();
             label.gameObject.AddComponent<BillboardLabel>();
+            label.gameObject.AddComponent<BillboardLabel>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
