@@ -192,7 +192,20 @@ namespace Pogranichye.Client.Presentation
                 var x = (float)random.NextDouble() * 50f - 25f;
                 var z = (float)random.NextDouble() * 50f - 25f;
                 if (Mathf.Abs(x) < 1.55f || Mathf.Abs(z) < 1.25f) continue;
-                if (x > 3f && x < 11f && z > -11f && z < 5f) continue;
+                if (NearFootprint(x, z, -6f, 7f, 2.5f, 2.1f) ||
+                    NearFootprint(x, z, 7f, 4f, 2.5f, 2.0f) ||
+                    NearFootprint(x, z, -8f, -5f, 2.5f, 2.0f) ||
+                    NearFootprint(x, z, 1.5f, 2.5f, 3.4f, 2.8f) ||
+                    NearFootprint(x, z, 9f, -4.5f, 2.4f, 2.0f) ||
+                    NearFootprint(x, z, -4.5f, -1.5f, 2.2f, 1.8f) ||
+                    NearFootprint(x, z, 6f, -9f, 2.8f, 2.0f) ||
+                    NearFootprint(x, z, 3.2f, -2.4f, 1.0f, 1.0f) ||
+                    NearFootprint(x, z, -20f, -13f, 3.2f, 3.0f) ||
+                    NearFootprint(x, z, -22f, 13f, 2.0f, 2.0f) ||
+                    NearFootprint(x, z, -13f, -3.5f, 3.0f, 2.8f) ||
+                    NearFootprint(x, z, -1.5f, -10.2f, 1.8f, 1.2f) ||
+                    NearFootprint(x, z, 13.45f, 7f, 1.8f, 2.0f) ||
+                    Mathf.Abs(x - 15.5f) < 1.8f) continue;
                 var height = 0.18f + (float)random.NextDouble() * 0.30f;
                 var width = 0.035f + (float)random.NextDouble() * 0.035f;
                 var yaw = (float)random.NextDouble() * Mathf.PI * 2f;
@@ -223,9 +236,15 @@ namespace Pogranichye.Client.Presentation
             var grass = new GameObject("Meadow grass • dense field detail");
             grass.transform.SetParent(root, false);
             grass.AddComponent<MeshFilter>().sharedMesh = _grassMesh;
-            grass.AddComponent<MeshRenderer>().sharedMaterial = _grassMaterial;
+            var grassRenderer = grass.AddComponent<MeshRenderer>();
+            grassRenderer.sharedMaterial = _grassMaterial;
+            grassRenderer.shadowCastingMode = ShadowCastingMode.Off;
             grass.AddComponent<MeadowGrassWind>().Initialize(_grassMesh);
-            grass.isStatic = true;
+        }
+
+        private static bool NearFootprint(float x, float z, float centerX, float centerZ, float radiusX, float radiusZ)
+        {
+            return Mathf.Abs(x - centerX) < radiusX && Mathf.Abs(z - centerZ) < radiusZ;
         }
 
         private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
@@ -354,6 +373,9 @@ namespace Pogranichye.Client.Presentation
             _rest = _mesh.vertices;
             _vertices = new Vector3[_rest.Length];
             Array.Copy(_rest, _vertices, _rest.Length);
+            var bounds = _mesh.bounds;
+            bounds.Expand(new Vector3(0.12f, 0f, 0f));
+            _mesh.bounds = bounds;
         }
 
         private void Update()
@@ -368,7 +390,6 @@ namespace Pogranichye.Client.Presentation
                 _vertices[i] = vertex;
             }
             _mesh.vertices = _vertices;
-            _mesh.RecalculateBounds();
         }
     }
 
