@@ -34,6 +34,7 @@ namespace Pogranichye.Client.Presentation
 
             var village = new GameObject("PrototypeVillage").transform;
             village.SetParent(root, false);
+            var ambientMotion = village.gameObject.AddComponent<VillageAmbientMotion>();
 
             _groundMaterial = CreateMaterial("Ground • moss", Color.white);
             _groundTexture = MakeGroundTexture();
@@ -90,6 +91,7 @@ namespace Pogranichye.Client.Presentation
             BuildCreekAndFootbridge(village);
             BuildDistantTreeLine(village);
             BuildPracticeStations(village);
+            BuildVillageLife(village, ambientMotion);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -264,9 +266,161 @@ namespace Pogranichye.Client.Presentation
             warmLight.range = 9f;
             warmLight.intensity = 1.6f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
+            var ambient = root.GetComponent<VillageAmbientMotion>();
+            if (ambient != null) ambient.RegisterLight(warmLight, 0.08f, 2.0f);
 
             CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, -2.0f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
+        }
+
+        private static void BuildVillageLife(Transform root, VillageAmbientMotion ambient)
+        {
+            // A readable signpost at the crossroads makes the settlement feel navigable.
+            var signpost = new GameObject("Crossroads signpost").transform;
+            signpost.SetParent(root, false);
+            signpost.position = new Vector3(2.8f, 0, -3.8f);
+            CreatePrimitive("Signpost upright", PrimitiveType.Cylinder, signpost,
+                new Vector3(0, 1.45f, 0), new Vector3(0.09f, 1.45f, 0.09f), _woodMaterial);
+            var tavernArrow = CreatePrimitive("Tavern direction board", PrimitiveType.Cube, signpost,
+                new Vector3(-0.58f, 2.25f, 0), new Vector3(1.25f, 0.22f, 0.10f), _roofMaterial);
+            tavernArrow.transform.localRotation = Quaternion.Euler(0, 0, -4f);
+            CreateSign(signpost, "КОРЧМА  ←", new Vector3(-0.58f, 2.25f, -0.07f), 0.52f);
+            var smithArrow = CreatePrimitive("Smith direction board", PrimitiveType.Cube, signpost,
+                new Vector3(0.55f, 1.92f, 0), new Vector3(1.15f, 0.22f, 0.10f), _roofMaterial);
+            smithArrow.transform.localRotation = Quaternion.Euler(0, 0, 3f);
+            CreateSign(signpost, "КУЗНЕЦ  →", new Vector3(0.55f, 1.92f, -0.07f), 0.48f);
+
+            // Warm lanterns break up the long empty road and provide a visual path at dusk.
+            BuildStreetLantern(root, ambient, new Vector3(-2.1f, 0, -8.4f));
+            BuildStreetLantern(root, ambient, new Vector3(2.1f, 0, 8.4f));
+            BuildStreetLantern(root, ambient, new Vector3(-9.8f, 0, -1.8f));
+
+            // Everyday objects: a place to sit, draw water, wash clothes and unload goods.
+            BuildVillageBench(root, new Vector3(4.8f, 0, -2.8f));
+            BuildLaundryLine(root, ambient, new Vector3(-10.0f, 0, 10.0f));
+            BuildMarketCrates(root, new Vector3(-6.2f, 0, -2.6f));
+            BuildHitchingPost(root, new Vector3(5.0f, 0, 4.2f));
+            BuildGardenFence(root, new Vector3(6.0f, 0, -9.0f));
+        }
+
+        private static void BuildStreetLantern(Transform root, VillageAmbientMotion ambient, Vector3 position)
+        {
+            var post = new GameObject("Roadside lantern post").transform;
+            post.SetParent(root, false);
+            post.position = position;
+            CreatePrimitive("Lantern post", PrimitiveType.Cylinder, post,
+                new Vector3(0, 1.65f, 0), new Vector3(0.09f, 1.65f, 0.09f), _woodMaterial);
+            CreatePrimitive("Lantern arm", PrimitiveType.Cube, post,
+                new Vector3(0.28f, 3.05f, 0), new Vector3(0.62f, 0.08f, 0.08f), _woodMaterial);
+            CreatePrimitive("Lantern roof", PrimitiveType.Cube, post,
+                new Vector3(0.55f, 2.98f, 0), new Vector3(0.48f, 0.10f, 0.42f), _roofMaterial);
+            var glow = CreatePrimitive("Lantern warm glass", PrimitiveType.Sphere, post,
+                new Vector3(0.55f, 2.72f, 0), new Vector3(0.22f, 0.30f, 0.20f), _fireMaterial);
+            var lightObject = new GameObject("Lantern light");
+            lightObject.transform.SetParent(post, false);
+            lightObject.transform.localPosition = new Vector3(0.55f, 2.72f, 0);
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 6f;
+            light.intensity = 0.8f;
+            light.color = new Color(1f, 0.58f, 0.28f);
+            if (ambient != null) ambient.RegisterLight(light, 0.16f, 2.8f);
+        }
+
+        private static void BuildVillageBench(Transform root, Vector3 position)
+        {
+            var bench = new GameObject("Village resting bench").transform;
+            bench.SetParent(root, false);
+            bench.position = position;
+            CreatePrimitive("Bench seat", PrimitiveType.Cube, bench,
+                new Vector3(0, 0.52f, 0), new Vector3(1.65f, 0.13f, 0.48f), _woodMaterial);
+            CreatePrimitive("Bench back", PrimitiveType.Cube, bench,
+                new Vector3(0, 0.88f, 0.20f), new Vector3(1.65f, 0.58f, 0.12f), _roofMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            {
+                CreatePrimitive("Bench leg", PrimitiveType.Cube, bench,
+                    new Vector3(x * 0.62f, 0.25f, 0), new Vector3(0.12f, 0.50f, 0.12f), _roofMaterial);
+                CreatePrimitive("Bench back support", PrimitiveType.Cube, bench,
+                    new Vector3(x * 0.62f, 0.68f, 0.20f), new Vector3(0.10f, 0.82f, 0.10f), _roofMaterial);
+            }
+        }
+
+        private static void BuildLaundryLine(Transform root, VillageAmbientMotion ambient, Vector3 position)
+        {
+            var laundry = new GameObject("Laundry line").transform;
+            laundry.SetParent(root, false);
+            laundry.position = position;
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Laundry line post", PrimitiveType.Cylinder, laundry,
+                    new Vector3(x * 1.8f, 1.25f, 0), new Vector3(0.06f, 1.25f, 0.06f), _woodMaterial);
+            CreatePrimitive("Laundry rope", PrimitiveType.Cylinder, laundry,
+                new Vector3(0, 2.43f, 0), new Vector3(0.025f, 1.8f, 0.025f), _roofMaterial);
+            for (var i = 0; i < 4; i++)
+            {
+                var cloth = CreatePrimitive("Hanging linen", PrimitiveType.Cube, laundry,
+                    new Vector3(-1.1f + i * 0.72f, 1.92f, 0),
+                    new Vector3(0.58f, 0.82f, 0.045f), _clothMaterial);
+                cloth.transform.localRotation = Quaternion.Euler(0, 0, (i % 2 == 0 ? -1f : 1f) * 4f);
+                if (ambient != null) ambient.RegisterSway(cloth.transform, 2.5f + i * 0.4f, 1.0f + i * 0.12f);
+            }
+        }
+
+        private static void BuildMarketCrates(Transform root, Vector3 position)
+        {
+            var goods = new GameObject("Market delivery goods").transform;
+            goods.SetParent(root, false);
+            goods.position = position;
+            for (var i = 0; i < 3; i++)
+            {
+                var crate = CreatePrimitive("Open produce crate", PrimitiveType.Cube, goods,
+                    new Vector3(i * 0.72f, 0.28f, 0), new Vector3(0.62f, 0.52f, 0.62f), _woodMaterial);
+                for (var side = -1; side <= 1; side += 2)
+                    CreatePrimitive("Crate slat", PrimitiveType.Cube, crate.transform,
+                        new Vector3(0, side * 0.40f, 0), new Vector3(1.05f, 0.08f, 1.05f), _roofMaterial);
+                CreatePrimitive("Produce bundle", PrimitiveType.Sphere, goods,
+                    new Vector3(i * 0.72f, 0.66f, 0.02f), new Vector3(0.34f, 0.24f, 0.30f), _produceMaterial);
+            }
+            CreatePrimitive("Grain sack", PrimitiveType.Capsule, goods,
+                new Vector3(0.2f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _clothMaterial);
+            CreatePrimitive("Flour sack", PrimitiveType.Capsule, goods,
+                new Vector3(0.92f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _foamMaterial);
+        }
+
+        private static void BuildHitchingPost(Transform root, Vector3 position)
+        {
+            var hitch = new GameObject("Tavern hitching rail").transform;
+            hitch.SetParent(root, false);
+            hitch.position = position;
+            for (var x = -1; x <= 1; x += 2)
+                CreatePrimitive("Hitching post", PrimitiveType.Cylinder, hitch,
+                    new Vector3(x * 0.9f, 0.68f, 0), new Vector3(0.10f, 0.68f, 0.10f), _woodMaterial);
+            CreatePrimitive("Hitching rail", PrimitiveType.Cylinder, hitch,
+                new Vector3(0, 1.20f, 0), new Vector3(0.08f, 0.9f, 0.08f), _woodMaterial);
+            CreatePrimitive("Water trough", PrimitiveType.Cube, hitch,
+                new Vector3(0, 0.26f, 0.72f), new Vector3(1.45f, 0.48f, 0.62f), _woodMaterial);
+            CreatePrimitive("Trough water", PrimitiveType.Cube, hitch,
+                new Vector3(0, 0.51f, 0.72f), new Vector3(1.25f, 0.025f, 0.44f), _waterMaterial);
+        }
+
+        private static void BuildGardenFence(Transform root, Vector3 position)
+        {
+            var fence = new GameObject("Garden low fence").transform;
+            fence.SetParent(root, false);
+            fence.position = position + new Vector3(0, 0, -0.5f);
+            for (var i = 0; i < 5; i++)
+            {
+                var x = -1.8f + i * 0.9f;
+                CreatePrimitive("Garden fence post", PrimitiveType.Cube, fence,
+                    new Vector3(x, 0.38f, -0.15f), new Vector3(0.10f, 0.76f, 0.10f), _woodMaterial);
+                CreatePrimitive("Garden fence rail", PrimitiveType.Cube, fence,
+                    new Vector3(x, 0.42f, -0.15f), new Vector3(0.92f, 0.09f, 0.09f), _roofMaterial);
+            }
+            for (var i = 0; i < 4; i++)
+            {
+                var x = -1.35f + i * 0.9f;
+                CreatePrimitive("Garden fence post side", PrimitiveType.Cube, fence,
+                    new Vector3(-2.0f, 0.38f, x + 0.15f), new Vector3(0.10f, 0.76f, 0.10f), _woodMaterial);
+            }
         }
 
         private static void BuildTavernTable(Transform tavern, Vector3 position)
