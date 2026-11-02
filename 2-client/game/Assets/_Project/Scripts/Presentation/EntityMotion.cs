@@ -64,6 +64,9 @@ namespace Pogranichye.Client.Presentation
             _phase = Random.value * Mathf.PI * 2f;
         }
 
+        /// <summary>Presentation-only locomotion intensity derived from replicated movement.</summary>
+        public float LocomotionAmount => _locomotion;
+
         public void SetLocomotion(float normalizedSpeed)
         {
             _locomotionTarget = Mathf.Clamp01(normalizedSpeed);
