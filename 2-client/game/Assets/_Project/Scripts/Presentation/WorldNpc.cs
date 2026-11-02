@@ -22,16 +22,14 @@ namespace Pogranichye.Client.Presentation
         public ulong EntityId { get; private set; }
         public string DisplayName { get; private set; }
 
-        public void Initialize(ulong entityId, string displayName, Renderer bodyRenderer)
+        public void Initialize(ulong entityId, string displayName, Renderer bodyRenderer, Color bodyColor)
         {
             EntityId = entityId;
             DisplayName = displayName ?? "Житель";
             _bodyRenderer = bodyRenderer;
             if (_bodyRenderer != null)
             {
-                _baseColor = _bodyRenderer.sharedMaterial != null
-                    ? _bodyRenderer.sharedMaterial.color
-                    : Color.white;
+                _baseColor = bodyColor;
                 _block = new MaterialPropertyBlock();
             }
         }
