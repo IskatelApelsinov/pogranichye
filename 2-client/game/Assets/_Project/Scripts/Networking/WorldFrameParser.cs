@@ -45,6 +45,7 @@ namespace Pogranichye.Client.Networking
                 if (me == null || me.Type != JTokenType.Object)
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
+                ValidatePosition(me["pos"], "me.pos", true);
 
                 var place = root["place"];
                 if (place != null && place.Type != JTokenType.Null)
@@ -63,6 +64,7 @@ namespace Pogranichye.Client.Networking
                             if (neighbor == null || neighbor.Type != JTokenType.Object)
                                 throw new FormatException($"place.neighbors[{i}] должен быть объектом.");
                             RequireStringId(neighbor["id"], $"place.neighbors[{i}].id");
+                            ValidatePosition(neighbor["pos"], $"place.neighbors[{i}].pos", false);
                         }
                     }
                 }
@@ -95,6 +97,32 @@ namespace Pogranichye.Client.Networking
                 }
             }
             return frame;
+        }
+
+
+        private static void ValidatePosition(JToken token, string fieldName, bool player)
+        {
+            if (token == null || token.Type == JTokenType.Null) return; // v1.0 compatibility
+            if (token.Type != JTokenType.Object)
+                throw new FormatException(fieldName + " должен быть объектом.");
+
+            if (!IsNumber(token["x"]) || !IsNumber(token["y"]) || !IsNumber(token["facing"]))
+                throw new FormatException(fieldName + " должен содержать числовые x, y и facing.");
+
+            if (player)
+            {
+                var stamina = token["stam"];
+                var sequence = token["seq"];
+                if (stamina != null && stamina.Type != JTokenType.Null && !IsNumber(stamina))
+                    throw new FormatException(fieldName + ".stam должен быть числом.");
+                if (sequence != null && sequence.Type != JTokenType.Null && sequence.Type != JTokenType.Integer)
+                    throw new FormatException(fieldName + ".seq должен быть целым числом.");
+            }
+        }
+
+        private static bool IsNumber(JToken token)
+        {
+            return token != null && (token.Type == JTokenType.Integer || token.Type == JTokenType.Float);
         }
 
         private static void RequireStringId(JToken token, string fieldName)
