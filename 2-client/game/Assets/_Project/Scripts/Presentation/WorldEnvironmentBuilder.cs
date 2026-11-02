@@ -19,6 +19,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _groundDetailMaterial;
         private static Mesh _forestMesh;
         private static Mesh _groundDetailMesh;
+        private static Mesh _flowerMesh;
         private static Mesh _starMesh;
         private static Mesh _grassMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
@@ -348,9 +349,16 @@ namespace Pogranichye.Client.Presentation
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             if (shader == null) return;
-            _groundDetailMaterial = new Material(shader) { name = "Meadow details • muted stone and wildflower", color = Color.white };
-            var vertices = new System.Collections.Generic.List<Vector3>(9000);
-            var triangles = new System.Collections.Generic.List<int>(9000);
+            var rockMaterial = new Material(shader) { name = "Field stones • weathered grey", color = new Color(0.39f, 0.40f, 0.36f) };
+            var flowerMaterial = new Material(shader) { name = "Wildflowers • muted gold", color = new Color(0.78f, 0.66f, 0.38f) };
+            _landscapeMaterials.Add(rockMaterial);
+            _landscapeMaterials.Add(flowerMaterial);
+            if (flowerMaterial.HasProperty("_Cull")) flowerMaterial.SetInt("_Cull", 0);
+
+            var rockVertices = new System.Collections.Generic.List<Vector3>(1200);
+            var rockTriangles = new System.Collections.Generic.List<int>(1800);
+            var flowerVertices = new System.Collections.Generic.List<Vector3>(6000);
+            var flowerTriangles = new System.Collections.Generic.List<int>(6000);
             var random = new System.Random(61027);
 
             for (var i = 0; i < 42; i++)
@@ -360,7 +368,7 @@ namespace Pogranichye.Client.Presentation
                 if (Mathf.Abs(x) < 2.7f || Mathf.Abs(z) < 2.7f || NearFootprint(x, z, -20f, -13f, 4f, 4f) ||
                     NearFootprint(x, z, -22f, 13f, 3f, 3f)) continue;
                 var scale = 0.25f + (float)random.NextDouble() * 0.65f;
-                AppendRock(vertices, triangles, new Vector3(x, 0.10f, z), scale, (float)random.NextDouble() * 6.28f);
+                AppendRock(rockVertices, rockTriangles, new Vector3(x, 0.10f, z), scale, (float)random.NextDouble() * 6.28f);
             }
 
             for (var i = 0; i < 115; i++)
@@ -387,26 +395,41 @@ namespace Pogranichye.Client.Presentation
                     var basePoint = new Vector3(x, 0.04f, z) + offset;
                     var top = basePoint + Vector3.up * height;
                     var side = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)) * 0.025f;
-                    var first = vertices.Count;
-                    vertices.Add(basePoint - side);
-                    vertices.Add(basePoint + side);
-                    vertices.Add(top);
-                    triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+                    var first = flowerVertices.Count;
+                    flowerVertices.Add(basePoint - side);
+                    flowerVertices.Add(basePoint + side);
+                    flowerVertices.Add(top);
+                    flowerTriangles.Add(first); flowerTriangles.Add(first + 1); flowerTriangles.Add(first + 2);
                 }
             }
 
-            _groundDetailMesh = new Mesh { name = "Wildflowers and field stones • combined" };
-            _groundDetailMesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-            _groundDetailMesh.SetVertices(vertices);
-            _groundDetailMesh.SetTriangles(triangles, 0);
-            _groundDetailMesh.RecalculateNormals();
-            _groundDetailMesh.RecalculateBounds();
-            var details = new GameObject("Wildflowers and scattered field stones");
-            details.transform.SetParent(root, false);
-            details.AddComponent<MeshFilter>().sharedMesh = _groundDetailMesh;
-            var renderer = details.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = _groundDetailMaterial;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            var rockMesh = new Mesh { name = "Scattered field stones • combined" };
+            rockMesh.indexFormat = rockVertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            rockMesh.SetVertices(rockVertices);
+            rockMesh.SetTriangles(rockTriangles, 0);
+            rockMesh.RecalculateNormals();
+            rockMesh.RecalculateBounds();
+            var rocks = new GameObject("Scattered field stones");
+            rocks.transform.SetParent(root, false);
+            rocks.AddComponent<MeshFilter>().sharedMesh = rockMesh;
+            var rockRenderer = rocks.AddComponent<MeshRenderer>();
+            rockRenderer.sharedMaterial = rockMaterial;
+            rockRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _groundDetailMesh = rockMesh;
+
+            var flowerMesh = new Mesh { name = "Wildflower clusters • combined" };
+            flowerMesh.indexFormat = flowerVertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            flowerMesh.SetVertices(flowerVertices);
+            flowerMesh.SetTriangles(flowerTriangles, 0);
+            flowerMesh.RecalculateNormals();
+            flowerMesh.RecalculateBounds();
+            var flowers = new GameObject("Wildflowers along meadow edges");
+            flowers.transform.SetParent(root, false);
+            flowers.AddComponent<MeshFilter>().sharedMesh = flowerMesh;
+            var flowerRenderer = flowers.AddComponent<MeshRenderer>();
+            flowerRenderer.sharedMaterial = flowerMaterial;
+            flowerRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _flowerMesh = flowerMesh;
         }
 
         private static void AppendRock(System.Collections.Generic.List<Vector3> vertices,
@@ -423,8 +446,8 @@ namespace Pogranichye.Client.Presentation
             for (var i = 0; i < 5; i++)
             {
                 var next = (i + 1) % 5;
-                triangles.Add(start); triangles.Add(start + 1 + i); triangles.Add(start + 1 + next);
-                triangles.Add(start + 6); triangles.Add(start + 1 + next); triangles.Add(start + 1 + i);
+                triangles.Add(start); triangles.Add(start + 1 + next); triangles.Add(start + 1 + i);
+                triangles.Add(start + 6); triangles.Add(start + 1 + i); triangles.Add(start + 1 + next);
             }
         }
 
@@ -516,6 +539,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_groundDetailMaterial);
             DestroyAsset(_forestMesh);
             DestroyAsset(_groundDetailMesh);
+            DestroyAsset(_flowerMesh);
             DestroyAsset(_starMesh);
             DestroyAsset(_grassMesh);
             foreach (var material in _landscapeMaterials) DestroyAsset(material);
@@ -526,6 +550,7 @@ namespace Pogranichye.Client.Presentation
             _groundDetailMaterial = null;
             _forestMesh = null;
             _groundDetailMesh = null;
+            _flowerMesh = null;
             _starMesh = null;
             _grassMesh = null;
             _skyMaterial = null;
