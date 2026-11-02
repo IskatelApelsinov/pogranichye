@@ -59,8 +59,8 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
-            GUI.Box(new Rect(12, 12, 380, 390), "ПОГРАНИЧЬЕ — Unity v1 Vertical Slice");
-            GUILayout.BeginArea(new Rect(24, 42, 356, 350));
+            GUI.Box(new Rect(12, 12, 430, 510), "ПОГРАНИЧЬЕ — первая деревня");
+            GUILayout.BeginArea(new Rect(24, 42, 406, 470));
             GUILayout.Label("Сервер");
             GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
             serverUrl = GUILayout.TextField(serverUrl);
@@ -109,14 +109,14 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
                 GUILayout.Space(6);
-                GUILayout.Label("Отправить намерение (сервер решает результат):");
-                GUILayout.BeginHorizontal();
-                GoalButton("work"); GoalButton("eat"); GoalButton("rest");
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GoalButton("socialize"); GoalButton("seek_home"); GoalButton("wander");
-                GUILayout.EndHorizontal();
-                if (GUILayout.Button("leave")) _goalToSend = "leave";
+                GUILayout.Space(8);
+                GUILayout.Label("ПЕРВЫЕ ШАГИ");
+                GUILayout.Label(TutorialHint(), GUILayout.Height(38));
+                GUILayout.Label("Выберите занятие — сервер выполнит действие по правилам мира:");
+                if (GUILayout.Button("🍺 Таверна — поговорить")) _goalToSend = "socialize";
+                if (GUILayout.Button("🔨 Кузница / огород — работать")) _goalToSend = "work";
+                if (GUILayout.Button("🍞 Рынок — поесть")) _goalToSend = "eat";
+                if (GUILayout.Button("🏠 Дом — отдохнуть")) _goalToSend = "rest";
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -141,9 +141,24 @@ namespace Pogranichye.Client
             }
         }
 
-        private void GoalButton(string goal)
+        private string TutorialHint()
         {
-            if (GUILayout.Button(goal)) _goalToSend = goal;
+            if (_frame == null || _frame.Me == null)
+                return "Подключитесь к миру, чтобы начать знакомство с деревней.";
+
+            switch (_frame.Me.Goal)
+            {
+                case "socialize":
+                    return "Вы выбрали общение. Посмотрите, как меняются настроение и последнее действие персонажа.";
+                case "work":
+                    return "Вы выбрали работу. Результат зависит от профессии, запасов и правил симуляции.";
+                case "eat":
+                    return "Вы выбрали еду. Следите за показателем голода и запасами поселения.";
+                case "rest":
+                    return "Вы выбрали отдых. Энергия персонажа восстанавливается по правилам сервера.";
+                default:
+                    return "Начните с таверны: выберите общение, затем попробуйте работу, еду и отдых.";
+            }
         }
 
         private async Task RegisterAsync()
