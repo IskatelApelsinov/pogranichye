@@ -118,8 +118,10 @@ namespace Pogranichye.Client.Networking
                 var sequence = token["seq"];
                 if (!IsNumber(stamina))
                     throw new FormatException(fieldName + ".stam должен быть числом.");
-                if (sequence == null || sequence.Type != JTokenType.Integer || sequence.Value<long>() < 0)
-                    throw new FormatException(fieldName + ".seq должен быть неотрицательным целым числом.");
+                if (sequence == null || sequence.Type != JTokenType.Integer ||
+                    !long.TryParse(sequence.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var sequenceValue) ||
+                    sequenceValue < 0)
+                    throw new FormatException(fieldName + ".seq должен быть неотрицательным целым числом в диапазоне int64.");
                 var staminaValue = stamina.Value<double>();
                 if (staminaValue < 0d || staminaValue > 1d)
                     throw new FormatException(fieldName + ".stam должен находиться в диапазоне 0..1.");
