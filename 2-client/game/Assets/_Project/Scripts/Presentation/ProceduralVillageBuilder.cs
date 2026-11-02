@@ -97,6 +97,7 @@ namespace Pogranichye.Client.Presentation
             BuildCreekBankVegetation(village);
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
+            BuildFarmsteadAndOrchard(village);
             BuildPracticeStations(village);
             BuildVillageLife(village, ambientMotion);
 
@@ -729,6 +730,109 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0, 1.12f, -0.02f), new Vector3(0.58f, 0.72f, 0.06f), _clothMaterial);
             }
             rotor.gameObject.AddComponent<WindmillRotor>().Initialize(8f);
+        }
+
+        private static void BuildFarmsteadAndOrchard(Transform root)
+        {
+            // A small cultivated field extends the village economy beyond the central garden.
+            // All props are visual-only and deliberately use the existing ground plane.
+            var field = new GameObject("Outlying crop field").transform;
+            field.SetParent(root, false);
+            field.position = new Vector3(12.5f, 0f, -14.5f);
+
+            CreatePrimitive("Field soil patch", PrimitiveType.Cube, field,
+                new Vector3(0f, 0.035f, 0f), new Vector3(7.8f, 0.07f, 5.6f), _pathMaterial);
+            for (var row = 0; row < 5; row++)
+            {
+                var z = -2.0f + row * 1.0f;
+                CreatePrimitive("Raised crop ridge", PrimitiveType.Cube, field,
+                    new Vector3(0f, 0.13f, z), new Vector3(6.8f, 0.16f, 0.52f), _groundMaterial);
+                for (var plant = 0; plant < 9; plant++)
+                {
+                    var x = -3.0f + plant * 0.75f;
+                    var height = 0.38f + ((row + plant) % 3) * 0.08f;
+                    var crop = CreatePrimitive("Field crop", PrimitiveType.Sphere, field,
+                        new Vector3(x, 0.30f + height * 0.42f, z),
+                        new Vector3(0.25f, height, 0.25f), _leafMaterial);
+                    crop.transform.localRotation = Quaternion.Euler(0f, (row * 31 + plant * 17) % 360, 0f);
+                    if ((row + plant) % 4 == 0)
+                        CreatePrimitive("Ripened crop head", PrimitiveType.Sphere, field,
+                            new Vector3(x + 0.05f, 0.55f + height * 0.55f, z),
+                            new Vector3(0.16f, 0.12f, 0.16f), _produceMaterial);
+                }
+            }
+
+            // A simple scarecrow gives the field a human trace without adding a fake NPC.
+            var scarecrow = new GameObject("Field scarecrow").transform;
+            scarecrow.SetParent(field, false);
+            scarecrow.localPosition = new Vector3(3.45f, 0f, 1.95f);
+            CreatePrimitive("Scarecrow post", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 1.25f, 0f), new Vector3(0.07f, 1.25f, 0.07f), _woodMaterial);
+            CreatePrimitive("Scarecrow arms", PrimitiveType.Cube, scarecrow,
+                new Vector3(0f, 1.72f, 0f), new Vector3(1.15f, 0.09f, 0.09f), _woodMaterial);
+            CreatePrimitive("Scarecrow tunic", PrimitiveType.Cube, scarecrow,
+                new Vector3(0f, 1.28f, 0f), new Vector3(0.48f, 0.62f, 0.20f), _clothMaterial);
+            CreatePrimitive("Scarecrow head", PrimitiveType.Sphere, scarecrow,
+                new Vector3(0f, 2.02f, 0f), new Vector3(0.34f, 0.34f, 0.30f), _produceMaterial);
+            CreatePrimitive("Scarecrow hat brim", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 2.22f, 0f), new Vector3(0.38f, 0.045f, 0.38f), _roofMaterial);
+
+            // Harvest storage: straw bales and a small covered seed rack.
+            var hay = new GameObject("Harvest hay stack").transform;
+            hay.SetParent(root, false);
+            hay.position = new Vector3(8.0f, 0f, -17.5f);
+            for (var layer = 0; layer < 2; layer++)
+            for (var bale = 0; bale < 3 - layer; bale++)
+            {
+                var block = CreatePrimitive("Straw bale", PrimitiveType.Cube, hay,
+                    new Vector3((bale - 1) * 0.72f + layer * 0.34f, 0.38f + layer * 0.72f, 0f),
+                    new Vector3(0.68f, 0.68f, 0.62f), _produceMaterial);
+                block.transform.localRotation = Quaternion.Euler(0f, (bale % 2) * 4f, 0f);
+            }
+            CreatePrimitive("Seed rack shelf", PrimitiveType.Cube, hay,
+                new Vector3(1.55f, 0.92f, 0.15f), new Vector3(1.0f, 0.10f, 0.55f), _woodMaterial);
+            for (var i = 0; i < 3; i++)
+                CreatePrimitive("Seed sack", PrimitiveType.Capsule, hay,
+                    new Vector3(1.25f + i * 0.30f, 1.22f, 0.15f),
+                    new Vector3(0.22f, 0.24f, 0.22f), _clothMaterial);
+
+            // A modest fruit orchard on the outer edge, with irregular spacing and low-poly crowns.
+            var orchard = new GameObject("Village fruit orchard").transform;
+            orchard.SetParent(root, false);
+            orchard.position = new Vector3(14.0f, 0f, 14.0f);
+            var orchardPositions = new[]
+            {
+                new Vector3(-2.0f, 0f, -1.5f), new Vector3(0.2f, 0f, -1.9f),
+                new Vector3(2.2f, 0f, -1.1f), new Vector3(-1.3f, 0f, 1.0f),
+                new Vector3(1.1f, 0f, 1.4f)
+            };
+            for (var i = 0; i < orchardPositions.Length; i++)
+            {
+                var tree = new GameObject("Fruit tree").transform;
+                tree.SetParent(orchard, false);
+                tree.localPosition = orchardPositions[i];
+                var scale = 0.88f + (i % 3) * 0.10f;
+                tree.localScale = Vector3.one * scale;
+                CreatePrimitive("Orchard trunk", PrimitiveType.Cylinder, tree,
+                    new Vector3(0f, 1.0f, 0f), new Vector3(0.16f, 1.0f, 0.16f), _woodMaterial);
+                CreatePrimitive("Fruit canopy", PrimitiveType.Sphere, tree,
+                    new Vector3(0f, 2.35f, 0f), new Vector3(1.55f, 1.35f, 1.45f), _leafMaterial);
+                for (var fruit = 0; fruit < 4; fruit++)
+                {
+                    var angle = fruit * Mathf.PI * 0.5f + i * 0.37f;
+                    CreatePrimitive("Orchard fruit", PrimitiveType.Sphere, tree,
+                        new Vector3(Mathf.Cos(angle) * 0.62f, 1.95f + (fruit % 2) * 0.35f,
+                            Mathf.Sin(angle) * 0.62f),
+                        new Vector3(0.15f, 0.15f, 0.15f), _produceMaterial);
+                }
+            }
+            BuildFence(orchard, new Vector3(0f, 0f, 3.0f), 7, 0.72f);
+            CreatePrimitive("Orchard harvest basket", PrimitiveType.Cylinder, orchard,
+                new Vector3(2.8f, 0.24f, 2.2f), new Vector3(0.32f, 0.24f, 0.32f), _woodMaterial);
+            for (var i = 0; i < 3; i++)
+                CreatePrimitive("Basket fruit", PrimitiveType.Sphere, orchard,
+                    new Vector3(2.65f + i * 0.16f, 0.48f, 2.2f),
+                    new Vector3(0.16f, 0.14f, 0.16f), _produceMaterial);
         }
 
         private static void BuildPracticeStations(Transform root)
