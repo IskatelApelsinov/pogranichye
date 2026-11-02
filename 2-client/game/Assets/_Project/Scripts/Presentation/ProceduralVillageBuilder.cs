@@ -15,6 +15,9 @@ namespace Pogranichye.Client.Presentation
         private static Material _stoneMaterial;
         private static Material _leafMaterial;
         private static Material _grassMaterial;
+        private static Material _beerMaterial;
+        private static Material _foamMaterial;
+        private static Material _fireMaterial;
         private static Texture2D _groundTexture;
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
@@ -34,6 +37,9 @@ namespace Pogranichye.Client.Presentation
             _stoneMaterial = CreateMaterial("Stone", new Color(0.39f, 0.39f, 0.35f));
             _leafMaterial = CreateMaterial("Leaves", new Color(0.20f, 0.34f, 0.19f));
             _grassMaterial = CreateMaterial("Grass", new Color(0.46f, 0.53f, 0.29f));
+            _beerMaterial = CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f));
+            _foamMaterial = CreateMaterial("Beer foam", new Color(0.92f, 0.84f, 0.62f));
+            _fireMaterial = CreateMaterial("Fire glow", new Color(1f, 0.36f, 0.08f));
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
                 new Vector3(12, 1, 12), _groundMaterial);
@@ -159,8 +165,7 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Fireplace hearth", PrimitiveType.Cube, tavern,
                 new Vector3(-2.15f, 0.45f, 1.0f), new Vector3(0.55f, 0.9f, 0.7f), _stoneMaterial);
             CreatePrimitive("Fire glow", PrimitiveType.Sphere, tavern,
-                new Vector3(-2.15f, 0.78f, 0.58f), new Vector3(0.22f, 0.30f, 0.12f),
-                CreateMaterial("Fire glow", new Color(1f, 0.36f, 0.08f)));
+                new Vector3(-2.15f, 0.78f, 0.58f), new Vector3(0.22f, 0.30f, 0.12f), _fireMaterial);
             var warmLightObject = new GameObject("Tavern warm light");
             warmLightObject.transform.SetParent(tavern, false);
             warmLightObject.transform.localPosition = new Vector3(0, 2.15f, 0.2f);
@@ -197,11 +202,9 @@ namespace Pogranichye.Client.Presentation
         private static void CreateBeerMug(Transform parent, Vector3 position)
         {
             var mug = CreatePrimitive("Wooden beer mug", PrimitiveType.Cylinder, parent,
-                position, new Vector3(0.13f, 0.17f, 0.13f),
-                CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f)));
+                position, new Vector3(0.13f, 0.17f, 0.13f), _beerMaterial);
             CreatePrimitive("Beer foam", PrimitiveType.Sphere, mug.transform,
-                new Vector3(0, 0.92f, 0), new Vector3(1.0f, 0.18f, 1.0f),
-                CreateMaterial("Beer foam", new Color(0.92f, 0.84f, 0.62f)));
+                new Vector3(0, 0.92f, 0), new Vector3(1.0f, 0.18f, 1.0f), _foamMaterial);
             CreatePrimitive("Mug handle", PrimitiveType.Cube, mug.transform,
                 new Vector3(0.95f, 0, 0), new Vector3(0.22f, 0.12f, 0.10f), _woodMaterial);
         }
@@ -400,6 +403,9 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_stoneMaterial);
             DestroyAsset(_leafMaterial);
             DestroyAsset(_grassMaterial);
+            DestroyAsset(_beerMaterial);
+            DestroyAsset(_foamMaterial);
+            DestroyAsset(_fireMaterial);
             if (_groundTexture != null) Object.Destroy(_groundTexture);
             _groundMaterial = null;
             _pathMaterial = null;
@@ -408,6 +414,9 @@ namespace Pogranichye.Client.Presentation
             _stoneMaterial = null;
             _leafMaterial = null;
             _grassMaterial = null;
+            _beerMaterial = null;
+            _foamMaterial = null;
+            _fireMaterial = null;
             _groundTexture = null;
         }
 
