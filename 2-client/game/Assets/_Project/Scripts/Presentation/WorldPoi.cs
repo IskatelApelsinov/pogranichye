@@ -4,21 +4,19 @@ using UnityEngine;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Clickable tutorial point. Selection requests an existing server goal; it does not
-    /// perform the activity or mutate world state locally.
+    /// Tutorial point selected through the short-range interaction probe.
+    /// It requests an existing server goal; it never performs the activity locally.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public sealed class WorldPoi : MonoBehaviour
     {
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
-
         private Renderer _visual;
         private Color _baseColor;
         private MaterialPropertyBlock _propertyBlock;
 
         public static event Action<WorldPoi> Selected;
-
         public string Title { get; private set; }
         public string Goal { get; private set; }
 
@@ -32,6 +30,12 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(_baseColor);
         }
 
+        public void RequestInteraction()
+        {
+            if (enabled && !string.IsNullOrEmpty(Goal))
+                Selected?.Invoke(this);
+        }
+
         private void OnMouseEnter()
         {
             if (enabled && _visual != null)
@@ -40,14 +44,7 @@ namespace Pogranichye.Client.Presentation
 
         private void OnMouseExit()
         {
-            if (_visual != null)
-                ApplyColor(_baseColor);
-        }
-
-        private void OnMouseDown()
-        {
-            if (enabled && !string.IsNullOrEmpty(Goal))
-                Selected?.Invoke(this);
+            if (_visual != null) ApplyColor(_baseColor);
         }
 
         private void ApplyColor(Color color)
