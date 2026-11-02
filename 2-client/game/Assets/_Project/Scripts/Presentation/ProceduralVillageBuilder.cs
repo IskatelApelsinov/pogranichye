@@ -205,7 +205,7 @@ namespace Pogranichye.Client.Presentation
             warmLight.intensity = 1.6f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, 2.45f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, 5.75f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
@@ -244,6 +244,7 @@ namespace Pogranichye.Client.Presentation
             var smithy = new GameObject("Blacksmith workshop").transform;
             smithy.SetParent(root, false);
             smithy.position = position;
+            CreateCameraObstacle(smithy, "Camera collision • smithy", new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f));
             CreatePrimitive("Smithy walls", PrimitiveType.Cube, smithy,
                 new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f), _woodMaterial);
             CreatePrimitive("Smithy roof", PrimitiveType.Cube, smithy,
