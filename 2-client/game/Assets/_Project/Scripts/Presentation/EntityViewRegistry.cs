@@ -48,7 +48,7 @@ namespace Pogranichye.Client.Presentation
             }
             SetActivity(player, frame.Me.Goal);
             PlayerTransform = player.transform;
-            SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}\n{frame.Me.Role}\n{frame.Me.Last}");
+            SetLabel(player, $"{frame.Me.Name} {frame.Me.Surname}");
 
             var neighbors = frame.Place?.Neighbors;
             if (neighbors != null)
@@ -82,7 +82,7 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
-                    SetLabel(view, $"{neighbor.Name}\n{neighbor.Role}\n{neighbor.Act}");
+                    SetLabel(view, neighbor.Name);
                     visibleCount++;
                 }
             }
