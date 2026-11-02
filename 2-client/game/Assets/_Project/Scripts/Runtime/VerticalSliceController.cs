@@ -46,6 +46,7 @@ namespace Pogranichye.Client
             var entityRoot = new GameObject("EntityViews").transform;
             entityRoot.SetParent(_presentationRoot, false);
             _views = new EntityViewRegistry(entityRoot);
+            WorldPoi.Selected += OnPoiSelected;
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
         }
@@ -162,6 +163,19 @@ namespace Pogranichye.Client
                 case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
                 default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
             }
+        }
+
+        private void OnPoiSelected(WorldPoi poi)
+        {
+            if (poi == null) return;
+            if (_connectionState != WorldConnectionState.Active)
+            {
+                _status = "Сначала подключитесь к миру, затем выбирайте точки деревни.";
+                return;
+            }
+
+            RequestTutorialGoal(poi.Goal);
+            _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
         }
 
         private void RequestTutorialGoal(string goal)
@@ -393,6 +407,7 @@ namespace Pogranichye.Client
 
         private void OnDestroy()
         {
+            WorldPoi.Selected -= OnPoiSelected;
             _lifetime.Cancel();
             _socket?.Dispose();
             _socket = null;
