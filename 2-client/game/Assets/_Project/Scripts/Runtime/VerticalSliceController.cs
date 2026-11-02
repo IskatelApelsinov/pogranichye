@@ -25,6 +25,7 @@ namespace Pogranichye.Client
         private WorldSocketClient _socket;
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
+        private WorldInteractionProbe _interactionProbe;
         private bool _createdCameraRig;
         private Transform _presentationRoot;
         private string _login = "";
@@ -58,6 +59,8 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            if (_interactionProbe != null)
+                _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
             {
@@ -434,6 +437,9 @@ namespace Pogranichye.Client
             camera.backgroundColor = new Color(0.58f, 0.70f, 0.78f);
             camera.fieldOfView = 48f;
             _cameraRig = camera.GetComponent<PresentationCameraRig>();
+            _interactionProbe = camera.GetComponent<WorldInteractionProbe>();
+            if (_interactionProbe == null)
+                _interactionProbe = camera.gameObject.AddComponent<WorldInteractionProbe>();
             if (_cameraRig == null)
             {
                 _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
