@@ -54,6 +54,10 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":\"1\",\"alive\":false}", "string version");
             ExpectRejected("{\"v\":2,\"alive\":false}", "unsupported version");
 
+            var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}");
+            if (legacy.Me == null || legacy.Me.Position != null)
+                throw new FormatException("A legacy v1.0 frame without pos must remain parseable.");
+
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)
                 throw new FormatException("alive:false terminal frame must not require me.");
