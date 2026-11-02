@@ -108,12 +108,34 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			pop[pl.Settlement]++
 		}
 	})
+	// сигналы РЕАЛЬНОГО состояния угодий (поля/шахты) — один проход по узлам (для честных подписей)
+	ns := map[core.ID]nodeSignals{}
+	w.Each("resnode", func(ne *core.Entity) {
+		n := econ.Node(ne)
+		if n == nil {
+			return
+		}
+		sig := ns[n.Settlement]
+		if n.Sowable() {
+			sig.sowableField = true
+		}
+		if n.RipeForHarvest() {
+			sig.ripeField = true
+		}
+		if n.Node == econ.NodeMine && n.Stock > 0 {
+			sig.mineStock = true
+		}
+		ns[n.Settlement] = sig
+	})
+	res := map[core.ID]localResources{}
+	season := clock.Season()
 	w.Each("settlement", func(se *core.Entity) {
 		p := pop[se.ID]
 		if p < 1 {
 			p = 1
 		}
 		foodDays[se.ID] = econ.FeedableFood(se) / float64(p)
+		res[se.ID] = settlementResources(se, ns[se.ID]) // склад/фауна + реальное состояние угодий
 	})
 
 	w.Each("mind", func(e *core.Entity) {
@@ -132,12 +154,23 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			m.Goal = g
 			m.GoalUntil = clock.TotalHours + hold
 		}
-		execGoal(w, e, m, v, clock, st, pstream)
+		// уточняем цель до КОНКРЕТНОГО занятия по профессии/сезону/часу/доступным ресурсам
+		role := ""
+		if id := core.Ident(e); id != nil {
+			role = id.Role
+		}
+		lr := localResources{}
+		if pl := core.Place(e); pl != nil {
+			lr = res[pl.Settlement]
+		}
+		act := chooseActivity(role, m.Goal, season, hour, lr)
+		execGoal(w, e, m, v, clock, st, pstream, act.label)
 	})
 }
 
 func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
-	clock core.Clock, shared, s *dice.Stream) {
+	clock core.Clock, shared, s *dice.Stream, actLabel string) {
+	m.LastAct = actLabel // по умолчанию — конкретное занятие (chooseActivity); особые исходы ниже переопределяют
 	switch m.Goal {
 	case mind.GoalWork:
 		ident := core.Ident(e)
@@ -153,20 +186,38 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 					econ.TakeHome(se, e, econ.FoodGoodOfRole(ident.Role))
 				}
 			}
-			m.LastAct = "работает (" + ident.Role + ")"
 		} else {
-			m.LastAct = "выдохся"
+			m.LastAct = "выдохся" // нет сил работать — особый исход важнее занятия
 		}
 	case mind.GoalSocialize:
-		v.Morale = clamp(v.Morale+4, 0, 100)
+		// честно: если в корчме есть медовуха — угостился (мера списывается, настрой выше);
+		// нет — просто посидел с людьми. Подпись отражает ФАКТ, а не намерение.
+		drank := false
+		if se := settlementOf(w, e); se != nil {
+			if st := core.Settle(se).Store; st[econ.GoodMead] >= 1 {
+				st[econ.GoodMead]--
+				drank = true
+			}
+		}
+		if drank {
+			v.Morale = clamp(v.Morale+6, 0, 100)
+			m.LastAct = "в корчме за кружкой"
+		} else {
+			v.Morale = clamp(v.Morale+3, 0, 100)
+			m.LastAct = "коротает вечер с соседями"
+		}
 		if d := core.Drives(e); d != nil {
 			d.Social = clamp(d.Social-12, 0, 100)
 		}
-		m.LastAct = "в таверне с людьми"
 	case mind.GoalRest:
-		m.LastAct = "отдыхает"
 	case mind.GoalEat:
-		m.LastAct = "ест"
+		// честно: «ест» только если ЕСТЬ что съесть (свои закрома или рынок села); иначе голодает.
+		// Само насыщение (списание голода) делает NeedsSystem — здесь лишь правдивая подпись.
+		if econ.HasFoodToEat(e, settlementOf(w, e)) {
+			m.LastAct = "ест"
+		} else {
+			m.LastAct = "голодает — еды нет"
+		}
 	case mind.GoalSeekHome:
 		if p := core.Purse(e); p != nil {
 			h := core.Home(e)

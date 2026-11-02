@@ -533,6 +533,16 @@ func tendHerd(n *ResourceNodeC, l *labor, st map[string]float64, se *core.Entity
 	}
 }
 
+// Sowable — пашню МОЖНО засеять (поле, ещё не засеяно, не под паром). Для честных подписей занятий.
+func (c *ResourceNodeC) Sowable() bool {
+	return c != nil && c.Node == NodeField && !c.Sown && !c.Fallow
+}
+
+// RipeForHarvest — на поле есть ЧТО жать (засеяно и вызрело). Для честных подписей занятий.
+func (c *ResourceNodeC) RipeForHarvest() bool {
+	return c != nil && c.Node == NodeField && c.Sown && c.Ripe >= harvestRipe
+}
+
 // perishRate — скорость порчи в день. Сырая шкура и молоко портятся быстро (их надо скоро
 // выделать/переработать, иначе пропадут — отсюда давление вовремя пустить сырьё в дело), прочая
 // еда медленнее.

@@ -97,6 +97,19 @@ func FoodGoodOfRole(role string) string {
 	return ""
 }
 
+// HasFoodToEat — есть ли человеку ЧТО съесть прямо сейчас: своя еда в закромах или еда на рынке
+// села. Для честной подписи «ест» (а не утверждать еду там, где её нет).
+func HasFoodToEat(e, se *core.Entity) bool {
+	if s := Stash(e); s != nil {
+		for _, g := range edibles {
+			if s.Goods[g] >= 1 {
+				return true
+			}
+		}
+	}
+	return se != nil && FoodOnHand(se) >= 1
+}
+
 // EatFromStash — съесть меру лучшей своей еды из закромов. true — поел из своего (рынок не нужен).
 func EatFromStash(e *core.Entity) bool {
 	s := Stash(e)
