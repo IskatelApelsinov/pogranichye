@@ -47,7 +47,9 @@ namespace Pogranichye.Client.Presentation
 
             if (_firstPerson)
             {
-                if (Input.GetMouseButton(1))
+                // Mouse always controls view. RMB is reserved for future spell-weaving input;
+                // while it is held, camera look pauses so cursor motion can trace the weave.
+                if (!Input.GetMouseButton(1))
                 {
                     _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity, -75f, 75f);
@@ -64,11 +66,12 @@ namespace Pogranichye.Client.Presentation
                 _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
                     minZoomDistance, maxZoomDistance);
 
-            // RMB drag orbits the camera without rotating the character's world representation.
-            if (Input.GetMouseButton(1))
+            // Mouse always orbits the third-person camera. RMB is reserved for spell weaving;
+            // camera orbit pauses while held so the same mouse movement can trace a pattern.
+            if (!Input.GetMouseButton(1))
             {
                 _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch + Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
+                _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
                     thirdPersonMinPitch, thirdPersonMaxPitch);
             }
 
