@@ -207,8 +207,9 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
 
             var tunic = RoleColor(role, isPlayer);
+            if (!isPlayer) tunic = VariantTunicColor(tunic, id);
             var skin = SkinColor(id, isPlayer);
-            ApplyColor(body.GetComponent<Renderer>(), isPlayer ? tunic : VariantTunicColor(tunic, id));
+            ApplyColor(body.GetComponent<Renderer>(), tunic);
             ApplyColor(head.GetComponent<Renderer>(), skin);
             ApplyColor(leftArm.GetComponent<Renderer>(), tunic);
             ApplyColor(rightArm.GetComponent<Renderer>(), tunic);
