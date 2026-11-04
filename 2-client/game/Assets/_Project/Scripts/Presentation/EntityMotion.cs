@@ -24,6 +24,7 @@ namespace Pogranichye.Client.Presentation
         private Quaternion _networkTargetRotation;
         private float _lastNetworkTargetAt;
         private float _greetingRemaining;
+        private float _drinkGestureRemaining;
         private Transform _attentionTarget;
         private Transform _focusTarget;
         private Quaternion _headTargetRotation;
@@ -137,9 +138,14 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
+        public void PlayDrinkGesture()
+        {
+            _drinkGestureRemaining = 1.35f;
+        }
+
         /// <summary>
-        /// Plays a brief local greeting gesture after the player addresses this NPC.
-        /// This is presentation feedback only; the server still owns the interaction result.
+        /// Sets the observer used for the NPC's attention and gaze presentation.
         /// </summary>
         public void SetFocusTarget(Transform observer)
         {
@@ -170,11 +176,14 @@ namespace Pogranichye.Client.Presentation
                 ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
                 : (_isPlayer ? 2.2f : _idleRate));
 
+            if (_drinkGestureRemaining > 0f)
+                _drinkGestureRemaining = Mathf.Max(0f, _drinkGestureRemaining - Time.deltaTime);
+
             var resting = _activity.Contains("rest") || _activity.Contains("отдых");
             var working = _activity.Contains("work") || _activity.Contains("работ");
             var social = _activity.Contains("social") || _activity.Contains("общ") || _activity.Contains("говор");
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
-            var drinking = _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
+            var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
 
             var greeting = _greetingRemaining > 0f && !walking && !_isPlayer;
             if (_greetingRemaining > 0f)

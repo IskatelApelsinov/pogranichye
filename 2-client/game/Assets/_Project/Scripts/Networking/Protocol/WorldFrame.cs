@@ -32,6 +32,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("morale")] public double Morale { get; set; }
         [JsonProperty("goal")] public string Goal { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("mug")] public bool Mug { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
