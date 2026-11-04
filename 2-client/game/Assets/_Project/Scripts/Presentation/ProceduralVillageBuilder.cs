@@ -533,6 +533,26 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.28f, 0.08f, 0.28f), _woodMaterial);
             }
             CreateBeerMug(table, new Vector3(0.1f, 0.98f, 0.05f));
+            CreateTavernTableware(table);
+        }
+
+        private static void CreateTavernTableware(Transform table)
+        {
+            // Shared table dressing: a bread plate and a small bowl beside the tankard.
+            CreatePrimitive("Wooden serving plate", PrimitiveType.Cylinder, table,
+                new Vector3(-0.34f, 0.895f, 0.02f), new Vector3(0.34f, 0.025f, 0.29f), _roofMaterial);
+            CreatePrimitive("Plate inner surface", PrimitiveType.Cylinder, table,
+                new Vector3(-0.34f, 0.912f, 0.02f), new Vector3(0.27f, 0.012f, 0.23f), _woodMaterial);
+
+            var bread = CreateMeshPart("Tavern bread loaf", table, BuildBreadLoafMesh(), _produceMaterial);
+            bread.transform.localPosition = new Vector3(-0.34f, 0.94f, 0.02f);
+            bread.transform.localScale = new Vector3(0.72f, 0.62f, 0.62f);
+            bread.transform.localRotation = Quaternion.Euler(0f, -18f, 0f);
+
+            CreatePrimitive("Serving bowl", PrimitiveType.Cylinder, table,
+                new Vector3(0.38f, 0.91f, 0.25f), new Vector3(0.22f, 0.055f, 0.22f), _woodMaterial);
+            CreatePrimitive("Bowl contents", PrimitiveType.Sphere, table,
+                new Vector3(0.38f, 0.946f, 0.25f), new Vector3(0.15f, 0.018f, 0.15f), _produceMaterial);
         }
 
         private static void CreateBeerMug(Transform parent, Vector3 position)
