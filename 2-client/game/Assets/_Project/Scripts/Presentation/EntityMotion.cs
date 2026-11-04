@@ -23,6 +23,7 @@ namespace Pogranichye.Client.Presentation
         private float _lastNetworkTargetAt;
         private float _greetingRemaining;
         private Transform _attentionTarget;
+        private Transform _focusTarget;
         private Quaternion _headTargetRotation;
         private const float NetworkSmoothTime = 0.42f;
 
@@ -87,6 +88,11 @@ namespace Pogranichye.Client.Presentation
         /// Plays a brief local greeting gesture after the player addresses this NPC.
         /// This is presentation feedback only; the server still owns the interaction result.
         /// </summary>
+        public void SetFocusTarget(Transform observer)
+        {
+            _focusTarget = observer;
+        }
+
         public void PlayGreeting(Transform observer)
         {
             _greetingRemaining = 1.65f;
@@ -153,9 +159,10 @@ namespace Pogranichye.Client.Presentation
 
             if (_head != null)
             {
-                if (_attentionTarget != null && greeting)
+                var lookTarget = _attentionTarget != null ? _attentionTarget : _focusTarget;
+                if (lookTarget != null && (greeting || _focusTarget != null))
                 {
-                    var localDirection = transform.InverseTransformPoint(_attentionTarget.position) - _head.localPosition;
+                    var localDirection = transform.InverseTransformPoint(lookTarget.position) - _head.localPosition;
                     var yaw = Mathf.Clamp(Mathf.Atan2(localDirection.x, localDirection.z) * Mathf.Rad2Deg, -38f, 38f);
                     var pitch = Mathf.Clamp(-Mathf.Atan2(localDirection.y, new Vector2(localDirection.x, localDirection.z).magnitude) * Mathf.Rad2Deg, -12f, 12f);
                     _headTargetRotation = Quaternion.Euler(pitch, yaw, 0f);
