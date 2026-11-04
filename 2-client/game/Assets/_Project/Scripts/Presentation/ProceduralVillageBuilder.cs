@@ -115,6 +115,7 @@ namespace Pogranichye.Client.Presentation
             BuildVillageLife(village, ambientMotion);
             BuildStreetDetails(village, worldSeed);
             BuildWornFootpaths(village, worldSeed);
+            BuildRoadsidePuddles(village, worldSeed);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -385,6 +386,45 @@ namespace Pogranichye.Client.Presentation
                         0.22f + (float)random.NextDouble() * 0.16f), _pathMaterial);
                 patch.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
                 patch.isStatic = true;
+            }
+        }
+
+        private static void BuildRoadsidePuddles(Transform root, string worldSeed)
+        {
+            // Tiny, shallow puddles collect in the wheel ruts and at the road verge.
+            // They are decorative only and stay outside the clear central walking line.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":roadside-puddles"));
+            var positions = new[]
+            {
+                new Vector3(-0.72f, 0.045f, -9.1f),
+                new Vector3(0.78f, 0.045f, -6.7f),
+                new Vector3(-0.86f, 0.045f, 7.9f),
+                new Vector3(0.72f, 0.045f, 10.2f),
+                new Vector3(-9.4f, 0.045f, -0.72f),
+                new Vector3(9.7f, 0.045f, 0.68f)
+            };
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var position = positions[i];
+                var length = 0.34f + (float)random.NextDouble() * 0.28f;
+                var width = 0.13f + (float)random.NextDouble() * 0.11f;
+                var puddle = CreatePrimitive("Shallow road puddle", PrimitiveType.Cylinder, root,
+                    position, new Vector3(length, 0.012f, width), _waterMaterial);
+                puddle.transform.rotation = Quaternion.Euler(
+                    0f, (float)random.NextDouble() * 180f, 0f);
+                puddle.isStatic = true;
+
+                // A broken muddy lip keeps the water from reading as a clean geometric decal.
+                if (i % 2 == 0)
+                {
+                    var mud = CreatePrimitive("Puddle muddy edge", PrimitiveType.Cylinder, root,
+                        new Vector3(position.x + (i % 3 == 0 ? 0.16f : -0.14f), 0.031f,
+                            position.z + 0.10f),
+                        new Vector3(length * 1.22f, 0.009f, width * 1.55f), _pathMaterial);
+                    mud.transform.rotation = puddle.transform.rotation;
+                    mud.isStatic = true;
+                }
             }
         }
 
