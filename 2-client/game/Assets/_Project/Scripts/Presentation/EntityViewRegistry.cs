@@ -48,6 +48,7 @@ namespace Pogranichye.Client.Presentation
             }
             // Activity animation is driven only by the server-confirmed registry code.
             SetActivityCode(player, frame.Me.ActivityCode);
+            SetMug(player, frame.Me.Mug);
             PlayerTransform = player.transform;
             SetLabel(player, string.Empty);
 
@@ -399,6 +400,41 @@ namespace Pogranichye.Client.Presentation
                 case "fisher": return new Color(0.24f, 0.42f, 0.58f);
                 default: return new Color(0.55f, 0.38f, 0.22f);
             }
+        }
+
+        private void SetMug(GameObject view, bool held)
+        {
+            if (view == null) return;
+            var hand = view.transform.Find("Right arm/Right hand");
+            if (hand == null) return;
+
+            var mug = hand.Find("Held tankard");
+            if (mug == null)
+            {
+                var root = new GameObject("Held tankard");
+                root.transform.SetParent(hand, false);
+                root.transform.localPosition = new Vector3(0f, -0.10f, 0.10f);
+                root.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                root.transform.localScale = Vector3.one * 0.42f;
+
+                var body = CreatePart("Wooden cup", PrimitiveType.Cylinder, root.transform,
+                    new Vector3(0f, 0.06f, 0f), new Vector3(0.22f, 0.30f, 0.22f));
+                ApplyColor(body.GetComponent<Renderer>(), new Color(0.39f, 0.22f, 0.11f));
+
+                var rim = CreatePart("Iron rim", PrimitiveType.Cylinder, root.transform,
+                    new Vector3(0f, 0.115f, 0f), new Vector3(0.235f, 0.025f, 0.235f));
+                ApplyColor(rim.GetComponent<Renderer>(), new Color(0.34f, 0.32f, 0.27f));
+
+                var handle = CreatePart("Cup handle", PrimitiveType.Cube, root.transform,
+                    new Vector3(0.22f, 0.065f, 0f), new Vector3(0.16f, 0.10f, 0.09f));
+                ApplyColor(handle.GetComponent<Renderer>(), new Color(0.32f, 0.18f, 0.09f));
+
+                var ale = CreatePart("Ale foam", PrimitiveType.Sphere, root.transform,
+                    new Vector3(0f, 0.125f, 0f), new Vector3(0.34f, 0.055f, 0.34f));
+                ApplyColor(ale.GetComponent<Renderer>(), new Color(0.88f, 0.76f, 0.48f));
+            }
+
+            mug.gameObject.SetActive(held);
         }
 
         private static void SetActivityCode(GameObject view, string activityCode)
