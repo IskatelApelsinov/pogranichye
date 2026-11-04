@@ -735,18 +735,66 @@ namespace Pogranichye.Client.Presentation
             for (var x = -1; x <= 1; x += 2)
                 CreatePrimitive("Market post", PrimitiveType.Cube, market,
                     new Vector3(x * 1.45f, 1.0f, 0), new Vector3(0.12f, 2.0f, 0.12f), _woodMaterial);
-            CreatePrimitive("Bread basket", PrimitiveType.Sphere, market,
-                new Vector3(-0.7f, 1.28f, -0.1f), new Vector3(0.55f, 0.28f, 0.55f), _grassMaterial);
+            // Shared low-poly baskets and produce make the stall read as a working market,
+            // while reusing one bread mesh keeps the generated asset count deterministic.
+            BuildMarketBasket(market, "Bread basket", new Vector3(-0.78f, 1.12f, -0.12f), 0.48f, 0.38f);
+            var breadMesh = BuildBreadLoafMesh();
             for (var i = 0; i < 4; i++)
             {
-                var loaf = CreateMeshPart("Low-poly market bread", market,
-                    BuildBreadLoafMesh(), _produceMaterial);
-                loaf.transform.localPosition = new Vector3(-0.9f + i * 0.18f, 1.43f, -0.12f);
+                var loaf = CreateMeshPart("Low-poly market bread", market, breadMesh, _produceMaterial);
+                loaf.transform.localPosition = new Vector3(-1.02f + i * 0.19f, 1.43f, -0.12f);
                 loaf.transform.localScale = new Vector3(1f, 0.78f, 0.72f);
                 loaf.transform.localRotation = Quaternion.Euler(0f, (i - 1.5f) * 9f, 0f);
             }
+
+            BuildMarketBasket(market, "Vegetable basket • roots", new Vector3(0.48f, 1.12f, -0.12f), 0.42f, 0.34f);
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * 90f * Mathf.Deg2Rad;
+                var carrot = CreatePrimitive("Market carrot", PrimitiveType.Cylinder, market,
+                    new Vector3(0.48f + Mathf.Cos(angle) * 0.16f, 1.39f, -0.12f + Mathf.Sin(angle) * 0.14f),
+                    new Vector3(0.075f, 0.22f, 0.075f), _produceMaterial);
+                carrot.transform.localRotation = Quaternion.Euler(0f, 0f, 18f + i * 7f);
+                CreatePrimitive("Carrot greens", PrimitiveType.Cube, market,
+                    carrot.transform.localPosition + new Vector3(0f, 0.22f, 0f),
+                    new Vector3(0.12f, 0.035f, 0.12f), _leafMaterial);
+            }
+
+            BuildMarketBasket(market, "Vegetable basket • cabbages", new Vector3(1.12f, 1.12f, -0.12f), 0.38f, 0.32f);
+            for (var i = 0; i < 3; i++)
+            {
+                var cabbage = CreatePrimitive("Market cabbage", PrimitiveType.Sphere, market,
+                    new Vector3(0.94f + i * 0.18f, 1.40f, -0.12f + (i % 2) * 0.10f),
+                    new Vector3(0.22f, 0.18f, 0.22f), _leafMaterial);
+                cabbage.transform.localRotation = Quaternion.Euler(0f, i * 37f, 18f);
+            }
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
             CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
+        }
+
+        private static void BuildMarketBasket(Transform parent, string name, Vector3 position, float width, float depth)
+        {
+            var basket = new GameObject(name).transform;
+            basket.SetParent(parent, false);
+            basket.localPosition = position;
+
+            // Low, open wicker tub: a dark inner base, faceted side staves and a raised rim.
+            CreatePrimitive("Basket inner base", PrimitiveType.Cylinder, basket,
+                new Vector3(0f, 0.08f, 0f), new Vector3(width * 0.78f, 0.045f, depth * 0.78f), _roofMaterial);
+            CreatePrimitive("Basket bottom", PrimitiveType.Cylinder, basket,
+                new Vector3(0f, 0.025f, 0f), new Vector3(width * 0.82f, 0.035f, depth * 0.82f), _woodMaterial);
+            for (var i = 0; i < 12; i++)
+            {
+                var angle = i * Mathf.PI * 2f / 12f;
+                var stave = CreatePrimitive("Woven basket stave", PrimitiveType.Cube, basket,
+                    new Vector3(Mathf.Cos(angle) * width * 0.40f, 0.16f, Mathf.Sin(angle) * depth * 0.40f),
+                    new Vector3(0.045f, 0.25f, 0.045f), i % 2 == 0 ? _woodMaterial : _roofMaterial);
+                stave.transform.localRotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 0f);
+            }
+            CreatePrimitive("Basket rim", PrimitiveType.Cylinder, basket,
+                new Vector3(0f, 0.285f, 0f), new Vector3(width * 0.92f, 0.035f, depth * 0.92f), _woodMaterial);
+            CreatePrimitive("Basket lower binding", PrimitiveType.Cylinder, basket,
+                new Vector3(0f, 0.075f, 0f), new Vector3(width * 0.84f, 0.018f, depth * 0.84f), _roofMaterial);
         }
 
         private static Mesh BuildBreadLoafMesh()
