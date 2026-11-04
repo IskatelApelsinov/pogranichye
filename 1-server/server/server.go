@@ -256,6 +256,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Face float64 `json:"face"`
 		Dt   float64 `json:"dt"`
 		Seq  int64   `json:"seq"`
+		// действия v1.2: покупка/питьё; reqid для идемпотентности (повтор не списывает дважды)
+		Item  string `json:"item"`
+		ReqID string `json:"reqid"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -280,6 +283,22 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
 		}
 		s.mu.Unlock()
+	case "buy":
+		if in.Item == "beer" {
+			s.mu.Lock()
+			if e := s.world.Get(cid); e != nil {
+				sim.BuyBeer(s.world, e, in.ReqID) // атомарно/идемпотентно; исход виден в следующем кадре (me.mug)
+			}
+			s.mu.Unlock()
+		}
+	case "consume":
+		if in.Item == "beer" {
+			s.mu.Lock()
+			if e := s.world.Get(cid); e != nil {
+				sim.DrinkBeer(s.world, e, in.ReqID)
+			}
+			s.mu.Unlock()
+		}
 	}
 }
 
@@ -308,7 +327,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"age": round1(v.Age), "health": round0(v.Health), "hunger": round0(v.Hunger),
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
-			"coins": meCoins(e), "debt": meDebt(e),
+			"act_code": m.ActCode, // стабильный код занятия для анимаций клиента (#23)
+			"mug":      meMug(e),  // держит ли кружку (интерактивность v1.2)
+			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash": meStash(e),
 			"pos":   mePos(e), // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
@@ -326,9 +347,11 @@ func (s *Server) stateJSON(cid core.ID) string {
 				if p := core.Place(o); p != nil && p.Settlement == pl.Settlement {
 					if oi := core.Ident(o); oi != nil {
 						nx, ny, nf := neighborPos(o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
+						om := core.Mind(o)
 						neighbors = append(neighbors, map[string]any{
-							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": core.Mind(o).LastAct,
-							"pos": map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
+							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": om.LastAct,
+							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
+							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
 						n++
 					}
 				}
@@ -338,12 +361,23 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"food":        round0(econ.FoodOnHand(se)),
 				"bread":       round0(st.Store[econ.GoodBread]),
 				"bread_price": round1(econ.Price(se, econ.GoodBread)),
+				"tavern":      st.Tavern,                      // есть ли корчма (где можно выпить)
+				"beer":        round0(st.Store[sim.BeerGood]), // запас пива в корчме (v1.2)
+				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
 			}
 		}
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+// meMug — держит ли игрок кружку (для показа кружки/руки на клиенте только по подтверждению).
+func meMug(e *core.Entity) bool {
+	if m := sim.Mug(e); m != nil {
+		return m.Has
+	}
+	return false
 }
 
 // neighborPos — позиция соседа для кадра: реальная ScenePos (её ведёт StepNPCMovement). Если житель
