@@ -58,9 +58,10 @@ func (c *DrivesC) Kind() string { return "drives" }
 // о последнем действии. Разум (пакет mind) выбирает цель по нуждам и тягам; система лишь
 // исполняет. Так НПС живёт, а не ждёт команды.
 type MindC struct {
-	Goal      string `json:"goal"`       // eat | rest | work | socialize | seek_home | wander | leave
+	Goal      string `json:"goal"`       // eat | rest | work | socialize | seek_home | wander | leave — НАМЕРЕНИЕ
 	GoalUntil int64  `json:"goal_until"` // час мира, до которого цель в силе
-	LastAct   string `json:"last_act"`
+	LastAct   string `json:"last_act"`   // человекочитаемый ИСХОД последнего действия (для показа)
+	ActCode   string `json:"act_code"`   // СТАБИЛЬНЫЙ машинный код подтверждённого занятия (для анимаций клиента)
 }
 
 func (c *MindC) Kind() string { return "mind" }

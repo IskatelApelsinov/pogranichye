@@ -168,6 +168,7 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 			econ.GoodBread: 400,
 			econ.GoodWheat: econ.SowReserve() + 160, // посевной резерв + немного на кашу
 			econ.GoodWood:  30,
+			BeerGood:       12,
 		},
 	})
 	// живая фауна угодий: мелкая дичь везде, крупный зверь гуще там, где мана плотнее (канон)
