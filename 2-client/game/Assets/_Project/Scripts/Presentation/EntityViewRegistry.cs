@@ -46,7 +46,8 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
-            // A goal is an intention, not a confirmed action. The local player has no world nameplate.
+            // Activity animation is driven only by the server-confirmed registry code.
+            SetActivityCode(player, frame.Me.ActivityCode);
             PlayerTransform = player.transform;
             SetLabel(player, string.Empty);
 
@@ -68,7 +69,7 @@ namespace Pogranichye.Client.Presentation
                         ? ToUnityPosition(neighbor.Position)
                         : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
-                    SetActivity(view, neighbor.Act);
+                    SetActivityCode(view, neighbor.ActivityCode);
                     var targetRotation = neighbor.Position != null
                         ? Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f)
                         : position.sqrMagnitude > 0.01f
@@ -400,10 +401,10 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void SetActivity(GameObject view, string activity)
+        private static void SetActivityCode(GameObject view, string activityCode)
         {
             var motion = view != null ? view.GetComponent<EntityMotion>() : null;
-            if (motion != null) motion.SetActivity(activity);
+            if (motion != null) motion.SetActivityCode(activityCode);
         }
 
         private void ApplyColor(Renderer renderer, Color color)
