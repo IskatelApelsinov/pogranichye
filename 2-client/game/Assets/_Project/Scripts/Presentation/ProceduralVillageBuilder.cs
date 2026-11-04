@@ -21,6 +21,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _metalMaterial;
         private static Material _clothMaterial;
         private static Material _produceMaterial;
+        private static Material _mugWoodMaterial;
+        private static Material _mugBandMaterial;
         private static Material _waterMaterial;
         private static Texture2D _groundTexture;
         private static Texture2D _pathTexture;
@@ -66,6 +68,8 @@ namespace Pogranichye.Client.Presentation
             _metalMaterial = CreateMaterial("Forged iron", new Color(0.20f, 0.22f, 0.23f));
             _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
+            _mugWoodMaterial = CreateMaterial("Tankard • oak staves", new Color(0.38f, 0.22f, 0.12f));
+            _mugBandMaterial = CreateMaterial("Tankard • iron hoops", new Color(0.16f, 0.18f, 0.19f));
             _waterMaterial = CreateMaterial("Creek water", new Color(0.20f, 0.39f, 0.43f));
             _waterTexture = MakeSurfaceTexture("Creek current texture", 5);
             _waterMaterial.mainTexture = _waterTexture;
@@ -461,12 +465,150 @@ namespace Pogranichye.Client.Presentation
 
         private static void CreateBeerMug(Transform parent, Vector3 position)
         {
-            var mug = CreatePrimitive("Wooden beer mug", PrimitiveType.Cylinder, parent,
-                position, new Vector3(0.13f, 0.17f, 0.13f), _beerMaterial);
-            CreatePrimitive("Beer foam", PrimitiveType.Sphere, mug.transform,
-                new Vector3(0, 0.92f, 0), new Vector3(1.0f, 0.18f, 1.0f), _foamMaterial);
-            CreatePrimitive("Mug handle", PrimitiveType.Cube, mug.transform,
-                new Vector3(0.95f, 0, 0), new Vector3(0.22f, 0.12f, 0.10f), _woodMaterial);
+            // A small hollow, tapered low-poly tankard: open rim, visible inner wall,
+            // stave-like facets, two iron hoops and a real curved handle.
+            var mug = new GameObject("Oak beer tankard").transform;
+            mug.SetParent(parent, false);
+            mug.localPosition = position;
+            mug.localScale = Vector3.one;
+
+            var body = CreateMeshPart("Hollow oak tankard", mug, BuildTankardBodyMesh(), _mugWoodMaterial);
+            body.transform.localPosition = Vector3.zero;
+
+            for (var y = 0.055f; y <= 0.255f; y += 0.20f)
+            {
+                var hoop = CreateMeshPart("Forged iron tankard hoop", mug,
+                    BuildTankardHoopMesh(0.127f - (0.255f - y) * 0.012f, 0.018f, 10), _mugBandMaterial);
+                hoop.transform.localPosition = new Vector3(0f, y, 0f);
+            }
+
+            var handle = CreateMeshPart("Curved wooden tankard handle", mug,
+                BuildTankardHandleMesh(), _mugWoodMaterial);
+            handle.transform.localPosition = new Vector3(0.105f, 0.17f, 0f);
+
+            CreatePrimitive("Ale foam", PrimitiveType.Sphere, mug,
+                new Vector3(0f, 0.305f, 0f), new Vector3(0.105f, 0.025f, 0.105f), _foamMaterial);
+            for (var i = 0; i < 3; i++)
+                CreatePrimitive("Foam bubble", PrimitiveType.Sphere, mug,
+                    new Vector3(-0.035f + i * 0.032f, 0.318f + (i % 2) * 0.004f, -0.012f),
+                    Vector3.one * 0.012f, _foamMaterial);
+        }
+
+        private static GameObject CreateMeshPart(string name, Transform parent, Mesh mesh, Material material)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return go;
+        }
+
+        private static Mesh BuildTankardBodyMesh()
+        {
+            const int sides = 10;
+            var vertices = new Vector3[sides * 4];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[sides * 6 * 3];
+            var rings = new[] { new Vector2(0.092f, 0.012f), new Vector2(0.112f, 0.285f),
+                new Vector2(0.087f, 0.285f), new Vector2(0.071f, 0.025f) };
+            for (var ring = 0; ring < 4; ring++)
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                var index = ring * sides + i;
+                vertices[index] = new Vector3(Mathf.Cos(angle) * rings[ring].x,
+                    rings[ring].y, Mathf.Sin(angle) * rings[ring].x);
+                uvs[index] = new Vector2((float)i / sides, rings[ring].y / 0.3f);
+            }
+
+            var t = 0;
+            for (var ring = 0; ring < 3; ring++)
+            for (var i = 0; i < sides; i++)
+            {
+                var a = ring * sides + i;
+                var b = ring * sides + (i + 1) % sides;
+                var c = (ring + 1) * sides + (i + 1) % sides;
+                var d = (ring + 1) * sides + i;
+                triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+
+            var mesh = new Mesh { name = "Low-poly hollow oak tankard" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh BuildTankardHoopMesh(float radius, float thickness, int sides)
+        {
+            var vertices = new Vector3[sides * 2];
+            var triangles = new int[sides * 6];
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                var x = Mathf.Cos(angle) * radius;
+                var z = Mathf.Sin(angle) * radius;
+                vertices[i] = new Vector3(x, -thickness * 0.5f, z);
+                vertices[sides + i] = new Vector3(x, thickness * 0.5f, z);
+            }
+            var t = 0;
+            for (var i = 0; i < sides; i++)
+            {
+                var a = i;
+                var b = (i + 1) % sides;
+                var c = sides + (i + 1) % sides;
+                var d = sides + i;
+                triangles[t++] = a; triangles[t++] = b; triangles[t++] = d;
+                triangles[t++] = b; triangles[t++] = c; triangles[t++] = d;
+            }
+            var mesh = new Mesh { name = "Tankard iron hoop" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh BuildTankardHandleMesh()
+        {
+            const int pathSteps = 10;
+            const int sides = 6;
+            var vertices = new Vector3[(pathSteps + 1) * sides];
+            var triangles = new int[pathSteps * sides * 6];
+            for (var p = 0; p <= pathSteps; p++)
+            {
+                var angle = Mathf.Lerp(-Mathf.PI * 0.43f, Mathf.PI * 0.43f, (float)p / pathSteps);
+                var center = new Vector3(0.055f + Mathf.Cos(angle) * 0.09f,
+                    Mathf.Sin(angle) * 0.105f, 0f);
+                var tangent = new Vector3(-Mathf.Sin(angle), Mathf.Cos(angle), 0f).normalized;
+                var normal = new Vector3(tangent.y, -tangent.x, 0f);
+                for (var j = 0; j < sides; j++)
+                {
+                    var around = j * Mathf.PI * 2f / sides;
+                    vertices[p * sides + j] = center + normal * (Mathf.Cos(around) * 0.018f)
+                        + Vector3.forward * (Mathf.Sin(around) * 0.018f);
+                }
+            }
+            var t = 0;
+            for (var p = 0; p < pathSteps; p++)
+            for (var j = 0; j < sides; j++)
+            {
+                var a = p * sides + j;
+                var b = p * sides + (j + 1) % sides;
+                var c = (p + 1) * sides + (j + 1) % sides;
+                var d = (p + 1) * sides + j;
+                triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+            var mesh = new Mesh { name = "Curved low-poly tankard handle" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static void BuildBlacksmith(Transform root, Vector3 position)
@@ -1125,6 +1267,8 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_metalMaterial);
             DestroyAsset(_clothMaterial);
             DestroyAsset(_produceMaterial);
+            DestroyAsset(_mugWoodMaterial);
+            DestroyAsset(_mugBandMaterial);
             DestroyAsset(_waterMaterial);
             if (_groundTexture != null) Object.Destroy(_groundTexture);
             if (_pathTexture != null) Object.Destroy(_pathTexture);
