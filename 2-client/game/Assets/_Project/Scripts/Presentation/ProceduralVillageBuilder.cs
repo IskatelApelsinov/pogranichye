@@ -98,6 +98,7 @@ namespace Pogranichye.Client.Presentation
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
             BuildFarmsteadAndOrchard(village);
+            BuildNorthernResidentialLane(village, ambientMotion);
             BuildPracticeStations(village);
             BuildVillageLife(village, ambientMotion);
 
@@ -833,6 +834,67 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Basket fruit", PrimitiveType.Sphere, orchard,
                     new Vector3(2.65f + i * 0.16f, 0.48f, 2.2f),
                     new Vector3(0.16f, 0.14f, 0.16f), _produceMaterial);
+        }
+
+
+        private static void BuildNorthernResidentialLane(Transform root, VillageAmbientMotion ambient)
+        {
+            // A residential spur grows the settlement northward while staying inside the current
+            // 30 m server scene boundary. These are visual buildings only until shared navigation
+            // and collision footprints are introduced by the versioned settlement layout.
+            var westLane = CreatePrimitive("North lane • west branch", PrimitiveType.Cube, root,
+                new Vector3(-4.2f, 0.028f, 13.0f), new Vector3(1.65f, 0.055f, 12.5f), _pathMaterial);
+            westLane.transform.rotation = Quaternion.Euler(0f, -28f, 0f);
+            var eastLane = CreatePrimitive("North lane • east branch", PrimitiveType.Cube, root,
+                new Vector3(4.7f, 0.03f, 14.1f), new Vector3(1.55f, 0.06f, 11.0f), _pathMaterial);
+            eastLane.transform.rotation = Quaternion.Euler(0f, 24f, 0f);
+
+            // Three modest homes create a readable second residential row rather than a ring of
+            // identical buildings around the central square.
+            BuildHouse(root, "Northwest cottage", new Vector3(-12.0f, 0f, 14.0f), -0.18f);
+            BuildHouse(root, "North lane cottage", new Vector3(-3.0f, 0f, 21.0f), 0.12f);
+            BuildHouse(root, "Northeast cottage", new Vector3(9.0f, 0f, 20.0f), -0.22f);
+
+            // Small traces of everyday domestic life around the new homes.
+            BuildLaundryLine(root, ambient, new Vector3(-9.0f, 0f, 12.8f));
+            BuildWoodPile(root, new Vector3(-14.1f, 0f, 11.4f));
+            BuildHandCart(root, new Vector3(-1.0f, 0f, 17.0f));
+            BuildBarrel(root, new Vector3(10.8f, 0f, 18.0f), 0.78f);
+
+            var kitchenGarden = new GameObject("North cottage kitchen garden").transform;
+            kitchenGarden.SetParent(root, false);
+            kitchenGarden.position = new Vector3(11.8f, 0f, 20.0f);
+            for (var row = 0; row < 3; row++)
+            for (var col = 0; col < 4; col++)
+            {
+                var x = -1.0f + col * 0.62f;
+                var z = -0.8f + row * 0.62f;
+                CreatePrimitive("Kitchen garden bed", PrimitiveType.Cube, kitchenGarden,
+                    new Vector3(x, 0.10f, z), new Vector3(0.48f, 0.18f, 0.46f), _pathMaterial);
+                var plant = CreatePrimitive("Kitchen garden herb", PrimitiveType.Sphere, kitchenGarden,
+                    new Vector3(x, 0.34f, z), new Vector3(0.20f, 0.34f, 0.20f), _leafMaterial);
+                plant.transform.localRotation = Quaternion.Euler(0f, (row * 37 + col * 23) % 360, 0f);
+            }
+            BuildFence(kitchenGarden, new Vector3(0f, 0f, 1.45f), 5, 0.52f);
+
+            // A shared hearth is placed at the server's current hearth POI (4, 16), giving resting
+            // residents a visible destination without inventing a new gameplay interaction.
+            var hearth = new GameObject("North common hearth").transform;
+            hearth.SetParent(root, false);
+            hearth.position = new Vector3(4.0f, 0f, 16.0f);
+            CreatePrimitive("Hearth stone ring", PrimitiveType.Cylinder, hearth,
+                new Vector3(0f, 0.16f, 0f), new Vector3(0.82f, 0.16f, 0.82f), _stoneMaterial);
+            CreatePrimitive("Hearth embers", PrimitiveType.Sphere, hearth,
+                new Vector3(0f, 0.27f, 0f), new Vector3(0.48f, 0.12f, 0.48f), _fireMaterial);
+            for (var i = 0; i < 3; i++)
+            {
+                var angle = i * Mathf.PI * 2f / 3f;
+                var bench = CreatePrimitive("Hearth log seat", PrimitiveType.Cylinder, hearth,
+                    new Vector3(Mathf.Cos(angle) * 1.55f, 0.24f, Mathf.Sin(angle) * 1.55f),
+                    new Vector3(0.18f, 0.18f, 0.72f), _woodMaterial);
+                bench.transform.localRotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 90f);
+            }
+            CreateSign(hearth, "ОБЩИЙ ОЧАГ", new Vector3(0f, 1.85f, -1.0f), 0.72f);
         }
 
         private static void BuildPracticeStations(Transform root)
