@@ -12,6 +12,8 @@ namespace Pogranichye.Client.Presentation
         private Transform _leftLeg;
         private Transform _rightLeg;
         private float _phase;
+        private float _idleRate = 1.7f;
+        private float _walkRate = 1f;
         private bool _isPlayer;
         private string _activity = "";
         private float _locomotion;
@@ -58,7 +60,7 @@ namespace Pogranichye.Client.Presentation
         }
 
         public void Initialize(Transform body, Transform head, Transform leftArm, Transform rightArm,
-            Transform leftLeg, Transform rightLeg, bool isPlayer)
+            Transform leftLeg, Transform rightLeg, bool isPlayer, ulong variationSeed = 0UL)
         {
             _body = body;
             _head = head;
@@ -67,7 +69,9 @@ namespace Pogranichye.Client.Presentation
             _leftLeg = leftLeg;
             _rightLeg = rightLeg;
             _isPlayer = isPlayer;
-            _phase = Random.value * Mathf.PI * 2f;
+            _phase = (float)(variationSeed % 1000UL) / 1000f * Mathf.PI * 2f;
+            _idleRate = 1.55f + (float)(variationSeed % 7UL) * 0.055f;
+            _walkRate = 0.94f + (float)((variationSeed / 7UL) % 5UL) * 0.03f;
             _headTargetRotation = Quaternion.identity;
         }
 
@@ -113,7 +117,9 @@ namespace Pogranichye.Client.Presentation
             if (_body == null) return;
             _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
-            _phase += Time.deltaTime * (walking ? Mathf.Lerp(5.5f, 8.5f, _locomotion) : (_isPlayer ? 2.2f : 1.7f));
+            _phase += Time.deltaTime * (walking
+                ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
+                : (_isPlayer ? 2.2f : _idleRate));
 
             var resting = _activity.Contains("rest") || _activity.Contains("отдых");
             var working = _activity.Contains("work") || _activity.Contains("работ");
