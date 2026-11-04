@@ -484,7 +484,9 @@ namespace Pogranichye.Client.Presentation
 
             var handle = CreateMeshPart("Curved wooden tankard handle", mug,
                 BuildTankardHandleMesh(), _mugWoodMaterial);
-            handle.transform.localPosition = new Vector3(0.105f, 0.17f, 0f);
+            // The handle mesh is authored in tankard-local coordinates and already
+            // reaches into the body wall; an extra X offset would leave a visible gap.
+            handle.transform.localPosition = new Vector3(0f, 0.17f, 0f);
 
             CreatePrimitive("Ale foam", PrimitiveType.Sphere, mug,
                 new Vector3(0f, 0.305f, 0f), new Vector3(0.105f, 0.025f, 0.105f), _foamMaterial);
@@ -506,9 +508,11 @@ namespace Pogranichye.Client.Presentation
         private static Mesh BuildTankardBodyMesh()
         {
             const int sides = 10;
-            var vertices = new Vector3[sides * 4];
+            // Four radial rings form the outside, rim and inside. A centre vertex
+            // closes the floor so the tankard reads as a solid vessel from above.
+            var vertices = new Vector3[sides * 4 + 1];
             var uvs = new Vector2[vertices.Length];
-            var triangles = new int[sides * 6 * 3];
+            var triangles = new int[sides * 6 * 3 + sides * 3];
             var rings = new[] { new Vector2(0.092f, 0.012f), new Vector2(0.112f, 0.285f),
                 new Vector2(0.087f, 0.285f), new Vector2(0.071f, 0.025f) };
             for (var ring = 0; ring < 4; ring++)
@@ -531,6 +535,17 @@ namespace Pogranichye.Client.Presentation
                 var d = (ring + 1) * sides + i;
                 triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
                 triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+
+            var floorCenter = sides * 4;
+            vertices[floorCenter] = new Vector3(0f, rings[0].y, 0f);
+            uvs[floorCenter] = new Vector2(0.5f, 0.5f);
+            for (var i = 0; i < sides; i++)
+            {
+                // Downward-facing floor fan; the inner wall remains open above it.
+                triangles[t++] = floorCenter;
+                triangles[t++] = i;
+                triangles[t++] = (i + 1) % sides;
             }
 
             var mesh = new Mesh { name = "Low-poly hollow oak tankard" };
