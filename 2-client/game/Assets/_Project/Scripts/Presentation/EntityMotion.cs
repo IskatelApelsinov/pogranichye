@@ -138,16 +138,15 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        /// <summary>
-        /// Plays a brief local greeting gesture after the player addresses this NPC.
-        /// This is presentation feedback only; the server still owns the interaction result.
-        /// </summary>
         /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
         public void PlayDrinkGesture()
         {
             _drinkGestureRemaining = 1.35f;
         }
 
+        /// <summary>
+        /// Sets the observer used for the NPC's attention and gaze presentation.
+        /// </summary>
         public void SetFocusTarget(Transform observer)
         {
             _focusTarget = observer;
