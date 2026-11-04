@@ -31,6 +31,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("energy")] public double Energy { get; set; }
         [JsonProperty("morale")] public double Morale { get; set; }
         [JsonProperty("goal")] public string Goal { get; set; }
+        [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -69,6 +70,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
+        [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
     }
 
