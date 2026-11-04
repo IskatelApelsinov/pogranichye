@@ -38,7 +38,8 @@ The repository initially contained a source scaffold rather than a fully initial
 - Explicit connection states (`Closed`, `Connecting`, `AwaitingSnapshot`, `Active`), duplicate-connect prevention, and stale-socket callback guards.
 - First-steps HUD explaining the four supported server goals and showing the latest server-side stats/activity.
 - A generated starter scene with camera, directional light and runtime controller; the controller builds the prototype environment when Play starts.
-- Expanded northern residential lane: three additional cottages, branching dirt paths, domestic yards (laundry, firewood, handcart, kitchen garden) and a shared hearth aligned to the current server hearth POI (4, 16). This remains presentation-only and inside the existing 30 m scene boundary; it does not claim new server navigation or collision support. Any camera/light created at runtime is parented to the controller lifecycle, and the controller removes only a camera rig component it added itself.
+- Expanded northern residential lane: three additional cottages, branching dirt paths, domestic yards (laundry, firewood, handcart, kitchen garden) and a shared hearth aligned to the current server hearth POI (4, 16). This remains presentation-only and inside the existing 30 m scene boundary; it does not claim new server navigation or collision support.
+- Any camera/light created at runtime is parented to the controller lifecycle, and the controller removes only a camera rig component it added itself.
 
 ## Run
 
