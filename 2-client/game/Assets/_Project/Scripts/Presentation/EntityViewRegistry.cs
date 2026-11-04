@@ -225,7 +225,7 @@ namespace Pogranichye.Client.Presentation
 
             var motion = go.AddComponent<EntityMotion>();
             motion.Initialize(body.transform, head.transform, leftArm.transform, rightArm.transform,
-                leftLeg.transform, rightLeg.transform, isPlayer);
+                leftLeg.transform, rightLeg.transform, isPlayer, id);
 
             var labelObject = new GameObject("Label");
             labelObject.transform.SetParent(go.transform, false);
