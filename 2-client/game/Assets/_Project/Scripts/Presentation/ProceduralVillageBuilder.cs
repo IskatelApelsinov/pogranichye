@@ -23,6 +23,9 @@ namespace Pogranichye.Client.Presentation
         private static Material _produceMaterial;
         private static Material _mugWoodMaterial;
         private static Material _mugBandMaterial;
+        private static Material _bottleMaterial;
+        private static Material _corkMaterial;
+        private static Material _labelMaterial;
         private static Material _waterMaterial;
         private static Texture2D _groundTexture;
         private static Texture2D _pathTexture;
@@ -70,6 +73,9 @@ namespace Pogranichye.Client.Presentation
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
             _mugWoodMaterial = CreateMaterial("Tankard • oak staves", new Color(0.38f, 0.22f, 0.12f));
             _mugBandMaterial = CreateMaterial("Tankard • iron hoops", new Color(0.16f, 0.18f, 0.19f));
+            _bottleMaterial = CreateMaterial("Bottle • dark green glass", new Color(0.12f, 0.29f, 0.20f));
+            _corkMaterial = CreateMaterial("Bottle • cork", new Color(0.48f, 0.31f, 0.16f));
+            _labelMaterial = CreateMaterial("Bottle • parchment label", new Color(0.78f, 0.67f, 0.43f));
             _waterMaterial = CreateMaterial("Creek water", new Color(0.20f, 0.39f, 0.43f));
             _waterTexture = MakeSurfaceTexture("Creek current texture", 5);
             _waterMaterial.mainTexture = _waterTexture;
@@ -267,8 +273,8 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Back bar shelf", PrimitiveType.Cube, tavern,
                 new Vector3(0, 1.95f, 1.78f), new Vector3(3.5f, 0.10f, 0.42f), _woodMaterial);
             for (var i = 0; i < 5; i++)
-                CreatePrimitive("Shelf bottle", PrimitiveType.Cylinder, tavern,
-                    new Vector3(-1.35f + i * 0.675f, 2.18f, 1.72f), new Vector3(0.09f, 0.18f, 0.09f), _beerMaterial);
+                CreateBottle(tavern, new Vector3(-1.35f + i * 0.675f, 2.10f, 1.72f),
+                    i % 2 == 0 ? 1f : 0.88f);
             for (var i = 0; i < 3; i++)
             {
                 var x = -1.1f + i * 1.1f;
@@ -441,6 +447,70 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Garden fence post side", PrimitiveType.Cube, fence,
                     new Vector3(-2.0f, 0.38f, x + 0.15f), new Vector3(0.10f, 0.76f, 0.10f), _woodMaterial);
             }
+        }
+
+        private static void CreateBottle(Transform parent, Vector3 position, float scale)
+        {
+            var bottle = new GameObject("Low-poly green glass bottle").transform;
+            bottle.SetParent(parent, false);
+            bottle.localPosition = position;
+            bottle.localScale = Vector3.one * scale;
+
+            // A faceted lathed silhouette: broad body, sloped shoulder, narrow neck and lip.
+            const int sides = 9;
+            var profile = new[]
+            {
+                new Vector2(0.000f, 0.000f),
+                new Vector2(0.070f, 0.000f),
+                new Vector2(0.084f, 0.035f),
+                new Vector2(0.084f, 0.175f),
+                new Vector2(0.074f, 0.205f),
+                new Vector2(0.039f, 0.250f),
+                new Vector2(0.031f, 0.270f),
+                new Vector2(0.031f, 0.345f),
+                new Vector2(0.041f, 0.352f),
+                new Vector2(0.041f, 0.370f),
+                new Vector2(0.026f, 0.370f),
+                new Vector2(0.000f, 0.370f)
+            };
+            var vertices = new Vector3[profile.Length * sides];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[(profile.Length - 1) * sides * 6];
+            for (var ring = 0; ring < profile.Length; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var angle = side * Mathf.PI * 2f / sides;
+                var index = ring * sides + side;
+                vertices[index] = new Vector3(Mathf.Cos(angle) * profile[ring].x,
+                    profile[ring].y, Mathf.Sin(angle) * profile[ring].x);
+                uvs[index] = new Vector2((float)side / sides, profile[ring].y / 0.37f);
+            }
+
+            var triangle = 0;
+            for (var ring = 0; ring < profile.Length - 1; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var a = ring * sides + side;
+                var b = ring * sides + (side + 1) % sides;
+                var c = (ring + 1) * sides + (side + 1) % sides;
+                var d = (ring + 1) * sides + side;
+                triangles[triangle++] = a; triangles[triangle++] = d; triangles[triangle++] = b;
+                triangles[triangle++] = b; triangles[triangle++] = d; triangles[triangle++] = c;
+            }
+
+            var mesh = new Mesh { name = "Nine-sided medieval bottle" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            CreateMeshPart("Bottle glass body", bottle, mesh, _bottleMaterial);
+
+            var label = CreatePrimitive("Parchment bottle label", PrimitiveType.Cylinder, bottle,
+                new Vector3(0f, 0.125f, 0f), new Vector3(0.085f, 0.006f, 0.085f), _labelMaterial);
+            label.transform.localRotation = Quaternion.identity;
+            CreatePrimitive("Bottle cork", PrimitiveType.Cylinder, bottle,
+                new Vector3(0f, 0.378f, 0f), new Vector3(0.023f, 0.018f, 0.023f), _corkMaterial);
         }
 
         private static void BuildTavernTable(Transform tavern, Vector3 position)
