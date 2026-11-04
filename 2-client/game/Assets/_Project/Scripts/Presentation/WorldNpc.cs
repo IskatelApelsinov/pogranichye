@@ -62,6 +62,9 @@ namespace Pogranichye.Client.Presentation
 
         private void OnDisable()
         {
+            // The probe may be disabled during disconnect or scene teardown. Do not leave
+            // a stale camera Transform on an NPC that is no longer the active focus target.
+            if (_motion != null) _motion.SetFocusTarget(null);
             if (_focused)
             {
                 _focused = false;
