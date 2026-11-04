@@ -55,6 +55,8 @@ namespace Pogranichye.Client.Presentation
         {
             if (_focused == focused) return;
             _focused = focused;
+            if (_motion != null)
+                _motion.SetFocusTarget(_focused && Camera.main != null ? Camera.main.transform : null);
             ApplyColor(_focused ? Color.Lerp(_baseColor, Color.white, 0.38f) : _baseColor);
         }
 
