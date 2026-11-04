@@ -766,13 +766,115 @@ namespace Pogranichye.Client.Presentation
             barrel.SetParent(root, false);
             barrel.position = position;
             barrel.localScale = Vector3.one * scale;
-            CreatePrimitive("Barrel body", PrimitiveType.Cylinder, barrel, new Vector3(0, 0.48f, 0),
-                new Vector3(0.38f, 0.48f, 0.38f), _woodMaterial);
-            for (var y = 0.18f; y <= 0.78f; y += 0.48f)
-                CreatePrimitive("Barrel iron hoop", PrimitiveType.Cylinder, barrel, new Vector3(0, y, 0),
-                    new Vector3(0.395f, 0.035f, 0.395f), _metalMaterial);
-            CreatePrimitive("Barrel lid", PrimitiveType.Cylinder, barrel, new Vector3(0, 0.97f, 0),
-                new Vector3(0.36f, 0.035f, 0.36f), _woodMaterial);
+
+            CreateMeshPart("Bulging faceted oak barrel", barrel, BuildBarrelBodyMesh(), _woodMaterial);
+            foreach (var y in new[] { 0.16f, 0.48f, 0.80f })
+            {
+                var hoop = CreateMeshPart("Forged iron barrel hoop", barrel,
+                    BuildBarrelHoopMesh(y), _metalMaterial);
+                hoop.transform.localPosition = Vector3.zero;
+            }
+            CreatePrimitive("Barrel lid", PrimitiveType.Cylinder, barrel,
+                new Vector3(0, 0.965f, 0), new Vector3(0.33f, 0.025f, 0.33f), _woodMaterial);
+            for (var stave = 0; stave < 8; stave++)
+            {
+                var angle = stave * 45f;
+                var seam = CreatePrimitive("Barrel stave seam", PrimitiveType.Cube, barrel,
+                    new Vector3(Mathf.Sin(angle * Mathf.Deg2Rad) * 0.385f, 0.49f,
+                        Mathf.Cos(angle * Mathf.Deg2Rad) * 0.385f),
+                    new Vector3(0.012f, 0.78f, 0.025f), _roofMaterial);
+                seam.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
+            }
+        }
+
+        private static Mesh BuildBarrelBodyMesh()
+        {
+            const int sides = 10;
+            var profile = new[] { new Vector2(0.31f, 0.02f), new Vector2(0.37f, 0.16f),
+                new Vector2(0.405f, 0.48f), new Vector2(0.37f, 0.80f), new Vector2(0.31f, 0.94f) };
+            var vertices = new Vector3[profile.Length * sides + 2];
+            var triangles = new int[(profile.Length - 1) * sides * 6 + sides * 6];
+            for (var ring = 0; ring < profile.Length; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var angle = side * Mathf.PI * 2f / sides;
+                vertices[ring * sides + side] = new Vector3(
+                    Mathf.Cos(angle) * profile[ring].x, profile[ring].y,
+                    Mathf.Sin(angle) * profile[ring].x);
+            }
+
+            var t = 0;
+            for (var ring = 0; ring < profile.Length - 1; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var a = ring * sides + side;
+                var b = ring * sides + (side + 1) % sides;
+                var c = (ring + 1) * sides + (side + 1) % sides;
+                var d = (ring + 1) * sides + side;
+                triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+
+            var bottomCenter = profile.Length * sides;
+            var topCenter = bottomCenter + 1;
+            vertices[bottomCenter] = Vector3.up * profile[0].y;
+            vertices[topCenter] = Vector3.up * profile[profile.Length - 1].y;
+            for (var side = 0; side < sides; side++)
+            {
+                triangles[t++] = bottomCenter;
+                triangles[t++] = (side + 1) % sides;
+                triangles[t++] = side;
+                var top = (profile.Length - 1) * sides;
+                triangles[t++] = topCenter;
+                triangles[t++] = top + side;
+                triangles[t++] = top + (side + 1) % sides;
+            }
+
+            var mesh = new Mesh { name = "Ten-sided bulging oak barrel" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh BuildBarrelHoopMesh(float y)
+        {
+            const int sides = 10;
+            const int crossSides = 4;
+            const float majorRadius = 0.397f;
+            const float minorRadius = 0.018f;
+            var vertices = new Vector3[sides * crossSides];
+            var triangles = new int[sides * crossSides * 6];
+            for (var i = 0; i < sides; i++)
+            for (var j = 0; j < crossSides; j++)
+            {
+                var around = i * Mathf.PI * 2f / sides;
+                var tube = j * Mathf.PI * 2f / crossSides;
+                var radius = majorRadius + Mathf.Cos(tube) * minorRadius;
+                vertices[i * crossSides + j] = new Vector3(
+                    Mathf.Cos(around) * radius, y + Mathf.Sin(tube) * minorRadius,
+                    Mathf.Sin(around) * radius);
+            }
+
+            var t = 0;
+            for (var i = 0; i < sides; i++)
+            for (var j = 0; j < crossSides; j++)
+            {
+                var a = i * crossSides + j;
+                var b = ((i + 1) % sides) * crossSides + j;
+                var c = ((i + 1) % sides) * crossSides + (j + 1) % crossSides;
+                var d = i * crossSides + (j + 1) % crossSides;
+                triangles[t++] = a; triangles[t++] = b; triangles[t++] = d;
+                triangles[t++] = b; triangles[t++] = c; triangles[t++] = d;
+            }
+
+            var mesh = new Mesh { name = "Faceted iron barrel hoop" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static void BuildWoodPile(Transform root, Vector3 position)
