@@ -738,10 +738,71 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Bread basket", PrimitiveType.Sphere, market,
                 new Vector3(-0.7f, 1.28f, -0.1f), new Vector3(0.55f, 0.28f, 0.55f), _grassMaterial);
             for (var i = 0; i < 4; i++)
-                CreatePrimitive("Loaf of bread", PrimitiveType.Sphere, market,
-                    new Vector3(-0.9f + i * 0.18f, 1.43f, -0.12f), new Vector3(0.20f, 0.13f, 0.13f), _produceMaterial);
+            {
+                var loaf = CreateMeshPart("Low-poly market bread", market,
+                    BuildBreadLoafMesh(), _produceMaterial);
+                loaf.transform.localPosition = new Vector3(-0.9f + i * 0.18f, 1.43f, -0.12f);
+                loaf.transform.localScale = new Vector3(1f, 0.78f, 0.72f);
+                loaf.transform.localRotation = Quaternion.Euler(0f, (i - 1.5f) * 9f, 0f);
+            }
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
             CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
+        }
+
+        private static Mesh BuildBreadLoafMesh()
+        {
+            // A compact, faceted oval loaf with a domed crown and tapered ends.
+            const int sides = 8;
+            var profile = new[]
+            {
+                new Vector2(-0.17f, 0.015f), new Vector2(-0.14f, 0.075f),
+                new Vector2(-0.07f, 0.115f), new Vector2(0.07f, 0.115f),
+                new Vector2(0.14f, 0.075f), new Vector2(0.17f, 0.015f)
+            };
+            var vertices = new Vector3[profile.Length * sides + 2];
+            var triangles = new int[(profile.Length - 1) * sides * 6 + sides * 6];
+            for (var ring = 0; ring < profile.Length; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var angle = side * Mathf.PI * 2f / sides;
+                vertices[ring * sides + side] = new Vector3(profile[ring].x,
+                    Mathf.Cos(angle) * profile[ring].y + 0.075f,
+                    Mathf.Sin(angle) * profile[ring].y);
+            }
+
+            var t = 0;
+            for (var ring = 0; ring < profile.Length - 1; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var a = ring * sides + side;
+                var b = ring * sides + (side + 1) % sides;
+                var c = (ring + 1) * sides + (side + 1) % sides;
+                var d = (ring + 1) * sides + side;
+                triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+
+            var leftCap = profile.Length * sides;
+            var rightCap = leftCap + 1;
+            vertices[leftCap] = new Vector3(profile[0].x, 0.075f, 0f);
+            vertices[rightCap] = new Vector3(profile[profile.Length - 1].x, 0.075f, 0f);
+            for (var side = 0; side < sides; side++)
+            {
+                triangles[t++] = leftCap;
+                triangles[t++] = (side + 1) % sides;
+                triangles[t++] = side;
+                var last = (profile.Length - 1) * sides;
+                triangles[t++] = rightCap;
+                triangles[t++] = last + side;
+                triangles[t++] = last + (side + 1) % sides;
+            }
+
+            var mesh = new Mesh { name = "Eight-sided artisan bread loaf" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static void BuildGarden(Transform root, Vector3 position)
