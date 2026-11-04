@@ -5,7 +5,7 @@ namespace Pogranichye.Client.Presentation
 {
     /// <summary>
     /// Selectable nearby NPC. Interaction currently requests only generic socialize;
-    /// no targeted dialogue contract exists in v1.
+    /// the greeting gesture is local presentation feedback, not a dialogue result.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public sealed class WorldNpc : MonoBehaviour
@@ -15,7 +15,9 @@ namespace Pogranichye.Client.Presentation
         private Renderer _bodyRenderer;
         private Color _baseColor;
         private MaterialPropertyBlock _block;
+        private EntityMotion _motion;
         private bool _focused;
+        private float _nextGreetingAt;
 
         public static event Action<WorldNpc> Selected;
         public ulong EntityId { get; private set; }
@@ -26,6 +28,7 @@ namespace Pogranichye.Client.Presentation
             EntityId = entityId;
             DisplayName = displayName ?? "Житель";
             _bodyRenderer = bodyRenderer;
+            _motion = GetComponent<EntityMotion>();
             if (_bodyRenderer != null)
             {
                 _baseColor = bodyColor;
@@ -36,7 +39,15 @@ namespace Pogranichye.Client.Presentation
 
         public void RequestInteraction()
         {
-            if (enabled) Selected?.Invoke(this);
+            if (!enabled) return;
+
+            if (Time.unscaledTime >= _nextGreetingAt)
+            {
+                _nextGreetingAt = Time.unscaledTime + 1.2f;
+                if (_motion != null) _motion.PlayGreeting(Camera.main != null ? Camera.main.transform : null);
+            }
+
+            Selected?.Invoke(this);
         }
 
         /// <summary>Highlights the NPC currently under the interaction reticle.</summary>

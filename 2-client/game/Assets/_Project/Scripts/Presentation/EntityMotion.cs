@@ -2,10 +2,11 @@ using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
 {
-    /// <summary>Lightweight role/activity animation for the first scene; no Animator asset required.</summary>
+    /// <summary>Lightweight procedural locomotion and social gestures for the first scene.</summary>
     public sealed class EntityMotion : MonoBehaviour
     {
         private Transform _body;
+        private Transform _head;
         private Transform _leftArm;
         private Transform _rightArm;
         private Transform _leftLeg;
@@ -20,6 +21,9 @@ namespace Pogranichye.Client.Presentation
         private Vector3 _networkPositionVelocity;
         private Quaternion _networkTargetRotation;
         private float _lastNetworkTargetAt;
+        private float _greetingRemaining;
+        private Transform _attentionTarget;
+        private Quaternion _headTargetRotation;
         private const float NetworkSmoothTime = 0.42f;
 
         /// <summary>
@@ -52,16 +56,18 @@ namespace Pogranichye.Client.Presentation
             _lastNetworkTargetAt = now;
         }
 
-        public void Initialize(Transform body, Transform leftArm, Transform rightArm,
+        public void Initialize(Transform body, Transform head, Transform leftArm, Transform rightArm,
             Transform leftLeg, Transform rightLeg, bool isPlayer)
         {
             _body = body;
+            _head = head;
             _leftArm = leftArm;
             _rightArm = rightArm;
             _leftLeg = leftLeg;
             _rightLeg = rightLeg;
             _isPlayer = isPlayer;
             _phase = Random.value * Mathf.PI * 2f;
+            _headTargetRotation = Quaternion.identity;
         }
 
         /// <summary>Presentation-only locomotion intensity derived from replicated movement.</summary>
@@ -75,6 +81,16 @@ namespace Pogranichye.Client.Presentation
         public void SetActivity(string activity)
         {
             _activity = (activity ?? string.Empty).ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Plays a brief local greeting gesture after the player addresses this NPC.
+        /// This is presentation feedback only; the server still owns the interaction result.
+        /// </summary>
+        public void PlayGreeting(Transform observer)
+        {
+            _greetingRemaining = 1.65f;
+            _attentionTarget = observer;
         }
 
         private void Update()
@@ -99,24 +115,59 @@ namespace Pogranichye.Client.Presentation
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
 
+            var greeting = _greetingRemaining > 0f && !walking && !_isPlayer;
+            if (_greetingRemaining > 0f)
+            {
+                _greetingRemaining = Mathf.Max(0f, _greetingRemaining - Time.deltaTime);
+                if (_greetingRemaining <= 0f) _attentionTarget = null;
+            }
+
             var bob = walking ? Mathf.Lerp(0.035f, 0.075f, _locomotion) : resting ? 0.008f : 0.025f;
             _body.localPosition = new Vector3(0, 0.95f + Mathf.Sin(_phase) * bob, 0);
-            _body.localRotation = Quaternion.Euler(walking ? Mathf.Lerp(1.5f, 7f, _locomotion) : 0f, 0f,
-                walking ? Mathf.Sin(_phase * 0.5f) * 1.4f * _locomotion : 0f);
+            var greetingLean = greeting ? -1.8f : 0f;
+            _body.localRotation = Quaternion.Euler(walking ? Mathf.Lerp(1.5f, 7f, _locomotion) : greetingLean, 0f,
+                walking ? Mathf.Sin(_phase * 0.5f) * 1.4f * _locomotion : Mathf.Sin(_phase * 0.65f) * 0.7f);
 
             var swing = Mathf.Sin(_phase * 1.4f);
-            var leftArmAngle = walking ? swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : 0f;
-            var rightArmAngle = walking ? -swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : 0f;
+            var idleSway = Mathf.Sin(_phase * 0.72f) * 2.2f;
+            var leftArmAngle = walking ? swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : idleSway;
+            var rightArmAngle = walking ? -swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : -idleSway;
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
             if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
             if (resting) { leftArmAngle = 8f; rightArmAngle = -8f; }
 
+            var rightArmYaw = 0f;
+            if (greeting)
+            {
+                var wave = Mathf.Sin((1.65f - _greetingRemaining) * 15f);
+                rightArmAngle = -112f + wave * 9f;
+                rightArmYaw = wave * 28f;
+            }
+
             var legSwing = walking ? swing * Mathf.Lerp(24f, 38f, _locomotion) : swing * 2f;
 
             if (_leftArm != null) _leftArm.localRotation = Quaternion.Euler(leftArmAngle, 0, -7f);
-            if (_rightArm != null) _rightArm.localRotation = Quaternion.Euler(rightArmAngle, 0, 7f);
+            if (_rightArm != null) _rightArm.localRotation = Quaternion.Euler(rightArmAngle, rightArmYaw, 7f);
             if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(legSwing, 0, 0);
             if (_rightLeg != null) _rightLeg.localRotation = Quaternion.Euler(-legSwing, 0, 0);
+
+            if (_head != null)
+            {
+                if (_attentionTarget != null && greeting)
+                {
+                    var localDirection = transform.InverseTransformPoint(_attentionTarget.position) - _head.localPosition;
+                    var yaw = Mathf.Clamp(Mathf.Atan2(localDirection.x, localDirection.z) * Mathf.Rad2Deg, -38f, 38f);
+                    var pitch = Mathf.Clamp(-Mathf.Atan2(localDirection.y, new Vector2(localDirection.x, localDirection.z).magnitude) * Mathf.Rad2Deg, -12f, 12f);
+                    _headTargetRotation = Quaternion.Euler(pitch, yaw, 0f);
+                }
+                else
+                {
+                    _headTargetRotation = Quaternion.Euler(0f, Mathf.Sin(_phase * 0.31f) * 4f, 0f);
+                }
+
+                _head.localRotation = Quaternion.Slerp(
+                    _head.localRotation, _headTargetRotation, 1f - Mathf.Exp(-8f * Time.deltaTime));
+            }
         }
     }
 }
