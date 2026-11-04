@@ -113,6 +113,7 @@ namespace Pogranichye.Client.Presentation
             BuildNorthernResidentialLane(village, ambientMotion);
             BuildPracticeStations(village);
             BuildVillageLife(village, ambientMotion);
+            BuildStreetDetails(village, worldSeed);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -304,6 +305,86 @@ namespace Pogranichye.Client.Presentation
 
             CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, -2.0f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
+        }
+
+        private static void BuildStreetDetails(Transform root, string worldSeed)
+        {
+            // Presentation-only street dressing. Keep the central walking line clear and avoid
+            // adding colliders or changing any server POI/navigation coordinates.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":street-details"));
+
+            // Shallow wheel-worn tracks make the packed-earth road read as a travelled surface.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var rut = CreatePrimitive("Main road • wheel-worn track", PrimitiveType.Cube, root,
+                    new Vector3(side * 0.43f, 0.057f, 0f), new Vector3(0.075f, 0.012f, 23.2f), _roofMaterial);
+                rut.isStatic = true;
+                var crossRut = CreatePrimitive("Crossroad • wheel-worn track", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.059f, side * 0.34f), new Vector3(21.0f, 0.012f, 0.07f), _roofMaterial);
+                crossRut.isStatic = true;
+            }
+
+            // Uneven gravel shoulders frame the road without narrowing its usable centre.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                for (var i = 0; i < 34; i++)
+                {
+                    var z = -11.4f + i * 0.69f + (float)random.NextDouble() * 0.28f;
+                    var x = side * (1.18f + (float)random.NextDouble() * 0.42f);
+                    var size = 0.08f + (float)random.NextDouble() * 0.13f;
+                    var stone = CreatePrimitive("Roadside loose gravel", PrimitiveType.Sphere, root,
+                        new Vector3(x, 0.075f, z),
+                        new Vector3(size * 1.35f, size * 0.42f, size), _stoneMaterial);
+                    stone.transform.rotation = Quaternion.Euler(
+                        (float)random.NextDouble() * 18f,
+                        (float)random.NextDouble() * 180f,
+                        (float)random.NextDouble() * 18f);
+                    stone.isStatic = true;
+                }
+
+                // Occasional grass tufts grow at the verge, never in the road itself.
+                for (var i = 0; i < 13; i++)
+                {
+                    var z = -10.8f + i * 1.75f + (float)random.NextDouble() * 0.45f;
+                    var x = side * (1.48f + (float)random.NextDouble() * 0.32f);
+                    var tuft = CreatePrimitive("Roadside verge grass", PrimitiveType.Cube, root,
+                        new Vector3(x, 0.16f, z),
+                        new Vector3(0.07f, 0.28f + (float)random.NextDouble() * 0.12f, 0.07f),
+                        _grassMaterial);
+                    tuft.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f,
+                        (float)random.NextDouble() * 16f - 8f);
+                    tuft.isStatic = true;
+                }
+            }
+
+            // The cross street gets lighter, more broken gravel rather than a second solid border.
+            for (var i = 0; i < 25; i++)
+            {
+                var x = -10.2f + i * 0.84f + (float)random.NextDouble() * 0.25f;
+                var side = random.Next(0, 2) == 0 ? -1f : 1f;
+                var z = side * (1.0f + (float)random.NextDouble() * 0.52f);
+                var size = 0.07f + (float)random.NextDouble() * 0.12f;
+                var stone = CreatePrimitive("Cross street gravel", PrimitiveType.Sphere, root,
+                    new Vector3(x, 0.073f, z),
+                    new Vector3(size * 1.3f, size * 0.4f, size), _stoneMaterial);
+                stone.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
+                stone.isStatic = true;
+            }
+
+            // Small muddy patches beside the road suggest rain and foot traffic; they sit below
+            // the road surface and are deliberately matte, not reflective water decals.
+            for (var i = 0; i < 7; i++)
+            {
+                var side = i % 2 == 0 ? -1f : 1f;
+                var x = side * (1.55f + (float)random.NextDouble() * 0.65f);
+                var z = -8.5f + i * 2.65f;
+                var patch = CreatePrimitive("Roadside damp earth", PrimitiveType.Cylinder, root,
+                    new Vector3(x, 0.035f, z),
+                    new Vector3(0.38f + (float)random.NextDouble() * 0.22f, 0.018f,
+                        0.22f + (float)random.NextDouble() * 0.16f), _pathMaterial);
+                patch.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
+                patch.isStatic = true;
+            }
         }
 
         private static void BuildVillageLife(Transform root, VillageAmbientMotion ambient)
