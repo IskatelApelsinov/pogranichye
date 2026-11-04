@@ -26,6 +26,8 @@ namespace Pogranichye.Client.Presentation
         private Vector3 _leftArmHomeScale;
         private Vector3 _rightArmHomeScale;
         private bool _firstPersonArmsAttached;
+        private bool _hasPlayerMugState;
+        private bool _playerHadMug;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -49,6 +51,13 @@ namespace Pogranichye.Client.Presentation
             // Activity animation is driven only by the server-confirmed registry code.
             SetActivityCode(player, frame.Me.ActivityCode);
             SetMug(player, frame.Me.Mug);
+            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug)
+            {
+                var playerMotion = player.GetComponent<EntityMotion>();
+                if (playerMotion != null) playerMotion.PlayDrinkGesture();
+            }
+            _hasPlayerMugState = true;
+            _playerHadMug = frame.Me.Mug;
             PlayerTransform = player.transform;
             SetLabel(player, string.Empty);
 
