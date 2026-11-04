@@ -550,9 +550,9 @@ namespace Pogranichye.Client.Presentation
             bread.transform.localRotation = Quaternion.Euler(0f, -18f, 0f);
 
             CreatePrimitive("Serving bowl", PrimitiveType.Cylinder, table,
-                new Vector3(0.40f, 0.91f, 0.12f), new Vector3(0.22f, 0.055f, 0.22f), _woodMaterial);
+                new Vector3(0.38f, 0.91f, 0.25f), new Vector3(0.22f, 0.055f, 0.22f), _woodMaterial);
             CreatePrimitive("Bowl contents", PrimitiveType.Sphere, table,
-                new Vector3(0.40f, 0.946f, 0.12f), new Vector3(0.15f, 0.018f, 0.15f), _produceMaterial);
+                new Vector3(0.38f, 0.946f, 0.25f), new Vector3(0.15f, 0.018f, 0.15f), _produceMaterial);
         }
 
         private static void CreateBeerMug(Transform parent, Vector3 position)
