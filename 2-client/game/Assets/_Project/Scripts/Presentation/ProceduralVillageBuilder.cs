@@ -34,6 +34,8 @@ namespace Pogranichye.Client.Presentation
         private static Texture2D _stoneTexture;
         private static Texture2D _waterTexture;
         private static Mesh _creekReedMesh;
+        private static readonly System.Collections.Generic.List<Mesh> _generatedMeshes =
+            new System.Collections.Generic.List<Mesh>();
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
@@ -572,6 +574,7 @@ namespace Pogranichye.Client.Presentation
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            if (mesh != null && !_generatedMeshes.Contains(mesh)) _generatedMeshes.Add(mesh);
             return go;
         }
 
@@ -1456,7 +1459,13 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_produceMaterial);
             DestroyAsset(_mugWoodMaterial);
             DestroyAsset(_mugBandMaterial);
+            DestroyAsset(_bottleMaterial);
+            DestroyAsset(_corkMaterial);
+            DestroyAsset(_labelMaterial);
             DestroyAsset(_waterMaterial);
+            for (var i = 0; i < _generatedMeshes.Count; i++)
+                DestroyAsset(_generatedMeshes[i]);
+            _generatedMeshes.Clear();
             if (_groundTexture != null) Object.Destroy(_groundTexture);
             if (_pathTexture != null) Object.Destroy(_pathTexture);
             if (_woodTexture != null) Object.Destroy(_woodTexture);
@@ -1477,6 +1486,11 @@ namespace Pogranichye.Client.Presentation
             _metalMaterial = null;
             _clothMaterial = null;
             _produceMaterial = null;
+            _mugWoodMaterial = null;
+            _mugBandMaterial = null;
+            _bottleMaterial = null;
+            _corkMaterial = null;
+            _labelMaterial = null;
             _waterMaterial = null;
             _groundTexture = null;
             _pathTexture = null;
