@@ -222,7 +222,7 @@ namespace Pogranichye.Client.Presentation
             AddRoleAccessories(go.transform, role);
 
             var motion = go.AddComponent<EntityMotion>();
-            motion.Initialize(body.transform, leftArm.transform, rightArm.transform,
+            motion.Initialize(body.transform, head.transform, leftArm.transform, rightArm.transform,
                 leftLeg.transform, rightLeg.transform, isPlayer);
 
             var labelObject = new GameObject("Label");
