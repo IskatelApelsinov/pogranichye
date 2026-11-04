@@ -768,8 +768,51 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.22f, 0.18f, 0.22f), _leafMaterial);
                 cabbage.transform.localRotation = Quaternion.Euler(0f, i * 37f, 18f);
             }
+
+            // Extra stock sits beside the stall, leaving the counter readable and walkable.
+            BuildMarketCrate(market, "Apple crate", new Vector3(1.88f, 0.04f, 0.42f), new Color(0.58f, 0.20f, 0.12f));
+            BuildMarketCrate(market, "Root vegetable crate", new Vector3(-1.88f, 0.04f, 0.42f), new Color(0.72f, 0.43f, 0.16f));
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
             CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
+        }
+
+        private static void BuildMarketCrate(Transform parent, string name, Vector3 position, Color produceTint)
+        {
+            var crate = new GameObject(name).transform;
+            crate.SetParent(parent, false);
+            crate.localPosition = position;
+
+            const float width = 0.62f;
+            const float depth = 0.52f;
+            CreatePrimitive("Crate floor", PrimitiveType.Cube, crate,
+                new Vector3(0f, 0.12f, 0f), new Vector3(width, 0.08f, depth), _woodMaterial);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                CreatePrimitive("Crate long side", PrimitiveType.Cube, crate,
+                    new Vector3(0f, 0.27f, side * depth * 0.46f), new Vector3(width, 0.25f, 0.055f), _roofMaterial);
+                CreatePrimitive("Crate end", PrimitiveType.Cube, crate,
+                    new Vector3(side * width * 0.46f, 0.27f, 0f), new Vector3(0.055f, 0.25f, depth), _woodMaterial);
+            }
+            for (var i = 0; i < 3; i++)
+            {
+                CreatePrimitive("Crate front slat", PrimitiveType.Cube, crate,
+                    new Vector3(0f, 0.17f + i * 0.09f, -depth * 0.50f),
+                    new Vector3(width * 0.88f, 0.035f, 0.025f), _woodMaterial);
+            }
+
+            var fruitMaterial = new Material(_produceMaterial);
+            fruitMaterial.color = produceTint;
+            _generatedMaterials.Add(fruitMaterial);
+            for (var i = 0; i < 5; i++)
+            {
+                var x = -0.20f + (i % 3) * 0.20f;
+                var z = -0.12f + (i / 3) * 0.20f;
+                var fruit = CreatePrimitive(name == "Apple crate" ? "Market apple" : "Market root vegetable",
+                    PrimitiveType.Sphere, crate, new Vector3(x, 0.34f + (i % 2) * 0.035f, z),
+                    name == "Apple crate" ? new Vector3(0.15f, 0.14f, 0.15f) : new Vector3(0.17f, 0.12f, 0.13f),
+                    fruitMaterial);
+                fruit.transform.localRotation = Quaternion.Euler(i * 17f, i * 31f, i * 11f);
+            }
         }
 
         private static void BuildMarketBasket(Transform parent, string name, Vector3 position, float width, float depth)
