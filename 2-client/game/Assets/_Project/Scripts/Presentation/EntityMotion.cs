@@ -83,9 +83,58 @@ namespace Pogranichye.Client.Presentation
             _locomotionTarget = Mathf.Clamp01(normalizedSpeed);
         }
 
-        public void SetActivity(string activity)
+        /// <summary>
+        /// Maps the server's stable activity registry code to a small presentation category.
+        /// Unknown or missing codes intentionally fall back to neutral idle.
+        /// Never infer animation from goal text or localized outcome prose.
+        /// </summary>
+        public void SetActivityCode(string activityCode)
         {
-            _activity = (activity ?? string.Empty).ToLowerInvariant();
+            switch (activityCode)
+            {
+                case "meal":
+                    _activity = "eat";
+                    break;
+                case "sleep":
+                case "rest_idle":
+                    _activity = "rest";
+                    break;
+                case "drink_tavern":
+                    _activity = "drink";
+                    break;
+                case "visit_neighbors":
+                    _activity = "social";
+                    break;
+                case "farm_sow":
+                case "farm_nosow":
+                case "farm_reap":
+                case "farm_mend":
+                case "farm_tend":
+                case "fish_river":
+                case "fisher_mend":
+                case "hunt_wild":
+                case "hunter_empty":
+                case "cook_hearth":
+                case "brew_remedy":
+                case "forage_herbs":
+                case "smith_forge":
+                case "smith_cold":
+                case "weave":
+                case "weaver_wait":
+                case "mine_ore":
+                case "mine_spent":
+                case "chop_wood":
+                case "herd_barn":
+                case "herd_graze":
+                case "keep_tavern":
+                case "study_mana":
+                case "work":
+                    _activity = "work";
+                    break;
+                default:
+                    _activity = string.Empty;
+                    break;
+            }
         }
 
         /// <summary>
