@@ -114,6 +114,7 @@ namespace Pogranichye.Client.Presentation
             BuildPracticeStations(village);
             BuildVillageLife(village, ambientMotion);
             BuildStreetDetails(village, worldSeed);
+            BuildWornFootpaths(village, worldSeed);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
@@ -384,6 +385,46 @@ namespace Pogranichye.Client.Presentation
                         0.22f + (float)random.NextDouble() * 0.16f), _pathMaterial);
                 patch.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
                 patch.isStatic = true;
+            }
+        }
+
+        private static void BuildWornFootpaths(Transform root, string worldSeed)
+        {
+            // Small, irregular stepping-stone paths connect the main street to lived-in places.
+            // They are visual dressing only: no colliders, POIs or server navigation changes.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":footpaths"));
+            BuildFootpath(root, new Vector3(0.25f, 0.06f, 5.35f),
+                new Vector3(-5.55f, 0.06f, 5.35f), 9, random);
+            BuildFootpath(root, new Vector3(-2.0f, 0.06f, -1.1f),
+                new Vector3(-8.25f, 0.06f, -6.0f), 11, random);
+            BuildFootpath(root, new Vector3(2.0f, 0.06f, 0.75f),
+                new Vector3(6.55f, 0.06f, 2.65f), 8, random);
+            BuildFootpath(root, new Vector3(3.0f, 0.06f, -5.4f),
+                new Vector3(5.8f, 0.06f, -8.15f), 6, random);
+        }
+
+        private static void BuildFootpath(Transform root, Vector3 start, Vector3 end, int stoneCount,
+            System.Random random)
+        {
+            var direction = end - start;
+            var perpendicular = new Vector3(-direction.z, 0f, direction.x).normalized;
+            var rotation = Quaternion.Euler(0f, Mathf.Atan2(direction.z, direction.x) * Mathf.Rad2Deg, 0f);
+
+            for (var i = 0; i < stoneCount; i++)
+            {
+                var t = (i + 0.5f) / stoneCount;
+                var jitter = ((float)random.NextDouble() - 0.5f) * 0.22f;
+                var sideOffset = ((float)random.NextDouble() - 0.5f) * 0.26f;
+                var point = Vector3.Lerp(start, end, Mathf.Clamp01(t + jitter)) +
+                            perpendicular * sideOffset;
+                var length = 0.30f + (float)random.NextDouble() * 0.18f;
+                var width = 0.24f + (float)random.NextDouble() * 0.16f;
+                var stone = CreatePrimitive("Worn footpath stepping stone", PrimitiveType.Cube, root,
+                    new Vector3(point.x, point.y, point.z),
+                    new Vector3(length, 0.055f, width), _stoneMaterial);
+                stone.transform.rotation = rotation * Quaternion.Euler(
+                    0f, (float)random.NextDouble() * 18f - 9f, 0f);
+                stone.isStatic = true;
             }
         }
 
