@@ -57,8 +57,11 @@
 <!-- игра -->
 <div id="game" class="hidden">
  <div class="card village-art">
-  <img src="village-scene.svg" alt="Карта деревни: таверна, кузница, рынок, огород и река">
-  <div class="scene-caption"><span>ПОСЕЛЕНИЕ · ПЕРВАЯ ДЕРЕВНЯ</span><span>иллюстрация поселения · концепт</span></div>
+  <div class="scene-wrap" style="position:relative">
+   <img id="sceneimg" src="village-scene.svg" alt="Карта деревни: таверна, кузница, рынок, огород и река">
+   <canvas id="scene" style="position:absolute;left:0;top:0;width:100%;height:100%"></canvas>
+  </div>
+  <div class="scene-caption"><span id="scenehint">ПОСЕЛЕНИЕ · ЖИВАЯ ПЛОЩАДКА</span><span class="sub">WASD/стрелки — ходить · точка — ты</span></div>
  </div>
  <div class="card">
   <div class="row" style="justify-content:space-between;align-items:center">
@@ -84,6 +87,14 @@
    <button onclick="goal('eat')">🍞 Поесть</button>
    <button onclick="goal('rest')">💤 Отдохнуть</button>
    <button onclick="goal('socialize')">🍯 В таверну</button>
+  </div>
+  <div id="tavernbox" style="margin-top:10px">
+   <b class="sub">корчма <span class="sub" id="beerinfo"></span></b>
+   <div class="acts">
+    <button id="buybtn" onclick="buyBeer()">🍺 Заказать кружку</button>
+    <button id="drinkbtn" onclick="drinkBeer()">🍻 Выпить</button>
+   </div>
+   <div class="sub" id="tavernmsg" style="margin-top:4px"></div>
   </div>
  </div>
 
@@ -127,6 +138,49 @@ function connect(){
 function goal(g){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({op:'goal',goal:g})); }
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
+// --- ходьба: клавиши задают направление, шлём op:"move" с растущим seq и реальным dt ---
+const keys={}, SCENE_R=30;
+let seq=0, lastMove=performance.now();
+addEventListener('keydown',e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)){keys[mapKey(e.key)]=1; e.preventDefault();} });
+addEventListener('keyup',  e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)) keys[mapKey(e.key)]=0; });
+function mapKey(k){ k=k.toLowerCase();
+ return ({w:'N',arrowup:'N',s:'S',arrowdown:'S',a:'W',arrowleft:'W',d:'E',arrowright:'E'})[k]||''; }
+setInterval(()=>{
+ if(!ws||ws.readyState!==1) return;
+ const now=performance.now(), dt=Math.min(0.25,(now-lastMove)/1000); lastMove=now;
+ let mx=(keys.E?1:0)-(keys.W?1:0), my=(keys.N?1:0)-(keys.S?1:0);
+ if(mx===0&&my===0) return; // стоим — не шлём
+ const face=Math.atan2(my,mx)*180/Math.PI;
+ ws.send(JSON.stringify({v:1,op:'move',mx,my,run:keys.Shift?true:false,face,dt,seq:++seq}));
+},100);
+
+// --- пиво: buy/consume, reqid для идемпотентности; исход увидим в кадре (me.mug) ---
+function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function buyBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'buy',item:'beer',reqid:rid()})); tmsg('заказываю…'); } }
+function drinkBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'consume',item:'beer',reqid:rid()})); tmsg('пью…'); } }
+function tmsg(t){ $('tavernmsg').textContent=t; }
+
+// --- живая карта: рисуем игрока и соседей по их координатам сцены (они двигаются сервером) ---
+const roleColor={farmer:'#9bd36a',smith:'#d98b4e',fisher:'#6ab0d9',hunter:'#c7703a',cook:'#d9c24e',
+ tavernkeeper:'#d36ad0',herbalist:'#6ad9a3',weaver:'#b0a0d9',miner:'#b0b0b0',herder:'#c9d96a',woodcutter:'#8a9b5a'};
+function drawScene(s){
+ const cv=$('scene'), img=$('sceneimg'); if(!cv||!img.clientWidth) return;
+ const W=img.clientWidth, H=img.clientHeight; cv.width=W; cv.height=H;
+ const g=cv.getContext('2d'); g.clearRect(0,0,W,H);
+ const cx=W/2, cy=H/2, sc=Math.min(W,H)/2/SCENE_R*0.92;
+ const toPx=(x,y)=>[cx+x*sc, cy-y*sc]; // +Y на север (вверх)
+ const dot=(x,y,r,col,ring)=>{ const[px,py]=toPx(x,y); g.beginPath(); g.arc(px,py,r,0,7); g.fillStyle=col; g.fill();
+   if(ring){ g.lineWidth=2; g.strokeStyle=ring; g.stroke(); } return[px,py]; };
+ (s.place&&s.place.neighbors||[]).forEach(n=>{
+   if(!n.pos) return;
+   const[px,py]=dot(n.pos.x,n.pos.y,4,roleColor[n.role]||'#caa',null);
+   g.fillStyle='#ead9b0'; g.font='10px Georgia'; g.textAlign='center';
+   g.fillText(n.name||'', px, py-7);
+ });
+ if(s.me&&s.me.pos){ const[px,py]=dot(s.me.pos.x,s.me.pos.y,6,'#ffe9a8','#8a5a2b');
+   g.fillStyle='#fff4dc'; g.font='bold 11px Georgia'; g.textAlign='center'; g.fillText('ты',px,py-9); }
+}
+
 function barColor(v){ return v<25?'var(--bad)':v<55?'var(--warn)':'var(--good)'; }
 function setBar(id,val,invert){
  const shown=invert?100-val:val;
@@ -163,7 +217,18 @@ function render(s){
    $('placefood').textContent=`на рынке: еды ${s.place.food}, хлеба ${s.place.bread} (цена ${s.place.bread_price}⌾)`;
    $('neighbors').innerHTML=(s.place.neighbors||[]).map(n=>
      `<div class="nb">${n.name} <span class="sub">— ${n.role}, ${n.act}</span></div>`).join('')||'<div class="sub">никого рядом</div>';
+   // корчма: показываем запас/цену, кнопки по состоянию кружки и наличию пива
+   const hasTavern=s.place.tavern, beer=s.place.beer||0, price=s.place.beer_price, mug=!!me.mug;
+   $('tavernbox').style.display=hasTavern?'':'none';
+   if(hasTavern){
+     $('beerinfo').textContent=`· пива ${beer} · кружка ${price}⌾`+(mug?' · 🍺 у тебя кружка':'');
+     $('buybtn').disabled = mug || beer<1 || me.coins<price;
+     $('drinkbtn').disabled = !mug;
+     if(mug) tmsg('кружка в руке — можно выпить');
+     else if(beer<1) tmsg('пиво кончилось');
+   }
  }
+ drawScene(s);
 }
 </script>
 </body>
