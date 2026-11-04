@@ -207,11 +207,12 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
 
             var tunic = RoleColor(role, isPlayer);
-            ApplyColor(body.GetComponent<Renderer>(), tunic);
-            ApplyColor(head.GetComponent<Renderer>(), new Color(0.72f, 0.55f, 0.40f));
+            var skin = SkinColor(id, isPlayer);
+            ApplyColor(body.GetComponent<Renderer>(), isPlayer ? tunic : VariantTunicColor(tunic, id));
+            ApplyColor(head.GetComponent<Renderer>(), skin);
             ApplyColor(leftArm.GetComponent<Renderer>(), tunic);
             ApplyColor(rightArm.GetComponent<Renderer>(), tunic);
-            var skin = new Color(0.72f, 0.55f, 0.40f);
+            if (!isPlayer) AddIdentityDetails(go.transform, id);
             ApplyColor(leftHand.GetComponent<Renderer>(), skin);
             ApplyColor(rightHand.GetComponent<Renderer>(), skin);
             ApplyColor(leftThumb.GetComponent<Renderer>(), skin);
@@ -251,6 +252,59 @@ namespace Pogranichye.Client.Presentation
 
             _views.Add(id, go);
             return go;
+        }
+
+        // Appearance is derived from the stable server entity ID, never from frame order
+        // or Unity's global random state. The same resident therefore keeps their look
+        // across reconnects and clients without adding protocol fields.
+        private static Color SkinColor(ulong id, bool isPlayer)
+        {
+            if (isPlayer) return new Color(0.72f, 0.55f, 0.40f);
+            switch ((int)(id % 5UL))
+            {
+                case 0: return new Color(0.58f, 0.39f, 0.28f);
+                case 1: return new Color(0.78f, 0.61f, 0.46f);
+                case 2: return new Color(0.68f, 0.48f, 0.34f);
+                case 3: return new Color(0.84f, 0.68f, 0.53f);
+                default: return new Color(0.72f, 0.55f, 0.40f);
+            }
+        }
+
+        private static Color VariantTunicColor(Color baseColor, ulong id)
+        {
+            Color.RGBToHSV(baseColor, out var hue, out var saturation, out var value);
+            var hueOffset = (((int)(id % 7UL)) - 3) * 0.012f;
+            var valueOffset = (((int)((id / 7UL) % 5UL)) - 2) * 0.025f;
+            return Color.HSVToRGB(Mathf.Repeat(hue + hueOffset, 1f),
+                Mathf.Clamp01(saturation * (0.92f + (float)(id % 3UL) * 0.08f)),
+                Mathf.Clamp01(value + valueOffset));
+        }
+
+        private void AddIdentityDetails(Transform root, ulong id)
+        {
+            var stature = 0.96f + (float)(id % 5UL) * 0.02f;
+            root.localScale = new Vector3(1f, stature, 1f);
+
+            // A small subset of residents have visible hair/beards. Keep these as
+            // simple low-poly meshes and reuse the existing property-block path.
+            var hairColor = (id % 3UL) == 0UL
+                ? new Color(0.18f, 0.12f, 0.09f)
+                : (id % 3UL) == 1UL
+                    ? new Color(0.34f, 0.22f, 0.14f)
+                    : new Color(0.48f, 0.40f, 0.28f);
+            if ((id % 4UL) != 0UL)
+            {
+                var hair = CreatePart("Hair", PrimitiveType.Sphere, root,
+                    new Vector3(0f, 1.79f, -0.015f), new Vector3(0.34f, 0.18f, 0.34f));
+                ApplyColor(hair.GetComponent<Renderer>(), hairColor);
+            }
+
+            if ((id % 3UL) == 1UL || (id % 7UL) == 0UL)
+            {
+                var beard = CreatePart("Beard", PrimitiveType.Sphere, root,
+                    new Vector3(0f, 1.47f, 0.16f), new Vector3(0.19f, 0.18f, 0.13f));
+                ApplyColor(beard.GetComponent<Renderer>(), hairColor);
+            }
         }
 
         private void AddFaceDetails(Transform root)
