@@ -393,7 +393,7 @@ namespace Pogranichye.Client
 
             if (!string.IsNullOrEmpty(poi.ActionIntent))
             {
-                _ = SendWorldActionAsync(poi.Action);
+                _ = SendWorldActionAsync(poi.ActionIntent);
                 _status = "Выбрана точка: " + poi.Title + ". Действие отправлено серверу на проверку.";
                 return;
             }
