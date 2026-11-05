@@ -926,6 +926,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
             WorldEnvironmentBuilder.Cleanup();
+            WorldLayoutPresentationBuilder.Cleanup();
             ProceduralVillageBuilder.Cleanup();
         }
     }
