@@ -18,6 +18,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _beerMaterial;
         private static Material _foamMaterial;
         private static Material _fireMaterial;
+        private static Material _fireCoreMaterial;
         private static Material _metalMaterial;
         private static Material _clothMaterial;
         private static Material _produceMaterial;
@@ -69,7 +70,12 @@ namespace Pogranichye.Client.Presentation
             _grassMaterial = CreateMaterial("Grass", new Color(0.46f, 0.53f, 0.29f));
             _beerMaterial = CreateMaterial("Beer amber", new Color(0.55f, 0.25f, 0.06f));
             _foamMaterial = CreateMaterial("Beer foam", new Color(0.92f, 0.84f, 0.62f));
-            _fireMaterial = CreateMaterial("Fire glow", new Color(1f, 0.36f, 0.08f));
+            _fireMaterial = CreateMaterial("Fire • ember orange", new Color(1f, 0.30f, 0.045f));
+            _fireCoreMaterial = CreateMaterial("Fire • hot golden core", new Color(1f, 0.72f, 0.24f));
+            SetMaterialSurface(_fireMaterial, 0f, 0.32f);
+            SetMaterialSurface(_fireCoreMaterial, 0f, 0.18f);
+            SetMaterialEmission(_fireMaterial, new Color(1f, 0.16f, 0.025f), 1.8f);
+            SetMaterialEmission(_fireCoreMaterial, new Color(1f, 0.56f, 0.12f), 2.5f);
             _metalMaterial = CreateMaterial("Forged iron", new Color(0.20f, 0.22f, 0.23f));
             _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
@@ -359,8 +365,28 @@ namespace Pogranichye.Client.Presentation
             BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
             CreatePrimitive("Fireplace hearth", PrimitiveType.Cube, tavern,
                 new Vector3(-2.15f, 0.45f, 1.0f), new Vector3(0.55f, 0.9f, 0.7f), _stoneMaterial);
-            CreatePrimitive("Fire glow", PrimitiveType.Sphere, tavern,
-                new Vector3(-2.15f, 0.78f, 0.58f), new Vector3(0.22f, 0.30f, 0.12f), _fireMaterial);
+
+            // Two crossed oak logs give the fire a readable physical base.
+            var fireLogA = CreatePrimitive("Firewood • lower log", PrimitiveType.Cylinder, tavern,
+                new Vector3(-2.15f, 0.69f, 0.58f), new Vector3(0.052f, 0.22f, 0.052f), _woodMaterial);
+            fireLogA.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            var fireLogB = CreatePrimitive("Firewood • crossed log", PrimitiveType.Cylinder, tavern,
+                new Vector3(-2.15f, 0.74f, 0.61f), new Vector3(0.046f, 0.19f, 0.046f), _roofMaterial);
+            fireLogB.transform.localRotation = Quaternion.Euler(0f, 28f, 90f);
+
+            var outerFlame = CreateMeshPart("Low-poly flame • orange tongues", tavern,
+                BuildFireMesh(false), _fireMaterial);
+            outerFlame.transform.localPosition = new Vector3(-2.15f, 0.70f, 0.57f);
+            var innerFlame = CreateMeshPart("Low-poly flame • golden core", tavern,
+                BuildFireMesh(true), _fireCoreMaterial);
+            innerFlame.transform.localPosition = new Vector3(-2.15f, 0.71f, 0.545f);
+            for (var i = 0; i < 3; i++)
+            {
+                var ember = CreatePrimitive("Fire • glowing ember", PrimitiveType.Sphere, tavern,
+                    new Vector3(-2.25f + i * 0.09f, 0.72f + (i % 2) * 0.025f, 0.56f),
+                    new Vector3(0.035f, 0.018f, 0.025f), _fireCoreMaterial);
+            }
+
             var warmLightObject = new GameObject("Tavern warm light");
             warmLightObject.transform.SetParent(tavern, false);
             warmLightObject.transform.localPosition = new Vector3(0, 2.15f, 0.2f);
@@ -370,7 +396,12 @@ namespace Pogranichye.Client.Presentation
             warmLight.intensity = 1.6f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
             var ambient = root.GetComponent<VillageAmbientMotion>();
-            if (ambient != null) ambient.RegisterLight(warmLight, 0.08f, 2.0f);
+            if (ambient != null)
+            {
+                ambient.RegisterLight(warmLight, 0.12f, 3.1f);
+                ambient.RegisterSway(outerFlame.transform, 2.6f, 3.2f);
+                ambient.RegisterSway(innerFlame.transform, 1.8f, 4.1f);
+            }
 
             CreatePoiMarker(root, "Таверна • поговорить", new Vector3(-33f, 0.08f, 12f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
@@ -2152,6 +2183,74 @@ namespace Pogranichye.Client.Presentation
             if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", smoothness);
         }
 
+        private static void SetMaterialEmission(Material material, Color emissionColor, float intensity)
+        {
+            if (material == null || !material.HasProperty("_EmissionColor")) return;
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", emissionColor * Mathf.Max(0f, intensity));
+        }
+
+        private static Mesh BuildFireMesh(bool inner)
+        {
+            var vertices = new System.Collections.Generic.List<Vector3>(inner ? 20 : 30);
+            var triangles = new System.Collections.Generic.List<int>(inner ? 90 : 135);
+
+            if (inner)
+            {
+                AddFireTongue(vertices, triangles, -0.045f, -0.018f, 0.074f, 0.052f, 0.43f, 0.018f);
+                AddFireTongue(vertices, triangles, 0.043f, 0.012f, 0.070f, 0.050f, 0.49f, -0.014f);
+            }
+            else
+            {
+                AddFireTongue(vertices, triangles, -0.112f, 0.012f, 0.118f, 0.078f, 0.56f, -0.026f);
+                AddFireTongue(vertices, triangles, 0.000f, -0.018f, 0.145f, 0.092f, 0.72f, 0.035f);
+                AddFireTongue(vertices, triangles, 0.116f, 0.020f, 0.108f, 0.074f, 0.58f, 0.022f);
+            }
+
+            var mesh = new Mesh { name = inner ? "Low-poly golden fire core" : "Low-poly orange fire tongues" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AddFireTongue(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float centerX, float centerZ, float width, float depth, float height, float leanX)
+        {
+            const int sides = 5;
+            var lower = vertices.Count;
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                vertices.Add(new Vector3(centerX + Mathf.Cos(angle) * width, 0f,
+                    centerZ + Mathf.Sin(angle) * depth));
+            }
+
+            var upper = vertices.Count;
+            var upperCenterX = centerX + leanX * 0.45f;
+            var upperCenterZ = centerZ - depth * 0.08f;
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                vertices.Add(new Vector3(upperCenterX + Mathf.Cos(angle) * width * 0.52f,
+                    height * 0.56f, upperCenterZ + Mathf.Sin(angle) * depth * 0.56f));
+            }
+
+            var tip = vertices.Count;
+            vertices.Add(new Vector3(centerX + leanX, height, centerZ - depth * 0.12f));
+            for (var i = 0; i < sides; i++)
+            {
+                var next = (i + 1) % sides;
+                // Outward-facing lower facets and upper tip facets.
+                triangles.Add(lower + i); triangles.Add(upper + i); triangles.Add(lower + next);
+                triangles.Add(lower + next); triangles.Add(upper + i); triangles.Add(upper + next);
+                triangles.Add(upper + i); triangles.Add(tip); triangles.Add(upper + next);
+            }
+        }
+
         public static void Cleanup()
         {
             DestroyAsset(_groundMaterial);
@@ -2164,6 +2263,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_beerMaterial);
             DestroyAsset(_foamMaterial);
             DestroyAsset(_fireMaterial);
+            DestroyAsset(_fireCoreMaterial);
             DestroyAsset(_metalMaterial);
             DestroyAsset(_clothMaterial);
             DestroyAsset(_produceMaterial);
@@ -2193,6 +2293,7 @@ namespace Pogranichye.Client.Presentation
             _beerMaterial = null;
             _foamMaterial = null;
             _fireMaterial = null;
+            _fireCoreMaterial = null;
             _metalMaterial = null;
             _clothMaterial = null;
             _produceMaterial = null;
