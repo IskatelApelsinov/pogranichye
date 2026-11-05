@@ -176,8 +176,8 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
                 GUILayout.Space(5);
-                GUILayout.Label("🍺 ПИВО В ТАВЕРНЕ — обязательный этап тестового билда.");
-                GUILayout.Label("Покупка, выдача кружки, употребление и опьянение появятся после серверного drink-контракта. Сейчас кружки — только декорация.", GUILayout.Height(42));
+                GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
+                GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54));
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -299,13 +299,13 @@ namespace Pogranichye.Client
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
             if (_tutorialStep >= TutorialGoals.Length)
-                return "Базовое знакомство с четырьмя действиями v1 завершено. Пиво, крафт, рыбалка, бой и магия подключаются отдельными этапами.";
+                return "Основные действия освоены. Разговоры, знакомство и совместное питьё теперь подтверждаются сервером.";
             if (!string.IsNullOrEmpty(_tutorialPendingGoal))
                 return "Ожидаем подтверждение сервера. Последнее действие: " + _frame.Me.Last;
 
             switch (_tutorialStep)
             {
-                case 0: return "Шаг 1/4 — зайдите в таверну и выберите общение. Познакомьтесь с жителями.";
+                case 0: return "Шаг 1/4 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
                 case 1: return "Шаг 2/4 — попробуйте работу. Профессия персонажа влияет на результат.";
                 case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
                 default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
@@ -511,7 +511,9 @@ namespace Pogranichye.Client
                             _cameraRig.SetFirstPerson(_firstPerson);
                         }
                         _views.SetPlayerFirstPerson(_firstPerson, _cameraRig != null ? _cameraRig.transform : null);
-                        _status = frame.Me.Position != null ? "Получен полный кадр v1.1; движение синхронизируется." : "Получен кадр v1.0; движение отключено.";
+                        _status = frame.Me.Position != null
+                    ? "Подключены Layout v2 и социальный протокол v1.4; движение сверяется с серверной геометрией."
+                    : "Получен кадр без позиции; движение отключено.";
                     }
                 });
             }
