@@ -32,11 +32,30 @@ namespace Pogranichye.Client.Networking
                     throw new InvalidOperationException("Не удалось получить /api/layout: " + request.error);
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
-                    layout.Buildings == null || layout.River == null || layout.Pois == null)
-                    throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию мира.");
+                    layout.Buildings == null || layout.River == null || layout.Pois == null ||
+                    layout.Buildings.Count != 8 || !layout.Pois.ContainsKey("tavern") ||
+                    !layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
+                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river") ||
+                    !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||
+                    !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
+                    !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
+                    layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
+
+                foreach (var building in layout.Buildings)
+                {
+                    if (building == null || !IsFinite(building.X0) || !IsFinite(building.Y0) ||
+                        !IsFinite(building.X1) || !IsFinite(building.Y1) ||
+                        building.X0 >= building.X1 || building.Y0 >= building.Y1 ||
+                        building.X0 < -layout.WorldHalf || building.X1 > layout.WorldHalf ||
+                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf)
+                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint здания.");
+                }
                 return layout;
             }
         }
+
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
         public Task<AuthResponse> RegisterAsync(string login, string password)
         {
