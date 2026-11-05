@@ -18,6 +18,10 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float headBobAmplitude = 0.035f;
         [SerializeField] private float headBobSideAmplitude = 0.012f;
         [SerializeField] private float headBobFrequency = 9f;
+        [SerializeField] private float sprintFieldOfViewBoost = 3f;
+        [SerializeField] private float fieldOfViewSharpness = 7f;
+        private Camera _camera;
+        private float _defaultFieldOfView = 48f;
         private float _headBobPhase;
         private Transform _target;
         private bool _firstPerson;
@@ -44,6 +48,8 @@ namespace Pogranichye.Client.Presentation
         private void Awake()
         {
             _zoomDistance = offset.magnitude;
+            _camera = GetComponent<Camera>();
+            if (_camera != null) _defaultFieldOfView = _camera.fieldOfView;
         }
 
         public void SetTarget(Transform target)
@@ -66,6 +72,16 @@ namespace Pogranichye.Client.Presentation
         {
             if (_target == null) return;
 
+            var motion = _target.GetComponent<EntityMotion>();
+            var gait = motion != null ? motion.LocomotionAmount : 0f;
+            var sprintBlend = _firstPerson ? Mathf.InverseLerp(0.58f, 1f, gait) : 0f;
+            if (_camera != null)
+            {
+                var targetFov = _defaultFieldOfView + sprintFieldOfViewBoost * sprintBlend;
+                var blend = 1f - Mathf.Exp(-fieldOfViewSharpness * Time.unscaledDeltaTime);
+                _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, blend);
+            }
+
             if (_firstPerson)
             {
                 // Mouse always controls view unless an active tool explicitly captures it for a gesture.
@@ -76,8 +92,6 @@ namespace Pogranichye.Client.Presentation
                     _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
 
-                var motion = _target.GetComponent<EntityMotion>();
-                var gait = motion != null ? motion.LocomotionAmount : 0f;
                 _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;
