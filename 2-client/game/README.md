@@ -1,5 +1,18 @@
 # Unity 6 client — v1 vertical slice
 
+
+## Current implementation status — 2026-11-06
+
+> This section supersedes any conflicting historical v1-only scope statements below. The detailed feature inventory later in this file has not yet been fully reconciled with the current runtime; treat it as historical implementation notes, not as a complete current contract.
+
+- The Unity client now requests the server-owned **Layout v2** document before enabling movement prediction. The returned 300×300 m world geometry, building footprints, river and bridge are rendered by `WorldLayoutPresentationBuilder`; local movement checks the same received geometry through `WorldLayoutFrame.ResolveMove`.
+- The snapshot DTO includes additive v1.6/v1.7 fields: inventory (`me.inv`), hand/worn equipment, skills, desire, settlement list (`me.world`), known-place state, neighbor traits/wants/player marker, and monotonic social-event sequence. Missing additive fields remain nullable for older v:1 snapshots.
+- The HUD currently exposes a **read-only** inventory/equipment summary. It does not yet implement server-backed take/equip/wear/trade/travel/build/hunt/fight controls. Do not infer action success locally; those controls require confirmed server intent semantics and explicit result handling.
+- The current tutorial/HUD is still a prototype, not yet the complete owner-approved #80 loop. Targeted NPC talk, task progression/reward and tavern continuation still need end-to-end verification against server acceptance/reconnect rules.
+- The first-person/third-person camera and WASD movement exist. A jump action is **not yet implemented**. Do not add a local Y displacement that fights authoritative snapshots; implement jump only with a clearly isolated presentation vertical offset or an agreed server movement contract.
+- The thin client is a separate click-to-location farm/management experience with minigames. It must not inherit continuous character walking from the Unity thick client.
+- Unity Editor compilation, PlayMode and visual acceptance have not been run in this environment. A clean source diff is not a Unity build claim.
+
 This folder contains the Unity client scaffold for the stable v1 protocol.
 
 ## Project target

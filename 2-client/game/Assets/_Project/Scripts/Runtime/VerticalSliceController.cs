@@ -161,6 +161,7 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
                 GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
+                DrawInventorySummary();
                 if (_frame.Me.Position != null)
                     GUILayout.Label($"Сцена X {_frame.Me.Position.X:0.00} / Z {_frame.Me.Position.Y:0.00} | взгляд {_frame.Me.Position.Facing:0}° | seq {_frame.Me.Position.Sequence}/{_moveSequence}");
                 if (_frame.Me.Position != null)
@@ -212,6 +213,41 @@ namespace Pogranichye.Client
                 GUI.color = previousColor;
             }
             DrawSocialOverlay();
+        }
+
+        private void DrawInventorySummary()
+        {
+            var inventory = _frame?.Me?.Inventory;
+            if (inventory == null) return;
+
+            GUILayout.Space(5);
+            GUILayout.Label("ИНВЕНТАРЬ И ЭКИПИРОВКА");
+            GUILayout.Label("В руке: " + (string.IsNullOrEmpty(inventory.Hand) ? "пусто" : inventory.Hand));
+            if (inventory.Items != null && inventory.Items.Count > 0)
+            {
+                var shown = 0;
+                foreach (var item in inventory.Items)
+                {
+                    if (item.Value <= 0) continue;
+                    GUILayout.Label(item.Key + " × " + item.Value);
+                    shown++;
+                    if (shown >= 5) break;
+                }
+                if (inventory.Items.Count > shown)
+                    GUILayout.Label("…и другие предметы");
+            }
+            else
+            {
+                GUILayout.Label("Предметов в сумке пока нет.");
+            }
+
+            if (inventory.Worn != null && inventory.Worn.Count > 0)
+            {
+                foreach (var worn in inventory.Worn)
+                    GUILayout.Label("Надето: " + worn.Key + " — " + worn.Value);
+            }
+            if (!string.IsNullOrEmpty(_frame.Me.Desire))
+                GUILayout.Label("Самочувствие: " + _frame.Me.Desire);
         }
 
         private void DrawSocialOverlay()
@@ -593,7 +629,7 @@ namespace Pogranichye.Client
                         }
                         _views.SetPlayerFirstPerson(_firstPerson, _cameraRig != null ? _cameraRig.transform : null);
                         _status = frame.Me.Position != null
-                    ? "Подключены Layout v2 и социальный протокол v1.4; движение сверяется с серверной геометрией."
+                    ? "Подключены Layout v2 и кадр мира v1 (расширения v1.7); движение сверяется с серверной геометрией."
                     : "Получен кадр без позиции; движение отключено.";
                     }
                 });
