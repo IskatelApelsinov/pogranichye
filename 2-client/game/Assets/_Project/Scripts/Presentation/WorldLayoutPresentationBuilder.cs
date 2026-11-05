@@ -132,7 +132,7 @@ namespace Pogranichye.Client.Presentation
             crops.transform.SetParent(parent, false);
             crops.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = crops.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = _roof;
+            renderer.sharedMaterial = _field;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
         }
