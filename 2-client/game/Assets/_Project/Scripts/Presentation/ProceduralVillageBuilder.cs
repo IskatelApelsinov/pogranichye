@@ -74,7 +74,14 @@ namespace Pogranichye.Client.Presentation
             _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
             _mugWoodMaterial = CreateMaterial("Tankard • oak staves", new Color(0.38f, 0.22f, 0.12f));
+            _mugWoodMaterial.mainTexture = _woodTexture;
+            _mugWoodMaterial.mainTextureScale = new Vector2(1.0f, 1.35f);
             _mugBandMaterial = CreateMaterial("Tankard • iron hoops", new Color(0.16f, 0.18f, 0.19f));
+            SetMaterialSurface(_mugWoodMaterial, 0.02f, 0.28f);
+            SetMaterialSurface(_mugBandMaterial, 0.78f, 0.42f);
+            SetMaterialSurface(_metalMaterial, 0.68f, 0.36f);
+            SetMaterialSurface(_beerMaterial, 0.0f, 0.78f);
+            SetMaterialSurface(_foamMaterial, 0.0f, 0.22f);
             _bottleMaterial = CreateMaterial("Bottle • dark green glass", new Color(0.12f, 0.29f, 0.20f));
             _corkMaterial = CreateMaterial("Bottle • cork", new Color(0.48f, 0.31f, 0.16f));
             _labelMaterial = CreateMaterial("Bottle • parchment label", new Color(0.78f, 0.67f, 0.43f));
@@ -2135,6 +2142,14 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var material = new Material(shader) { name = name, color = color };
             return material;
+        }
+
+        private static void SetMaterialSurface(Material material, float metallic, float smoothness)
+        {
+            if (material == null) return;
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", metallic);
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", smoothness);
+            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", smoothness);
         }
 
         public static void Cleanup()
