@@ -197,7 +197,7 @@ namespace Pogranichye.Client
                 if (_frame.Me.InviteFrom != null)
                 {
                     GUILayout.Space(6);
-                    GUILayout.Label((_frame.Me.InviteFrom.Name ?? _frame.Me.InviteFrom.Description ?? "Житель") + " приглашает выпить вместе.");
+                    GUILayout.Label((_frame.Me.InviteFrom.Who ?? "Житель") + " приглашает выпить вместе.");
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("🍻 Принять")) _ = SendSocialIntentAsync("accept", null, null);
                     if (GUILayout.Button("Отказаться")) _ = SendSocialIntentAsync("declinedrink", null, null);
@@ -431,10 +431,11 @@ namespace Pogranichye.Client
                             _lastTalkLine = talkLine;
                             var playerMotion = _views?.PlayerTransform != null ? _views.PlayerTransform.GetComponent<EntityMotion>() : null;
                             if (playerMotion != null) playerMotion.PlayTalkGesture();
+                            _views?.PlayTalkGesture(frame.Me.Talk.With);
                         }
                         var invitePending = frame.Me.InviteFrom != null;
                         if (invitePending && !_lastInvitePending)
-                            _status = "Вас пригласили выпить вместе: " + (frame.Me.InviteFrom.Name ?? frame.Me.InviteFrom.Description ?? "собеседник");
+                            _status = "Вас пригласили выпить вместе: " + (frame.Me.InviteFrom.Who ?? "собеседник");
                         _lastInvitePending = invitePending;
                     }
                     if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
