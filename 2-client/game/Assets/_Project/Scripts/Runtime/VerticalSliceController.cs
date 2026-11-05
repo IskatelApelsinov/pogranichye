@@ -452,6 +452,7 @@ namespace Pogranichye.Client
                     _frame = frame;
                     if (frame.Alive && frame.Me != null)
                     {
+                        _views.Apply(frame); // update both participants before playing social gestures
                         var talkLine = frame.Me.Talk != null ? frame.Me.Talk.Line : null;
                         var talkSignature = frame.Me.Talk != null
                             ? (frame.Me.Talk.With ?? string.Empty) + "|" + (talkLine ?? string.Empty)
@@ -466,7 +467,6 @@ namespace Pogranichye.Client
                         else if (string.IsNullOrEmpty(talkSignature))
                             _lastTalkLine = null;
 
-                        _views.Apply(frame); // create/update the partner view before playing a synchronized gesture
                         var socialEvent = frame.Me.SocialEvent;
                         if (socialEvent != null && !string.IsNullOrEmpty(socialEvent.Id) &&
                             socialEvent.Id != _lastSocialEventId)
