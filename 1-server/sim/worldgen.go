@@ -68,12 +68,17 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 // GenerateStarter — ОДНА стартовая деревня для начала игры и тестов тонкого клиента: предсказуемый,
 // самодостаточный мирок с полным живым составом (все ключевые ремёсла, несколько пар для прироста),
 // запасами на гладкий старт. Детерминирован от семени — удобно подключаться всегда к одному месту.
+// homeRegion — регион стартового «центра Мира». Поселения из других регионов — внешний мир
+// (достижимы только телепортом op:"travel"; ножками не дойти — вокруг горы). Задаётся в GenerateStarter.
+var homeRegion core.ID
+
 func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 	w := core.NewWorld(seed)
 	hub := dice.NewHub(seed)
 	g := hub.Stream("worldgen")
 
 	reg := w.Spawn(&core.RegionC{Name: "Ополье", Biome: "plain", X: 500, Y: 500, Mana: 1.0})
+	homeRegion = reg.ID
 	se := NewSettlement(w, g, "Починок", reg)
 	// припасы на гладкий старт: сверх базового склада немного руды/снадобья/инструмента
 	st := core.Settle(se).Store
@@ -140,7 +145,64 @@ func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 		bond(w, hp[0], hp[1])
 	}
 	makeRealms(w, g, ids)
+	generateOuterWorld(w, g) // внешний мир: десятки деревень и несколько городов за горами (телепорт)
 	return w, hub
+}
+
+// generateOuterWorld создаёт «начало конечной карты»: ~20 деревень и несколько городов в отдельных
+// регионах за горами. Достижимы только телепортом (op:"travel"); пешком — никак. Нагружает сервер для
+// теста мощности. Население на поселение держим умеренным, но суммарно — сотни сущностей.
+func generateOuterWorld(w *core.World, g *dice.Stream) {
+	roles := []string{"farmer", "farmer", "fisher", "smith", "hunter", "woodcutter", "miner", "weaver", "cook", "herder", "herbalist", "tavernkeeper"}
+	sexes := []string{"м", "ж"}
+	villageNames := []string{"Дубрава", "Лозовая", "Ивантеево", "Боровое", "Калинов", "Медвежий Лог", "Сосновка", "Горелое", "Тихий Брод", "Вязники", "Соколье", "Рябинино", "Мшары", "Устье", "Белёво", "Кремёнки", "Тёмный Яр", "Ольховка", "Погост", "Залучье"}
+	cityNames := []string{"Белокамень", "Торжище", "Златоверхий", "Каменный Стол", "Воронец"}
+	regions := []string{"Залесский край", "Поморье", "Каменные горы", "Дикое поле"}
+	// регионы внешнего мира
+	var regIDs []*core.Entity
+	for i, rn := range regions {
+		regIDs = append(regIDs, w.Spawn(&core.RegionC{Name: rn, Biome: "plain",
+			X: 1000 + float64(i*400), Y: 1000 + float64(i*250), Mana: 0.8 + 0.1*float64(i%3)}))
+	}
+	// деревни
+	for i, nm := range villageNames {
+		reg := regIDs[i%len(regIDs)]
+		se := NewSettlement(w, g, nm, reg)
+		n := 6 + i%4
+		var first *core.Entity
+		for j := 0; j < n; j++ {
+			role := roles[(i+j)%len(roles)]
+			sex := sexes[(i + j) % 2]
+			age := 18 + float64((i*7+j*5)%50)
+			p := starterPerson(w, g, se.ID, role, sex, age, j%3 == 0)
+			if first == nil {
+				first = p
+			}
+		}
+		if first != nil {
+			core.Settle(se).Keeper = first.ID
+		}
+	}
+	// города — крупнее
+	for i, nm := range cityNames {
+		reg := regIDs[i%len(regIDs)]
+		se := NewSettlement(w, g, nm, reg)
+		core.Settle(se).Tier = "city"
+		n := 18 + i*3
+		var first *core.Entity
+		for j := 0; j < n; j++ {
+			role := roles[(i*3+j)%len(roles)]
+			sex := sexes[(i + j) % 2]
+			age := 18 + float64((i*11+j*3)%55)
+			p := starterPerson(w, g, se.ID, role, sex, age, j%3 == 0)
+			if first == nil {
+				first = p
+			}
+		}
+		if first != nil {
+			core.Settle(se).Keeper = first.ID
+		}
+	}
 }
 
 // starterPerson — житель стартовой деревни с заданной ролью/полом/возрастом (азы ремесла, монеты).
