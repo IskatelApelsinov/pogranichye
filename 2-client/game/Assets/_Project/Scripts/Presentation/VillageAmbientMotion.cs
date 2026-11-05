@@ -98,7 +98,7 @@ namespace Pogranichye.Client.Presentation
         private float _pause;
 
         public void Initialize(Transform body, Transform head, Transform leftLeg, Transform rightLeg,
-            int seed, float wanderRadius = 0.65f)
+            int seed, float wanderRadius = 0.45f)
         {
             _random = new System.Random(seed);
             _homePosition = transform.localPosition;
@@ -117,7 +117,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (_random == null) return;
             var angle = _random.NextDouble() * Mathf.PI * 2.0;
-            var distance = 0.35 + _random.NextDouble() * Mathf.Max(0.1f, radius);
+            var distance = 0.15 + _random.NextDouble() * Mathf.Max(0.1f, radius);
             _target = _homePosition + new Vector3((float)System.Math.Cos(angle) * (float)distance, 0f,
                 (float)System.Math.Sin(angle) * (float)distance);
             _speed = 0.38f + (float)_random.NextDouble() * 0.28f;
