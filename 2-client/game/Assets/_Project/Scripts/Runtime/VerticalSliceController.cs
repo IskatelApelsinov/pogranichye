@@ -507,10 +507,10 @@ namespace Pogranichye.Client
             if (moving)
             {
                 var movementDelta = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
-                var next = player.position + worldMove.normalized * speed * movementDelta;
-                var flat = new Vector2(next.x, next.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
-                player.position = new Vector3(flat.x, 0f, flat.y);
+                var origin = new Vector2(player.position.x, player.position.z);
+                var desired = origin + new Vector2(worldMove.x, worldMove.z) * speed * movementDelta;
+                var resolved = WorldGeometryV2.ResolveMove(origin, desired);
+                player.position = new Vector3(resolved.x, 0f, resolved.y);
 
                 if (!_firstPerson)
                 {
@@ -627,12 +627,11 @@ namespace Pogranichye.Client
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.18f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.08f * dt);
 
-                position.x += direction.x * speed * dt;
-                position.z += direction.y * speed * dt;
-                var flat = new Vector2(position.x, position.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
-                position.x = flat.x;
-                position.z = flat.y;
+                var origin = new Vector2(position.x, position.z);
+                var desired = origin + direction * speed * dt;
+                var resolved = WorldGeometryV2.ResolveMove(origin, desired);
+                position.x = resolved.x;
+                position.z = resolved.y;
             }
             else
             {
