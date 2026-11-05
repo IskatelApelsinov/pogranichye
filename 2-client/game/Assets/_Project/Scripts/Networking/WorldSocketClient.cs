@@ -67,6 +67,9 @@ namespace Pogranichye.Client.Networking
         public Task SendAcceptDrinkAsync(bool accept, CancellationToken cancellationToken) =>
             SendIntentAsync(accept ? "accept" : "declinedrink", null, null, cancellationToken);
 
+        public Task SendInviteDrinkAsync(string target, CancellationToken cancellationToken) =>
+            SendIntentAsync("invite", target, null, cancellationToken);
+
         public async Task SendActAsync(string action, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(action)) throw new ArgumentException("Не задано действие.", nameof(action));
