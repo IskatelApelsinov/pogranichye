@@ -20,6 +20,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static readonly System.Collections.Generic.List<UnityEngine.Object> _generatedAssets =
+            new System.Collections.Generic.List<UnityEngine.Object>();
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
@@ -198,6 +200,7 @@ namespace Pogranichye.Client.Presentation
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
             var go = new GameObject(objectName);
             go.transform.SetParent(parent, false);
             go.isStatic = true;
@@ -248,6 +251,7 @@ namespace Pogranichye.Client.Presentation
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
             var water = new GameObject("River surface • rippled overlay");
             water.transform.SetParent(parent, false);
             water.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -348,6 +352,7 @@ namespace Pogranichye.Client.Presentation
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
 
             var crops = new GameObject("Cultivated grain • combined low-poly rows");
             crops.transform.SetParent(parent, false);
@@ -612,6 +617,7 @@ namespace Pogranichye.Client.Presentation
             mesh.triangles = new[] { 0, 1, 2, 2, 1, 0 };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
             var gable = new GameObject("Timber gable end");
             gable.transform.SetParent(parent, false);
             gable.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -661,6 +667,8 @@ namespace Pogranichye.Client.Presentation
         {
             var material = MakeMaterial(name, tint);
             var texture = MakeSurfaceTexture(name + " • 64px", pattern);
+            _generatedAssets.Add(material);
+            _generatedAssets.Add(texture);
             material.mainTexture = texture;
             material.mainTextureScale = new Vector2(tilingX, tilingY);
             if (material.HasProperty("_Smoothness"))
@@ -704,6 +712,10 @@ namespace Pogranichye.Client.Presentation
                         if (y % 9 < 2) shade -= 0.24f;
                         if (((x + (y / 9) * 11) % 19) < 2) shade -= 0.12f;
                         break;
+                    case 4: // irregular masonry blocks and mortar joints
+                        if (y % 16 < 2 || (x + (y / 16) * 9) % 21 < 2) shade -= 0.28f;
+                        if ((x * 13 + y * 5) % 67 == 0) shade += 0.10f;
+                        break;
                     case 5: // river ripples and broken highlights
                         if ((x * 7 + y * 3) % 29 < 3) shade += 0.18f;
                         if ((x + y * 11) % 47 < 2) shade -= 0.10f;
@@ -714,6 +726,28 @@ namespace Pogranichye.Client.Presentation
             }
             texture.Apply();
             return texture;
+        }
+
+        public static void Cleanup()
+        {
+            for (var i = 0; i < _generatedAssets.Count; i++)
+            {
+                var asset = _generatedAssets[i];
+                if (asset != null) UnityEngine.Object.Destroy(asset);
+            }
+            _generatedAssets.Clear();
+            _ground = null;
+            _water = null;
+            _timber = null;
+            _roof = null;
+            _field = null;
+            _forest = null;
+            _trunk = null;
+            _road = null;
+            _straw = null;
+            _scarecrowCloth = null;
+            _grass = null;
+            _stone = null;
         }
 
         private static Material MakeMaterial(string name, Color color)
