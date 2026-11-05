@@ -367,6 +367,8 @@ namespace Pogranichye.Client
 
             try
             {
+                _status = "Загружаю серверную геометрию мира v2…";
+                await WorldGeometryV2.FetchAsync(serverUrl, _lifetime.Token);
                 await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
