@@ -38,6 +38,8 @@ namespace Pogranichye.Client.Presentation
         private static Mesh _creekReedMesh;
         private static readonly System.Collections.Generic.List<Mesh> _generatedMeshes =
             new System.Collections.Generic.List<Mesh>();
+        private static readonly System.Collections.Generic.List<Material> _generatedMaterials =
+            new System.Collections.Generic.List<Material>();
 
         public static void Build(Transform root, string worldSeed = "tutorial-preview")
         {
@@ -2473,6 +2475,9 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_labelMaterial);
             DestroyAsset(_waterMaterial);
             DestroyAsset(_smokeMaterial);
+            for (var i = 0; i < _generatedMaterials.Count; i++)
+                DestroyAsset(_generatedMaterials[i]);
+            _generatedMaterials.Clear();
             for (var i = 0; i < _generatedMeshes.Count; i++)
                 DestroyAsset(_generatedMeshes[i]);
             _generatedMeshes.Clear();
