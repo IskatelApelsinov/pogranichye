@@ -466,6 +466,7 @@ namespace Pogranichye.Client
                         else if (string.IsNullOrEmpty(talkSignature))
                             _lastTalkLine = null;
 
+                        _views.Apply(frame); // create/update the partner view before playing a synchronized gesture
                         var socialEvent = frame.Me.SocialEvent;
                         if (socialEvent != null && !string.IsNullOrEmpty(socialEvent.Id) &&
                             socialEvent.Id != _lastSocialEventId)
@@ -506,7 +507,6 @@ namespace Pogranichye.Client
                     else
                     {
                         _connectionState = WorldConnectionState.Active;
-                        _views.Apply(frame);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
                         if (_cameraRig != null)
                         {
