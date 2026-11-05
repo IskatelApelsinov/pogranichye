@@ -144,16 +144,17 @@ namespace Pogranichye.Client.Presentation
         private static void AlignBuildingsToServerLayout(Transform village)
         {
             // GeometryVersion 2: these centres and footprints mirror sim/world_geometry.go.
-            PlaceLayoutBuilding(village, "Tutorial Tavern", -33f, 20f, 1.45f, 1.55f);
-            PlaceLayoutBuilding(village, "Blacksmith workshop", 29f, 22f, 3.0f, 2.8f);
-            PlaceLayoutBuilding(village, "Outlying farm barn", -2f, 36f, 2.8f, 3.0f);
-            PlaceLayoutBuilding(village, "Village market", 1f, 11f, 2.8f, 2.8f);
-            PlaceLayoutBuilding(village, "North cottage", -34f, -25f, 3.3f, 3.4f);
-            PlaceLayoutBuilding(village, "East cottage", 33f, -24f, 3.3f, 3.4f);
-            PlaceLayoutBuilding(village, "West cottage", -8f, -29f, 3.3f, 3.4f);
-            PlaceLayoutBuilding(village, "Northwest cottage", 12f, -31f, 3.3f, 3.4f);
+            // Server rectangles are collision footprints; visual shells sit inside those footprints.
+            PlaceLayoutBuilding(village, "Tutorial Tavern", -33f, 20f, 2.45f, 2.85f);
+            PlaceLayoutBuilding(village, "Blacksmith workshop", 29f, 22f, 3.35f, 3.65f);
+            PlaceLayoutBuilding(village, "Outlying farm barn", -2f, 36f, 2.65f, 2.75f);
+            PlaceLayoutBuilding(village, "Village market", 1f, 11f, 3.2f, 4.8f);
+            PlaceLayoutBuilding(village, "North cottage", -34f, -25f, 3.25f, 3.2f);
+            PlaceLayoutBuilding(village, "East cottage", 33f, -24f, 3.25f, 3.2f);
+            PlaceLayoutBuilding(village, "West cottage", -8f, -29f, 3.25f, 3.2f);
+            PlaceLayoutBuilding(village, "Northwest cottage", 12f, -31f, 3.25f, 3.2f);
 
-            // The two remaining decorative homes are retired: v2 has four house footprints.
+            // v2 has four authoritative house footprints; retire extra presentation-only lane homes.
             var extra = village.Find("North lane cottage");
             if (extra != null) extra.gameObject.SetActive(false);
             extra = village.Find("Northeast cottage");
@@ -1339,7 +1340,7 @@ namespace Pogranichye.Client.Presentation
         private static void BuildCreekAndFootbridge(Transform root)
         {
             var creek = CreatePrimitive("Narrow village creek", PrimitiveType.Cube, root,
-                new Vector3(0f, -0.08f, -84f), new Vector3(12f, 0.12f, 300f), _waterMaterial);
+                new Vector3(0f, -0.08f, -84f), new Vector3(300f, 0.12f, 12f), _waterMaterial);
             var waterMotion = creek.AddComponent<CreekWaterDrift>();
             waterMotion.Initialize(_waterMaterial, 0.018f);
             BuildCreekBank(root, -1);
