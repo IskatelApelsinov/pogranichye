@@ -23,6 +23,31 @@ func init() {
 	core.Register("acquaint", func() core.Component { return &AcquaintC{Known: map[core.ID]bool{}} })
 	core.Register("talk", func() core.Component { return &TalkC{} })
 	core.Register("codrink", func() core.Component { return &CoDrinkC{} })
+	core.Register("socialevent", func() core.Component { return &SocialEventC{} })
+}
+
+// SocialEventC — последнее подтверждённое сервером социальное событие игрока (тост co-drink,
+// угощение). Монотонный Seq: клиент проигрывает жест один раз на НОВЫЙ Seq, не гадая по morale/клику.
+type SocialEventC struct {
+	Seq  int64   `json:"seq"`
+	Type string  `json:"type"` // "codrink" | "treat"
+	With core.ID `json:"with"` // с кем
+}
+
+func (c *SocialEventC) Kind() string { return "socialevent" }
+
+func SocialEvent(e *core.Entity) *SocialEventC { c, _ := e.Get("socialevent").(*SocialEventC); return c }
+
+// fireSocial — отметить подтверждённое соц-событие игроку (повышает Seq). Клиент ловит по новому Seq.
+func fireSocial(w *core.World, e *core.Entity, kind string, with core.ID) {
+	ev := SocialEvent(e)
+	if ev == nil {
+		ev = &SocialEventC{}
+		w.Attach(e, ev)
+	}
+	ev.Seq++
+	ev.Type = kind
+	ev.With = with
 }
 
 // AcquaintC — кого игрок знает лично (тогда видно имя). На теле игрока.
@@ -176,6 +201,9 @@ func Say(w *core.World, e *core.Entity, line string) (bool, string) {
 	switch line {
 	case "greet":
 		ensureAcquaint(w, e).Known[t.With] = true // познакомились — имя открыто
+		if pl := core.Place(tgt); pl != nil { // познакомился с местным → осмысленное знание о поселении
+			LearnKnown(w, e, pl.Settlement)
+		}
 		t.Stage = "known"
 		if id != nil {
 			t.Line = "Звать меня " + id.Name + ". А тебя?"
@@ -254,6 +282,7 @@ func treatNPC(w *core.World, e, tgt *core.Entity) (bool, string) {
 	if t := Talk(e); t != nil {
 		t.Line = "За твоё здоровье! — " + name + " поднимает кружку."
 	}
+	fireSocial(w, e, "treat", tgt.ID) // подтверждённый момент тоста для клиента
 	return true, ""
 }
 
@@ -363,6 +392,9 @@ func AcceptCoDrink(w *core.World, e *core.Entity) (bool, string) {
 	if t := ensureTalk(w, a); t != nil {
 		t.Line = line
 	}
+	// подтверждённый момент «чокнулись» обоим — клиент проиграет жест по новому Seq (не по клику Accept)
+	fireSocial(w, e, "codrink", a.ID)
+	fireSocial(w, a, "codrink", e.ID)
 	ClearCoDrink(w, e)
 	return true, ""
 }

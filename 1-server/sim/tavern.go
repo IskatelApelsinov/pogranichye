@@ -32,11 +32,10 @@ func init() {
 	core.Register("mug", func() core.Component { return &MugC{} })
 }
 
-// MugC — кружка в руке игрока и память об обработанных запросах (для идемпотентности).
+// MugC — кружка в руке игрока. Идемпотентность покупки/питья — через ограниченную историю reqid в
+// PlayerC (общий bounded dedup, см. actions.go), а не отдельные поля.
 type MugC struct {
-	Has         bool   `json:"has"`
-	LastBuy     string `json:"last_buy"`     // reqid последней успешной покупки
-	LastConsume string `json:"last_consume"` // reqid последнего выпитого
+	Has bool `json:"has"`
 }
 
 func (c *MugC) Kind() string { return "mug" }
@@ -75,7 +74,9 @@ func (BrewSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 	})
 }
 
-// atTavern — стоит ли тело у стойки корчмы своего поселения (по сцене).
+// atTavern — стоит ли тело у стойки корчмы (по сцене). ОГРАНИЧЕНИЕ: координаты стойки берутся из
+// общей раскладки одной стартовой сцены (poiByKind). Для мира с несколькими поселениями, у каждого
+// со своей корчмой, нужна сцена на поселение — отдельная веха; здесь предполагается одна активная сцена.
 func atTavern(e *core.Entity) bool {
 	p := ScenePos(e)
 	if p == nil {
@@ -85,16 +86,20 @@ func atTavern(e *core.Entity) bool {
 	return math.Hypot(p.X-tx, p.Y-ty) <= tavernReach
 }
 
-// BuyBeer — АТОМАРНАЯ идемпотентная покупка кружки. Возвращает (ок, причина отказа).
-// Вызывать под замком мира. reqid повторился — успех без повторного списания.
+// BuyBeer — АТОМАРНАЯ идемпотентная покупка кружки. Вызывать под замком. Требует непустой reqid;
+// повтор того же reqid — успех без повторного списания (bounded история в PlayerC).
 func BuyBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if e == nil {
 		return false, "нет тела"
 	}
-	mug := ensureMug(w, e)
-	if reqid != "" && reqid == mug.LastBuy {
-		return true, "" // дубль запроса — уже куплено, не списываем снова
+	if reqid == "" {
+		return false, "нужен reqid"
 	}
+	pc := EnsurePlayer(w, e)
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
+	mug := ensureMug(w, e)
 	if mug.Has {
 		return false, "кружка уже в руке"
 	}
@@ -121,7 +126,7 @@ func BuyBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pu.Coins -= BeerPrice
 	s.Store[BeerGood] -= 1
 	mug.Has = true
-	mug.LastBuy = reqid
+	pc.markDone(reqid)
 	return true, ""
 }
 
@@ -130,10 +135,14 @@ func DrinkBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if e == nil {
 		return false, "нет тела"
 	}
-	mug := ensureMug(w, e)
-	if reqid != "" && reqid == mug.LastConsume {
-		return true, "" // дубль — уже выпито
+	if reqid == "" {
+		return false, "нужен reqid"
 	}
+	pc := EnsurePlayer(w, e)
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
+	mug := ensureMug(w, e)
 	if !mug.Has {
 		return false, "нет кружки"
 	}
@@ -142,7 +151,7 @@ func DrinkBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 		return false, "нет тела"
 	}
 	mug.Has = false
-	mug.LastConsume = reqid
+	pc.markDone(reqid)
 	v.Morale = math.Min(100, v.Morale+beerMorale)
 	v.Hunger = math.Max(0, v.Hunger-beerHunger)
 	return true, ""

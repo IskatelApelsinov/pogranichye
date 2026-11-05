@@ -28,7 +28,9 @@
     "stash": { "bread": 4 },
     "pos": { "x": 0.0, "y": 0.0, "facing": 90, "stam": 1.0, "seq": 0 },
     "talk": null,
-    "invite_from": null
+    "invite_from": null,
+    "social_event": null,
+    "known_places": []
   },
   "place": {
     "name": "Белогорье",

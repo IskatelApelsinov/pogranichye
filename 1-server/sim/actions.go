@@ -26,14 +26,17 @@ const (
 )
 
 func init() {
-	core.Register("player", func() core.Component { return &PlayerC{Last: map[string]string{}} })
+	core.Register("player", func() core.Component { return &PlayerC{} })
 }
 
-// PlayerC — интерактивное состояние игрока: мана врождённого «искрения» (демо-оружие) и память
-// обработанных reqid по каждому действию (идемпотентность при ретрае).
+const dedupCap = 64 // сколько недавних reqid помним на игрока (ограниченная история — без роста без предела)
+
+// PlayerC — интерактивное состояние игрока: мана врождённого «искрения» (демо-оружие) и ОГРАНИЧЕННАЯ
+// история обработанных reqid (кольцо) для идемпотентности при ретрае. reqid записывается ТОЛЬКО при
+// успехе действия, поэтому повтор после неудачи (отошёл/нет сил) по тому же id корректно сработает.
 type PlayerC struct {
-	Mana float64           `json:"mana"`
-	Last map[string]string `json:"last"`
+	Mana float64  `json:"mana"`
+	Done []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
 }
 
 func (c *PlayerC) Kind() string { return "player" }
@@ -43,14 +46,29 @@ func Player(e *core.Entity) *PlayerC { c, _ := e.Get("player").(*PlayerC); retur
 // EnsurePlayer вешает интерактивное состояние игрока (полная мана), если его ещё нет.
 func EnsurePlayer(w *core.World, e *core.Entity) *PlayerC {
 	if p := Player(e); p != nil {
-		if p.Last == nil {
-			p.Last = map[string]string{}
-		}
 		return p
 	}
-	p := &PlayerC{Mana: sparkManaMax, Last: map[string]string{}}
+	p := &PlayerC{Mana: sparkManaMax}
 	w.Attach(e, p)
 	return p
+}
+
+// alreadyDone — обрабатывался ли уже этот reqid (идемпотентный повтор успешного действия).
+func (p *PlayerC) alreadyDone(reqid string) bool {
+	for _, r := range p.Done {
+		if r == reqid {
+			return true
+		}
+	}
+	return false
+}
+
+// markDone записывает успешно обработанный reqid в кольцо (вытесняя старые сверх лимита).
+func (p *PlayerC) markDone(reqid string) {
+	p.Done = append(p.Done, reqid)
+	if len(p.Done) > dedupCap {
+		p.Done = p.Done[len(p.Done)-dedupCap:]
+	}
 }
 
 // RegenMana восстанавливает ману игроков в РЕАЛЬНОМ времени (вызывается из tick-цикла с dt секунд).
@@ -64,14 +82,6 @@ func RegenMana(w *core.World, dt float64) {
 			p.Mana = math.Min(sparkManaMax, p.Mana+sparkRegen*dt)
 		}
 	})
-}
-
-// dedup проверяет повтор reqid: true — уже обработан (идемпотентно вернуть успех без повтора).
-func dedup(p *PlayerC, action, reqid string) bool {
-	if reqid != "" && p.Last[action] == reqid {
-		return true
-	}
-	return false
 }
 
 func addStash(w *core.World, e *core.Entity, good string, n float64) {
@@ -89,8 +99,11 @@ func addStash(w *core.World, e *core.Entity, good string, n float64) {
 // ChopWood — срубить дерево у леса: нужны силы и близость к опушке; даёт бревно в закрома.
 func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pc := EnsurePlayer(w, e)
-	if dedup(pc, "chop", reqid) {
-		return true, ""
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
+		return true, "" // идемпотентный повтор успешного действия
 	}
 	p := ScenePos(e)
 	if p == nil {
@@ -106,14 +119,17 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	}
 	v.Energy -= chopEnergy
 	addStash(w, e, econ.GoodWood, chopYield)
-	pc.Last["chop"] = reqid
+	pc.markDone(reqid) // запись только при успехе
 	return true, ""
 }
 
 // FishCatch — закинуть снасть у реки: нужны силы и берег; даёт рыбу в закрома.
 func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pc := EnsurePlayer(w, e)
-	if dedup(pc, "fish", reqid) {
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
 	p := ScenePos(e)
@@ -130,31 +146,40 @@ func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	}
 	v.Energy -= fishEnergy
 	addStash(w, e, econ.GoodFish, fishYield)
-	pc.Last["fish"] = reqid
+	pc.markDone(reqid)
 	return true, ""
 }
 
 // CastSpark — магический разряд (демо-оружие): тратит ману; если рядом в угодьях есть опасный зверь —
-// отпугивает/прореживает его (убыль Pop). Нет зверя — просто искра (успех без эффекта).
+// отпугивает/прореживает его. Требует быть в поселении на открытом месте (не в стене) — проверка зоны.
 func CastSpark(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pc := EnsurePlayer(w, e)
-	if dedup(pc, "cast", reqid) {
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
 		return true, ""
+	}
+	p := ScenePos(e)
+	if p == nil || Blocked(p.X, p.Y) {
+		return false, "негде творить разряд"
+	}
+	pl := core.Place(e)
+	if pl == nil || pl.Settlement == 0 {
+		return false, "ты не в угодьях поселения"
 	}
 	if pc.Mana < sparkCost {
 		return false, "не хватает маны"
 	}
 	pc.Mana -= sparkCost
-	pc.Last["cast"] = reqid
+	pc.markDone(reqid)
 	// бьёт по опасному зверю в угодьях поселения (если есть)
-	if pl := core.Place(e); pl != nil && pl.Settlement != 0 {
-		if se := w.Get(pl.Settlement); se != nil {
-			if f := battle.Fauna(se); f != nil {
-				for _, sp := range []string{"wolf", "bear", "boar"} {
-					if f.Pop[sp] >= 1 {
-						f.Pop[sp] = math.Max(0, f.Pop[sp]-sparkWard)
-						break
-					}
+	if se := w.Get(pl.Settlement); se != nil {
+		if f := battle.Fauna(se); f != nil {
+			for _, sp := range []string{"wolf", "bear", "boar"} {
+				if f.Pop[sp] >= 1 {
+					f.Pop[sp] = math.Max(0, f.Pop[sp]-sparkWard)
+					break
 				}
 			}
 		}
