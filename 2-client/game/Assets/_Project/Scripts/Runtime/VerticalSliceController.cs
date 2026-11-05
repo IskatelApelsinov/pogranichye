@@ -41,6 +41,7 @@ namespace Pogranichye.Client
         private int _tutorialStep;
         private string _tutorialPendingGoal;
         private bool _firstPerson;
+        private bool _hudCollapsed;
         private Vector2 _hudScroll;
         [SerializeField] private float moveSendInterval = 0.05f;
         private float _moveSendAccumulator;
@@ -84,6 +85,7 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
@@ -100,9 +102,17 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
+            if (_hudCollapsed)
+            {
+                if (GUI.Button(new Rect(12, 12, 150, 30), "Показать меню [F1]"))
+                    _hudCollapsed = false;
+            }
+            else
+            {
             GUI.Box(new Rect(12, 12, 430, 510), "ПОГРАНИЧЬЕ — первая деревня");
             GUILayout.BeginArea(new Rect(24, 42, 406, 470));
             _hudScroll = GUILayout.BeginScrollView(_hudScroll, GUILayout.Width(406), GUILayout.Height(470));
+            if (GUILayout.Button("Свернуть панель [F1]", GUILayout.Height(26))) _hudCollapsed = true;
             GUILayout.Label("Сервер");
             GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
             serverUrl = GUILayout.TextField(serverUrl);
@@ -192,6 +202,7 @@ namespace Pogranichye.Client
             GUILayout.Label(_status, GUILayout.Height(56));
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+            }
 
             if (_firstPerson && _connectionState == WorldConnectionState.Active)
             {
@@ -606,13 +617,12 @@ namespace Pogranichye.Client
             var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(input, 1f);
 
-            var camera = Camera.main;
-            var forward = camera != null ? camera.transform.forward : player.forward;
-            var right = camera != null ? camera.transform.right : player.right;
-            forward.y = 0f;
-            right.y = 0f;
-            forward.Normalize();
-            right.Normalize();
+            // Use the actual controlled presentation rig, not an arbitrary Camera.main
+            // camera that may have been left in the scene by an earlier setup.
+            var viewTransform = _cameraRig != null ? _cameraRig.transform : Camera.main != null ? Camera.main.transform : player;
+            var yawRotation = Quaternion.Euler(0f, viewTransform.eulerAngles.y, 0f);
+            var forward = yawRotation * Vector3.forward;
+            var right = yawRotation * Vector3.right;
 
             var worldMove = forward * input.y + right * input.x;
             if (worldMove.sqrMagnitude > 1f) worldMove.Normalize();
