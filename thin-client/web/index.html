@@ -231,8 +231,11 @@ function drawScene(s){
  g.textAlign='center';
  (s.place&&s.place.neighbors||[]).forEach(n=>{ if(!n.pos)return;
    const[px,py]=toPx(n.pos.x,n.pos.y);
-   g.beginPath(); g.arc(px,py,4,0,7); g.fillStyle='#d8c0a0'; g.fill();
-   if(n.name){ g.fillStyle='#ead9b0'; g.font='10px Georgia'; g.fillText(n.name,px,py-7); }
+   // живые игроки — ярче и крупнее, с кольцом; НПС — тусклые точки
+   g.beginPath(); g.arc(px,py,n.player?5:4,0,7); g.fillStyle=n.player?'#8ad0ff':'#d8c0a0'; g.fill();
+   if(n.player){ g.lineWidth=2; g.strokeStyle='#2a5a7a'; g.stroke(); }
+   const tag = n.player?'игрок':(n.name||'');
+   if(tag){ g.fillStyle=n.player?'#cfeaff':'#ead9b0'; g.font='10px Georgia'; g.fillText(tag,px,py-7); }
  });
  // игрок
  if(s.me&&s.me.pos){ const[px,py]=toPx(me.x,me.y);
@@ -298,19 +301,22 @@ function render(s){
    } else {
      nearby.forEach(n=>{
        const row=document.createElement('div'); row.className='nb';
-       const who=n.known?(n.name||'житель'):(n.desc||'житель');
+       const who=n.player?'🧑 игрок':(n.known?(n.name||'житель'):(n.desc||'житель'));
        const label=document.createElement('span');
-       label.innerHTML=(n.known?'<b>'+who+'</b>':who)+' <span class="sub">— '+(n.act||'')+'</span>';
+       label.innerHTML=((n.known||n.player)?'<b>'+who+'</b>':who)+' <span class="sub">— '+(n.act||'')+'</span>';
        row.appendChild(label);
        // рядом ли (чтобы заговорить/позвать)
        const close = n.pos && dist(myp.x,myp.y,n.pos.x,n.pos.y)<=8;
        if(close && !me.talk){
-         const talkb=document.createElement('button'); talkb.textContent='💬';
-         talkb.title='заговорить'; talkb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
-         talkb.onclick=()=>send({op:'talk',target:n.id}); row.appendChild(talkb);
-         const invb=document.createElement('button'); invb.textContent='🍻';
-         invb.title='позвать выпить (игрока)'; invb.style.cssText='width:auto;padding:2px 8px;margin-left:4px';
-         invb.onclick=()=>send({op:'invite',target:n.id}); row.appendChild(invb);
+         if(n.player){ // живого игрока — зовём выпить
+           const invb=document.createElement('button'); invb.textContent='🍻 позвать';
+           invb.title='позвать игрока выпить'; invb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
+           invb.onclick=()=>send({op:'invite',target:n.id}); row.appendChild(invb);
+         } else { // с НПС — заговорить
+           const talkb=document.createElement('button'); talkb.textContent='💬 заговорить';
+           talkb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
+           talkb.onclick=()=>send({op:'talk',target:n.id}); row.appendChild(talkb);
+         }
        }
        neighborList.appendChild(row);
      });

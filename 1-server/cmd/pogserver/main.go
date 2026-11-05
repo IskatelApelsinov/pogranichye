@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"pogranichye/core"
 	"pogranichye/dice"
@@ -30,6 +31,7 @@ func main() {
 		days     = flag.Int("days", 2000, "дней для -demo")
 		verbose  = flag.Bool("v", false, "в -demo печатать выборку жителей")
 		starter  = flag.Bool("starter", false, "ОДНА стартовая деревня (для тонкого клиента/тестов)")
+		tickMs   = flag.Int("tick", 0, "мс реального времени на игровой час (0 = по умолчанию 400; для демо, напр. 1500 — время суток читается)")
 	)
 	flag.Parse()
 
@@ -46,6 +48,10 @@ func main() {
 		srv = server.New(*seed, *villages, "accounts.json", secret, *web)
 		log.Printf("Приграничье: сервер на %s, мир «%s» (%d поселений). Открой http://localhost%s/",
 			*addr, *seed, *villages, *addr)
+	}
+	if *tickMs > 0 {
+		srv.SetTick(time.Duration(*tickMs) * time.Millisecond)
+		log.Printf("Демо-темп: %d мс на игровой час", *tickMs)
 	}
 	log.Fatal(srv.Run(*addr))
 }

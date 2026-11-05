@@ -48,6 +48,7 @@
         "role": "farmer",
         "act": "отдыхает",
         "act_code": "rest_idle",
+        "player": false,
         "pos": { "x": 5.2, "y": -3.1, "facing": 210 }
       }
     ]
