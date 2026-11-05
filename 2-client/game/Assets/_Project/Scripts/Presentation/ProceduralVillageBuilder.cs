@@ -27,6 +27,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _corkMaterial;
         private static Material _labelMaterial;
         private static Material _waterMaterial;
+        private static Material _smokeMaterial;
         private static Texture2D _groundTexture;
         private static Texture2D _pathTexture;
         private static Texture2D _woodTexture;
@@ -202,6 +203,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
             CreatePrimitive("Chimney cap", PrimitiveType.Cube, house,
                 new Vector3(1.0f, 3.58f, 0.45f), new Vector3(0.62f, 0.12f, 0.62f), _roofMaterial);
+            BuildChimneySmoke(house, new Vector3(1.0f, 3.82f, 0.45f));
             var houseLightObject = new GameObject("Cottage warm interior light");
             houseLightObject.transform.SetParent(house, false);
             houseLightObject.transform.localPosition = new Vector3(0f, 1.75f, -0.45f);
@@ -317,6 +319,7 @@ namespace Pogranichye.Client.Presentation
             CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.12f), 0.9f);
             CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
+            BuildChimneySmoke(tavern, new Vector3(1.8f, 4.12f, 0.8f));
 
             // Exposed timber frame and interior wall rails give the open-front room depth.
             for (var x = -1; x <= 1; x += 2)
@@ -374,6 +377,68 @@ namespace Pogranichye.Client.Presentation
 
             CreatePoiMarker(root, "Таверна • поговорить", new Vector3(-33f, 0.08f, 12f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
+        }
+
+        /// <summary>Low-density decorative smoke; never participates in world simulation or collision.</summary>
+        private static void BuildChimneySmoke(Transform parent, Vector3 localPosition)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+                         Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) return;
+
+            if (_smokeMaterial == null)
+            {
+                _smokeMaterial = new Material(shader) { name = "Chimney smoke • soft grey" };
+                var smokeColor = new Color(0.48f, 0.49f, 0.47f, 0.26f);
+                if (_smokeMaterial.HasProperty("_BaseColor")) _smokeMaterial.SetColor("_BaseColor", smokeColor);
+                if (_smokeMaterial.HasProperty("_Color")) _smokeMaterial.SetColor("_Color", smokeColor);
+                _smokeMaterial.renderQueue = 3000;
+            }
+
+            var holder = new GameObject("Chimney smoke • slow rising wisps");
+            holder.transform.SetParent(parent, false);
+            holder.transform.localPosition = localPosition;
+            var particles = holder.AddComponent<ParticleSystem>();
+            var main = particles.main;
+            main.loop = true;
+            main.duration = 12f;
+            main.maxParticles = 10;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 7f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.08f, 0.16f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.24f);
+            main.startColor = new Color(0.62f, 0.63f, 0.61f, 0.22f);
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+
+            var emission = particles.emission;
+            emission.rateOverTime = 0.65f;
+            var shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 9f;
+            shape.radius = 0.10f;
+            var velocity = particles.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.x = new ParticleSystem.MinMaxCurve(-0.035f, 0.035f);
+            velocity.y = new ParticleSystem.MinMaxCurve(0.22f, 0.38f);
+            velocity.z = new ParticleSystem.MinMaxCurve(-0.025f, 0.025f);
+            var noise = particles.noise;
+            noise.enabled = true;
+            noise.strength = 0.08f;
+            noise.frequency = 0.16f;
+            var fade = particles.colorOverLifetime;
+            fade.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.42f, 0.16f),
+                    new GradientAlphaKey(0.28f, 0.72f), new GradientAlphaKey(0f, 1f) });
+            fade.color = gradient;
+
+            var renderer = holder.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = _smokeMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
         }
 
         private static void BuildStreetDetails(Transform root, string worldSeed)
@@ -2173,6 +2238,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_corkMaterial);
             DestroyAsset(_labelMaterial);
             DestroyAsset(_waterMaterial);
+            DestroyAsset(_smokeMaterial);
             for (var i = 0; i < _generatedMeshes.Count; i++)
                 DestroyAsset(_generatedMeshes[i]);
             _generatedMeshes.Clear();
@@ -2202,6 +2268,7 @@ namespace Pogranichye.Client.Presentation
             _corkMaterial = null;
             _labelMaterial = null;
             _waterMaterial = null;
+            _smokeMaterial = null;
             _groundTexture = null;
             _pathTexture = null;
             _woodTexture = null;
