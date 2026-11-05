@@ -363,33 +363,38 @@ namespace Pogranichye.Client.Presentation
 
             BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
             BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
-            CreatePrimitive("Fireplace hearth", PrimitiveType.Cube, tavern,
-                new Vector3(-2.15f, 0.45f, 1.0f), new Vector3(0.55f, 0.9f, 0.7f), _stoneMaterial);
+            // Keep the fire outside the server-blocked building footprint: the current
+            // Layout v2 treats the tavern as a solid obstruction, so this courtyard fire
+            // remains visible and reachable from the authoritative tavern POI.
+            CreatePrimitive("Tavern courtyard fire • stone ring", PrimitiveType.Cylinder, tavern,
+                new Vector3(-2.1f, 0.14f, -6.8f), new Vector3(0.92f, 0.12f, 0.92f), _stoneMaterial);
+            CreatePrimitive("Tavern courtyard fire • charcoal bed", PrimitiveType.Cylinder, tavern,
+                new Vector3(-2.1f, 0.225f, -6.8f), new Vector3(0.62f, 0.035f, 0.62f), _roofMaterial);
 
-            // Two crossed oak logs give the fire a readable physical base.
+            // Two crossed oak logs give the courtyard fire a readable physical base.
             var fireLogA = CreatePrimitive("Firewood • lower log", PrimitiveType.Cylinder, tavern,
-                new Vector3(-2.15f, 0.69f, 0.58f), new Vector3(0.052f, 0.22f, 0.052f), _woodMaterial);
+                new Vector3(-2.1f, 0.28f, -6.8f), new Vector3(0.052f, 0.22f, 0.052f), _woodMaterial);
             fireLogA.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             var fireLogB = CreatePrimitive("Firewood • crossed log", PrimitiveType.Cylinder, tavern,
-                new Vector3(-2.15f, 0.74f, 0.61f), new Vector3(0.046f, 0.19f, 0.046f), _roofMaterial);
+                new Vector3(-2.1f, 0.33f, -6.77f), new Vector3(0.046f, 0.19f, 0.046f), _roofMaterial);
             fireLogB.transform.localRotation = Quaternion.Euler(0f, 28f, 90f);
 
             var outerFlame = CreateMeshPart("Low-poly flame • orange tongues", tavern,
                 BuildFireMesh(false), _fireMaterial);
-            outerFlame.transform.localPosition = new Vector3(-2.15f, 0.70f, 0.57f);
+            outerFlame.transform.localPosition = new Vector3(-2.1f, 0.29f, -6.8f);
             var innerFlame = CreateMeshPart("Low-poly flame • golden core", tavern,
                 BuildFireMesh(true), _fireCoreMaterial);
-            innerFlame.transform.localPosition = new Vector3(-2.15f, 0.71f, 0.545f);
+            innerFlame.transform.localPosition = new Vector3(-2.1f, 0.30f, -6.825f);
             for (var i = 0; i < 3; i++)
             {
                 CreatePrimitive("Fire • glowing ember", PrimitiveType.Sphere, tavern,
-                    new Vector3(-2.25f + i * 0.09f, 0.72f + (i % 2) * 0.025f, 0.56f),
+                    new Vector3(-2.2f + i * 0.09f, 0.31f + (i % 2) * 0.025f, -6.81f),
                     new Vector3(0.035f, 0.018f, 0.025f), _fireCoreMaterial);
             }
 
             var warmLightObject = new GameObject("Tavern warm light");
             warmLightObject.transform.SetParent(tavern, false);
-            warmLightObject.transform.localPosition = new Vector3(0, 2.15f, 0.2f);
+            warmLightObject.transform.localPosition = new Vector3(-2.1f, 1.65f, -6.8f);
             var warmLight = warmLightObject.AddComponent<Light>();
             warmLight.type = LightType.Point;
             warmLight.range = 9f;
