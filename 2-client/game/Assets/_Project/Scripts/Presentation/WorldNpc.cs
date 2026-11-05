@@ -59,6 +59,11 @@ namespace Pogranichye.Client.Presentation
             if (_motion != null) _motion.PlayClinkGesture();
         }
 
+        public void PlayServerDrink()
+        {
+            if (_motion != null) _motion.PlayDrinkGesture();
+        }
+
         /// <summary>Highlights the NPC currently under the interaction reticle.</summary>
         public void SetFocused(bool focused)
         {

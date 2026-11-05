@@ -29,6 +29,7 @@ namespace Pogranichye.Client.Presentation
         private bool _hasPlayerMugState;
         private bool _playerHadMug;
         private string _lastTalkEvent = string.Empty;
+        private string _lastSocialEvent = string.Empty;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -128,6 +129,29 @@ namespace Pogranichye.Client.Presentation
 
         private void ApplyTalkPresentation(WorldFrame frame, GameObject player)
         {
+            // Co-drink is a one-shot server event, not a guess based on localized dialogue text.
+            var socialEvent = frame.Me.SocialEvent;
+            if (socialEvent != null && !string.IsNullOrEmpty(socialEvent.Id) &&
+                socialEvent.Id != _lastSocialEvent)
+            {
+                _lastSocialEvent = socialEvent.Id;
+                if (string.Equals(socialEvent.Type, "codrink", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var playerMotion = player.GetComponent<EntityMotion>();
+                    if (playerMotion != null) playerMotion.PlayClinkGesture();
+                    if (TryGetView(socialEvent.With, out var drinkPartner))
+                    {
+                        var partnerNpc = drinkPartner.GetComponent<WorldNpc>();
+                        if (partnerNpc != null) partnerNpc.PlayServerClink();
+                        else
+                        {
+                            var partnerMotion = drinkPartner.GetComponent<EntityMotion>();
+                            if (partnerMotion != null) partnerMotion.PlayClinkGesture();
+                        }
+                    }
+                }
+            }
+
             var talk = frame.Me.Talk;
             if (talk == null)
             {
@@ -139,13 +163,12 @@ namespace Pogranichye.Client.Presentation
             if (string.IsNullOrEmpty(talk.Line) || eventKey == _lastTalkEvent) return;
             _lastTalkEvent = eventKey;
 
-            var isClink = talk.Line.IndexOf("чокнулись кружками", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                          talk.Line.IndexOf("поднимает кружку", System.StringComparison.OrdinalIgnoreCase) >= 0;
-            var playerMotion = player.GetComponent<EntityMotion>();
-            if (playerMotion != null)
+            var npcDrink = talk.Line.IndexOf("поднимает кружку", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            var playerMotionForTalk = player.GetComponent<EntityMotion>();
+            if (playerMotionForTalk != null)
             {
-                playerMotion.PlayTalkGesture(null);
-                if (isClink) playerMotion.PlayClinkGesture();
+                playerMotionForTalk.PlayTalkGesture(null);
+                if (npcDrink) playerMotionForTalk.PlayDrinkGesture();
             }
 
             if (TryGetView(talk.With, out var partner))
@@ -153,7 +176,7 @@ namespace Pogranichye.Client.Presentation
                 var partnerMotion = partner.GetComponent<EntityMotion>();
                 if (partnerMotion != null) partnerMotion.PlayTalkGesture(player.transform);
                 var partnerNpc = partner.GetComponent<WorldNpc>();
-                if (partnerNpc != null && isClink) partnerNpc.PlayServerClink();
+                if (partnerNpc != null && npcDrink) partnerNpc.PlayServerDrink();
             }
         }
 
@@ -232,6 +255,7 @@ namespace Pogranichye.Client.Presentation
                 if (view != null) Object.Destroy(view);
             _views.Clear();
             _lastTalkEvent = string.Empty;
+            _lastSocialEvent = string.Empty;
             _hasPlayerMugState = false;
             _playerHadMug = false;
             PlayerTransform = null;
