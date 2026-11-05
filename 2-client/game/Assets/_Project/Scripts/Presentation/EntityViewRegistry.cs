@@ -31,6 +31,26 @@ namespace Pogranichye.Client.Presentation
 
         public Transform PlayerTransform { get; private set; }
 
+        public bool PlayTalkGesture(string entityId)
+        {
+            if (!ulong.TryParse(entityId, out var id) || !_views.TryGetValue(id, out var view) || view == null)
+                return false;
+            var motion = view.GetComponent<EntityMotion>();
+            if (motion == null) return false;
+            motion.PlayTalkGesture();
+            return true;
+        }
+
+        public bool PlayCheersGesture(string entityId)
+        {
+            if (!ulong.TryParse(entityId, out var id) || !_views.TryGetValue(id, out var view) || view == null)
+                return false;
+            var motion = view.GetComponent<EntityMotion>();
+            if (motion == null) return false;
+            motion.PlayCheersGesture();
+            return true;
+        }
+
         public EntityViewRegistry(Transform root) { _root = root; }
 
         public void Apply(WorldFrame frame)
