@@ -16,7 +16,6 @@ namespace Pogranichye.Client.Presentation
         private MaterialPropertyBlock _block;
         private EntityMotion _motion;
         private bool _focused;
-        private float _nextGreetingAt;
 
         public static event Action<WorldNpc> Selected;
         public ulong EntityId { get; private set; }
