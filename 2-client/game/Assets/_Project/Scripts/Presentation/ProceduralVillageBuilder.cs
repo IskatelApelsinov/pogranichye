@@ -117,6 +117,7 @@ namespace Pogranichye.Client.Presentation
             BuildStreetDetails(village, worldSeed);
             BuildWornFootpaths(village, worldSeed);
             BuildRoadsidePuddles(village, worldSeed);
+            AlignBuildingsToServerLayout(village);
 
             var random = new System.Random(StableSeed(worldSeed));
             for (var i = 0; i < 24; i++)
