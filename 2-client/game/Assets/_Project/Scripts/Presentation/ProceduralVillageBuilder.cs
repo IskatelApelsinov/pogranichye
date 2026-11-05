@@ -382,7 +382,7 @@ namespace Pogranichye.Client.Presentation
             innerFlame.transform.localPosition = new Vector3(-2.15f, 0.71f, 0.545f);
             for (var i = 0; i < 3; i++)
             {
-                var ember = CreatePrimitive("Fire • glowing ember", PrimitiveType.Sphere, tavern,
+                CreatePrimitive("Fire • glowing ember", PrimitiveType.Sphere, tavern,
                     new Vector3(-2.25f + i * 0.09f, 0.72f + (i % 2) * 0.025f, 0.56f),
                     new Vector3(0.035f, 0.018f, 0.025f), _fireCoreMaterial);
             }
@@ -2192,7 +2192,7 @@ namespace Pogranichye.Client.Presentation
 
         private static Mesh BuildFireMesh(bool inner)
         {
-            var vertices = new System.Collections.Generic.List<Vector3>(inner ? 20 : 30);
+            var vertices = new System.Collections.Generic.List<Vector3>(inner ? 22 : 33);
             var triangles = new System.Collections.Generic.List<int>(inner ? 90 : 135);
 
             if (inner)
