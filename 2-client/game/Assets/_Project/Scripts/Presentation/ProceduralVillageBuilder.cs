@@ -363,7 +363,7 @@ namespace Pogranichye.Client.Presentation
             var ambient = root.GetComponent<VillageAmbientMotion>();
             if (ambient != null) ambient.RegisterLight(warmLight, 0.08f, 2.0f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(0f, 0.08f, -8.0f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(-33f, 0.08f, 12f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
@@ -958,7 +958,7 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Forge glow", PrimitiveType.Sphere, smithy,
                 new Vector3(-1.1f, 1.02f, -1.45f), new Vector3(0.48f, 0.32f, 0.22f), _fireMaterial);
             CreateSign(smithy, "КУЗНИЦА", new Vector3(0, 1.8f, -1.58f), 0.75f);
-            CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -2.8f), new Color(0.55f, 0.55f, 0.58f), "work");
+            CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -8f), new Color(0.55f, 0.55f, 0.58f), "work");
         }
 
         private static void BuildMarket(Transform root, Vector3 position)
@@ -1013,7 +1013,7 @@ namespace Pogranichye.Client.Presentation
             BuildMarketCrate(market, "Apple crate", new Vector3(1.88f, 0.04f, 0.42f), new Color(0.58f, 0.20f, 0.12f));
             BuildMarketCrate(market, "Root vegetable crate", new Vector3(-1.88f, 0.04f, 0.42f), new Color(0.72f, 0.43f, 0.16f));
             CreateSign(market, "РЫНОК", new Vector3(0, 1.55f, -0.78f), 0.65f);
-            CreatePoiMarker(root, "Рынок • поесть", position + new Vector3(0, 0.08f, -2f), new Color(0.72f, 0.62f, 0.30f), "eat");
+            CreatePoiMarker(root, "Рынок • поесть", new Vector3(1f, 0.08f, 4f), new Color(0.72f, 0.62f, 0.30f), "eat");
         }
 
         private static void BuildMarketCrate(Transform parent, string name, Vector3 position, Color produceTint)
@@ -1145,13 +1145,13 @@ namespace Pogranichye.Client.Presentation
             for (var col = 0; col < 4; col++)
             {
                 var x = col * 0.8f - 1.2f;
-                var z = row * 0.9f;
+                var z = row * 0.9f + 2.8f;
                 CreatePrimitive("Garden bed", PrimitiveType.Cube, garden,
                     new Vector3(x, 0.12f, z), new Vector3(0.62f, 0.22f, 0.68f), _pathMaterial);
                 CreatePrimitive("Crop", PrimitiveType.Sphere, garden,
                     new Vector3(x, 0.42f, z), new Vector3(0.34f, 0.55f, 0.34f), _leafMaterial);
             }
-            CreatePoiMarker(root, "Огород • работать", position + new Vector3(0, 0.08f, -2.4f), new Color(0.32f, 0.58f, 0.28f), "work");
+            CreatePoiMarker(root, "Огород • работать", new Vector3(70f, 0.08f, -20f), new Color(0.32f, 0.58f, 0.28f), "work");
         }
 
 
@@ -1912,7 +1912,7 @@ namespace Pogranichye.Client.Presentation
 
             var dock = new GameObject("Fishing dock").transform;
             dock.SetParent(root, false);
-            dock.position = new Vector3(13.45f, 0.10f, 7.0f);
+            dock.position = new Vector3(13.45f, 0.10f, -76f);
             for (var i = 0; i < 5; i++)
                 CreatePrimitive("Dock plank", PrimitiveType.Cube, dock,
                     new Vector3(i * 0.32f - 0.64f, 0, 0), new Vector3(0.29f, 0.12f, 2.6f), _woodMaterial);
