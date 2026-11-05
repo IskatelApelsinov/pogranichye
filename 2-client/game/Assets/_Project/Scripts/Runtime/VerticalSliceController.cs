@@ -61,6 +61,11 @@ namespace Pogranichye.Client
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
+        // Jump is deliberately presentation-only until the server owns vertical movement.
+        private float _jumpOffset;
+        private float _jumpVelocity;
+        private const float JumpImpulse = 5.2f;
+        private const float JumpGravity = 15f;
 
         private struct PendingMoveIntent
         {
@@ -98,7 +103,10 @@ namespace Pogranichye.Client
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
             if (_connectionState == WorldConnectionState.Active)
+            {
+                UpdateJump();
                 UpdateMovement();
+            }
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
             {
@@ -169,7 +177,7 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Здоровье {_frame.Me.Health:0} | Голод {_frame.Me.Hunger:0} | Энергия {_frame.Me.Energy:0} | Настрой {_frame.Me.Morale:0}");
                 GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
                 GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
-                GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег");
+                GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
                 DrawInventorySummary();
                 if (_frame.Me.Position != null)
                     GUILayout.Label($"Сцена X {_frame.Me.Position.X:0.00} / Z {_frame.Me.Position.Y:0.00} | взгляд {_frame.Me.Position.Facing:0}° | seq {_frame.Me.Position.Sequence}/{_moveSequence}");
@@ -182,8 +190,8 @@ namespace Pogranichye.Client
                 if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                     SetCameraMode(!_firstPerson);
                 GUILayout.Label(_firstPerson
-                    ? "WASD — движение; Shift — бег; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
-                    : "Мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
+                    ? "WASD — движение; Shift — бег; Space — прыжок; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
+                    : "WASD — движение; Shift — бег; Space — прыжок; мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
                 GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
@@ -680,6 +688,30 @@ namespace Pogranichye.Client
         }
 
 
+
+        private void UpdateJump()
+        {
+            // This only offsets the rendered player and camera. The authoritative root,
+            // ScenePos, collision resolution and server move packets remain on the ground.
+            if (Input.GetKeyDown(KeyCode.Space) && _jumpOffset <= 0.001f)
+                _jumpVelocity = JumpImpulse;
+
+            var deltaTime = Mathf.Clamp(Time.deltaTime, 0f, 0.05f);
+            if (_jumpOffset > 0f || _jumpVelocity > 0f)
+            {
+                _jumpVelocity -= JumpGravity * deltaTime;
+                _jumpOffset += _jumpVelocity * deltaTime;
+                if (_jumpOffset <= 0f)
+                {
+                    _jumpOffset = 0f;
+                    _jumpVelocity = 0f;
+                }
+            }
+
+            if (_views != null) _views.SetPlayerPresentationOffset(Vector3.up * _jumpOffset);
+            if (_cameraRig != null) _cameraRig.SetJumpOffset(_jumpOffset);
+        }
+
         private void UpdateMovement()
         {
             var player = _views != null ? _views.PlayerTransform : null;
@@ -934,6 +966,9 @@ namespace Pogranichye.Client
             _moveSendAccumulator = 0f;
             _movementCorrection = Vector3.zero;
             _movementCorrectionRemaining = 0f;
+            _jumpOffset = 0f;
+            _jumpVelocity = 0f;
+            _cameraRig?.SetJumpOffset(0f);
             _views.Clear();
             _tutorialPendingGoal = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
