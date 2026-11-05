@@ -24,10 +24,16 @@ namespace Pogranichye.Client.Presentation
         private float _yaw;
         private float _pitch;
         private float _zoomDistance;
+        private float _jumpOffset;
         private bool _captureMouseForGesture;
 
         public bool IsFirstPerson => _firstPerson;
         public bool CaptureMouseForGesture => _captureMouseForGesture;
+
+        public void SetJumpOffset(float offset)
+        {
+            _jumpOffset = Mathf.Max(0f, offset);
+        }
 
         /// <summary>Called by a future contextual tool/magic mode when raw mouse motion is a gesture, not camera look.</summary>
         public void SetMouseGestureCapture(bool active)
@@ -76,7 +82,7 @@ namespace Pogranichye.Client.Presentation
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;
                 var idleBreath = Mathf.Sin(Time.unscaledTime * 1.15f) * 0.006f;
-                transform.position = _target.position + Vector3.up * (1.62f + walkBob + idleBreath)
+                transform.position = _target.position + Vector3.up * (1.62f + walkBob + idleBreath + _jumpOffset)
                     + _target.right * sideBob;
                 transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
                 return;
@@ -96,7 +102,7 @@ namespace Pogranichye.Client.Presentation
                     thirdPersonMinPitch, thirdPersonMaxPitch);
             }
 
-            var focus = _target.position + Vector3.up * 1.25f;
+            var focus = _target.position + Vector3.up * (1.25f + _jumpOffset);
             var direction = Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.back;
             var desired = focus + direction * _zoomDistance;
 
