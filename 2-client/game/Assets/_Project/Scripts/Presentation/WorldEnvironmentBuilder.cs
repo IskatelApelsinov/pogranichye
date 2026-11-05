@@ -108,38 +108,99 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildDistantLandscape(Transform root)
         {
+            // A faceted ridgeline replaces dozens of isolated sphere hills with one mesh.
             var random = new System.Random(14027);
+            var vertices = new System.Collections.Generic.List<Vector3>(2400);
+            var paletteTriangles = new System.Collections.Generic.List<int>[5];
+            for (var palette = 0; palette < paletteTriangles.Length; palette++)
+                paletteTriangles[palette] = new System.Collections.Generic.List<int>(2400);
+
             for (var i = 0; i < 36; i++)
             {
                 var angle = i * Mathf.PI * 2f / 36f;
                 var distance = 66f + (float)random.NextDouble() * 20f;
                 var height = 7f + (float)random.NextDouble() * 13f;
                 var width = 15f + (float)random.NextDouble() * 12f;
-                var hill = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                hill.name = "Far ridge • soft silhouette";
-                hill.transform.SetParent(root, false);
-                hill.transform.position = new Vector3(Mathf.Cos(angle) * distance, height * 0.32f, Mathf.Sin(angle) * distance);
-                hill.transform.localScale = new Vector3(width, height, width * 0.62f);
-                var collider = hill.GetComponent<Collider>();
-                if (collider != null) UnityEngine.Object.Destroy(collider);
-                var renderer = hill.GetComponent<Renderer>();
-                renderer.sharedMaterial = CreateLandscapeMaterial(i);
-                hill.isStatic = true;
+                var center = new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
+                AppendLowPolyHill(vertices, paletteTriangles[i % 5], center, width, width * 0.62f,
+                    height, (float)random.NextDouble() * Mathf.PI * 2f, random);
             }
 
-            // A few nearer rock outcrops break the perfectly flat horizon around the creek.
+            // A few nearer angular outcrops break the flat horizon around the creek.
             for (var i = 0; i < 12; i++)
             {
                 var angle = i * Mathf.PI * 2f / 12f + 0.18f;
-                var rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                rock.name = "Distant rocky outcrop";
-                rock.transform.SetParent(root, false);
-                rock.transform.position = new Vector3(Mathf.Cos(angle) * 43f, 1.4f, Mathf.Sin(angle) * 43f);
-                rock.transform.localScale = new Vector3(5f, 2.6f, 4f);
-                var collider = rock.GetComponent<Collider>();
-                if (collider != null) UnityEngine.Object.Destroy(collider);
-                rock.GetComponent<Renderer>().sharedMaterial = CreateLandscapeMaterial(i + 41);
-                rock.isStatic = true;
+                var center = new Vector3(Mathf.Cos(angle) * 43f, 0f, Mathf.Sin(angle) * 43f);
+                AppendLowPolyHill(vertices, paletteTriangles[(i + 41) % 5], center,
+                    4.5f + (float)random.NextDouble() * 1.5f, 3.5f,
+                    2.4f + (float)random.NextDouble() * 1.2f,
+                    (float)random.NextDouble() * Mathf.PI * 2f, random);
+            }
+
+            var mesh = new Mesh { name = "Distant countryside • faceted ridgeline" };
+            mesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            mesh.SetVertices(vertices);
+            mesh.subMeshCount = paletteTriangles.Length;
+            for (var i = 0; i < paletteTriangles.Length; i++)
+                mesh.SetTriangles(paletteTriangles[i], i);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var landscape = new GameObject("Distant countryside • combined low-poly hills");
+            landscape.transform.SetParent(root, false);
+            landscape.isStatic = true;
+            landscape.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = landscape.AddComponent<MeshRenderer>();
+            var materials = new Material[paletteTriangles.Length];
+            for (var i = 0; i < materials.Length; i++) materials[i] = CreateLandscapeMaterial(i);
+            renderer.sharedMaterials = materials;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static void AppendLowPolyHill(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 center, float radiusX, float radiusZ, float height, float rotation,
+            System.Random random)
+        {
+            const int sides = 8;
+            var radii = new[] { 1f, 0.78f, 0.52f, 0.26f, 0.07f };
+            var heights = new[] { 0.025f, 0.13f, 0.39f, 0.73f, 0.96f };
+            var start = vertices.Count;
+            for (var ring = 0; ring < radii.Length; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var angle = rotation + side * Mathf.PI * 2f / sides;
+                var irregular = 1f + Mathf.Sin(side * 2.31f + ring * 1.7f) * 0.08f
+                    + ((float)random.NextDouble() - 0.5f) * 0.06f;
+                vertices.Add(center + new Vector3(
+                    Mathf.Cos(angle) * radiusX * radii[ring] * irregular,
+                    height * heights[ring],
+                    Mathf.Sin(angle) * radiusZ * radii[ring] * irregular));
+            }
+
+            for (var ring = 0; ring < radii.Length - 1; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                var lower = start + ring * sides + side;
+                var lowerNext = start + ring * sides + next;
+                var upper = start + (ring + 1) * sides + side;
+                var upperNext = start + (ring + 1) * sides + next;
+                triangles.Add(lower); triangles.Add(upper); triangles.Add(lowerNext);
+                triangles.Add(lowerNext); triangles.Add(upper); triangles.Add(upperNext);
+            }
+
+            var peak = vertices.Count;
+            vertices.Add(center + Vector3.up * (height * 1.04f));
+            var lastRing = start + (radii.Length - 1) * sides;
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                triangles.Add(lastRing + side);
+                triangles.Add(peak);
+                triangles.Add(lastRing + next);
             }
         }
 
