@@ -37,6 +37,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("mana")] public double Mana { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
+        [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -75,6 +76,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("known")] public bool Known { get; set; }
         [JsonProperty("desc")] public string Description { get; set; }
+        [JsonProperty("controlled")] public bool Controlled { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
@@ -103,6 +105,14 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("from")] public string From { get; set; }
         [JsonProperty("who")] public string Who { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SocialEventFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("type")] public string Type { get; set; }
+        [JsonProperty("with")] public string With { get; set; }
     }
 
     [Serializable]
