@@ -54,6 +54,7 @@ namespace Pogranichye.Client
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
         private string _lastTalkLine;
+        private string _lastSocialEventId;
         private bool _lastInvitePending;
 
         private struct PendingMoveIntent
@@ -426,13 +427,32 @@ namespace Pogranichye.Client
                     if (frame.Alive && frame.Me != null)
                     {
                         var talkLine = frame.Me.Talk != null ? frame.Me.Talk.Line : null;
-                        if (!string.IsNullOrEmpty(talkLine) && talkLine != _lastTalkLine)
+                        var talkSignature = frame.Me.Talk != null
+                            ? (frame.Me.Talk.With ?? string.Empty) + "|" + (talkLine ?? string.Empty)
+                            : null;
+                        if (!string.IsNullOrEmpty(talkSignature) && talkSignature != _lastTalkLine)
                         {
-                            _lastTalkLine = talkLine;
+                            _lastTalkLine = talkSignature;
                             var playerMotion = _views?.PlayerTransform != null ? _views.PlayerTransform.GetComponent<EntityMotion>() : null;
                             if (playerMotion != null) playerMotion.PlayTalkGesture();
                             _views?.PlayTalkGesture(frame.Me.Talk.With);
                         }
+                        else if (string.IsNullOrEmpty(talkSignature))
+                            _lastTalkLine = null;
+
+                        var socialEvent = frame.Me.SocialEvent;
+                        if (socialEvent != null && !string.IsNullOrEmpty(socialEvent.Id) &&
+                            socialEvent.Id != _lastSocialEventId)
+                        {
+                            _lastSocialEventId = socialEvent.Id;
+                            if (string.Equals(socialEvent.Type, "codrink", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var playerMotion = _views?.PlayerTransform != null ? _views.PlayerTransform.GetComponent<EntityMotion>() : null;
+                                if (playerMotion != null) playerMotion.PlayCheersGesture();
+                                _views?.PlayCheersGesture(socialEvent.With);
+                            }
+                        }
+
                         var invitePending = frame.Me.InviteFrom != null;
                         if (invitePending && !_lastInvitePending)
                             _status = "Вас пригласили выпить вместе: " + (frame.Me.InviteFrom.Who ?? "собеседник");
