@@ -420,7 +420,7 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Nest straw", PrimitiveType.Sphere, coop,
                 new Vector3(0.38f, 0.99f, -0.12f), new Vector3(0.34f, 0.12f, 0.30f), _produceMaterial);
 
-            var trough = CreatePrimitive("Chicken feed trough", PrimitiveType.Cube, yard,
+            CreatePrimitive("Chicken feed trough", PrimitiveType.Cube, yard,
                 new Vector3(1.72f, 0.19f, 0.75f), new Vector3(1.15f, 0.30f, 0.34f), _woodMaterial);
             for (var i = 0; i < 5; i++)
                 CreatePrimitive("Scattered grain", PrimitiveType.Sphere, yard,
