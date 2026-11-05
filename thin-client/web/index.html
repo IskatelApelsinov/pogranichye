@@ -81,6 +81,9 @@
   <button onclick="send({op:'endtalk'})" style="width:auto;margin-top:6px;padding:3px 10px">Отойти</button>
  </div>
 
+ <div class="card" id="invcard"></div>
+ <div class="card" id="travelcard"></div>
+
  <div class="card hidden" id="invite" style="border-color:#d3a06a;background:#4a3f2c">
   <div><b id="invwho">—</b> <span class="sub">зовёт выпить вместе</span></div>
   <div class="acts" style="margin-top:6px">
@@ -137,7 +140,28 @@ let curLoc='well', last=null;
 function goTo(key){ curLoc=key; stopMinigames(); send({op:'goto',location:key}); if(last) drawLoc(last); toast(''); }
 function toast(t){ $('toast').textContent=t; }
 
-function render(s){ last=s; drawChar(s); drawWorld(s); drawLoc(s); drawDialog(s); }
+function render(s){ last=s; drawChar(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s); }
+
+function drawInv(s){
+ const me=s.me||{}, inv=me.inv||{items:{},hand:'',worn:{}};
+ const names={axe:'топор',sword:'меч',bow:'лук',rod:'удочка',torch:'факел',lantern:'фонарь',cloak:'плащ',boots:'сапоги',hat:'шапка',bread:'хлеб',fish:'рыба',wood:'дерево',meat:'мясо',hide:'шкура',wheat:'зерно',veg:'овощи'};
+ const items=Object.entries(inv.items||{}).filter(([k,v])=>v>0);
+ const hand=['axe','sword','bow','rod','torch','lantern'];
+ let h=`<b class="sub">сума</b> <span class="sub">· в руке: ${names[inv.hand]||'пусто'} · надето: ${Object.values(inv.worn||{}).map(x=>names[x]||x).join(', ')||'ничего'}</span>`;
+ h+='<div style="margin-top:6px">'+(items.length?items.map(([k,v])=>`<span class="tag">${names[k]||k} ×${v}</span>`).join(''):'<span class="sub">пусто</span>')+'</div>';
+ h+='<div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
+ hand.forEach(it=>{ if((inv.items||{})[it]>0 && inv.hand!==it) h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'equip',item:'${it}'})">взять ${names[it]}</button>`; });
+ ['cloak','boots','hat'].forEach(it=>{ if((inv.items||{})[it]>0) h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'wear',item:'${it}'})">надеть ${names[it]}</button>`; });
+ h+='</div>';
+ $('invcard').innerHTML=h;
+}
+function drawTravel(s){
+ const world=(s.me&&s.me.world)||[], here=(s.me&&s.me.known_places)||[];
+ const visited=new Set(here.filter(p=>p.visited).map(p=>p.id));
+ let h='<b class="sub">мир · путешествия</b> <span class="sub">стартовая деревня — центр Мира</span><div class="acts">';
+ world.forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">🧭 ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
+ h+='</div>'; $('travelcard').innerHTML=h;
+}
 
 function drawChar(s){
  const me=s.me||{}; const bar=(v,c)=>`<div class="bar"><div style="width:${Math.max(0,Math.min(100,v))}%;background:${c}"></div></div>`;
@@ -146,7 +170,7 @@ function drawChar(s){
  $('charcard').innerHTML=
   `<div class="row between"><div><span class="big">${me.name||'—'}</span> <span class="sub">${me.surname||''} ${me.nick?('«'+me.nick+'»'):''}</span></div>
      <span class="tag">${me.role||''}</span></div>
-   <div class="sub">${me.trait||''}${me.origin?(' · '+me.origin):''} · ${me.sex==='ж'?'женщина':'мужчина'} · ${Math.round(me.age||0)} лет · 💰 ${me.coins??0}</div>
+   <div class="sub">${me.trait||''}${me.origin?(' · '+me.origin):''} · ${me.sex==='ж'?'женщина':'мужчина'} · ${Math.round(me.age||0)} лет · 💰 ${me.coins??0} · <span class="gold">${me.desire||''}</span></div>
    <div style="margin-top:8px">
      <span class="stat">здоровье</span>${bar(me.health,'#8da96a')}
      <span class="stat">сытость</span>${bar(me.hunger,'#c9a24a')}
@@ -202,16 +226,41 @@ function drawLocActions(s,L){
    A.append(b1,b2);
    M.innerHTML=`<div class="sub">пива в корчме: ${beer}</div>`;
  } else if(L.key==='river'){
+   A.append(btn('🎣 Взять удочку',()=>send({op:'take',item:'rod',reqid:rid()})));
    fishingGame(M);
  } else if(L.key==='woods'){
+   A.append(btn('🪓 Взять топор',()=>send({op:'take',item:'axe',reqid:rid()})));
+   A.append(btn('🏹 Охота',()=>act2('hunt','Охочусь…')));
+   A.append(btn('⚔ Стычка',()=>act2('fight','Отгоняю зверя…')));
    choppingGame(M);
+ } else if(L.key==='smithy'){
+   A.append(btn('⚔ Взять меч',()=>send({op:'take',item:'sword',reqid:rid()})));
+   A.append(btn('🏹 Взять лук',()=>send({op:'take',item:'bow',reqid:rid()})));
+   A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
+ } else if(L.key==='granary'){
+   ['cloak','boots','hat','torch','lantern'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка',torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
+   marketUI(M,s);
+ } else if(L.key==='garden'){
+   A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
+   marketUI(M,s);
  } else if(L.key==='well'){
    A.append(btn('✨ Разряд (защита) · мана '+(me.mana??0), ()=>send({op:'act',action:'cast',reqid:rid()}), (me.mana||0)<25));
  } else {
-   M.innerHTML='<div class="sub">Здесь трудятся жители. Поговори с ними — со временем появятся занятия (помощь в работе).</div>';
+   M.innerHTML='<div class="sub">Здесь трудятся жители. Поговори с ними.</div>';
  }
 }
 function btn(text,fn,dis){ const b=document.createElement('button'); b.textContent=text; b.onclick=fn; b.disabled=!!dis; return b; }
+function act2(a,msg){ send({op:'act',action:a,reqid:rid()}); toast(msg); }
+// рынок: купить/продать ходовые товары
+function marketUI(M,s){
+ M.className='mg'; const names={bread:'хлеб',wheat:'зерно',fish:'рыба',wood:'дерево',veg:'овощи',meat:'мясо'};
+ let h='<b class="sub">рынок</b><div class="acts" style="grid-template-columns:1fr 1fr">';
+ ['bread','wheat','fish','wood'].forEach(g=>{
+   h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'trade',good:'${g}',side:'buy',qty:1})">купить ${names[g]}</button>`;
+   h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'trade',good:'${g}',side:'sell',qty:1})">продать ${names[g]}</button>`;
+ });
+ h+='</div>'; M.innerHTML=h;
+}
 
 // ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
 let mgRAF=0;
@@ -255,7 +304,7 @@ function drawDialog(s){
  const inv=me.invite_from;
  if(inv){ $('invite').classList.remove('hidden'); $('invwho').textContent=inv.who; } else $('invite').classList.add('hidden');
  const se=me.social_event;
- if(se&&se.seq&&se.seq!==lastSocial){ lastSocial=se.seq; toast(se.type==='codrink'?'🍻 Вы чокнулись кружками!':'🍻 Тост за здоровье!'); }
+ if(se&&se.seq&&se.seq!==lastSocial){ lastSocial=se.seq; toast(se.type==='codrink'?'🍻 Вы чокнулись кружками!':se.type==='hunt'?'🦌 Добыча! мясо в закромах':'🍻 Тост за здоровье!'); }
 }
 </script>
 </body>

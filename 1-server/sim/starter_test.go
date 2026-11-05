@@ -19,11 +19,11 @@ func TestStarterVillage(t *testing.T) {
 		people++
 		roles[core.Ident(e).Role]++
 	})
-	if settlements != 1 || realms != 1 {
-		t.Fatalf("старт — одна деревня и одна держава: сёл=%d держав=%d", settlements, realms)
+	if settlements < 1 || realms < 1 {
+		t.Fatalf("старт — центр мира и соседи: сёл=%d держав=%d", settlements, realms)
 	}
-	if people != 14 {
-		t.Fatalf("ожидали 14 жителей в стартовом составе, получили %d", people)
+	if people < 30 {
+		t.Fatalf("ожидали населённый старт (центр + соседние деревни), получили %d", people)
 	}
 	for _, need := range []string{"farmer", "cook", "smith", "herbalist", "tavernkeeper", "miner", "hunter", "herder"} {
 		if roles[need] == 0 {
