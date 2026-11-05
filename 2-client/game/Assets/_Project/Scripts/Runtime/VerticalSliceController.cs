@@ -204,6 +204,22 @@ namespace Pogranichye.Client
                     if (GUILayout.Button("Отказаться")) _ = SendSocialIntentAsync("declinedrink", null, null);
                     GUILayout.EndHorizontal();
                 }
+                if (_frame.Place?.Neighbors != null)
+                {
+                    GUILayout.Space(6);
+                    GUILayout.Label("СОСЕДИ");
+                    foreach (var neighbor in _frame.Place.Neighbors)
+                    {
+                        if (neighbor == null) continue;
+                        var label = neighbor.Known && !string.IsNullOrEmpty(neighbor.Name)
+                            ? neighbor.Name : (neighbor.Description ?? "Житель");
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(label);
+                        if (neighbor.Controlled && GUILayout.Button("🍻 Пригласить", GUILayout.Width(120)))
+                            _ = SendSocialIntentAsync("invite", neighbor.Id, null);
+                        GUILayout.EndHorizontal();
+                    }
+                }
                 GUILayout.Label("🍺 Разговоры, знакомство и совместное питьё подключены сервером v1.4.");
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
