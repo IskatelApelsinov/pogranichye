@@ -18,6 +18,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _road;
         private static Material _straw;
         private static Material _scarecrowCloth;
+        private static Material _grass;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
@@ -34,6 +35,7 @@ namespace Pogranichye.Client.Presentation
             _road = MakeTexturedMaterial("Layout country roads • packed dirt", new Color(0.38f, 0.30f, 0.22f), 1, 2f, 12f);
             _straw = MakeTexturedMaterial("Farm straw • dry stalks", new Color(0.69f, 0.53f, 0.24f), 3, 2f, 2f);
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
+            _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
@@ -79,6 +81,7 @@ namespace Pogranichye.Client.Presentation
             // Long crop strips make the eastern agricultural zone read as cultivated land.
             // They are presentation-only: no colliders, gameplay harvest state or navigation data.
             BuildCropRows(world);
+            BuildMeadowGrass(world);
             BuildFarmProps(world);
             BuildWoodcutterCamp(world);
 
@@ -199,6 +202,46 @@ namespace Pogranichye.Client.Presentation
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.On;
             renderer.receiveShadows = true;
+        }
+
+        private static void BuildMeadowGrass(Transform parent)
+        {
+            // One combined low-poly mesh dresses the open north meadow without adding colliders.
+            // Keep the central northbound road corridor clear for players and NPC navigation.
+            var random = new System.Random(90210);
+            var vertices = new System.Collections.Generic.List<Vector3>(9000);
+            var triangles = new System.Collections.Generic.List<int>(13500);
+            for (var i = 0; i < 1050; i++)
+            {
+                var x = -48f + (float)random.NextDouble() * 113f;
+                var z = 82f + (float)random.NextDouble() * 59f;
+                if (Mathf.Abs(x - 20f) < 4.5f) continue;
+                var height = 0.20f + (float)random.NextDouble() * 0.38f;
+                var width = 0.045f + (float)random.NextDouble() * 0.045f;
+                var center = new Vector3(x, 0.075f, z);
+                AddGrassBlade(vertices, triangles, center, height, width, (float)random.NextDouble() * 0.8f);
+                AddGrassBlade(vertices, triangles, center, height * 0.82f, width,
+                    Mathf.PI * 0.5f + (float)random.NextDouble() * 0.8f);
+            }
+            CreateCombinedMesh(parent, "North meadow • combined grass tufts", vertices, triangles, _grass);
+        }
+
+        private static void AddGrassBlade(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 center, float height, float width, float angle)
+        {
+            var start = vertices.Count;
+            var direction = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+            var lean = new Vector3(-direction.z, 0f, direction.x) * (width * 0.65f)
+                + direction * (width * 0.45f);
+            var half = direction * width;
+            vertices.Add(center - half);
+            vertices.Add(center + half);
+            vertices.Add(center + lean + Vector3.up * height);
+            // Double-sided grass planes are visible from both sides.
+            triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 1);
+            triangles.Add(start); triangles.Add(start + 1); triangles.Add(start + 2);
         }
 
         private static void BuildCropRows(Transform parent)
