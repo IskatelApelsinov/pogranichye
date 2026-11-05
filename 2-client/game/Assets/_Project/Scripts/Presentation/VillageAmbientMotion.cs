@@ -78,6 +78,84 @@ namespace Pogranichye.Client.Presentation
         }
     }
 
+    /// <summary>
+    /// Small decorative yard bird. Its movement is local presentation only and is not a networked animal entity.
+    /// </summary>
+    public sealed class VillageChickenMotion : MonoBehaviour
+    {
+        private System.Random _random;
+        private Transform _body;
+        private Transform _head;
+        private Transform _leftLeg;
+        private Transform _rightLeg;
+        private Vector3 _bodyRest;
+        private Quaternion _headRest;
+        private Vector3 _target;
+        private float _speed;
+        private float _phase;
+        private float _pause;
+
+        public void Initialize(Transform body, Transform head, Transform leftLeg, Transform rightLeg,
+            int seed, float wanderRadius = 1.65f)
+        {
+            _random = new System.Random(seed);
+            _body = body;
+            _head = head;
+            _leftLeg = leftLeg;
+            _rightLeg = rightLeg;
+            _bodyRest = body != null ? body.localPosition : Vector3.zero;
+            _headRest = head != null ? head.localRotation : Quaternion.identity;
+            _phase = (float)_random.NextDouble() * Mathf.PI * 2f;
+            PickTarget(wanderRadius);
+        }
+
+        private void PickTarget(float radius)
+        {
+            if (_random == null) return;
+            var angle = _random.NextDouble() * Mathf.PI * 2.0;
+            var distance = 0.35 + _random.NextDouble() * Mathf.Max(0.1, radius);
+            _target = new Vector3((float)System.Math.Cos(angle) * (float)distance, 0f,
+                (float)System.Math.Sin(angle) * (float)distance);
+            _speed = 0.38f + (float)_random.NextDouble() * 0.28f;
+            _pause = 0.45f + (float)_random.NextDouble() * 1.7f;
+        }
+
+        private void Update()
+        {
+            if (_random == null) return;
+            var position = transform.localPosition;
+            var delta = _target - position;
+            if (delta.sqrMagnitude > 0.025f)
+            {
+                var direction = delta.normalized;
+                transform.localPosition = Vector3.MoveTowards(position, _target, _speed * Time.deltaTime);
+                var look = Quaternion.LookRotation(direction, Vector3.up);
+                transform.localRotation = Quaternion.Slerp(transform.localRotation, look,
+                    Mathf.Clamp01(Time.deltaTime * 5f));
+            }
+            else if (_pause > 0f)
+            {
+                _pause -= Time.deltaTime;
+            }
+            else
+            {
+                PickTarget(1.65f);
+            }
+
+            var moving = delta.sqrMagnitude > 0.025f;
+            var gait = Mathf.Sin(Time.time * 13f + _phase);
+            if (_body != null)
+                _body.localPosition = _bodyRest + Vector3.up * (moving ? Mathf.Abs(gait) * 0.025f : 0.008f * Mathf.Sin(Time.time * 2f + _phase));
+            if (_head != null)
+            {
+                var peck = moving ? 2.5f : Mathf.Max(0f, Mathf.Sin(Time.time * 2.1f + _phase)) * 17f;
+                _head.localRotation = _headRest * Quaternion.Euler(peck, 0f, 0f);
+            }
+            if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(0f, 0f, moving ? gait * 22f : 0f);
+            if (_rightLeg != null) _rightLeg.localRotation = Quaternion.Euler(0f, 0f, moving ? -gait * 22f : 0f);
+        }
+    }
+
     /// <summary>Very slow UV drift gives the decorative creek a readable current without moving gameplay objects.</summary>
     public sealed class CreekWaterDrift : MonoBehaviour
     {
