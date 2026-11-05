@@ -19,6 +19,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _straw;
         private static Material _scarecrowCloth;
         private static Material _grass;
+        private static Material _stone;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
@@ -36,6 +37,7 @@ namespace Pogranichye.Client.Presentation
             _straw = MakeTexturedMaterial("Farm straw • dry stalks", new Color(0.69f, 0.53f, 0.24f), 3, 2f, 2f);
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
+            _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
@@ -492,11 +494,57 @@ namespace Pogranichye.Client.Presentation
             var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
                 new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
                 new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
             var roofB = Create("Roof slope east", PrimitiveType.Cube, root,
                 new Vector3(width * 0.25f, wallHeight + 0.45f, 0f),
                 new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+
+            // Close the triangular roof ends so the building reads as a complete timber house.
+            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, -1f);
+            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, 1f);
+            var ridge = Create("Roof ridge timber", PrimitiveType.Cylinder, root,
+                new Vector3(0f, wallHeight + width * 0.1335f, 0f),
+                new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
+            ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            if (building.Kind == "tavern" || building.Kind == "smithy")
+            {
+                var chimney = Create("Stone chimney stack", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.28f, wallHeight + 0.92f, depth * 0.18f),
+                    new Vector3(0.78f, 1.85f, 0.82f), _stone, false);
+                Create("Chimney crown", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.28f, wallHeight + 1.88f, depth * 0.18f),
+                    new Vector3(0.98f, 0.16f, 1.02f), _trunk, false);
+            }
+        }
+
+        private static void CreateGableEnd(Transform parent, float width, float depth,
+            float wallHeight, float peakHeight, float side)
+        {
+            var z = side * (depth * 0.5f - 0.10f);
+            var mesh = new Mesh { name = "Low-poly timber gable" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-width * 0.5f + 0.12f, wallHeight, z),
+                new Vector3(width * 0.5f - 0.12f, wallHeight, z),
+                new Vector3(0f, peakHeight, z)
+            };
+            mesh.triangles = new[] { 0, 1, 2, 2, 1, 0 };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var gable = new GameObject("Timber gable end");
+            gable.transform.SetParent(parent, false);
+            gable.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = gable.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _timber;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+
+            // Dark half-timber braces form a visible truss beneath the roof peak.
+            Create("Gable king post", PrimitiveType.Cube, parent,
+                new Vector3(0f, wallHeight + (peakHeight - wallHeight) * 0.48f, z - side * 0.04f),
+                new Vector3(0.13f, peakHeight - wallHeight, 0.12f), _trunk, false);
         }
 
         private static void AddRoad(Transform parent, Vector2 start, Vector2 end, float width)
