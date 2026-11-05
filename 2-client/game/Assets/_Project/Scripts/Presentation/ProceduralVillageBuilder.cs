@@ -156,7 +156,9 @@ namespace Pogranichye.Client.Presentation
             PlaceLayoutMarker(village, "POI • Таверна • поговорить", -33f, 12f);
             PlaceLayoutMarker(village, "POI • Кузница • работать", 29f, 14f);
             PlaceLayoutMarker(village, "POI • Рынок • поесть", 1f, 4f);
-            PlaceLayoutObject(village, "Fishing dock", 0f, -73f);
+            PlaceLayoutObject(village, "Fishing dock", 14f, -74f);
+            PlaceLayoutBuilding(village, "Outlying crop field", 70f, -20f, 2f, 2f);
+            PlaceLayoutObject(village, "Old windmill", -72f, 48f);
             
             // v2 has four authoritative house footprints; retire extra presentation-only lane homes.
             var extra = village.Find("North lane cottage");
@@ -1541,7 +1543,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(-0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
             CreatePrimitive("Barn double door right", PrimitiveType.Cube, barn,
                 new Vector3(0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
-            BuildFence(root, new Vector3(-20f, 0f, -17f), 8, 0.65f);
+            BuildFence(root, new Vector3(-2f, 0f, 30f), 8, 0.65f);
 
             var mill = new GameObject("Old windmill").transform;
             mill.SetParent(root, false);
@@ -1867,9 +1869,8 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildNorthernResidentialLane(Transform root, VillageAmbientMotion ambient)
         {
-            // A residential spur grows the settlement northward while staying inside the current
-            // 30 m server scene boundary. These are visual buildings only until shared navigation
-            // and collision footprints are introduced by the versioned settlement layout.
+            // A residential spur provides street dressing; authoritative building footprints are
+            // aligned to Layout v2 in AlignBuildingsToServerLayout below.
             var westLane = CreatePrimitive("North lane • west branch", PrimitiveType.Cube, root,
                 new Vector3(-4.2f, 0.028f, 13.0f), new Vector3(1.65f, 0.055f, 12.5f), _pathMaterial);
             westLane.transform.rotation = Quaternion.Euler(0f, -28f, 0f);
