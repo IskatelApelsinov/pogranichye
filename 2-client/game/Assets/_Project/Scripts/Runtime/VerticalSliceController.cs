@@ -1029,6 +1029,7 @@ namespace Pogranichye.Client
                 _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
                 _createdCameraRig = true;
             }
+            _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
 
             if (FindObjectOfType<Light>() == null)
             {
