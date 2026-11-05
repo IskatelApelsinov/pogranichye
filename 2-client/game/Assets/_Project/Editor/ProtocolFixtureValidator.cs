@@ -32,9 +32,17 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
                 if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count == 0 || frame.Place.Neighbors[0].Position == null)
                     throw new FormatException("The shared v1.1 fixture must include a positioned neighbor.");
+                if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null)
+                    throw new FormatException("The shared v1.7 fixture must include inventory and world data.");
+                if (frame.Me.Desire == null || frame.Place.BeerPrice <= 0)
+                    throw new FormatException("The shared v1.7 fixture must include desire and tavern price data.");
+                if (!frame.Place.Neighbors[0].Controlled || string.IsNullOrEmpty(frame.Place.Neighbors[0].Want))
+                    throw new FormatException("The shared fixture must map neighbors[].player and neighbors[].want.");
+                if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null)
+                    throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
 
                 ValidateNegativeCases();
-                Debug.Log($"v1.1 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
+                Debug.Log($"v1.7 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
             }
             catch (Exception ex)
             {
