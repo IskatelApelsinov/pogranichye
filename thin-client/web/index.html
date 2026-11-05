@@ -108,6 +108,22 @@
   <b class="sub">рядом живут</b>
   <div id="neighbors"></div>
  </div>
+
+ <div class="card" id="dialog" style="display:none;border-color:#c9a86a">
+  <div><b id="dlgwho">—</b> <span class="sub">говорит:</span></div>
+  <div id="dlgline" style="margin:6px 0;color:#ead9b0">…</div>
+  <div class="acts" id="dlgopts"></div>
+  <button onclick="send({op:'endtalk'})" style="width:auto;margin-top:6px;padding:3px 10px">Отойти</button>
+ </div>
+
+ <div class="card" id="invite" style="display:none;border-color:#d3a06a;background:#4a3f2c">
+  <div><b id="invwho">—</b> <span class="sub">зовёт выпить вместе</span></div>
+  <div class="acts" style="margin-top:6px">
+   <button class="primary" style="width:auto" onclick="send({op:'accept'})">🍻 Принять</button>
+   <button style="width:auto" onclick="send({op:'declinedrink'})">Отказаться</button>
+  </div>
+ </div>
+
  <button id="leave" style="width:100%;margin-bottom:24px">Выйти (тело вернётся под управление мира)</button>
 </div>
 
@@ -143,7 +159,8 @@ async function connect(){
  ws.onclose=()=>{ if(token){ $('err').textContent='связь прервалась'; } };
  ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); };
 }
-function goal(g){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({op:'goal',goal:g})); }
+function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({v:1},o))); }
+function goal(g){ send({op:'goal',goal:g}); }
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
 // --- ходьба: клавиши задают направление, шлём op:"move" с растущим seq и реальным dt ---
@@ -274,16 +291,27 @@ function render(s){
    const neighborList=$('neighbors');
    neighborList.replaceChildren();
    const nearby=Array.isArray(s.place.neighbors)?s.place.neighbors:[];
+   const myp=me.pos||{x:0,y:0};
    if(nearby.length===0){
-     const empty=document.createElement('div');
-     empty.className='sub';
-     empty.textContent='никого рядом';
-     neighborList.appendChild(empty);
+     const empty=document.createElement('div'); empty.className='sub';
+     empty.textContent='никого рядом'; neighborList.appendChild(empty);
    } else {
-     nearby.forEach(()=>{
-       const row=document.createElement('div');
-       row.className='nb';
-       row.textContent='житель';
+     nearby.forEach(n=>{
+       const row=document.createElement('div'); row.className='nb';
+       const who=n.known?(n.name||'житель'):(n.desc||'житель');
+       const label=document.createElement('span');
+       label.innerHTML=(n.known?'<b>'+who+'</b>':who)+' <span class="sub">— '+(n.act||'')+'</span>';
+       row.appendChild(label);
+       // рядом ли (чтобы заговорить/позвать)
+       const close = n.pos && dist(myp.x,myp.y,n.pos.x,n.pos.y)<=8;
+       if(close && !me.talk){
+         const talkb=document.createElement('button'); talkb.textContent='💬';
+         talkb.title='заговорить'; talkb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
+         talkb.onclick=()=>send({op:'talk',target:n.id}); row.appendChild(talkb);
+         const invb=document.createElement('button'); invb.textContent='🍻';
+         invb.title='позвать выпить (игрока)'; invb.style.cssText='width:auto;padding:2px 8px;margin-left:4px';
+         invb.onclick=()=>send({op:'invite',target:n.id}); row.appendChild(invb);
+       }
        neighborList.appendChild(row);
      });
    }
@@ -298,6 +326,21 @@ function render(s){
      else if(beer<1) tmsg('пиво кончилось');
    }
  }
+ // разговор с жителем: реплика собеседника + кнопки ответов
+ const talk=me.talk;
+ if(talk){
+   $('dialog').style.display='';
+   $('dlgwho').textContent = talk.who + (talk.known?'':' · незнакомец');
+   $('dlgline').textContent = talk.line || '…';
+   const opts=$('dlgopts'); opts.replaceChildren();
+   (talk.options||[]).forEach(o=>{ const b=document.createElement('button');
+     b.textContent=o.text; b.style.cssText='width:auto';
+     b.onclick=()=>send({op:'say',line:o.id}); opts.appendChild(b); });
+ } else $('dialog').style.display='none';
+ // приглашение выпить от другого игрока
+ const inv=me.invite_from;
+ if(inv){ $('invite').style.display=''; $('invwho').textContent=inv.who; }
+ else $('invite').style.display='none';
  drawScene(s);
 }
 </script>

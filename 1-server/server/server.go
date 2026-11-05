@@ -182,6 +182,8 @@ func (s *Server) release(cid core.ID, sid uint64) {
 		if m := core.Mind(e); m != nil {
 			m.GoalUntil = 0 // отпустил тело → AI снова решает (лестница присутствия)
 		}
+		sim.ClearCoDrink(s.world, e) // снять приглашение выпить с ушедшего и его партнёра
+		sim.EndTalk(e)               // закрыть разговор
 	}
 }
 
@@ -264,6 +266,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		ReqID string `json:"reqid"`
 		// действия v1.3: рубка/рыбалка/магия — op:"act" с action
 		Action string `json:"action"`
+		// социальное v1.4: разговор/знакомство/совместное питьё
+		Target string `json:"target"` // id собеседника/партнёра (uint64 строкой)
+		Line   string `json:"line"`   // выбранная реплика
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -317,7 +322,52 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			}
 		}
 		s.mu.Unlock()
+	case "talk": // заговорить с жителем рядом (v1.4)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.StartTalk(s.world, e, parseID(in.Target))
+		}
+		s.mu.Unlock()
+	case "say": // выбрать реплику в разговоре (знакомство/угощение)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Say(s.world, e, in.Line)
+		}
+		s.mu.Unlock()
+	case "endtalk":
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.EndTalk(e)
+		}
+		s.mu.Unlock()
+	case "invite": // позвать другого ИГРОКА выпить вместе
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.InviteCoDrink(s.world, e, parseID(in.Target), func(id core.ID) bool { return s.ctl[id] != 0 })
+		}
+		s.mu.Unlock()
+	case "accept": // принять приглашение выпить
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.AcceptCoDrink(s.world, e)
+		}
+		s.mu.Unlock()
+	case "declinedrink": // отклонить/отменить приглашение
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.ClearCoDrink(s.world, e)
+		}
+		s.mu.Unlock()
 	}
+}
+
+// parseID — id собеседника из строки кадра (uint64) в core.ID; 0 при ошибке.
+func parseID(sid string) core.ID {
+	n, err := strconv.ParseUint(sid, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return core.ID(n)
 }
 
 // stateJSON собирает картину вокруг персонажа для клиента.
@@ -352,6 +402,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash": meStash(e),
 			"pos":   mePos(e), // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
+			"talk":  meTalk(s.world, e),   // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
+			"invite_from": meInvite(s.world, e), // кто зовёт выпить вместе (co-drink, v1.4)
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -367,8 +419,15 @@ func (s *Server) stateJSON(cid core.ID) string {
 					if oi := core.Ident(o); oi != nil {
 						nx, ny, nf := neighborPos(o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
 						om := core.Mind(o)
+						// знакомство (v1.4): имя видно только знакомым; иначе аноним + обезличенное desc
+						known := sim.Knows(e, o.ID)
+						shownName := ""
+						if known {
+							shownName = oi.Name
+						}
 						neighbors = append(neighbors, map[string]any{
-							"id": eid(o.ID), "name": oi.Name, "role": oi.Role, "act": om.LastAct,
+							"id": eid(o.ID), "name": shownName, "known": known,
+							"desc": sim.DescFor(oi.Role), "role": oi.Role, "act": om.LastAct,
 							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
 						n++
@@ -389,6 +448,54 @@ func (s *Server) stateJSON(cid core.ID) string {
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+// meTalk — текущий разговор игрока для кадра: с кем, что собеседник сказал, доступные реплики.
+// nil, если игрок ни с кем не говорит. Имя собеседника — только если знаком, иначе обезличенное desc.
+func meTalk(w *core.World, e *core.Entity) any {
+	t := sim.Talk(e)
+	if t == nil || t.Stage == "" {
+		return nil
+	}
+	tgt := w.Get(t.With)
+	if tgt == nil {
+		return nil
+	}
+	known := sim.Knows(e, t.With)
+	who := ""
+	if oi := core.Ident(tgt); oi != nil {
+		if known {
+			who = oi.Name
+		} else {
+			who = sim.DescFor(oi.Role)
+		}
+	}
+	opts := []map[string]any{}
+	for _, o := range sim.TalkOptionsFor(e, tgt) {
+		opts = append(opts, map[string]any{"id": o.ID, "text": o.Text})
+	}
+	return map[string]any{"with": eid(t.With), "who": who, "known": known, "line": t.Line, "options": opts}
+}
+
+// meInvite — кто зовёт игрока выпить вместе (co-drink); nil если нет приглашения. Имя/описание зовущего.
+func meInvite(w *core.World, e *core.Entity) any {
+	c := sim.CoDrink(e)
+	if c == nil || c.State != "in" {
+		return nil
+	}
+	a := w.Get(c.Partner)
+	if a == nil {
+		return nil
+	}
+	who := "игрок"
+	if oi := core.Ident(a); oi != nil {
+		if sim.Knows(e, a.ID) {
+			who = oi.Name
+		} else {
+			who = sim.DescFor(oi.Role)
+		}
+	}
+	return map[string]any{"from": eid(c.Partner), "who": who}
 }
 
 // meMug — держит ли игрок кружку (для показа кружки/руки на клиенте только по подтверждению).
