@@ -160,6 +160,54 @@ namespace Pogranichye.Client.Presentation
         }
     }
 
+    /// <summary>
+    /// Lightweight forge sparks made from a few reusable meshes; presentation-only and independent of gameplay actions.
+    /// </summary>
+    public sealed class ForgeEmberMotion : MonoBehaviour
+    {
+        private Transform[] _embers;
+        private float[] _phases;
+        private float[] _speeds;
+        private Vector3 _origin;
+
+        public void Initialize(Transform[] embers, Vector3 origin, int seed)
+        {
+            _embers = embers;
+            _origin = origin;
+            if (_embers == null) return;
+
+            var random = new System.Random(seed);
+            _phases = new float[_embers.Length];
+            _speeds = new float[_embers.Length];
+            for (var i = 0; i < _embers.Length; i++)
+            {
+                _phases[i] = (float)random.NextDouble();
+                _speeds[i] = 0.55f + (float)random.NextDouble() * 0.65f;
+                if (_embers[i] != null) _embers[i].localPosition = _origin;
+            }
+        }
+
+        private void Update()
+        {
+            if (_embers == null || _phases == null || _speeds == null) return;
+            var time = Time.time;
+            for (var i = 0; i < _embers.Length; i++)
+            {
+                var ember = _embers[i];
+                if (ember == null) continue;
+
+                var cycle = Mathf.Repeat(time * _speeds[i] + _phases[i], 1f);
+                var drift = time * (1.1f + i * 0.17f) + _phases[i] * Mathf.PI * 2f;
+                ember.localPosition = _origin + new Vector3(
+                    Mathf.Sin(drift) * 0.075f,
+                    cycle * 0.52f,
+                    Mathf.Cos(drift * 0.83f) * 0.045f);
+                var size = 0.018f + Mathf.Sin(cycle * Mathf.PI) * 0.025f;
+                ember.localScale = Vector3.one * size;
+            }
+        }
+    }
+
     /// <summary>Very slow UV drift gives the decorative creek a readable current without moving gameplay objects.</summary>
     public sealed class CreekWaterDrift : MonoBehaviour
     {

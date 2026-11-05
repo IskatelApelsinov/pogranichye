@@ -1231,6 +1231,27 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(1.55f, 0.92f, -1.7f), new Vector3(0.16f, 0.12f, 0.16f), _metalMaterial);
             CreatePrimitive("Forge glow", PrimitiveType.Sphere, smithy,
                 new Vector3(-1.1f, 1.02f, -1.45f), new Vector3(0.48f, 0.32f, 0.22f), _fireMaterial);
+
+            // Small emissive flecks rise from the forge without relying on the Particle System module.
+            var embers = new Transform[4];
+            for (var i = 0; i < embers.Length; i++)
+            {
+                embers[i] = CreatePrimitive("Forge ember", PrimitiveType.Sphere, smithy,
+                    new Vector3(-1.1f, 1.12f, -1.45f), Vector3.one * 0.035f, _fireCoreMaterial).transform;
+            }
+            smithy.gameObject.AddComponent<ForgeEmberMotion>()
+                .Initialize(embers, new Vector3(-1.1f, 1.12f, -1.45f), 4817);
+
+            var forgeLightObject = new GameObject("Forge warm point light");
+            forgeLightObject.transform.SetParent(smithy, false);
+            forgeLightObject.transform.localPosition = new Vector3(-1.1f, 1.15f, -1.35f);
+            var forgeLight = forgeLightObject.AddComponent<Light>();
+            forgeLight.type = LightType.Point;
+            forgeLight.range = 5.2f;
+            forgeLight.intensity = 0.78f;
+            forgeLight.color = new Color(1f, 0.36f, 0.12f);
+            var ambient = root.GetComponent<VillageAmbientMotion>();
+            if (ambient != null) ambient.RegisterLight(forgeLight, 0.28f, 3.4f);
             CreateSign(smithy, "КУЗНИЦА", new Vector3(0, 1.8f, -1.58f), 0.75f);
             CreatePoiMarker(root, "Кузница • работать", position + new Vector3(0, 0.08f, -8f), new Color(0.55f, 0.55f, 0.58f), "work");
         }
