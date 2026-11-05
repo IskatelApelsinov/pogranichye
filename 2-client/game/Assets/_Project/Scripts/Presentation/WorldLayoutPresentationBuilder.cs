@@ -1,5 +1,6 @@
 using System;
 using Pogranichye.Client.Networking.Protocol;
+using UnityEngine.Rendering;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -71,6 +72,10 @@ namespace Pogranichye.Client.Presentation
             Create("North meadow", PrimitiveType.Cube, world, new Vector3(8f, 0.025f, 112f),
                 new Vector3(115f, 0.10f, 64f), _field, false);
 
+            // Long crop strips make the eastern agricultural zone read as cultivated land.
+            // They are presentation-only: no colliders, gameplay harvest state or navigation data.
+            BuildCropRows(world);
+
             // The same roads connect the server POIs: woods, fields, mine and river bridge.
             if (layout.Pois.TryGetValue("woods", out var woods))
                 AddRoad(world, Vector2.zero, new Vector2((float)woods.X, (float)woods.Y), 3.2f);
@@ -98,6 +103,85 @@ namespace Pogranichye.Client.Presentation
                 var crown = Create("Far woodland crown", PrimitiveType.Sphere, world,
                     new Vector3(x, height * 0.82f, z), new Vector3(2.2f, height * 0.55f, 2.2f), _forest, false);
             }
+        }
+
+        private static void BuildCropRows(Transform parent)
+        {
+            var random = new System.Random(73191);
+            var vertices = new System.Collections.Generic.List<Vector3>(12000);
+            var triangles = new System.Collections.Generic.List<int>(18000);
+
+            // The field occupies the east side of the current 300 x 300 m layout.
+            // Leave a broad buffer around the river and keep all crop geometry inside world bounds.
+            const float firstRowX = 68f;
+            const float lastRowX = 140f;
+            const float rowSpacing = 4.8f;
+            for (var x = firstRowX; x <= lastRowX; x += rowSpacing)
+            {
+                AddCropSegment(parent, vertices, triangles, random, x, -137f, -98f);
+                AddCropSegment(parent, vertices, triangles, random, x, -68f, 137f);
+            }
+
+            var mesh = new Mesh { name = "Layout v2 • cultivated grain rows" };
+            mesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var crops = new GameObject("Cultivated grain • combined low-poly rows");
+            crops.transform.SetParent(parent, false);
+            crops.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = crops.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _field;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static void AddCropSegment(Transform parent,
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            System.Random random, float x, float zStart, float zEnd)
+        {
+            var length = zEnd - zStart;
+            if (length <= 0f) return;
+
+            // Slightly raised, dark earth ridges create visible alternating furrows.
+            var ridge = Create("Cultivated furrow", PrimitiveType.Cube, parent,
+                new Vector3(x, 0.085f, (zStart + zEnd) * 0.5f),
+                new Vector3(0.72f, 0.10f, length), _trunk, false);
+            ridge.isStatic = true;
+
+            for (var z = zStart + 1.8f; z < zEnd - 1f; z += 3.1f)
+            {
+                var center = new Vector3(x + ((float)random.NextDouble() - 0.5f) * 0.34f,
+                    0.16f, z + ((float)random.NextDouble() - 0.5f) * 0.8f);
+                var height = 0.38f + (float)random.NextDouble() * 0.38f;
+                var width = 0.10f + (float)random.NextDouble() * 0.07f;
+                AddCropBillboard(vertices, triangles, center, height, width, true);
+                AddCropBillboard(vertices, triangles, center, height * 0.92f, width, false);
+            }
+        }
+
+        private static void AddCropBillboard(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 center, float height, float width, bool alongX)
+        {
+            var start = vertices.Count;
+            var half = alongX ? new Vector3(width, 0f, 0f) : new Vector3(0f, 0f, width);
+            var lean = alongX ? new Vector3(width * 0.18f, 0f, width * 0.12f)
+                              : new Vector3(-width * 0.12f, 0f, width * 0.18f);
+            vertices.Add(center - half);
+            vertices.Add(center + half);
+            vertices.Add(center + lean + Vector3.up * height);
+            vertices.Add(center + lean * 0.35f + Vector3.up * (height * 0.55f));
+
+            // Double-sided quads remain visible from both sides of the field rows.
+            triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 1);
+            triangles.Add(start); triangles.Add(start + 3); triangles.Add(start + 2);
+            triangles.Add(start + 1); triangles.Add(start + 2); triangles.Add(start);
+            triangles.Add(start + 2); triangles.Add(start + 3); triangles.Add(start);
         }
 
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
