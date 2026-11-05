@@ -1528,8 +1528,49 @@ namespace Pogranichye.Client.Presentation
             field.SetParent(root, false);
             field.position = new Vector3(12.5f, 0f, -14.5f);
 
-            CreatePrimitive("Field soil patch", PrimitiveType.Cube, field,
-                new Vector3(0f, 0.035f, 0f), new Vector3(7.8f, 0.07f, 5.6f), _pathMaterial);
+            // The cultivated earth has a worn, irregular perimeter instead of a hard rectangular slab.
+            // A shallow fan mesh keeps the soil flush with the meadow and remains presentation-only.
+            const int fieldEdgeSegments = 4;
+            const int fieldSides = fieldEdgeSegments * 4;
+            var fieldVertices = new Vector3[fieldSides + 1];
+            var fieldTriangles = new int[fieldSides * 3];
+            fieldVertices[0] = new Vector3(0f, 0.035f, 0f);
+            var fieldRandom = new System.Random(StableSeed("outer-field-soil"));
+            for (var edge = 0; edge < 4; edge++)
+            for (var segment = 0; segment < fieldEdgeSegments; segment++)
+            {
+                var t = segment / (float)fieldEdgeSegments;
+                float x, z;
+                if (edge == 0) { x = Mathf.Lerp(-3.9f, 3.9f, t); z = -2.8f; }
+                else if (edge == 1) { x = 3.9f; z = Mathf.Lerp(-2.8f, 2.8f, t); }
+                else if (edge == 2) { x = Mathf.Lerp(3.9f, -3.9f, t); z = 2.8f; }
+                else { x = -3.9f; z = Mathf.Lerp(2.8f, -2.8f, t); }
+
+                var inset = (float)fieldRandom.NextDouble() * 0.22f;
+                x += (float)fieldRandom.NextDouble() * 0.18f - 0.09f;
+                z += (float)fieldRandom.NextDouble() * 0.18f - 0.09f;
+                if (edge == 0) z += inset;
+                else if (edge == 1) x -= inset;
+                else if (edge == 2) z -= inset;
+                else x += inset;
+                fieldVertices[1 + edge * fieldEdgeSegments + segment] = new Vector3(x, 0.035f, z);
+            }
+
+            for (var i = 0; i < fieldSides; i++)
+            {
+                var triangle = i * 3;
+                fieldTriangles[triangle] = 0;
+                fieldTriangles[triangle + 1] = (i + 1) % fieldSides + 1;
+                fieldTriangles[triangle + 2] = i + 1;
+            }
+
+            var fieldSoilMesh = new Mesh { name = "Cultivated field • worn soil edge" };
+            fieldSoilMesh.vertices = fieldVertices;
+            fieldSoilMesh.triangles = fieldTriangles;
+            fieldSoilMesh.RecalculateNormals();
+            fieldSoilMesh.RecalculateBounds();
+            var fieldSoil = CreateMeshPart("Field soil patch", field, fieldSoilMesh, _pathMaterial);
+            fieldSoil.isStatic = true;
             for (var row = 0; row < 5; row++)
             {
                 var z = -2.0f + row * 1.0f;
