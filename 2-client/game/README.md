@@ -15,6 +15,13 @@
 
 This folder contains the Unity client scaffold for the stable v1 protocol.
 
+
+## World model — owner clarification (2026-11-06)
+
+**Canonical design: one persistent, continuous world divided into regions.** A region is not a separate world instance or an unreachable island. Regions organize geography, simulation load, biomes and streaming; the intended thick-client journey between them is physical travel through connected terrain, roads, bridges and passes. Teleport-style `op:travel` is currently a discrete settlement switch and must not be mistaken for the final thick-client world traversal model.
+
+The current 300×300 m Layout v2 is the playable local settlement area, not the size or coordinate system of the entire world. The global world-coordinate/region-boundary contract is still a server architecture task; do not claim that the current client already traverses the full world.
+
 ## Project target
 
 - Unity Editor: **6000.6.7f1**
