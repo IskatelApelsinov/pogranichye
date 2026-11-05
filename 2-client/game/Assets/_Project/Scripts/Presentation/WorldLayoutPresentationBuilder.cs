@@ -66,12 +66,16 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(115f, 0.10f, 64f), _field, false);
 
             // The same roads connect the server POIs: woods, fields, mine and river bridge.
-            AddRoad(world, new Vector2(0f, 0f), new Vector2(-95f, 10f), 3.2f);
-            AddRoad(world, new Vector2(0f, 0f), new Vector2(70f, -20f), 3.0f);
-            AddRoad(world, new Vector2(70f, -20f), new Vector2(90f, 40f), 2.5f);
-            AddRoad(world, new Vector2(0f, 0f), new Vector2(0f, -84f), 3.0f);
-            AddRoad(world, new Vector2(0f, 0f), new Vector2(20f, 0f), 2.8f);
-            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, 140f), 2.8f);
+            if (layout.Pois.TryGetValue("woods", out var woods))
+                AddRoad(world, Vector2.zero, new Vector2((float)woods.X, (float)woods.Y), 3.2f);
+            if (layout.Pois.TryGetValue("garden", out var garden))
+                AddRoad(world, Vector2.zero, new Vector2((float)garden.X, (float)garden.Y), 3.0f);
+            if (layout.Pois.TryGetValue("mine", out var mine) && garden != null)
+                AddRoad(world, new Vector2((float)garden.X, (float)garden.Y), new Vector2((float)mine.X, (float)mine.Y), 2.5f);
+            if (layout.Pois.TryGetValue("river", out var riverPoi))
+                AddRoad(world, Vector2.zero, new Vector2((float)riverPoi.X, (float)riverPoi.Y), 3.0f);
+            AddRoad(world, Vector2.zero, new Vector2(20f, 0f), 2.8f);
+            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, (float)layout.WorldHalf - 10f), 2.8f);
             var random = new System.Random(417);
             for (var i = 0; i < 72; i++)
             {
