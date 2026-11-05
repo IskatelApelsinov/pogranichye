@@ -70,7 +70,8 @@ namespace Pogranichye.Client.Presentation
             AddRoad(world, new Vector2(0f, 0f), new Vector2(70f, -20f), 3.0f);
             AddRoad(world, new Vector2(70f, -20f), new Vector2(90f, 40f), 2.5f);
             AddRoad(world, new Vector2(0f, 0f), new Vector2(0f, -84f), 3.0f);
-            AddRoad(world, new Vector2(0f, 0f), new Vector2(0f, 140f), 2.8f);
+            AddRoad(world, new Vector2(0f, 0f), new Vector2(20f, 0f), 2.8f);
+            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, 140f), 2.8f);
             var random = new System.Random(417);
             for (var i = 0; i < 72; i++)
             {
