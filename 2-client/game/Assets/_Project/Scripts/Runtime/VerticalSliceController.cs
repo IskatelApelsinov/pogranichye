@@ -93,6 +93,7 @@ namespace Pogranichye.Client
             while (_mainThread.TryDequeue(out var action)) action();
             if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
             if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
+            if (Input.GetKeyDown(KeyCode.F11)) ToggleFullscreen();
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
@@ -120,6 +121,7 @@ namespace Pogranichye.Client
             GUILayout.BeginArea(new Rect(24, 42, 406, 470));
             _hudScroll = GUILayout.BeginScrollView(_hudScroll, GUILayout.Width(406), GUILayout.Height(470));
             if (GUILayout.Button("Свернуть панель [F1]", GUILayout.Height(26))) _hudCollapsed = true;
+            if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(24))) ToggleFullscreen();
             GUILayout.Label("Сервер");
             GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
             serverUrl = GUILayout.TextField(serverUrl);
@@ -221,6 +223,13 @@ namespace Pogranichye.Client
             }
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+        }
+
+        private static void ToggleFullscreen()
+        {
+            var enable = !Screen.fullScreen;
+            Screen.fullScreenMode = enable ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+            Screen.fullScreen = enable;
         }
 
         private void DrawMovementDebugOverlay()
