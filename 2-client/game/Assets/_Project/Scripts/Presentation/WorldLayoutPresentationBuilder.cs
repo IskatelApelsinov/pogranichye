@@ -140,11 +140,11 @@ namespace Pogranichye.Client.Presentation
             {
                 var next = (side + 1) % trunkSides;
                 trunkTriangles.Add(trunkBase + side);
+                trunkTriangles.Add(trunkBase + trunkSides + next);
                 trunkTriangles.Add(trunkBase + next);
-                trunkTriangles.Add(trunkBase + trunkSides + next);
                 trunkTriangles.Add(trunkBase + side);
-                trunkTriangles.Add(trunkBase + trunkSides + next);
                 trunkTriangles.Add(trunkBase + trunkSides + side);
+                trunkTriangles.Add(trunkBase + trunkSides + next);
             }
 
             var tiers = 3;
@@ -171,11 +171,11 @@ namespace Pogranichye.Client.Presentation
                 {
                     var next = (side + 1) % sides;
                     canopyTriangles.Add(tierBase + side);
+                    canopyTriangles.Add(tierBase + sides + next);
                     canopyTriangles.Add(tierBase + next);
-                    canopyTriangles.Add(tierBase + sides + next);
                     canopyTriangles.Add(tierBase + side);
-                    canopyTriangles.Add(tierBase + sides + next);
                     canopyTriangles.Add(tierBase + sides + side);
+                    canopyTriangles.Add(tierBase + sides + next);
                 }
             }
         }
