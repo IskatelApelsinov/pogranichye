@@ -1037,8 +1037,10 @@ namespace Pogranichye.Client
             RenderSettings.fog = true;
             RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 72f;
-            RenderSettings.fogEndDistance = 235f;
+            // Keep the village readable while allowing the distant ridgeline (255–305 m)
+            // to remain visible beyond the 300×300 m settlement layout.
+            RenderSettings.fogStartDistance = 165f;
+            RenderSettings.fogEndDistance = 430f;
         }
 
         private void OnDestroy()
