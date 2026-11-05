@@ -71,7 +71,7 @@ namespace Pogranichye.Client.Presentation
 
             var label = _poi != null
                 ? _poi.Title + "  [E]"
-                : "Поговорить  [E]";
+                : "Поговорить с " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "жителем" : _npc.DisplayName) + "  [E]";
             var width = Mathf.Min(420f, Screen.width - 32f);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.72f, width, 34f);
             GUI.Box(rect, label);
