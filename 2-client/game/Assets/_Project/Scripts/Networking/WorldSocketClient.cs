@@ -55,6 +55,30 @@ namespace Pogranichye.Client.Networking
         }
 
 
+        public Task SendTalkAsync(string target, CancellationToken cancellationToken) =>
+            SendIntentAsync("talk", target, null, cancellationToken);
+
+        public Task SendSayAsync(string line, CancellationToken cancellationToken) =>
+            SendIntentAsync("say", null, line, cancellationToken);
+
+        public Task SendEndTalkAsync(CancellationToken cancellationToken) =>
+            SendIntentAsync("endtalk", null, null, cancellationToken);
+
+        public Task SendAcceptDrinkAsync(bool accept, CancellationToken cancellationToken) =>
+            SendIntentAsync(accept ? "accept" : "declinedrink", null, null, cancellationToken);
+
+        private async Task SendIntentAsync(string op, string target, string line, CancellationToken cancellationToken)
+        {
+            if (!IsConnected) throw new InvalidOperationException("WebSocket не подключён.");
+            var payload = new System.Collections.Generic.Dictionary<string, object> { ["v"] = 1, ["op"] = op };
+            if (!string.IsNullOrEmpty(target)) payload["target"] = target;
+            if (!string.IsNullOrEmpty(line)) payload["line"] = line;
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try { await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false); }
+            finally { _sendGate.Release(); }
+        }
+
         public async Task SendMoveAsync(float mx, float my, bool run, float face, float dt,
             long sequence, CancellationToken cancellationToken)
         {
