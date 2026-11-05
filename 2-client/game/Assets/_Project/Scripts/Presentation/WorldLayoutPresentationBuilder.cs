@@ -72,9 +72,13 @@ namespace Pogranichye.Client.Presentation
                 AddRoad(world, Vector2.zero, new Vector2((float)garden.X, (float)garden.Y), 3.0f);
             if (layout.Pois.TryGetValue("mine", out var mine) && garden != null)
                 AddRoad(world, new Vector2((float)garden.X, (float)garden.Y), new Vector2((float)mine.X, (float)mine.Y), 2.5f);
-            if (layout.Pois.TryGetValue("river", out var riverPoi))
-                AddRoad(world, Vector2.zero, new Vector2((float)riverPoi.X, (float)riverPoi.Y), 3.0f);
             AddRoad(world, Vector2.zero, new Vector2(20f, 0f), 2.8f);
+            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, -60f), 2.8f);
+            var bridgeCenter = new Vector2(
+                (float)((layout.River.BridgeX0 + layout.River.BridgeX1) * 0.5),
+                (float)((layout.River.Y0 + layout.River.Y1) * 0.5));
+            AddRoad(world, new Vector2(20f, -60f), bridgeCenter, 2.8f);
+            AddRoad(world, bridgeCenter, new Vector2(bridgeCenter.x, -110f), 2.8f);
             AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, (float)layout.WorldHalf - 10f), 2.8f);
             var random = new System.Random(417);
             for (var i = 0; i < 72; i++)
