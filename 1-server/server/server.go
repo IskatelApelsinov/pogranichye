@@ -37,6 +37,15 @@ type Server struct {
 }
 
 // New создаёт сервер: генерирует мир и службу аккаунтов.
+// SetTick задаёт темп мира (сколько реального времени на один игровой час). Для демо-профиля можно
+// замедлить, чтобы время суток читалось; ≤0 — оставить как есть. Движение НПС/мана считаются от этого
+// же dt, так что ходьба остаётся в реальном времени.
+func (s *Server) SetTick(d time.Duration) {
+	if d > 0 {
+		s.tickEach = d
+	}
+}
+
 func New(seed string, villages int, accPath string, secret []byte, webDir string) *Server {
 	w, hub := sim.Generate(seed, villages)
 	r := core.NewRunnerWith(hub, core.Clock{}, sim.Default()...)
@@ -429,6 +438,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 							"id": eid(o.ID), "name": shownName, "known": known,
 							"desc": sim.DescFor(oi.Role), "role": oi.Role, "act": om.LastAct,
 							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
+							"player":   s.ctl[o.ID] != 0, // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
 						n++
 					}
