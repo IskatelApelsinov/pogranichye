@@ -13,7 +13,9 @@
     "sex": "ж",
     "trait": "работящая",
     "origin": "здешняя",
-    "skills": { "farmer": 12.0 },
+    "skills": {
+      "farmer": 12
+    },
     "age": 42.4,
     "health": 100,
     "hunger": 64,
@@ -27,17 +29,47 @@
     "home": "none",
     "coins": 23.4,
     "debt": 0,
-    "wounds": { "leg": 3.0 },
+    "wounds": {
+      "leg": 3
+    },
     "bleeding": 0,
-    "stash": { "bread": 4 },
-    "pos": { "x": 0.0, "y": 0.0, "facing": 90, "stam": 1.0, "seq": 0 },
+    "stash": {
+      "bread": 4
+    },
+    "pos": {
+      "x": 0,
+      "y": 0,
+      "facing": 90,
+      "stam": 1,
+      "seq": 0
+    },
     "talk": null,
     "invite_from": null,
-    "social_event": null,
+    "social_event": {
+      "seq": 7,
+      "type": "treat",
+      "with": "43"
+    },
     "known_places": [],
     "desire": "в порядке",
-    "inv": { "items": { "axe": 1 }, "hand": "axe", "worn": { "body": "cloak" } },
-    "world": [ { "id": "2", "name": "Починок", "tier": "village", "x": 500.0, "y": 500.0 } ]
+    "inv": {
+      "items": {
+        "axe": 1
+      },
+      "hand": "axe",
+      "worn": {
+        "body": "cloak"
+      }
+    },
+    "world": [
+      {
+        "id": "2",
+        "name": "Починок",
+        "tier": "village",
+        "x": 500,
+        "y": 500
+      }
+    ]
   },
   "place": {
     "name": "Белогорье",
@@ -60,7 +92,11 @@
         "want": "при деле",
         "act_code": "rest_idle",
         "player": false,
-        "pos": { "x": 5.2, "y": -3.1, "facing": 210 }
+        "pos": {
+          "x": 5.2,
+          "y": -3.1,
+          "facing": 210
+        }
       }
     ]
   }
