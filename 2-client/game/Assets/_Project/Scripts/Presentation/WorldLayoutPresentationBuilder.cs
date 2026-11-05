@@ -56,8 +56,10 @@ namespace Pogranichye.Client.Presentation
                     collider.size = new Vector3(width, 4.7f, depth);
 
                     // Match visible mass to the authoritative obstruction footprint.
-                    if (b.Kind == "tavern" || b.Kind == "smithy" || b.Kind == "market")
-                        BuildFootprintBuilding(world, b, width, depth);
+                    // Every server-blocked building must have a matching visible mass.
+                    // Legacy house/granary meshes are intentionally retained as detail inside
+                    // these footprint-sized shells.
+                    BuildFootprintBuilding(world, b, width, depth);
                 }
             }
 
