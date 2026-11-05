@@ -48,7 +48,7 @@ namespace Pogranichye.Client.Presentation
             _groundMaterial = CreateMaterial("Ground • moss", Color.white);
             _groundTexture = MakeGroundTexture();
             _groundMaterial.mainTexture = _groundTexture;
-            _groundMaterial.mainTextureScale = new Vector2(80, 80);
+            _groundMaterial.mainTextureScale = new Vector2(200, 200);
             _pathTexture = MakeSurfaceTexture("Packed earth texture", 1);
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
             _pathMaterial.mainTexture = _pathTexture;
@@ -84,7 +84,7 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial.mainTextureScale = new Vector2(1.5f, 8f);
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
-                new Vector3(12, 1, 12), _groundMaterial);
+                new Vector3(30, 1, 30), _groundMaterial);
             ground.isStatic = true;
 
             CreatePrimitive("Village path", PrimitiveType.Cube, village, new Vector3(0, 0.025f, 0),
@@ -92,21 +92,22 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Cross path", PrimitiveType.Cube, village, new Vector3(0, 0.03f, 0),
                 new Vector3(22, 0.055f, 1.7f), _pathMaterial);
 
-            BuildHouse(village, "North cottage", new Vector3(-6, 0, 7), 0.2f);
-            BuildHouse(village, "East cottage", new Vector3(7, 0, 4), -0.25f);
-            BuildHouse(village, "West cottage", new Vector3(-8, 0, -5), 0.35f);
-            BuildTavern(village, new Vector3(1.5f, 0, 2.5f));
-            BuildBlacksmith(village, new Vector3(9f, 0, -4.5f));
-            BuildMarket(village, new Vector3(-4.5f, 0, -1.5f));
-            BuildGarden(village, new Vector3(6f, 0, -9f));
-            BuildWell(village, new Vector3(3.2f, 0, -2.4f));
+            BuildHouse(village, "North cottage", new Vector3(-34, 0, -25), 0.2f);
+            BuildHouse(village, "Granary", new Vector3(-2, 0, 36), -0.12f);
+            BuildHouse(village, "East cottage", new Vector3(12, 0, -31), -0.25f);
+            BuildHouse(village, "West cottage", new Vector3(-8, 0, -29), 0.35f);
+            BuildHouse(village, "South-east cottage", new Vector3(33, 0, -24), 0.15f);
+            BuildTavern(village, new Vector3(-33, 0, 20));
+            BuildBlacksmith(village, new Vector3(29f, 0, 22f));
+            BuildMarket(village, new Vector3(1f, 0, 11f));
+            BuildGarden(village, new Vector3(70f, 0, -20f));
+            BuildWell(village, new Vector3(0f, 0, -4f));
             BuildFence(village, new Vector3(0, 0, -13), 12, 0.5f);
             BuildBarrel(village, new Vector3(4.1f, 0, 7.0f), 0.85f);
             BuildBarrel(village, new Vector3(4.8f, 0, 7.0f), 0.72f);
             BuildWoodPile(village, new Vector3(-8.2f, 0, -2.4f));
             BuildHandCart(village, new Vector3(-6.2f, 0, -7.4f));
-            BuildCreekAndFootbridge(village);
-            BuildCreekBankVegetation(village);
+            // The server-owned south river and bridge are built from Layout v2 by WorldLayoutPresentationBuilder.
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
             BuildRuralLandscape(village, worldSeed);
@@ -145,6 +146,7 @@ namespace Pogranichye.Client.Presentation
             house.SetParent(root, false);
             house.position = position;
             house.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
+            house.localScale = new Vector3(3.4f, 1f, 3.4f);
             CreateCameraObstacle(house, "Camera collision • cottage", Vector3.zero, new Vector3(3.5f, 2.7f, 2.9f));
 
             // Stone plinth lifts the timber frame clear of the damp ground.
@@ -361,7 +363,7 @@ namespace Pogranichye.Client.Presentation
             var ambient = root.GetComponent<VillageAmbientMotion>();
             if (ambient != null) ambient.RegisterLight(warmLight, 0.08f, 2.0f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, -2.0f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(0f, 0.08f, -8.0f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 

@@ -25,6 +25,8 @@ namespace Pogranichye.Client.Presentation
         private float _lastNetworkTargetAt;
         private float _greetingRemaining;
         private float _drinkGestureRemaining;
+        private float _talkGestureRemaining;
+        private float _clinkGestureRemaining;
         private Transform _attentionTarget;
         private Transform _focusTarget;
         private Quaternion _headTargetRotation;
@@ -144,6 +146,18 @@ namespace Pogranichye.Client.Presentation
             _drinkGestureRemaining = 1.35f;
         }
 
+        public void PlayTalkGesture(Transform observer)
+        {
+            _talkGestureRemaining = 1.25f;
+            _attentionTarget = observer;
+        }
+
+        public void PlayClinkGesture()
+        {
+            _clinkGestureRemaining = 1.15f;
+            _drinkGestureRemaining = 1.15f;
+        }
+
         /// <summary>
         /// Sets the observer used for the NPC's attention and gaze presentation.
         /// </summary>
@@ -178,6 +192,10 @@ namespace Pogranichye.Client.Presentation
 
             if (_drinkGestureRemaining > 0f)
                 _drinkGestureRemaining = Mathf.Max(0f, _drinkGestureRemaining - Time.deltaTime);
+            if (_talkGestureRemaining > 0f)
+                _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
+            if (_clinkGestureRemaining > 0f)
+                _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
 
             var resting = _activity.Contains("rest") || _activity.Contains("отдых");
             var working = _activity.Contains("work") || _activity.Contains("работ");
@@ -204,6 +222,18 @@ namespace Pogranichye.Client.Presentation
             var rightArmAngle = walking ? -swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : -idleSway;
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
             if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
+            if (_talkGestureRemaining > 0f && !walking)
+            {
+                var emphasis = Mathf.Sin((1.25f - _talkGestureRemaining) * 8f);
+                leftArmAngle = 18f + emphasis * 10f;
+                rightArmAngle = -24f - emphasis * 14f;
+            }
+            if (_clinkGestureRemaining > 0f && !walking)
+            {
+                var toast = Mathf.Sin((1.15f - _clinkGestureRemaining) * 9f);
+                rightArmAngle = -104f + toast * 7f;
+                leftArmAngle = -72f + toast * 5f;
+            }
             if (resting) { leftArmAngle = 8f; rightArmAngle = -8f; }
 
             var rightArmYaw = 0f;

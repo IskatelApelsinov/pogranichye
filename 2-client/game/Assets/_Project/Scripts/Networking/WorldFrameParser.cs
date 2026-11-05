@@ -111,8 +111,8 @@ namespace Pogranichye.Client.Networking
             var xValue = token["x"].Value<double>();
             var yValue = token["y"].Value<double>();
             var facingValue = token["facing"].Value<double>();
-            if (!IsFinite(xValue) || !IsFinite(yValue) || Math.Abs(xValue) > 30.001d || Math.Abs(yValue) > 30.001d)
-                throw new FormatException(fieldName + " координаты должны быть конечными и находиться в границах площадки ±30 м.");
+            if (!IsFinite(xValue) || !IsFinite(yValue) || Math.Abs(xValue) > 150.001d || Math.Abs(yValue) > 150.001d)
+                throw new FormatException(fieldName + " координаты должны быть конечными и находиться в границах мира ±150 м.");
             if (!IsFinite(facingValue) || facingValue < 0d || facingValue >= 360d)
                 throw new FormatException(fieldName + ".facing должен быть конечным числом в диапазоне [0, 360).");
 

@@ -4,8 +4,7 @@ using UnityEngine;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Selectable nearby NPC. Interaction currently requests only generic socialize;
-    /// the greeting gesture is local presentation feedback, not a dialogue result.
+    /// Selectable nearby NPC. Identity and dialogue feedback are driven by server snapshots.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public sealed class WorldNpc : MonoBehaviour
@@ -17,7 +16,6 @@ namespace Pogranichye.Client.Presentation
         private MaterialPropertyBlock _block;
         private EntityMotion _motion;
         private bool _focused;
-        private float _nextGreetingAt;
 
         public static event Action<WorldNpc> Selected;
         public ulong EntityId { get; private set; }
@@ -41,13 +39,24 @@ namespace Pogranichye.Client.Presentation
         {
             if (!enabled) return;
 
-            if (Time.unscaledTime >= _nextGreetingAt)
-            {
-                _nextGreetingAt = Time.unscaledTime + 1.2f;
-                if (_motion != null) _motion.PlayGreeting(Camera.main != null ? Camera.main.transform : null);
-            }
-
             Selected?.Invoke(this);
+        }
+
+        public void SetServerIdentity(bool known, string name, string description)
+        {
+            DisplayName = known && !string.IsNullOrWhiteSpace(name)
+                ? name
+                : (string.IsNullOrWhiteSpace(description) ? "Житель" : description);
+        }
+
+        public void PlayServerTalk(Transform observer)
+        {
+            if (_motion != null) _motion.PlayTalkGesture(observer);
+        }
+
+        public void PlayServerClink()
+        {
+            if (_motion != null) _motion.PlayClinkGesture();
         }
 
         /// <summary>Highlights the NPC currently under the interaction reticle.</summary>

@@ -35,6 +35,7 @@ namespace Pogranichye.Client
         private string _token;
         private string _goalToSend;
         private WorldFrame _frame;
+        private WorldLayoutFrame _layout;
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
         private int _tutorialStep;
@@ -175,8 +176,8 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
                 GUILayout.Space(5);
-                GUILayout.Label("🍺 ПИВО В ТАВЕРНЕ — обязательный этап тестового билда.");
-                GUILayout.Label("Покупка, выдача кружки, употребление и опьянение появятся после серверного drink-контракта. Сейчас кружки — только декорация.", GUILayout.Height(42));
+                GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
+                GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54));
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -193,6 +194,89 @@ namespace Pogranichye.Client
                 GUI.Label(new Rect(Screen.width * 0.5f - 8f, Screen.height * 0.5f - 12f, 16f, 24f), "·");
                 GUI.color = previousColor;
             }
+            DrawSocialOverlay();
+        }
+
+        private void DrawSocialOverlay()
+        {
+            if (_frame?.Me == null) return;
+            var talk = _frame.Me.Talk;
+            if (talk != null)
+            {
+                var rect = new Rect(Screen.width - 430f, Screen.height - 260f, 410f, 244f);
+                GUI.Box(rect, "Разговор");
+                GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
+                GUILayout.Label(talk.Who ?? "Собеседник");
+                GUILayout.Label(talk.Line ?? "…", GUILayout.Height(54f));
+                if (talk.Options != null)
+                {
+                    foreach (var option in talk.Options)
+                    {
+                        if (option != null && GUILayout.Button(option.Text ?? option.Id, GUILayout.Height(28f)))
+                            _ = SendSayAsync(option.Id);
+                    }
+                }
+                if (GUILayout.Button("Закончить разговор")) _ = SendEndTalkAsync();
+                GUILayout.EndArea();
+            }
+
+            var invite = _frame.Me.InviteFrom;
+            if (invite != null)
+            {
+                var rect = new Rect(Screen.width - 430f, Screen.height - 150f, 410f, 128f);
+                GUI.Box(rect, "Приглашение выпить");
+                GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
+                GUILayout.Label((invite.Who ?? "Игрок") + " зовёт к стойке");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Принять")) _ = SendDrinkResponseAsync(true);
+                if (GUILayout.Button("Отказаться")) _ = SendDrinkResponseAsync(false);
+                GUILayout.EndHorizontal();
+                GUILayout.EndArea();
+            }
+        }
+
+        private async Task SendTalkAsync(string target)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendTalkAsync(target, _lifetime.Token);
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось начать разговор: " + ex.Message); }
+        }
+
+        private async Task SendSayAsync(string line)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendSayAsync(line, _lifetime.Token);
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось отправить реплику: " + ex.Message); }
+        }
+
+        private async Task SendEndTalkAsync()
+        {
+            var socket = _socket;
+            try
+            {
+                if (socket != null) await socket.SendEndTalkAsync(_lifetime.Token);
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось закончить разговор: " + ex.Message); }
+        }
+
+        private async Task SendDrinkResponseAsync(bool accept)
+        {
+            var socket = _socket;
+            try
+            {
+                if (socket != null) await socket.SendAcceptDrinkAsync(accept, _lifetime.Token);
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось ответить на приглашение: " + ex.Message); }
         }
 
         private string ConnectionStateLabel()
@@ -215,13 +299,13 @@ namespace Pogranichye.Client
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
             if (_tutorialStep >= TutorialGoals.Length)
-                return "Базовое знакомство с четырьмя действиями v1 завершено. Пиво, крафт, рыбалка, бой и магия подключаются отдельными этапами.";
+                return "Основные действия освоены. Разговоры, знакомство и совместное питьё теперь подтверждаются сервером.";
             if (!string.IsNullOrEmpty(_tutorialPendingGoal))
                 return "Ожидаем подтверждение сервера. Последнее действие: " + _frame.Me.Last;
 
             switch (_tutorialStep)
             {
-                case 0: return "Шаг 1/4 — зайдите в таверну и выберите общение. Познакомьтесь с жителями.";
+                case 0: return "Шаг 1/4 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
                 case 1: return "Шаг 2/4 — попробуйте работу. Профессия персонажа влияет на результат.";
                 case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
                 default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
@@ -260,8 +344,8 @@ namespace Pogranichye.Client
                 return;
             }
 
-            RequestTutorialGoal("socialize");
-            _status = "Вы обращаетесь к жителю. Отправляю общую цель общения; адресный диалог пока не входит в v1.";
+            _ = SendTalkAsync(npc.EntityId.ToString());
+            _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
         private bool IsNearTavern()
@@ -269,10 +353,9 @@ namespace Pogranichye.Client
             var player = _views != null ? _views.PlayerTransform : null;
             if (player == null) return false;
 
-            // The POI is placed just outside the open tavern entrance in the generated starter scene.
-            // This is a tutorial affordance only; server-side interaction validation remains authoritative.
-            var offset = new Vector2(player.position.x - 1.1f, player.position.z + 2.0f);
-            return offset.sqrMagnitude <= 1.8f * 1.8f;
+            if (_layout?.Pois == null || !_layout.Pois.TryGetValue("tavern", out var tavern)) return false;
+            var offset = new Vector2(player.position.x - (float)tavern.X, player.position.z - (float)tavern.Y);
+            return offset.sqrMagnitude <= 8f * 8f;
         }
 
         private void RequestTutorialGoal(string goal)
@@ -340,6 +423,10 @@ namespace Pogranichye.Client
 
             try
             {
+                // Layout v2 is required before enabling prediction: local geometry must match the server.
+                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync();
+                _layout = layout;
+                WorldLayoutPresentationBuilder.Build(_presentationRoot, layout);
                 await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
@@ -424,7 +511,9 @@ namespace Pogranichye.Client
                             _cameraRig.SetFirstPerson(_firstPerson);
                         }
                         _views.SetPlayerFirstPerson(_firstPerson, _cameraRig != null ? _cameraRig.transform : null);
-                        _status = frame.Me.Position != null ? "Получен полный кадр v1.1; движение синхронизируется." : "Получен кадр v1.0; движение отключено.";
+                        _status = frame.Me.Position != null
+                    ? "Подключены Layout v2 и социальный протокол v1.4; движение сверяется с серверной геометрией."
+                    : "Получен кадр без позиции; движение отключено.";
                     }
                 });
             }
@@ -467,8 +556,11 @@ namespace Pogranichye.Client
             {
                 var movementDelta = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
                 var next = player.position + worldMove.normalized * speed * movementDelta;
-                var flat = new Vector2(next.x, next.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                var origin = new Vector2(player.position.x, player.position.z);
+                var desired = new Vector2(next.x, next.z);
+                var flat = _layout != null
+                    ? _layout.ResolveMove(origin, desired)
+                    : Vector2.ClampMagnitude(desired, 29.5f);
                 player.position = new Vector3(flat.x, 0f, flat.y);
 
                 if (!_firstPerson)
@@ -549,7 +641,7 @@ namespace Pogranichye.Client
             for (var i = 0; i < _pendingMoveIntents.Count; i++)
             {
                 var intent = _pendingMoveIntents[i];
-                PredictServerMove(ref replayedPosition, ref replayedStamina, intent);
+                PredictServerMove(ref replayedPosition, ref replayedStamina, intent, _layout);
                 replayedFacing = intent.Face;
             }
 
@@ -569,11 +661,11 @@ namespace Pogranichye.Client
             var stamina = _serverStamina;
             var unusedPosition = Vector3.zero;
             for (var i = 0; i < _pendingMoveIntents.Count; i++)
-                PredictServerMove(ref unusedPosition, ref stamina, _pendingMoveIntents[i]);
+                PredictServerMove(ref unusedPosition, ref stamina, _pendingMoveIntents[i], _layout);
             return stamina;
         }
 
-        private static void PredictServerMove(ref Vector3 position, ref float stamina, PendingMoveIntent intent)
+        private static void PredictServerMove(ref Vector3 position, ref float stamina, PendingMoveIntent intent, WorldLayoutFrame layout)
         {
             var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
             var direction = new Vector2(intent.Mx, intent.My);
@@ -586,10 +678,11 @@ namespace Pogranichye.Client
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.18f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.08f * dt);
 
-                position.x += direction.x * speed * dt;
-                position.z += direction.y * speed * dt;
-                var flat = new Vector2(position.x, position.z);
-                if (flat.magnitude > 29.5f) flat = flat.normalized * 29.5f;
+                var origin = new Vector2(position.x, position.z);
+                var desired = origin + direction * speed * dt;
+                var flat = layout != null
+                    ? layout.ResolveMove(origin, desired)
+                    : Vector2.ClampMagnitude(desired, 29.5f);
                 position.x = flat.x;
                 position.z = flat.y;
             }
@@ -715,7 +808,7 @@ namespace Pogranichye.Client
                 camera = go.AddComponent<Camera>();
             }
 
-            camera.transform.position = new Vector3(0, 8, -10);
+            camera.transform.position = new Vector3(0, 22, -28);
             camera.transform.rotation = Quaternion.Euler(35, 0, 0);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.58f, 0.70f, 0.78f);
@@ -746,8 +839,8 @@ namespace Pogranichye.Client
             RenderSettings.fog = true;
             RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 22f;
-            RenderSettings.fogEndDistance = 65f;
+            RenderSettings.fogStartDistance = 72f;
+            RenderSettings.fogEndDistance = 235f;
         }
 
         private void OnDestroy()

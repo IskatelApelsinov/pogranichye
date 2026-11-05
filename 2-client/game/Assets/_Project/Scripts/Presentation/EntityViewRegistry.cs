@@ -28,6 +28,7 @@ namespace Pogranichye.Client.Presentation
         private bool _firstPersonArmsAttached;
         private bool _hasPlayerMugState;
         private bool _playerHadMug;
+        private string _lastTalkEvent = string.Empty;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -93,11 +94,17 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
-                    // v1 has no server-authoritative familiarity flag. Unknown/missing means hidden.
-                    SetLabel(view, string.Empty);
+                    // v1.4 server fields are authoritative; do not infer familiarity locally.
+                    var displayName = neighbor.Known ? neighbor.Name : neighbor.Description;
+                    SetLabel(view, displayName);
+                    var npcIdentity = view.GetComponent<WorldNpc>();
+                    if (npcIdentity != null)
+                        npcIdentity.SetServerIdentity(neighbor.Known, neighbor.Name, neighbor.Description);
                     visibleCount++;
                 }
             }
+
+            ApplyTalkPresentation(frame, player);
 
             var stale = new List<ulong>();
             foreach (var pair in _views)
@@ -110,6 +117,45 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+
+        public bool TryGetView(string entityId, out GameObject view)
+        {
+            view = null;
+            if (string.IsNullOrWhiteSpace(entityId) ||
+                !ulong.TryParse(entityId, out var id)) return false;
+            return _views.TryGetValue(id, out view) && view != null;
+        }
+
+        private void ApplyTalkPresentation(WorldFrame frame, GameObject player)
+        {
+            var talk = frame.Me.Talk;
+            if (talk == null)
+            {
+                _lastTalkEvent = string.Empty;
+                return;
+            }
+
+            var eventKey = (talk.With ?? string.Empty) + "|" + (talk.Line ?? string.Empty);
+            if (string.IsNullOrEmpty(talk.Line) || eventKey == _lastTalkEvent) return;
+            _lastTalkEvent = eventKey;
+
+            var isClink = talk.Line.IndexOf("чокнулись кружками", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                          talk.Line.IndexOf("поднимает кружку", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            var playerMotion = player.GetComponent<EntityMotion>();
+            if (playerMotion != null)
+            {
+                playerMotion.PlayTalkGesture(null);
+                if (isClink) playerMotion.PlayClinkGesture();
+            }
+
+            if (TryGetView(talk.With, out var partner))
+            {
+                var partnerMotion = partner.GetComponent<EntityMotion>();
+                if (partnerMotion != null) partnerMotion.PlayTalkGesture(player.transform);
+                var partnerNpc = partner.GetComponent<WorldNpc>();
+                if (partnerNpc != null && isClink) partnerNpc.PlayServerClink();
+            }
+        }
 
         public static Vector3 ToUnityPosition(ScenePositionFrame position)
         {
@@ -185,6 +231,9 @@ namespace Pogranichye.Client.Presentation
             foreach (var view in _views.Values)
                 if (view != null) Object.Destroy(view);
             _views.Clear();
+            _lastTalkEvent = string.Empty;
+            _hasPlayerMugState = false;
+            _playerHadMug = false;
             PlayerTransform = null;
         }
 

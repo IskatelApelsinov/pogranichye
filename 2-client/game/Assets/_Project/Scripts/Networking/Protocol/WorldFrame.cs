@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using UnityEngine;
 
 namespace Pogranichye.Client.Networking.Protocol
 {
@@ -33,6 +34,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("goal")] public string Goal { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
+        [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("talk")] public TalkFrame Talk { get; set; }
+        [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -69,10 +73,92 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("desc")] public string Description { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkFrame
+    {
+        [JsonProperty("with")] public string With { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("line")] public string Line { get; set; }
+        [JsonProperty("options")] public List<TalkOptionFrame> Options { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkOptionFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class InviteFromFrame
+    {
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldLayoutFrame
+    {
+        [JsonProperty("version")] public int Version { get; set; }
+        [JsonProperty("world_half")] public double WorldHalf { get; set; }
+        [JsonProperty("village_half")] public double VillageHalf { get; set; }
+        [JsonProperty("buildings")] public List<WorldRectFrame> Buildings { get; set; }
+        [JsonProperty("river")] public WorldRiverFrame River { get; set; }
+        [JsonProperty("pois")] public Dictionary<string, WorldPointFrame> Pois { get; set; }
+
+        public bool IsBlocked(double x, double y)
+        {
+            if (x < -WorldHalf || x > WorldHalf || y < -WorldHalf || y > WorldHalf) return true;
+            if (Buildings != null)
+                foreach (var b in Buildings)
+                    if (b != null && x >= b.X0 && x <= b.X1 && y >= b.Y0 && y <= b.Y1) return true;
+            return River != null && y >= River.Y0 && y <= River.Y1 &&
+                (x < River.BridgeX0 || x > River.BridgeX1);
+        }
+
+        public Vector2 ResolveMove(Vector2 origin, Vector2 desired)
+        {
+            if (!IsBlocked(desired.x, desired.y)) return desired;
+            if (!IsBlocked(desired.x, origin.y)) return new Vector2(desired.x, origin.y);
+            if (!IsBlocked(origin.x, desired.y)) return new Vector2(origin.x, desired.y);
+            return origin;
+        }
+    }
+
+    [Serializable]
+    public sealed class WorldRectFrame
+    {
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("x0")] public double X0 { get; set; }
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("x1")] public double X1 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRiverFrame
+    {
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+        [JsonProperty("bridge_x0")] public double BridgeX0 { get; set; }
+        [JsonProperty("bridge_x1")] public double BridgeX1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldPointFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
     }
 
     [Serializable]
