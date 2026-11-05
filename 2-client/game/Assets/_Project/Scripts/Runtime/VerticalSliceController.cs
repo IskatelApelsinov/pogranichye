@@ -391,6 +391,13 @@ namespace Pogranichye.Client
                 return;
             }
 
+            if (!string.IsNullOrEmpty(poi.Action))
+            {
+                _ = SendWorldActionAsync(poi.Action);
+                _status = "Выбрана точка: " + poi.Title + ". Действие отправлено серверу на проверку.";
+                return;
+            }
+
             RequestTutorialGoal(poi.Goal);
             _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
         }

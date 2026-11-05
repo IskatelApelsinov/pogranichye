@@ -20,11 +20,13 @@ namespace Pogranichye.Client.Presentation
         public static event Action<WorldPoi> Selected;
         public string Title { get; private set; }
         public string Goal { get; private set; }
+        public string Action { get; private set; }
 
-        public void Initialize(string title, string goal, Renderer visual, Color color)
+        public void Initialize(string title, string goal, Renderer visual, Color color, string action = null)
         {
             Title = title;
             Goal = goal;
+            Action = action;
             _visual = visual;
             _baseColor = color;
             _propertyBlock = new MaterialPropertyBlock();
@@ -33,7 +35,7 @@ namespace Pogranichye.Client.Presentation
 
         public void RequestInteraction()
         {
-            if (enabled && !string.IsNullOrEmpty(Goal))
+            if (enabled && (!string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(Action)))
                 Selected?.Invoke(this);
         }
 

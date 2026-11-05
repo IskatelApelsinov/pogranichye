@@ -114,6 +114,8 @@ namespace Pogranichye.Client.Presentation
             BuildFarmsteadAndOrchard(village);
             BuildNorthernResidentialLane(village, ambientMotion);
             BuildPracticeStations(village);
+            CreatePoiMarker(village, "Лес • рубить дрова", new Vector3(-82f, 0.08f, 24f),
+                new Color(0.43f, 0.31f, 0.19f), null, "chop");
             BuildVillageLife(village, ambientMotion);
             BuildStreetDetails(village, worldSeed);
             BuildWornFootpaths(village, worldSeed);
@@ -1923,9 +1925,11 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Fishing rod", PrimitiveType.Cylinder, dock,
                 new Vector3(0.95f, 0.55f, 0.2f), new Vector3(0.035f, 0.95f, 0.035f), _woodMaterial);
             CreateSign(dock, "РЫБНОЕ МЕСТО", new Vector3(0, 1.1f, -1.35f), 0.8f);
+            CreatePoiMarker(root, "Река • рыбачить", new Vector3(13.45f, 0.08f, -76f),
+                new Color(0.28f, 0.53f, 0.62f), null, "fish");
         }
 
-        private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color, string goal)
+        private static void CreatePoiMarker(Transform root, string title, Vector3 position, Color color, string goal, string action = null)
         {
             var marker = new GameObject("POI • " + title).transform;
             marker.SetParent(root, false);
@@ -1937,7 +1941,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0, 0.12f, 0), new Vector3(0.24f, 0.035f, 0.24f), _stoneMaterial);
             var renderer = beacon.GetComponent<Renderer>();
             var poi = marker.gameObject.AddComponent<WorldPoi>();
-            poi.Initialize(title, goal, renderer, color);
+            poi.Initialize(title, goal, renderer, color, action);
             var label = new GameObject("POI label").transform;
             label.SetParent(marker, false);
             label.localPosition = new Vector3(0, 0.75f, 0);
