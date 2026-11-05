@@ -14,6 +14,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _field;
         private static Material _forest;
         private static Material _trunk;
+        private static Material _road;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
@@ -27,6 +28,7 @@ namespace Pogranichye.Client.Presentation
             _field = MakeMaterial("Layout field", new Color(0.57f, 0.57f, 0.30f));
             _forest = MakeMaterial("Layout woodland", new Color(0.13f, 0.25f, 0.15f));
             _trunk = MakeMaterial("Layout trunks", new Color(0.25f, 0.16f, 0.10f));
+            _road = MakeMaterial("Layout country roads", new Color(0.38f, 0.30f, 0.22f));
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
@@ -45,36 +47,13 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    var centerX = (float)((b.X0 + b.X1) * 0.5);
-                    var centerZ = (float)((b.Y0 + b.Y1) * 0.5);
                     var collision = new GameObject("Server collision • " + b.Kind);
                     collision.transform.SetParent(world, false);
-                    collision.transform.localPosition = new Vector3(centerX, 2.35f, centerZ);
+                    collision.transform.localPosition = new Vector3(
+                        (float)((b.X0 + b.X1) * 0.5), 2.35f, (float)((b.Y0 + b.Y1) * 0.5));
                     collision.layer = 2; // Same obstruction layer used by the presentation camera.
                     var collider = collision.AddComponent<BoxCollider>();
                     collider.size = new Vector3(width, 4.7f, depth);
-
-                    // Render a hollow shell, not a solid opaque cube: the server footprint is
-                    // a collision volume, while the visible house/tavern model remains readable.
-                    var wallHeight = 4.5f;
-                    const float wallThickness = 0.45f;
-                    Create("Building back wall • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX, wallHeight * 0.5f, centerZ + depth * 0.5f - wallThickness * 0.5f),
-                        new Vector3(width, wallHeight, wallThickness), _timber, false);
-                    Create("Building left wall • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX - width * 0.5f + wallThickness * 0.5f, wallHeight * 0.5f, centerZ),
-                        new Vector3(wallThickness, wallHeight, depth), _timber, false);
-                    Create("Building right wall • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX + width * 0.5f - wallThickness * 0.5f, wallHeight * 0.5f, centerZ),
-                        new Vector3(wallThickness, wallHeight, depth), _timber, false);
-                    Create("Building front left • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX - width * 0.32f, wallHeight * 0.5f, centerZ - depth * 0.5f + wallThickness * 0.5f),
-                        new Vector3(width * 0.36f, wallHeight, wallThickness), _timber, false);
-                    Create("Building front right • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX + width * 0.32f, wallHeight * 0.5f, centerZ - depth * 0.5f + wallThickness * 0.5f),
-                        new Vector3(width * 0.36f, wallHeight, wallThickness), _timber, false);
-                    Create("Thatched roof • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(centerX, 4.75f, centerZ), new Vector3(width + 0.8f, 0.55f, depth + 0.8f), _roof, false);
                 }
             }
 
@@ -85,6 +64,13 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(88f, 0.10f, 260f), _field, false);
             Create("North meadow", PrimitiveType.Cube, world, new Vector3(8f, 0.025f, 112f),
                 new Vector3(115f, 0.10f, 64f), _field, false);
+
+            // The same roads connect the server POIs: woods, fields, mine and river bridge.
+            AddRoad(world, new Vector2(0f, 0f), new Vector2(-95f, 10f), 3.2f);
+            AddRoad(world, new Vector2(0f, 0f), new Vector2(70f, -20f), 3.0f);
+            AddRoad(world, new Vector2(70f, -20f), new Vector2(90f, 40f), 2.5f);
+            AddRoad(world, new Vector2(0f, 0f), new Vector2(0f, -84f), 3.0f);
+            AddRoad(world, new Vector2(0f, 0f), new Vector2(0f, 140f), 2.8f);
             var random = new System.Random(417);
             for (var i = 0; i < 72; i++)
             {
@@ -97,6 +83,16 @@ namespace Pogranichye.Client.Presentation
                 var crown = Create("Far woodland crown", PrimitiveType.Sphere, world,
                     new Vector3(x, height * 0.82f, z), new Vector3(2.2f, height * 0.55f, 2.2f), _forest, false);
             }
+        }
+
+        private static void AddRoad(Transform parent, Vector2 start, Vector2 end, float width)
+        {
+            var delta = end - start;
+            var center = (start + end) * 0.5f;
+            var road = Create("Country road • POI link", PrimitiveType.Cube, parent,
+                new Vector3(center.x, 0.105f, center.y),
+                new Vector3(width, 0.06f, delta.magnitude), _road, false);
+            road.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(delta.x, delta.y) * Mathf.Rad2Deg, 0f);
         }
 
         private static Material MakeMaterial(string name, Color color)
