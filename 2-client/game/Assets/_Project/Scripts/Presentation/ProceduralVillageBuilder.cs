@@ -84,7 +84,7 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial.mainTextureScale = new Vector2(1.5f, 8f);
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
-                new Vector3(12, 1, 12), _groundMaterial);
+                new Vector3(30, 1, 30), _groundMaterial);
             ground.isStatic = true;
 
             CreatePrimitive("Village path", PrimitiveType.Cube, village, new Vector3(0, 0.025f, 0),
