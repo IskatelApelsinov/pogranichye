@@ -53,6 +53,8 @@ namespace Pogranichye.Client
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
+        private string _lastTalkLine;
+        private bool _lastInvitePending;
 
         private struct PendingMoveIntent
         {
@@ -175,8 +177,33 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
                 GUILayout.Space(5);
-                GUILayout.Label("🍺 ПИВО В ТАВЕРНЕ — обязательный этап тестового билда.");
-                GUILayout.Label("Покупка, выдача кружки, употребление и опьянение появятся после серверного drink-контракта. Сейчас кружки — только декорация.", GUILayout.Height(42));
+                if (_frame.Me.Talk != null)
+                {
+                    GUILayout.Space(8);
+                    GUILayout.Label("РАЗГОВОР — " + (_frame.Me.Talk.Who ?? "собеседник"));
+                    GUILayout.Label(_frame.Me.Talk.Line ?? "");
+                    if (_frame.Me.Talk.Options != null)
+                    {
+                        foreach (var option in _frame.Me.Talk.Options)
+                        {
+                            if (option == null || string.IsNullOrEmpty(option.Id)) continue;
+                            if (GUILayout.Button(option.Text ?? option.Id))
+                                _ = SendSocialIntentAsync("say", null, option.Id);
+                        }
+                    }
+                    if (GUILayout.Button("Закончить разговор"))
+                        _ = SendSocialIntentAsync("endtalk", null, null);
+                }
+                if (_frame.Me.InviteFrom != null)
+                {
+                    GUILayout.Space(6);
+                    GUILayout.Label((_frame.Me.InviteFrom.Name ?? _frame.Me.InviteFrom.Description ?? "Житель") + " приглашает выпить вместе.");
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("🍻 Принять")) _ = SendSocialIntentAsync("accept", null, null);
+                    if (GUILayout.Button("Отказаться")) _ = SendSocialIntentAsync("declinedrink", null, null);
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.Label("🍺 Разговоры, знакомство и совместное питьё подключены сервером v1.4.");
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -260,8 +287,8 @@ namespace Pogranichye.Client
                 return;
             }
 
-            RequestTutorialGoal("socialize");
-            _status = "Вы обращаетесь к жителю. Отправляю общую цель общения; адресный диалог пока не входит в v1.";
+            _ = SendSocialIntentAsync("talk", npc.EntityId.ToString(), null);
+            _status = "Обращаюсь к жителю. Жду ответ сервера…";
         }
 
         private bool IsNearTavern()
@@ -394,6 +421,20 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    if (frame.Alive && frame.Me != null)
+                    {
+                        var talkLine = frame.Me.Talk != null ? frame.Me.Talk.Line : null;
+                        if (!string.IsNullOrEmpty(talkLine) && talkLine != _lastTalkLine)
+                        {
+                            _lastTalkLine = talkLine;
+                            var playerMotion = _views?.PlayerTransform != null ? _views.PlayerTransform.GetComponent<EntityMotion>() : null;
+                            if (playerMotion != null) playerMotion.PlayTalkGesture();
+                        }
+                        var invitePending = frame.Me.InviteFrom != null;
+                        if (invitePending && !_lastInvitePending)
+                            _status = "Вас пригласили выпить вместе: " + (frame.Me.InviteFrom.Name ?? frame.Me.InviteFrom.Description ?? "собеседник");
+                        _lastInvitePending = invitePending;
+                    }
                     if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
                     {
                         if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
@@ -641,6 +682,30 @@ namespace Pogranichye.Client
             });
         }
 
+        private async Task SendSocialIntentAsync(string operation, string target, string line)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendIntentAsync(operation, target, line, _lifetime.Token);
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = operation == "talk" ? "Запрос разговора отправлен." : "Действие отправлено: " + operation;
+                });
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось выполнить социальное действие: " + ex.Message;
+                });
+            }
+        }
+
         private async Task SendGoalAsync(string goal)
         {
             var socket = _socket;
@@ -747,7 +812,7 @@ namespace Pogranichye.Client
             RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogStartDistance = 22f;
-            RenderSettings.fogEndDistance = 65f;
+            RenderSettings.fogEndDistance = 190f;
         }
 
         private void OnDestroy()
