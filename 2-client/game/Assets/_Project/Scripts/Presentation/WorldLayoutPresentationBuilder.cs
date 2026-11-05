@@ -54,6 +54,10 @@ namespace Pogranichye.Client.Presentation
                     collision.layer = 2; // Same obstruction layer used by the presentation camera.
                     var collider = collision.AddComponent<BoxCollider>();
                     collider.size = new Vector3(width, 4.7f, depth);
+
+                    // Match visible mass to the authoritative obstruction footprint.
+                    if (b.Kind == "tavern" || b.Kind == "smithy" || b.Kind == "market")
+                        BuildFootprintBuilding(world, b, width, depth);
                 }
             }
 
@@ -92,6 +96,62 @@ namespace Pogranichye.Client.Presentation
                 var crown = Create("Far woodland crown", PrimitiveType.Sphere, world,
                     new Vector3(x, height * 0.82f, z), new Vector3(2.2f, height * 0.55f, 2.2f), _forest, false);
             }
+        }
+
+        private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
+            float width, float depth)
+        {
+            var center = new Vector3((float)((building.X0 + building.X1) * 0.5), 0f,
+                (float)((building.Y0 + building.Y1) * 0.5));
+            var root = new GameObject("Footprint facade • " + building.Kind).transform;
+            root.SetParent(parent, false);
+            root.localPosition = center;
+
+            var isMarket = building.Kind == "market";
+            var wallHeight = isMarket ? 2.8f : 3.8f;
+            var wall = _timber;
+            var roof = _roof;
+            Create("Building plinth", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
+
+            // Back and side walls. The south-facing entrance stays open so the settlement
+            // remains readable from the main approach; server collision remains authoritative.
+            Create("Rear timber wall", PrimitiveType.Cube, root,
+                new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f),
+                new Vector3(width - 0.35f, wallHeight, 0.24f), wall, false);
+            Create("West timber wall", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f),
+                new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
+            Create("East timber wall", PrimitiveType.Cube, root,
+                new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f),
+                new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
+
+            var opening = isMarket ? width * 0.28f : width * 0.34f;
+            var sideWidth = (width - opening) * 0.5f;
+            Create("South facade left", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.5f + sideWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                new Vector3(sideWidth, wallHeight, 0.24f), wall, false);
+            Create("South facade right", PrimitiveType.Cube, root,
+                new Vector3(width * 0.5f - sideWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                new Vector3(sideWidth, wallHeight, 0.24f), wall, false);
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                Create("Facade timber post", PrimitiveType.Cube, root,
+                    new Vector3(side * (opening * 0.5f), wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                    new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
+            }
+
+            // A broad two-slope roof reads at village scale and is not just a small stall canopy.
+            var slopeWidth = width * 0.56f;
+            var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
+                new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
+            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            var roofB = Create("Roof slope east", PrimitiveType.Cube, root,
+                new Vector3(width * 0.25f, wallHeight + 0.45f, 0f),
+                new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
+            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
         }
 
         private static void AddRoad(Transform parent, Vector2 start, Vector2 end, float width)
