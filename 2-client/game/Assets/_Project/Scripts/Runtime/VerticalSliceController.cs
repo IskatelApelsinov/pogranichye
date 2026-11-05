@@ -487,6 +487,9 @@ namespace Pogranichye.Client
                 var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync();
                 _layout = layout;
                 WorldLayoutPresentationBuilder.Build(_presentationRoot, layout);
+                var presentationCamera = _cameraRig != null
+                    ? _cameraRig.GetComponent<Camera>() : Camera.main;
+                RuralHorizonBackdrop.Build(_presentationRoot, presentationCamera, (float)layout.WorldHalf);
                 await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
