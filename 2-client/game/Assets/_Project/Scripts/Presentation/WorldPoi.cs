@@ -35,7 +35,7 @@ namespace Pogranichye.Client.Presentation
 
         public void RequestInteraction()
         {
-            if (enabled && (!string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(Action)))
+            if (enabled && (!string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(ActionIntent)))
                 Selected?.Invoke(this);
         }
 
