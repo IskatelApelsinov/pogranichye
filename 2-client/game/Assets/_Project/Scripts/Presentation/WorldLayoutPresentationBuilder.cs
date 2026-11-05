@@ -81,7 +81,6 @@ namespace Pogranichye.Client.Presentation
             BuildCropRows(world);
             BuildFarmProps(world);
             BuildWoodcutterCamp(world);
-            BuildFishingLanding(world);
 
             // The same roads connect the server POIs: woods, fields, mine and river bridge.
             if (layout.Pois.TryGetValue("woods", out var woods))
@@ -271,40 +270,6 @@ namespace Pogranichye.Client.Presentation
             var log = Create("Stacked firewood log", PrimitiveType.Cylinder, parent,
                 position, new Vector3(radius, length * 0.5f, radius), _trunk, false);
             log.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-        }
-
-        private static void BuildFishingLanding(Transform parent)
-        {
-            // A modest timber landing on the north bank, east of the bridge opening.
-            // It has no collider and does not alter the server's river or bridge geometry.
-            var landing = new GameObject("River fishing landing • presentation only").transform;
-            landing.SetParent(parent, false);
-            landing.localPosition = new Vector3(13f, 0f, -76f);
-
-            Create("Fishing landing platform", PrimitiveType.Cube, landing,
-                new Vector3(0f, 0.12f, 0f), new Vector3(4.2f, 0.24f, 2.8f), _timber, false);
-            for (var x = -1; x <= 1; x += 2)
-            {
-                for (var z = -1; z <= 1; z += 2)
-                {
-                    Create("Landing support post", PrimitiveType.Cylinder, landing,
-                        new Vector3(x * 1.72f, -0.12f, z * 1.05f),
-                        new Vector3(0.13f, 0.42f, 0.13f), _trunk, false);
-                }
-            }
-
-            // Three visible plank seams give the platform a less block-like silhouette.
-            for (var i = -1; i <= 1; i++)
-            {
-                Create("Landing plank seam", PrimitiveType.Cube, landing,
-                    new Vector3(i * 1.25f, 0.255f, 0f),
-                    new Vector3(0.045f, 0.025f, 2.55f), _trunk, false);
-            }
-
-            Create("Fishing basket", PrimitiveType.Cylinder, landing,
-                new Vector3(1.25f, 0.48f, 0.55f), new Vector3(0.34f, 0.22f, 0.34f), _straw, false);
-            Create("Landing mooring post", PrimitiveType.Cylinder, landing,
-                new Vector3(-1.55f, 0.55f, 0.82f), new Vector3(0.10f, 0.55f, 0.10f), _trunk, false);
         }
 
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
