@@ -54,10 +54,14 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		if id == nil || m == nil {
 			return
 		}
-		// куда идёт: POI текущей цели + личное смещение (чтобы не слипались)
-		tx, ty := targetForGoal(id.Role, m.Goal)
+		// куда идёт: POI текущей цели + личное смещение (чтобы не слипались). Если смещение завело бы
+		// точку в стену/реку — отбрасываем смещение и целимся в саму доступную точку POI.
+		bx, by := targetForGoal(id.Role, m.Goal)
 		ox, oy := idOffset(uint64(e.ID))
-		tx, ty = tx+ox, ty+oy
+		tx, ty := bx+ox, by+oy
+		if Blocked(tx, ty) {
+			tx, ty = bx, by
+		}
 
 		dx, dy := tx-p.X, ty-p.Y
 		dist := math.Hypot(dx, dy)
@@ -73,9 +77,17 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		if step > dist {
 			step = dist // не перешагиваем цель
 		}
-		p.X += dx / dist * step
-		p.Y += dy / dist * step
-		clampRadial(p) // в пределах площадки
+		// идём к цели, но обходим стены/реку/край мира (скольжение). Житель не проходит сквозь здания.
+		nx, ny := ResolveMove(p.X, p.Y, p.X+dx/dist*step, p.Y+dy/dist*step)
+		// если упёрлись (скольжение не сдвинуло) — лёгкий детерминированный объезд вдоль преграды
+		if math.Hypot(nx-p.X, ny-p.Y) < step*0.2 {
+			perp := 1.0
+			if (uint64(e.ID) & 1) == 0 {
+				perp = -1.0
+			}
+			nx, ny = ResolveMove(p.X, p.Y, p.X-dy/dist*step*perp, p.Y+dx/dist*step*perp)
+		}
+		p.X, p.Y = nx, ny
 		p.Facing = facingDeg(dx, dy, p.Facing)
 	})
 }

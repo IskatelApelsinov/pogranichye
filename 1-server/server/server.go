@@ -68,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/register", s.handleRegister)
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/ws", s.handleWS)
+	mux.HandleFunc("/api/layout", s.handleLayout)
 	mux.HandleFunc("/", s.handleIndex)
 	return mux
 }
@@ -95,6 +96,7 @@ func (s *Server) tickLoop() {
 		// физический шаг ходьбы НПС — в РЕАЛЬНОМ времени (длительность тика), отдельно от игровых
 		// часов; тела под управлением игроков пропускаем (их ведёт сам игрок).
 		sim.StepNPCMovement(s.world, s.tickEach.Seconds(), func(id core.ID) bool { return s.ctl[id] != 0 })
+		sim.RegenMana(s.world, s.tickEach.Seconds()) // мана игроков восстанавливается в реальном времени
 		s.mu.Unlock()
 	}
 }
@@ -200,10 +202,11 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict)
 		return
 	}
-	// дать телу место в сцене (ходьба v1.1) — игрок появляется в центре деревенской площадки
+	// дать телу место в сцене (ходьба) и интерактивное состояние игрока (мана для магии)
 	s.mu.Lock()
 	if e := s.world.Get(cid); e != nil {
 		sim.EnsureScenePos(s.world, e)
+		sim.EnsurePlayer(s.world, e)
 	}
 	s.mu.Unlock()
 	conn, err := wsUpgrade(w, r)
@@ -259,6 +262,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		// действия v1.2: покупка/питьё; reqid для идемпотентности (повтор не списывает дважды)
 		Item  string `json:"item"`
 		ReqID string `json:"reqid"`
+		// действия v1.3: рубка/рыбалка/магия — op:"act" с action
+		Action string `json:"action"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -299,6 +304,19 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			}
 			s.mu.Unlock()
 		}
+	case "act": // рубка/рыбалка/магия (v1.3); исход виден в кадре (закрома, мана, убыль зверя)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			switch in.Action {
+			case "chop":
+				sim.ChopWood(s.world, e, in.ReqID)
+			case "fish":
+				sim.FishCatch(s.world, e, in.ReqID)
+			case "cast":
+				sim.CastSpark(s.world, e, in.ReqID)
+			}
+		}
+		s.mu.Unlock()
 	}
 }
 
@@ -329,6 +347,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
 			"act_code": m.ActCode, // стабильный код занятия для анимаций клиента (#23)
 			"mug":      meMug(e),  // держит ли кружку (интерактивность v1.2)
+			"mana":     meMana(e), // мана для магического разряда (v1.3)
 			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash": meStash(e),
@@ -378,6 +397,20 @@ func meMug(e *core.Entity) bool {
 		return m.Has
 	}
 	return false
+}
+
+// meMana — мана игрока для магического разряда (0..100).
+func meMana(e *core.Entity) float64 {
+	if p := sim.Player(e); p != nil {
+		return round0(p.Mana)
+	}
+	return 0
+}
+
+// handleLayout отдаёт ВЕРСИОНИРОВАННУЮ геометрию мира (границы, деревня, здания, река, POI) — её и
+// сервер, и клиент берут за единую истину (сервер — для коллизий, Unity/web — для отрисовки).
+func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, sim.LayoutJSON())
 }
 
 // neighborPos — позиция соседа для кадра: реальная ScenePos (её ведёт StepNPCMovement). Если житель

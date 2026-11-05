@@ -55,14 +55,14 @@ func TestRunDrainsStamina(t *testing.T) {
 	}
 }
 
-// Движение держится в границах площадки (простая «коллизия» границами).
+// Движение держится в границах мира (v1.3: прямоугольник [-WorldHalf,WorldHalf]).
 func TestSceneBounds(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 20000; i++ {
 		ApplyMove(p, 1, 0, false, 0, moveMaxDt, int64(i+1))
 	}
-	if p.X > SceneRadius+1e-6 {
-		t.Fatalf("за границу площадки выходить нельзя: x=%.3f (R=%.0f)", p.X, SceneRadius)
+	if p.X > WorldHalf+1e-6 {
+		t.Fatalf("за край мира выходить нельзя: x=%.3f (half=%.0f)", p.X, WorldHalf)
 	}
 }
 
@@ -100,20 +100,33 @@ func TestInitialSeqZeroRejected(t *testing.T) {
 	}
 }
 
-// #17: диагональ не должна выпускать за КРУГЛУЮ границу (квадратный clamp пропускал углы ~(30,30)).
-func TestRadialBoundaryDiagonal(t *testing.T) {
-	p := &ScenePosC{Stam: 1}
-	for i := 0; i < 2000; i++ {
-		ApplyMove(p, 1, 1, false, 45, moveMaxDt, int64(i+1)) // упорно на северо-восток
+// v1.3: игрок НЕ проходит сквозь здание — упираясь в стену корчмы, остаётся снаружи.
+func TestNoWalkThroughWall(t *testing.T) {
+	// корчма: X[-40,-26] Y[14,26]. Встаём точно под ней и ломимся на север сквозь стену.
+	p := &ScenePosC{X: -33, Y: 10, Stam: 1}
+	for i := 0; i < 400; i++ {
+		ApplyMove(p, 0, 1, false, 90, moveMaxDt, int64(i+1))
 	}
-	d := math.Hypot(p.X, p.Y)
-	if d > SceneRadius+1e-6 {
-		t.Fatalf("диагональ вышла за круг: |pos|=%.3f > R=%.0f (x=%.2f y=%.2f)", d, SceneRadius, p.X, p.Y)
+	if Blocked(p.X, p.Y) {
+		t.Fatalf("тело оказалось внутри здания: (%.2f,%.2f)", p.X, p.Y)
 	}
-	// и угловая точка (30,30) не должна считаться допустимой
-	q := &ScenePosC{X: 29, Y: 29, Stam: 1}
-	ApplyMove(q, 1, 1, false, 45, moveMaxDt, 1)
-	if math.Hypot(q.X, q.Y) > SceneRadius+1e-6 {
-		t.Fatalf("угол ~(30,30) должен поджиматься к кругу: |pos|=%.3f", math.Hypot(q.X, q.Y))
+	if p.Y >= 14 { // не пробрался за южную стену корчмы
+		t.Fatalf("прошёл сквозь стену корчмы: y=%.2f (стена с y=14)", p.Y)
+	}
+}
+
+// v1.3: двигаясь вдоль стены (на север у края корчмы), тело скользит, а не застревает намертво.
+func TestSlideAlongWall(t *testing.T) {
+	p := &ScenePosC{X: -33, Y: 10, Stam: 1}
+	// идём на северо-восток: север блокируется стеной, но на восток вдоль стены — скользим
+	startX := p.X
+	for i := 0; i < 200; i++ {
+		ApplyMove(p, 1, 1, false, 45, moveMaxDt, int64(i+1))
+	}
+	if p.X <= startX {
+		t.Fatalf("вдоль стены тело должно скользить на восток: x %.2f→%.2f", startX, p.X)
+	}
+	if Blocked(p.X, p.Y) {
+		t.Fatalf("скольжение завело внутрь преграды: (%.2f,%.2f)", p.X, p.Y)
 	}
 }
