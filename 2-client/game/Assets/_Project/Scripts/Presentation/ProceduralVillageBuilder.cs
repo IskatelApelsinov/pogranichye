@@ -2255,10 +2255,20 @@ namespace Pogranichye.Client.Presentation
         {
             CreatePrimitive("Sign board", PrimitiveType.Cube, parent, position,
                 new Vector3(width * 2.2f, 0.38f, 0.1f), _roofMaterial);
-            var label = new GameObject("Sign text").transform;
+
+            // TextMesh is a flat surface. A single face can appear mirrored when viewed
+            // from behind, so place a correctly oriented inscription on each side of the board.
+            CreateSignFace(parent, title, position + new Vector3(0f, 0f, -0.07f), 180f, "front");
+            CreateSignFace(parent, title, position + new Vector3(0f, 0f, 0.07f), 0f, "back");
+        }
+
+        private static void CreateSignFace(Transform parent, string title, Vector3 localPosition,
+            float yaw, string faceName)
+        {
+            var label = new GameObject("Sign text • " + faceName).transform;
             label.SetParent(parent, false);
-            label.localPosition = position + new Vector3(0, 0, -0.07f);
-            label.localRotation = Quaternion.Euler(0f, 180f, 0f); // face the village approach, not the wall
+            label.localPosition = localPosition;
+            label.localRotation = Quaternion.Euler(0f, yaw, 0f);
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
