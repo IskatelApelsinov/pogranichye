@@ -100,9 +100,8 @@ namespace Pogranichye.Client.Networking.Protocol
     [Serializable]
     public sealed class InviteFrame
     {
-        [JsonProperty("id")] public string Id { get; set; }
-        [JsonProperty("name")] public string Name { get; set; }
-        [JsonProperty("desc")] public string Description { get; set; }
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
     }
 
     [Serializable]
