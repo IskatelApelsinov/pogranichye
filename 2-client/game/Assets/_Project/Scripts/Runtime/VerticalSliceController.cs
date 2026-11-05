@@ -563,6 +563,7 @@ namespace Pogranichye.Client
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
+            ResetJumpPresentation();
             _views.Clear();
             _hasMovementBaseline = false;
             _moveSequence = 0;
@@ -623,6 +624,7 @@ namespace Pogranichye.Client
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
             _moveSendInFlight = false;
+            ResetJumpPresentation();
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
@@ -653,6 +655,7 @@ namespace Pogranichye.Client
                         _pendingMoveIntents.Clear();
                         _moveSendQueue.Clear();
                         _moveSendAccumulator = 0f;
+                        ResetJumpPresentation();
                         _views.Clear();
                         if (_cameraRig != null) _cameraRig.SetTarget(null);
                         _socket = null;
@@ -688,6 +691,14 @@ namespace Pogranichye.Client
         }
 
 
+
+        private void ResetJumpPresentation()
+        {
+            _jumpOffset = 0f;
+            _jumpVelocity = 0f;
+            if (_views != null) _views.SetPlayerPresentationOffset(Vector3.zero);
+            if (_cameraRig != null) _cameraRig.SetJumpOffset(0f);
+        }
 
         private void UpdateJump()
         {
@@ -966,9 +977,7 @@ namespace Pogranichye.Client
             _moveSendAccumulator = 0f;
             _movementCorrection = Vector3.zero;
             _movementCorrectionRemaining = 0f;
-            _jumpOffset = 0f;
-            _jumpVelocity = 0f;
-            _cameraRig?.SetJumpOffset(0f);
+            ResetJumpPresentation();
             _views.Clear();
             _tutorialPendingGoal = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
