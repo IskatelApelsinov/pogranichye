@@ -24,6 +24,14 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("surname")] public string Surname { get; set; }
+        [JsonProperty("nick")] public string Nick { get; set; }
+        [JsonProperty("trait")] public string Trait { get; set; }
+        [JsonProperty("origin")] public string Origin { get; set; }
+        [JsonProperty("skills")] public Dictionary<string, double> Skills { get; set; }
+        [JsonProperty("desire")] public string Desire { get; set; }
+        [JsonProperty("inv")] public InventoryFrame Inventory { get; set; }
+        [JsonProperty("world")] public List<SettlementFrame> World { get; set; }
+        [JsonProperty("known_places")] public List<KnownPlaceFrame> KnownPlaces { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("sex")] public string Sex { get; set; }
         [JsonProperty("age")] public double Age { get; set; }
@@ -49,6 +57,34 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
+    public sealed class InventoryFrame
+    {
+        [JsonProperty("items")] public Dictionary<string, int> Items { get; set; }
+        [JsonProperty("hand")] public string Hand { get; set; }
+        [JsonProperty("worn")] public Dictionary<string, string> Worn { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("outer")] public bool Outer { get; set; }
+    }
+
+    [Serializable]
+    public sealed class KnownPlaceFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("visited")] public bool Visited { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+    }
+
+    [Serializable]
     public sealed class ScenePositionFrame
     {
         [JsonProperty("x")] public double X { get; set; }
@@ -66,6 +102,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("food")] public double Food { get; set; }
         [JsonProperty("bread")] public double Bread { get; set; }
         [JsonProperty("bread_price")] public double BreadPrice { get; set; }
+        [JsonProperty("tavern")] public bool Tavern { get; set; }
+        [JsonProperty("beer")] public double Beer { get; set; }
+        [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
     }
 
@@ -76,7 +115,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("known")] public bool Known { get; set; }
         [JsonProperty("desc")] public string Description { get; set; }
-        [JsonProperty("controlled")] public bool Controlled { get; set; }
+        [JsonProperty("player")] public bool Controlled { get; set; }
+        [JsonProperty("trait")] public string Trait { get; set; }
+        [JsonProperty("want")] public string Want { get; set; }
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
@@ -110,7 +151,7 @@ namespace Pogranichye.Client.Networking.Protocol
     [Serializable]
     public sealed class SocialEventFrame
     {
-        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("seq")] public long Sequence { get; set; }
         [JsonProperty("type")] public string Type { get; set; }
         [JsonProperty("with")] public string With { get; set; }
     }
