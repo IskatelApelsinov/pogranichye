@@ -108,7 +108,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildDistantLandscape(Transform root)
         {
-            // A faceted ridgeline replaces dozens of isolated sphere hills with one mesh.
+            // A faceted mountain ridge sits well beyond the 300×300 m playable area.
             var random = new System.Random(14027);
             var vertices = new System.Collections.Generic.List<Vector3>(2400);
             var paletteTriangles = new System.Collections.Generic.List<int>[5];
@@ -118,22 +118,23 @@ namespace Pogranichye.Client.Presentation
             for (var i = 0; i < 36; i++)
             {
                 var angle = i * Mathf.PI * 2f / 36f;
-                var distance = 66f + (float)random.NextDouble() * 20f;
-                var height = 7f + (float)random.NextDouble() * 13f;
-                var width = 15f + (float)random.NextDouble() * 12f;
+                var distance = 255f + (float)random.NextDouble() * 50f;
+                var height = 10f + (float)random.NextDouble() * 15f;
+                var width = 22f + (float)random.NextDouble() * 12f;
                 var center = new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
                 AppendLowPolyHill(vertices, paletteTriangles[i % 5], center, width, width * 0.62f,
                     height, (float)random.NextDouble() * Mathf.PI * 2f, random);
             }
 
-            // A few nearer angular outcrops break the flat horizon around the creek.
+            // Low foothills form a second, distant layer without crowding the village or fields.
             for (var i = 0; i < 12; i++)
             {
                 var angle = i * Mathf.PI * 2f / 12f + 0.18f;
-                var center = new Vector3(Mathf.Cos(angle) * 43f, 0f, Mathf.Sin(angle) * 43f);
+                var distance = 226f + (float)random.NextDouble() * 12f;
+                var center = new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
                 AppendLowPolyHill(vertices, paletteTriangles[(i + 41) % 5], center,
-                    4.5f + (float)random.NextDouble() * 1.5f, 3.5f,
-                    2.4f + (float)random.NextDouble() * 1.2f,
+                    8.0f + (float)random.NextDouble() * 3.0f, 6.0f + (float)random.NextDouble() * 2.0f,
+                    3.8f + (float)random.NextDouble() * 2.2f,
                     (float)random.NextDouble() * Mathf.PI * 2f, random);
             }
 
