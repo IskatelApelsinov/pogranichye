@@ -36,9 +36,9 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.7 fixture must include inventory and world data.");
                 if (frame.Me.Desire == null || frame.Place.BeerPrice <= 0)
                     throw new FormatException("The shared v1.7 fixture must include desire and tavern price data.");
-                if (!frame.Place.Neighbors[0].Controlled || string.IsNullOrEmpty(frame.Place.Neighbors[0].Want))
+                if (frame.Place.Neighbors[0].Controlled || string.IsNullOrEmpty(frame.Place.Neighbors[0].Want))
                     throw new FormatException("The shared fixture must map neighbors[].player and neighbors[].want.");
-                if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null)
+                if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null || frame.Me.SocialEvent == null || frame.Me.SocialEvent.Sequence != 7)
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
 
                 ValidateNegativeCases();
