@@ -153,7 +153,11 @@ namespace Pogranichye.Client.Presentation
             PlaceLayoutBuilding(village, "East cottage", 33f, -24f, 3.25f, 3.2f);
             PlaceLayoutBuilding(village, "West cottage", -8f, -29f, 3.25f, 3.2f);
             PlaceLayoutBuilding(village, "Northwest cottage", 12f, -31f, 3.25f, 3.2f);
-
+            PlaceLayoutMarker(village, "POI • Таверна • поговорить", -33f, 12f);
+            PlaceLayoutMarker(village, "POI • Кузница • работать", 29f, 14f);
+            PlaceLayoutMarker(village, "POI • Рынок • поесть", 1f, 4f);
+            PlaceLayoutObject(village, "Fishing dock", 0f, -73f);
+            
             // v2 has four authoritative house footprints; retire extra presentation-only lane homes.
             var extra = village.Find("North lane cottage");
             if (extra != null) extra.gameObject.SetActive(false);
@@ -168,6 +172,18 @@ namespace Pogranichye.Client.Presentation
             if (building == null) return;
             building.localPosition = new Vector3(x, 0f, z);
             building.localScale = new Vector3(scaleX, 1f, scaleZ);
+        }
+
+        private static void PlaceLayoutMarker(Transform village, string objectName, float x, float z)
+        {
+            var marker = village.Find(objectName);
+            if (marker != null) marker.localPosition = new Vector3(x, 0.08f, z);
+        }
+
+        private static void PlaceLayoutObject(Transform village, string objectName, float x, float z)
+        {
+            var item = village.Find(objectName);
+            if (item != null) item.localPosition = new Vector3(x, 0.10f, z);
         }
 
         private static void BuildHouse(Transform root, string name, Vector3 position, float yaw)
@@ -1556,13 +1572,28 @@ namespace Pogranichye.Client.Presentation
         {
             // Wide rural routes connect the settlement to the woods, eastern fields and the
             // bridge. These are visual roads only; movement permission comes from the server.
-            CreateCountryRoad(root, "Northwest country road", new Vector3(-82f, 0.018f, 35f),
+            // Internal streets follow the exact server POI approaches and link every district.
+            CreateCountryRoad(root, "Village main crossroad", new Vector3(0f, 0.026f, 1f),
+                new Vector3(88f, 0.055f, 3.6f), 0f);
+            CreateCountryRoad(root, "Northern granary lane", new Vector3(0f, 0.026f, 27f),
+                new Vector3(3.2f, 0.055f, 46f), 0f);
+            CreateCountryRoad(root, "Southern bridge approach", new Vector3(0f, 0.026f, -45f),
+                new Vector3(3.2f, 0.055f, 66f), 0f);
+            CreateCountryRoad(root, "Southern house lane", new Vector3(0f, 0.026f, -18f),
+                new Vector3(82f, 0.055f, 3.2f), 0f);
+            CreateCountryRoad(root, "Western tavern approach", new Vector3(-30f, 0.026f, 8f),
+                new Vector3(28f, 0.055f, 3.2f), -20f);
+            CreateCountryRoad(root, "Eastern smithy approach", new Vector3(30f, 0.026f, 8f),
+                new Vector3(28f, 0.055f, 3.2f), 20f);
+
+            // Outer tracks reach the woods, fields and bridge without cutting through crop rows.
+            CreateCountryRoad(root, "Northwest country road", new Vector3(-82f, 0.018f, 70f),
                 new Vector3(105f, 0.045f, 4.2f), -24f);
-            CreateCountryRoad(root, "Eastern country road", new Vector3(78f, 0.020f, 3f),
-                new Vector3(125f, 0.045f, 4.4f), 3f);
+            CreateCountryRoad(root, "Eastern country road", new Vector3(80f, 0.020f, -25f),
+                new Vector3(125f, 0.045f, 4.4f), 0f);
             CreateCountryRoad(root, "Southern farm lane", new Vector3(0f, 0.022f, -54f),
                 new Vector3(5.5f, 0.045f, 65f), 0f);
-            CreateCountryRoad(root, "North meadow track", new Vector3(5f, 0.020f, 77f),
+            CreateCountryRoad(root, "North meadow track", new Vector3(55f, 0.020f, 77f),
                 new Vector3(5f, 0.045f, 80f), 0f);
 
             BuildLargeField(root, "West grain field", new Vector3(-108f, 0f, 28f),
