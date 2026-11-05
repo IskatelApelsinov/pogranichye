@@ -61,7 +61,6 @@ namespace Pogranichye.Client.Presentation
             _playerHadMug = frame.Me.Mug;
             PlayerTransform = player.transform;
             SetLabel(player, string.Empty);
-            ApplyTalkPresentation(frame, player);
 
             var neighbors = frame.Place?.Neighbors;
             if (neighbors != null)
@@ -104,6 +103,8 @@ namespace Pogranichye.Client.Presentation
                     visibleCount++;
                 }
             }
+
+            ApplyTalkPresentation(frame, player);
 
             var stale = new List<ulong>();
             foreach (var pair in _views)
