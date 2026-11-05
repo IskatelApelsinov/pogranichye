@@ -39,6 +39,12 @@ namespace Pogranichye.Client.Presentation
             _jumpOffset = Mathf.Max(0f, offset);
         }
 
+        public void SetDefaultFieldOfView(float fieldOfView)
+        {
+            _defaultFieldOfView = Mathf.Clamp(fieldOfView, 1f, 179f);
+            if (_camera != null) _camera.fieldOfView = _defaultFieldOfView;
+        }
+
         /// <summary>Called by a future contextual tool/magic mode when raw mouse motion is a gesture, not camera look.</summary>
         public void SetMouseGestureCapture(bool active)
         {
