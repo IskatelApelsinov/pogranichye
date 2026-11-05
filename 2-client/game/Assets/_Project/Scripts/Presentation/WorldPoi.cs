@@ -20,13 +20,13 @@ namespace Pogranichye.Client.Presentation
         public static event Action<WorldPoi> Selected;
         public string Title { get; private set; }
         public string Goal { get; private set; }
-        public string Action { get; private set; }
+        public string ActionIntent { get; private set; }
 
         public void Initialize(string title, string goal, Renderer visual, Color color, string action = null)
         {
             Title = title;
             Goal = goal;
-            Action = action;
+            ActionIntent = action;
             _visual = visual;
             _baseColor = color;
             _propertyBlock = new MaterialPropertyBlock();
