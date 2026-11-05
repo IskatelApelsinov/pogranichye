@@ -230,7 +230,6 @@ namespace Pogranichye.Client.Presentation
             }
             else if (!enabled && _firstPersonArmsAttached)
             {
-                var armRoot = _playerVisualRoot != null ? _playerVisualRoot : PlayerTransform;
                 _leftPlayerArm.SetParent(armRoot, false);
                 _rightPlayerArm.SetParent(armRoot, false);
                 _leftPlayerArm.localPosition = _leftArmHomePosition;
