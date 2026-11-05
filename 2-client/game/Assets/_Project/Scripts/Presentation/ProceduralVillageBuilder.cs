@@ -171,6 +171,7 @@ namespace Pogranichye.Client.Presentation
             rightRoof.transform.localRotation = Quaternion.Euler(0, 0, 25f);
             CreatePrimitive("Door", PrimitiveType.Cube, house, new Vector3(0, 0.72f, -1.415f),
                 new Vector3(0.75f, 1.45f, 0.08f), _roofMaterial);
+            BuildYardApron(house, name);
             for (var x = -1; x <= 1; x += 2)
             {
                 var windowX = x * 1.05f;
@@ -205,6 +206,60 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(3.35f, 0.13f, 0.12f), _roofMaterial);
             CreatePrimitive("Door handle", PrimitiveType.Sphere, house, new Vector3(0.23f, 0.72f, -1.48f),
                 new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
+        }
+
+        private static void BuildYardApron(Transform house, string houseName)
+        {
+            // A worn earth apron links each cottage threshold to the shared footpaths.
+            // The mesh is presentation-only, has no collider and is tracked for Cleanup().
+            var seed = StableSeed((houseName ?? string.Empty) + ":yard-apron");
+            var random = new System.Random(seed);
+            const int sides = 14;
+            var vertices = new Vector3[sides + 1];
+            var triangles = new int[sides * 3];
+            vertices[0] = new Vector3(0f, 0.012f, -2.28f);
+
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                var irregularity = 0.84f + (float)random.NextDouble() * 0.30f;
+                var x = Mathf.Cos(angle) * 1.48f * irregularity;
+                var z = -2.28f + Mathf.Sin(angle) * 0.94f * irregularity;
+                vertices[i + 1] = new Vector3(x, 0.012f, z);
+            }
+
+            // Reverse perimeter order so the fan faces upward in Unity's XZ plane.
+            for (var i = 0; i < sides; i++)
+            {
+                var current = i + 1;
+                var next = (i + 1) % sides + 1;
+                var triangle = i * 3;
+                triangles[triangle] = 0;
+                triangles[triangle + 1] = next;
+                triangles[triangle + 2] = current;
+            }
+
+            var mesh = new Mesh { name = houseName + " • worn yard earth" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var apron = CreateMeshPart("Worn earth at cottage entrance", house, mesh, _pathMaterial);
+            apron.isStatic = true;
+
+            // A few flattened stones break the edge where muddy earth meets the grass.
+            for (var i = 0; i < 3; i++)
+            {
+                var angle = (i * 2.1f) + (float)random.NextDouble() * 0.35f;
+                var x = Mathf.Cos(angle) * (1.18f + (float)random.NextDouble() * 0.24f);
+                var z = -2.28f + Mathf.Sin(angle) * (0.70f + (float)random.NextDouble() * 0.18f);
+                var stone = CreatePrimitive("Yard edge flat stone", PrimitiveType.Sphere, house,
+                    new Vector3(x, 0.045f, z),
+                    new Vector3(0.20f, 0.045f, 0.15f), _stoneMaterial);
+                stone.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
+                stone.isStatic = true;
+            }
         }
 
         private static void BuildTavern(Transform root, Vector3 position)
