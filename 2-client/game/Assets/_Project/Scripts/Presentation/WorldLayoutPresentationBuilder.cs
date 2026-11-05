@@ -94,7 +94,7 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildFootprintBuilding(Transform parent, BuildingFrame building,
+        private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
             float width, float depth)
         {
             var center = new Vector3((float)((building.X0 + building.X1) * 0.5), 0f,
