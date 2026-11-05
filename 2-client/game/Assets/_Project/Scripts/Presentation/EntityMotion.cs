@@ -108,25 +108,37 @@ namespace Pogranichye.Client.Presentation
                 case "visit_neighbors":
                     _activity = "social";
                     break;
+                case "fish_river":
+                case "fisher_mend":
+                    _activity = "fish";
+                    break;
+                case "chop_wood":
+                    _activity = "chop";
+                    break;
                 case "farm_sow":
                 case "farm_nosow":
                 case "farm_reap":
                 case "farm_mend":
                 case "farm_tend":
-                case "fish_river":
-                case "fisher_mend":
+                    _activity = "farm";
+                    break;
+                case "smith_forge":
+                    _activity = "forge";
+                    break;
+                case "mine_ore":
+                case "mine_spent":
+                    _activity = "mine";
+                    break;
                 case "hunt_wild":
                 case "hunter_empty":
+                    _activity = "hunt";
+                    break;
+                case "smith_cold":
                 case "cook_hearth":
                 case "brew_remedy":
                 case "forage_herbs":
-                case "smith_forge":
-                case "smith_cold":
                 case "weave":
                 case "weaver_wait":
-                case "mine_ore":
-                case "mine_spent":
-                case "chop_wood":
                 case "herd_barn":
                 case "herd_graze":
                 case "keep_tavern":
@@ -197,9 +209,15 @@ namespace Pogranichye.Client.Presentation
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
 
-            var resting = _activity.Contains("rest") || _activity.Contains("отдых");
-            var working = _activity.Contains("work") || _activity.Contains("работ");
-            var social = _activity.Contains("social") || _activity.Contains("общ") || _activity.Contains("говор");
+            var resting = _activity == "rest";
+            var chopping = _activity == "chop";
+            var fishing = _activity == "fish";
+            var forging = _activity == "forge";
+            var farming = _activity == "farm";
+            var mining = _activity == "mine";
+            var hunting = _activity == "hunt";
+            var working = _activity == "work" || chopping || fishing || forging || farming || mining || hunting;
+            var social = _activity == "social";
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
 
@@ -220,6 +238,39 @@ namespace Pogranichye.Client.Presentation
             var idleSway = Mathf.Sin(_phase * 0.72f) * 2.2f;
             var leftArmAngle = walking ? swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : idleSway;
             var rightArmAngle = walking ? -swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : -idleSway;
+
+            // Stable server activity codes drive distinct silhouettes instead of one generic work loop.
+            if (!walking)
+            {
+                if (chopping || mining)
+                {
+                    var strike = Mathf.Max(0f, Mathf.Sin(_phase * 2.8f));
+                    leftArmAngle = -18f + Mathf.Sin(_phase * 1.4f) * 5f;
+                    rightArmAngle = -78f + strike * 82f;
+                }
+                else if (fishing)
+                {
+                    leftArmAngle = -24f + Mathf.Sin(_phase * 0.65f) * 4f;
+                    rightArmAngle = -48f + Mathf.Sin(_phase * 0.65f + 0.5f) * 7f;
+                }
+                else if (forging)
+                {
+                    var hammer = Mathf.Max(0f, Mathf.Sin(_phase * 3.1f));
+                    leftArmAngle = -22f + Mathf.Sin(_phase * 1.1f) * 5f;
+                    rightArmAngle = -88f + hammer * 78f;
+                }
+                else if (farming)
+                {
+                    leftArmAngle = -34f + Mathf.Sin(_phase * 1.5f) * 8f;
+                    rightArmAngle = -38f + Mathf.Cos(_phase * 1.5f) * 9f;
+                }
+                else if (hunting)
+                {
+                    leftArmAngle = -42f + Mathf.Sin(_phase * 0.8f) * 5f;
+                    rightArmAngle = -52f + Mathf.Sin(_phase * 0.8f + 0.4f) * 6f;
+                }
+            }
+
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
             if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
             if (_talkGestureRemaining > 0f && !walking)
