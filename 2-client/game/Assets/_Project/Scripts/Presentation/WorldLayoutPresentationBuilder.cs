@@ -90,6 +90,7 @@ namespace Pogranichye.Client.Presentation
             BuildMeadowGrass(world);
             BuildFarmProps(world);
             BuildWoodcutterCamp(world);
+            BuildWindmill(world);
 
             // The same roads connect the server POIs: woods, fields, mine and river bridge.
             if (layout.Pois.TryGetValue("woods", out var woods))
@@ -489,6 +490,54 @@ namespace Pogranichye.Client.Presentation
             var log = Create("Stacked firewood log", PrimitiveType.Cylinder, parent,
                 position, new Vector3(radius, length * 0.5f, radius), _trunk, false);
             log.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+        }
+
+        private static void BuildWindmill(Transform parent)
+        {
+            // A working rural landmark on the eastern field; its rotor is visual-only.
+            var mill = new GameObject("East field windmill • landmark").transform;
+            mill.SetParent(parent, false);
+            mill.localPosition = new Vector3(126f, 0f, -28f);
+
+            Create("Windmill stone footing", PrimitiveType.Cylinder, mill,
+                new Vector3(0f, 0.32f, 0f), new Vector3(1.15f, 0.32f, 1.15f), _stone, false);
+            Create("Windmill lower tower", PrimitiveType.Cylinder, mill,
+                new Vector3(0f, 1.95f, 0f), new Vector3(0.82f, 1.65f, 0.82f), _timber, false);
+            Create("Windmill upper tower", PrimitiveType.Cylinder, mill,
+                new Vector3(0f, 4.45f, 0f), new Vector3(0.62f, 1.05f, 0.62f), _timber, false);
+            Create("Windmill cap", PrimitiveType.Cylinder, mill,
+                new Vector3(0f, 5.58f, 0f), new Vector3(0.72f, 0.20f, 0.72f), _roof, false);
+            Create("Windmill entrance", PrimitiveType.Cube, mill,
+                new Vector3(0f, 1.05f, -0.79f), new Vector3(0.82f, 1.55f, 0.08f), _trunk, false);
+            Create("Windmill door plank", PrimitiveType.Cube, mill,
+                new Vector3(0f, 1.04f, -0.85f), new Vector3(0.68f, 1.40f, 0.05f), _timber, false);
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var brace = Create("Windmill tower brace", PrimitiveType.Cube, mill,
+                    new Vector3(side * 0.22f, 3.15f, -0.42f),
+                    new Vector3(0.13f, 3.2f, 0.13f), _trunk, false);
+                brace.transform.localRotation = Quaternion.Euler(0f, 0f, side * 10f);
+            }
+
+            var rotor = new GameObject("Windmill sails • slow rotation");
+            rotor.transform.SetParent(mill, false);
+            rotor.transform.localPosition = new Vector3(0f, 5.72f, -0.78f);
+            rotor.AddComponent<WindmillRotor>().Initialize(5.5f);
+            Create("Windmill central hub", PrimitiveType.Sphere, rotor.transform,
+                Vector3.zero, new Vector3(0.42f, 0.42f, 0.30f), _trunk, false);
+            for (var blade = 0; blade < 4; blade++)
+            {
+                var arm = new GameObject("Windmill sail arm");
+                arm.transform.SetParent(rotor.transform, false);
+                arm.transform.localRotation = Quaternion.Euler(0f, 0f, blade * 90f);
+                Create("Windmill timber spar", PrimitiveType.Cube, arm.transform,
+                    new Vector3(0f, 1.12f, 0f), new Vector3(0.14f, 2.55f, 0.12f), _trunk, false);
+                Create("Windmill canvas sail", PrimitiveType.Cube, arm.transform,
+                    new Vector3(0f, 1.55f, -0.015f), new Vector3(0.72f, 0.72f, 0.07f), _scarecrowCloth, false);
+                Create("Windmill sail brace", PrimitiveType.Cube, arm.transform,
+                    new Vector3(0f, 1.55f, -0.06f), new Vector3(0.09f, 0.78f, 0.05f), _trunk, false);
+            }
         }
 
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
