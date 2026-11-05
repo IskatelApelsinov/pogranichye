@@ -131,10 +131,10 @@ namespace Pogranichye.Client.Presentation
         {
             // Co-drink is a one-shot server event, not a guess based on localized dialogue text.
             var socialEvent = frame.Me.SocialEvent;
-            if (socialEvent != null && !string.IsNullOrEmpty(socialEvent.Id) &&
-                socialEvent.Id != _lastSocialEvent)
+            if (socialEvent != null && socialEvent.Sequence > 0 &&
+                socialEvent.Sequence.ToString() != _lastSocialEvent)
             {
-                _lastSocialEvent = socialEvent.Id;
+                _lastSocialEvent = socialEvent.Sequence.ToString();
                 if (string.Equals(socialEvent.Type, "codrink", System.StringComparison.OrdinalIgnoreCase))
                 {
                     var playerMotion = player.GetComponent<EntityMotion>();
