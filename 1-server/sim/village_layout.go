@@ -2,44 +2,20 @@ package sim
 
 import "math"
 
-// Раскладка стартовой деревни: точки интереса (POI) в локальной сцене (метры от центра площадки,
-// +X восток, +Y север; та же система, что в контракте движения v1.1). Это ВЕРСИОНИРОВАННАЯ общая
-// геометрия: сервер водит по ней НПС, Unity-презентация должна класть здания на те же координаты.
-// Первая вертикаль — открытая площадка без графа препятствий: НПС идёт к POI своей текущей цели по
-// прямой. Граф проходимых рёбер/коллизии зданий/ручья — следующий слой (см. comms к 0031).
+// Раскладка деревни: точки интереса (двери зданий, колодец, лес, река, поля) и куда идут жители.
+// Координаты берутся из world_geometry.go (POINamed) — единая версионированная истина для сервера и
+// клиента. Жители идут к ДОСТУПНЫМ точкам (не в стены) и обходят здания (ResolveMove).
 //
-// Любое изменение координат/состава POI — подъём LayoutVersion и согласование с клиентом.
+// LayoutVersion держим равным GeometryVersion — любая правка координат бьётся об обе стороны.
 
-const LayoutVersion = 1
+const LayoutVersion = GeometryVersion
 
-// POI — точка интереса в сцене.
-type POI struct {
-	Name string
-	Kind string // tavern|smithy|garden|river|woods|mine|well|hearth
-	X, Y float64
-}
-
-// StarterLayout — POI «Починка». Держим в радиусе ~18 м, чтобы житель с личным смещением вокруг точки
-// всё равно оставался внутри площадки R=30.
-var StarterLayout = []POI{
-	{"Корчма", "tavern", -12, 8},
-	{"Кузница", "smithy", 10, 11},
-	{"Огород", "garden", 14, -8},
-	{"Река", "river", -6, -16},
-	{"Опушка", "woods", -16, -6},
-	{"Рудник", "mine", 18, 2},
-	{"Колодец", "well", 0, -1},
-	{"Очаг", "hearth", 4, 16},
-}
-
-// poiByKind возвращает координаты POI данного вида (или колодец как разумный центр по умолчанию).
+// poiByKind — доступная точка POI данного вида (или колодец/площадь по умолчанию).
 func poiByKind(kind string) (x, y float64) {
-	for _, p := range StarterLayout {
-		if p.Kind == kind {
-			return p.X, p.Y
-		}
+	if p, ok := POINamed[kind]; ok {
+		return p[0], p[1]
 	}
-	return 0, -1 // колодец/центр
+	return POINamed["well"][0], POINamed["well"][1]
 }
 
 // targetForGoal переводит ТЕКУЩУЮ цель жителя (из mind.Decide — не дублируем ИИ) и его ремесло в POI,
@@ -69,7 +45,7 @@ func targetForGoal(role, goal string) (x, y float64) {
 		case "tavernkeeper", "cook":
 			return poiByKind("tavern")
 		case "weaver":
-			return poiByKind("hearth")
+			return poiByKind("granary")
 		default:
 			return poiByKind("well")
 		}
@@ -79,19 +55,27 @@ func targetForGoal(role, goal string) (x, y float64) {
 }
 
 // idOffset — устойчивое личное смещение жителя вокруг целевой точки (чтобы НПС не слипались в POI).
-// Детерминировано по id: один и тот же житель всегда встаёт на «своё» место у точки.
 func idOffset(id uint64) (dx, dy float64) {
 	h := id*2654435761 + 1013904223
 	ang := float64(h%360) * math.Pi / 180
-	rad := 0.6 + float64((h/360)%140)/100.0 // 0.6..2.0 м
+	rad := 1.0 + float64((h/360)%250)/100.0 // 1..3.5 м
 	return rad * math.Cos(ang), rad * math.Sin(ang)
 }
 
-// spawnSpot — детерминированное НАЧАЛЬНОЕ место жителя: разложены кольцом по id, чтобы деревня
-// выглядела населённой с первого кадра (а не все в центре). Не RNG — стабильно между запусками.
+// SpawnSpot — детерминированное НАЧАЛЬНОЕ место жителя: разложены по ядру деревни (в проходимом месте,
+// не в стене). Стабильно между запусками (не RNG). Если выпало в здание — чуть толкаем наружу.
 func SpawnSpot(id uint64) (x, y float64) {
 	h := id*40503 + 12345
 	ang := float64(h%360) * math.Pi / 180
-	rad := 4 + float64((h/360)%120)/10.0 // 4..16 м от центра
-	return rad * math.Cos(ang), rad * math.Sin(ang)
+	rad := 8 + float64((h/360)%380)/10.0 // 8..46 м от центра — по всей деревне
+	x, y = rad*math.Cos(ang), rad*math.Sin(ang)
+	for i := 0; i < 8 && Blocked(x, y); i++ { // не в стене/реке
+		rad -= 5
+		if rad < 2 {
+			x, y = 0, -4 // к колодцу как крайний случай
+			break
+		}
+		x, y = rad*math.Cos(ang), rad*math.Sin(ang)
+	}
+	return x, y
 }

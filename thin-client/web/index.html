@@ -57,11 +57,8 @@
 <!-- игра -->
 <div id="game" class="hidden">
  <div class="card village-art">
-  <div class="scene-wrap" style="position:relative">
-   <img id="sceneimg" src="village-scene.svg" alt="Карта деревни: таверна, кузница, рынок, огород и река">
-   <canvas id="scene" style="position:absolute;left:0;top:0;width:100%;height:100%"></canvas>
-  </div>
-  <div class="scene-caption"><span id="scenehint">ПОСЕЛЕНИЕ · ЖИВАЯ ПЛОЩАДКА</span><span class="sub">WASD/стрелки — ходить · точка — ты</span></div>
+  <canvas id="scene" style="display:block;width:100%;height:360px;border:3px solid #7b6242;border-radius:4px;background:#5a6b3a"></canvas>
+  <div class="scene-caption"><span id="scenehint">ДЕРЕВНЯ · ВИД СВЕРХУ</span><span class="sub">WASD/стрелки — ходить · Shift — бежать</span></div>
  </div>
  <div class="card">
   <div class="row" style="justify-content:space-between;align-items:center">
@@ -96,6 +93,15 @@
    </div>
    <div class="sub" id="tavernmsg" style="margin-top:4px"></div>
   </div>
+  <div style="margin-top:10px">
+   <b class="sub">действия в мире <span class="sub" id="manainfo"></span></b>
+   <div class="acts">
+    <button id="chopbtn" onclick="act('chop')">🪓 Рубить лес</button>
+    <button id="fishbtn" onclick="act('fish')">🎣 Рыбачить</button>
+    <button id="castbtn" onclick="act('cast')">✨ Разряд</button>
+   </div>
+   <div class="sub" id="actmsg" style="margin-top:4px"></div>
+  </div>
  </div>
 
  <div class="card">
@@ -128,7 +134,9 @@ $('go').onclick=async()=>{
  token=lr.token; connect();
 };
 
-function connect(){
+let LAYOUT=null;
+async function connect(){
+ try{ LAYOUT=await (await fetch('/api/layout')).json(); }catch(e){ LAYOUT=null; } // геометрия мира
  const proto=location.protocol==='https:'?'wss':'ws';
  ws=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
  ws.onmessage=e=>render(JSON.parse(e.data));
@@ -139,7 +147,7 @@ function goal(g){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({op:'goal',go
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
 // --- ходьба: клавиши задают направление, шлём op:"move" с растущим seq и реальным dt ---
-const keys={}, SCENE_R=30;
+const keys={};
 let seq=0, lastMove=performance.now();
 addEventListener('keydown',e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)){keys[mapKey(e.key)]=1; e.preventDefault();} });
 addEventListener('keyup',  e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)) keys[mapKey(e.key)]=0; });
@@ -160,22 +168,64 @@ function buyBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'buy',
 function drinkBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'consume',item:'beer',reqid:rid()})); tmsg('пью…'); } }
 function tmsg(t){ $('tavernmsg').textContent=t; }
 
-// --- живая карта: рисуем игрока и соседей по их координатам сцены (они двигаются сервером) ---
+// --- действия в мире: рубка/рыбалка/магия (op:"act"), исход в кадре (закрома, силы, мана) ---
+function act(a){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'act',action:a,reqid:rid()}));
+  $('actmsg').textContent={chop:'рублю…',fish:'закидываю…',cast:'творю разряд…'}[a]||''; } }
+function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+
+// --- играбельная карта сверху: камера за игроком, здания/река из /api/layout, живые жители ---
 function drawScene(s){
- const cv=$('scene'), img=$('sceneimg'); if(!cv||!img.clientWidth) return;
- const W=img.clientWidth, H=img.clientHeight; cv.width=W; cv.height=H;
- const g=cv.getContext('2d'); g.clearRect(0,0,W,H);
- const cx=W/2, cy=H/2, sc=Math.min(W,H)/2/SCENE_R*0.92;
- const toPx=(x,y)=>[cx+x*sc, cy-y*sc]; // +Y на север (вверх)
- const dot=(x,y,r,col,ring)=>{ const[px,py]=toPx(x,y); g.beginPath(); g.arc(px,py,r,0,7); g.fillStyle=col; g.fill();
-   if(ring){ g.lineWidth=2; g.strokeStyle=ring; g.stroke(); } return[px,py]; };
- // Незнакомые жители остаются анонимными: карта показывает только их присутствие и движение.
- (s.place&&s.place.neighbors||[]).forEach(n=>{
-   if(!n.pos) return;
-   dot(n.pos.x,n.pos.y,4,'#caa',null);
+ const cv=$('scene'); if(!cv) return;
+ const W=cv.clientWidth, H=cv.clientHeight; cv.width=W; cv.height=H;
+ const g=cv.getContext('2d');
+ const me=s.me&&s.me.pos?s.me.pos:{x:0,y:0};
+ const VIEW=130; // метров по ширине обзора — видно деревню и что мир больше
+ const sc=W/VIEW; const cx=me.x, cy=me.y;
+ const toPx=(x,y)=>[W/2+(x-cx)*sc, H/2-(y-cy)*sc]; // камера на игроке, +Y вверх
+ // земля
+ g.fillStyle='#5a6b3a'; g.fillRect(0,0,W,H);
+ const px=(x,y)=>toPx(x,y)[0], py=(x,y)=>toPx(x,y)[1];
+ if(LAYOUT){
+   // лес на западе (x≤-70, темнее) и поля на востоке (x≥50, светлее) — крупными зонами
+   g.fillStyle='#3f5230'; g.fillRect(0,0,Math.max(0,px(-70,0)),H);
+   g.fillStyle='#6d7d44'; g.fillRect(px(50,0),0,W-px(50,0),H);
+   // река (полоса) + мост (проём)
+   const r=LAYOUT.river, ryTop=py(0,r.y1), ryBot=py(0,r.y0);
+   g.fillStyle='#3a6b86'; g.fillRect(0,ryTop,W,ryBot-ryTop);
+   g.fillStyle='#6b543a'; g.fillRect(px(r.bridge_x0,0),ryTop,px(r.bridge_x1,0)-px(r.bridge_x0,0),ryBot-ryTop);
+   // граница мира
+   const wh=LAYOUT.world_half;
+   g.strokeStyle='#2a3320'; g.lineWidth=3; g.strokeRect(px(-wh,wh),py(-wh,wh),px(wh,-wh)-px(-wh,wh),py(wh,-wh)-py(-wh,wh));
+   // здания
+   g.font='10px Georgia'; g.textAlign='center';
+   (LAYOUT.buildings||[]).forEach(b=>{
+     let[x0,y1]=toPx(b.x0,b.y1),[x1,y0]=toPx(b.x1,b.y0);
+     g.fillStyle='#7a5a3c'; g.fillRect(x0,y1,x1-x0,y0-y1);
+     g.strokeStyle='#4a3524'; g.lineWidth=2; g.strokeRect(x0,y1,x1-x0,y0-y1);
+     g.fillStyle='#e8d6ad'; g.fillText(b.name,(x0+x1)/2,(y0+y1)/2+3);
+   });
+   // POI-метки (река/лес/поля/рудник — зоны действий)
+   g.fillStyle='#d8c070'; g.font='italic 10px Georgia';
+   [['woods','лес'],['river','река'],['garden','поля'],['mine','рудник']].forEach(([k,lbl])=>{
+     const p=LAYOUT.pois[k]; if(!p)return; const[px,py]=toPx(p.x,p.y); g.fillText(lbl,px,py);
+   });
+ }
+ // жители (анонимно — имена только у знакомых, #66 сервера)
+ g.textAlign='center';
+ (s.place&&s.place.neighbors||[]).forEach(n=>{ if(!n.pos)return;
+   const[px,py]=toPx(n.pos.x,n.pos.y);
+   g.beginPath(); g.arc(px,py,4,0,7); g.fillStyle='#d8c0a0'; g.fill();
+   if(n.name){ g.fillStyle='#ead9b0'; g.font='10px Georgia'; g.fillText(n.name,px,py-7); }
  });
- if(s.me&&s.me.pos){ const[px,py]=dot(s.me.pos.x,s.me.pos.y,6,'#ffe9a8','#8a5a2b');
-   g.fillStyle='#fff4dc'; g.font='bold 11px Georgia'; g.textAlign='center'; g.fillText('ты',px,py-9); }
+ // игрок
+ if(s.me&&s.me.pos){ const[px,py]=toPx(me.x,me.y);
+   g.beginPath(); g.arc(px,py,6,0,7); g.fillStyle='#ffe9a8'; g.fill();
+   g.lineWidth=2; g.strokeStyle='#8a5a2b'; g.stroke();
+   // направление взгляда
+   const f=(s.me.pos.facing||0)*Math.PI/180; g.beginPath(); g.moveTo(px,py);
+   g.lineTo(px+Math.cos(f)*11,py-Math.sin(f)*11); g.strokeStyle='#fff4dc'; g.stroke();
+   g.fillStyle='#fff4dc'; g.font='bold 11px Georgia'; g.fillText('ты',px,py-10);
+ }
 }
 
 function barColor(v){ return v<25?'var(--bad)':v<55?'var(--warn)':'var(--good)'; }
@@ -205,9 +255,18 @@ function render(s){
    if(me.bleeding>0) t+=(ws.length?' · ':'раны: ')+'🩸 кровит '+me.bleeding;
    $('wounds').textContent=t;
  } else { $('wounds').textContent=''; }
- const goods={wheat:'зерно',bread:'хлеб',fish:'рыба',meat:'мясо',milk:'молоко',veg:'овощи',cheese:'сыр',egg:'яйца',game:'дичь'};
+ const goods={wheat:'зерно',bread:'хлеб',fish:'рыба',meat:'мясо',milk:'молоко',veg:'овощи',cheese:'сыр',egg:'яйца',game:'дичь',wood:'дерево',beer:'пиво'};
  const stash=me.stash||{}; const sk=Object.keys(stash);
  $('stash').textContent = sk.length ? ('🧺 в закромах: '+sk.map(g=>(goods[g]||g)+' '+stash[g]).join(', ')) : '';
+ // действия: мана и доступность по близости (считаем на клиенте по /api/layout; сервер всё равно проверит)
+ const mp=me.pos||{x:0,y:0}, L=LAYOUT, R=6;
+ const near=k=>{ if(!L||!L.pois[k])return false; return dist(mp.x,mp.y,L.pois[k].x,L.pois[k].y)<=R; };
+ const atWoods = (mp.x<=-70) || near('woods');
+ const atRiver = near('river') || (L&&Math.abs(mp.y-(L.river?L.river.y1:-78))<=6);
+ $('manainfo').textContent = L?('· мана '+(me.mana!=null?me.mana:'—')+(atWoods?' · у леса':atRiver?' · у реки':'')):'';
+ $('chopbtn').disabled = !atWoods || me.energy<8;
+ $('fishbtn').disabled = !atRiver || me.energy<7;
+ $('castbtn').disabled = (me.mana||0)<25;
  if(s.place){
    $('place').textContent=s.place.name;
    $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;

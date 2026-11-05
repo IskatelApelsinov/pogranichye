@@ -19,6 +19,7 @@
     "last": "отдыхает",
     "act_code": "rest_idle",
     "mug": false,
+    "mana": 100,
     "home": "none",
     "coins": 23.4,
     "debt": 0,

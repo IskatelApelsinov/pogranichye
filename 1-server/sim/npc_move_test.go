@@ -28,9 +28,11 @@ func TestNPCWalksToActivityPOI(t *testing.T) {
 		t.Fatal("житель должен был получить ScenePos")
 	}
 	tx, ty := poiByKind("smithy")
-	ox, oy := idOffset(uint64(e.ID))
-	if d := math.Hypot(p.X-(tx+ox), p.Y-(ty+oy)); d > npcArrive+1e-6 {
-		t.Fatalf("кузнец не дошёл до кузницы: |до цели|=%.2f (pos %.1f,%.1f)", d, p.X, p.Y)
+	if d := math.Hypot(p.X-tx, p.Y-ty); d > 5 { // добрёл к кузнице (с учётом личного смещения/обхода)
+		t.Fatalf("кузнец не дошёл до кузницы: |до POI|=%.2f (pos %.1f,%.1f)", d, p.X, p.Y)
+	}
+	if Blocked(p.X, p.Y) {
+		t.Fatalf("кузнец встал в стене: (%.2f,%.2f)", p.X, p.Y)
 	}
 }
 
@@ -91,8 +93,11 @@ func TestNPCStaysInScene(t *testing.T) {
 	}
 	for _, e := range es {
 		p := ScenePos(e)
-		if math.Hypot(p.X, p.Y) > SceneRadius+1e-6 {
-			t.Fatalf("житель вышел за площадку: |pos|=%.2f", math.Hypot(p.X, p.Y))
+		if p.X < -WorldHalf-1e-6 || p.X > WorldHalf+1e-6 || p.Y < -WorldHalf-1e-6 || p.Y > WorldHalf+1e-6 {
+			t.Fatalf("житель вышел за мир: (%.2f,%.2f)", p.X, p.Y)
+		}
+		if Blocked(p.X, p.Y) {
+			t.Fatalf("житель оказался в стене/реке: (%.2f,%.2f)", p.X, p.Y)
 		}
 	}
 }

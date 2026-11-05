@@ -19,12 +19,11 @@ func init() {
 }
 
 const (
-	SceneRadius = 30.0 // полуразмер деревенской площадки в метрах (простая «коллизия» — границы)
-	walkSpeed   = 1.4  // м/с шагом
-	runSpeed    = 3.2  // м/с бегом (пока есть силы)
-	moveMaxDt   = 0.25 // ограничение шага интегрирования (с) — защита от рывков/читерских dt
-	stamDrain   = 0.18 // трата запала в секунду бега
-	stamRegen   = 0.08 // восстановление запала в секунду не-бега
+	walkSpeed = 1.4  // м/с шагом
+	runSpeed  = 3.2  // м/с бегом (пока есть силы)
+	moveMaxDt = 0.25 // ограничение шага интегрирования (с) — защита от рывков/читерских dt
+	stamDrain = 0.18 // трата запала в секунду бега
+	stamRegen = 0.08 // восстановление запала в секунду не-бега
 )
 
 // ScenePosC — положение тела в сцене: координаты (м), взгляд (град), запал бега (0..1) и номер
@@ -41,12 +40,13 @@ func (c *ScenePosC) Kind() string { return "scenepos" }
 
 func ScenePos(e *core.Entity) *ScenePosC { c, _ := e.Get("scenepos").(*ScenePosC); return c }
 
-// EnsureScenePos вешает положение (в центре площадки, полный запал), если его ещё нет.
+// EnsureScenePos вешает положение (у колодца в центре деревни, на проходимом месте, полный запал),
+// если его ещё нет. Это точка «вселения» игрока.
 func EnsureScenePos(w *core.World, e *core.Entity) *ScenePosC {
 	if p := ScenePos(e); p != nil {
 		return p
 	}
-	p := &ScenePosC{X: 0, Y: 0, Facing: 90, Stam: 1}
+	p := &ScenePosC{X: 0, Y: -8, Facing: 90, Stam: 1} // у колодца, лицом на север (в деревню)
 	w.Attach(e, p)
 	return p
 }
@@ -85,9 +85,8 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 				p.Stam = 1
 			}
 		}
-		p.X += mx * speed * dt
-		p.Y += my * speed * dt
-		clampRadial(p) // #17: круглая граница площадки, а не квадратная
+		// коллизия (v1.3): пробуем шаг, но не сквозь стены/реку/край мира — скользим вдоль преград
+		p.X, p.Y = ResolveMove(p.X, p.Y, p.X+mx*speed*dt, p.Y+my*speed*dt)
 	} else {
 		// стоит — запал восстанавливается
 		p.Stam += stamRegen * dt
@@ -103,26 +102,3 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 	p.Seq = seq
 }
 
-// clampRadial держит тело в КРУГЕ радиуса SceneRadius (x²+y² ≤ R²). Квадратный clamp по осям
-// пропускал диагональные углы (напр. ~(30,30)), что выходило за круглую границу из контракта v1.1.
-func clampRadial(p *ScenePosC) {
-	d2 := p.X*p.X + p.Y*p.Y
-	if d2 > SceneRadius*SceneRadius {
-		d := math.Sqrt(d2)
-		p.X = p.X / d * SceneRadius
-		p.Y = p.Y / d * SceneRadius
-	}
-}
-
-// Deprecated: НПС теперь ходят по-настоящему (StepNPCMovement) и кадр отдаёт их реальную ScenePos.
-// Функция оставлена как исторический детерминированный фолбэк и для сравнения; из snapshot-пути убрана.
-//
-// NeighborPos — устойчивое «декоративное» положение соседа по его id (сервер пока не симулирует
-// каждого в сцене — это та же LoD-идея: детально ведём лишь игрока). Клиент так стабильно их
-// расставит; каноническое движение НПС — отдельный следующий шаг.
-func NeighborPos(id core.ID) (x, y, facing float64) {
-	h := uint64(id)*2654435761 + 1013904223
-	ang := float64(h%360) * math.Pi / 180
-	rad := (float64((h/360)%1000)/1000)*0.8*SceneRadius + 2
-	return rad * math.Cos(ang), rad * math.Sin(ang), float64((h / 7) % 360)
-}
