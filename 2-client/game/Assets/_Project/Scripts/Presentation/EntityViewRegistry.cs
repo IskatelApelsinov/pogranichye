@@ -78,7 +78,8 @@ namespace Pogranichye.Client.Presentation
                     var position = neighbor.Position != null
                         ? ToUnityPosition(neighbor.Position)
                         : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
-                    var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
+                    var shownIdentity = neighbor.Known && !string.IsNullOrEmpty(neighbor.Name) ? neighbor.Name : neighbor.Description;
+                    var view = GetOrCreate(id, shownIdentity, neighbor.Role, position, false);
                     SetActivityCode(view, neighbor.ActivityCode);
                     var targetRotation = neighbor.Position != null
                         ? Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f)
@@ -94,7 +95,7 @@ namespace Pogranichye.Client.Presentation
                         view.transform.rotation = targetRotation;
                     }
                     // v1 has no server-authoritative familiarity flag. Unknown/missing means hidden.
-                    SetLabel(view, string.Empty);
+                    SetLabel(view, neighbor.Known ? neighbor.Name : neighbor.Description);
                     visibleCount++;
                 }
             }
