@@ -19,6 +19,7 @@ namespace Pogranichye.Client.Presentation
         private readonly Transform _root;
         private Transform _leftPlayerArm;
         private Transform _rightPlayerArm;
+        private Transform _playerVisualRoot;
         private Vector3 _leftArmHomePosition;
         private Vector3 _rightArmHomePosition;
         private Quaternion _leftArmHomeRotation;
@@ -34,6 +35,11 @@ namespace Pogranichye.Client.Presentation
         public Transform PlayerTransform { get; private set; }
 
         public EntityViewRegistry(Transform root) { _root = root; }
+
+        public void SetPlayerPresentationOffset(Vector3 localOffset)
+        {
+            if (_playerVisualRoot != null) _playerVisualRoot.localPosition = localOffset;
+        }
 
         public void Apply(WorldFrame frame)
         {
@@ -196,8 +202,9 @@ namespace Pogranichye.Client.Presentation
         {
             if (PlayerTransform == null) return;
 
-            if (_leftPlayerArm == null) _leftPlayerArm = PlayerTransform.Find("Left arm");
-            if (_rightPlayerArm == null) _rightPlayerArm = PlayerTransform.Find("Right arm");
+            var armRoot = _playerVisualRoot != null ? _playerVisualRoot : PlayerTransform;
+            if (_leftPlayerArm == null) _leftPlayerArm = armRoot.Find("Left arm");
+            if (_rightPlayerArm == null) _rightPlayerArm = armRoot.Find("Right arm");
 
             if (enabled && !_firstPersonArmsAttached && cameraTransform != null &&
                 _leftPlayerArm != null && _rightPlayerArm != null)
@@ -223,8 +230,9 @@ namespace Pogranichye.Client.Presentation
             }
             else if (!enabled && _firstPersonArmsAttached)
             {
-                _leftPlayerArm.SetParent(PlayerTransform, false);
-                _rightPlayerArm.SetParent(PlayerTransform, false);
+                var armRoot = _playerVisualRoot != null ? _playerVisualRoot : PlayerTransform;
+                _leftPlayerArm.SetParent(armRoot, false);
+                _rightPlayerArm.SetParent(armRoot, false);
                 _leftPlayerArm.localPosition = _leftArmHomePosition;
                 _rightPlayerArm.localPosition = _rightArmHomePosition;
                 _leftPlayerArm.localRotation = _leftArmHomeRotation;
@@ -251,6 +259,7 @@ namespace Pogranichye.Client.Presentation
                 SetPlayerFirstPerson(false, null);
             _leftPlayerArm = null;
             _rightPlayerArm = null;
+            _playerVisualRoot = null;
             foreach (var view in _views.Values)
                 if (view != null) Object.Destroy(view);
             _views.Clear();
@@ -269,13 +278,22 @@ namespace Pogranichye.Client.Presentation
             go.transform.SetParent(_root, false);
             go.transform.position = position;
 
-            var body = CreatePart("Body", PrimitiveType.Capsule, go.transform,
+            var visualRoot = go.transform;
+            if (isPlayer)
+            {
+                var visualObject = new GameObject("PlayerVisualRoot");
+                visualObject.transform.SetParent(go.transform, false);
+                visualRoot = visualObject.transform;
+                _playerVisualRoot = visualRoot;
+            }
+
+            var body = CreatePart("Body", PrimitiveType.Capsule, visualRoot,
                 new Vector3(0, 0.95f, 0), new Vector3(0.48f, 0.52f, 0.32f));
-            var head = CreatePart("Head", PrimitiveType.Sphere, go.transform,
+            var head = CreatePart("Head", PrimitiveType.Sphere, visualRoot,
                 new Vector3(0, 1.62f, 0), new Vector3(0.36f, 0.40f, 0.36f));
-            var leftArm = CreatePart("Left arm", PrimitiveType.Capsule, go.transform,
+            var leftArm = CreatePart("Left arm", PrimitiveType.Capsule, visualRoot,
                 new Vector3(-0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
-            var rightArm = CreatePart("Right arm", PrimitiveType.Capsule, go.transform,
+            var rightArm = CreatePart("Right arm", PrimitiveType.Capsule, visualRoot,
                 new Vector3(0.33f, 0.98f, 0), new Vector3(0.16f, 0.42f, 0.16f));
             var leftHand = CreatePart("Left hand", PrimitiveType.Sphere, leftArm.transform,
                 new Vector3(0f, -0.82f, 0.04f), new Vector3(1.1f, 0.65f, 1.1f));
@@ -285,9 +303,9 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
             var rightThumb = CreatePart("Right thumb", PrimitiveType.Sphere, rightArm.transform,
                 new Vector3(-0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
-            var leftLeg = CreatePart("Left leg", PrimitiveType.Capsule, go.transform,
+            var leftLeg = CreatePart("Left leg", PrimitiveType.Capsule, visualRoot,
                 new Vector3(-0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
-            var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, go.transform,
+            var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, visualRoot,
                 new Vector3(0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
 
             var tunic = RoleColor(role, isPlayer);
@@ -304,8 +322,8 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(rightThumb.GetComponent<Renderer>(), skin);
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
-            AddFaceDetails(go.transform);
-            AddRoleAccessories(go.transform, role);
+            AddFaceDetails(visualRoot);
+            AddRoleAccessories(visualRoot, role);
 
             var motion = go.AddComponent<EntityMotion>();
             motion.Initialize(body.transform, head.transform, leftArm.transform, rightArm.transform,
