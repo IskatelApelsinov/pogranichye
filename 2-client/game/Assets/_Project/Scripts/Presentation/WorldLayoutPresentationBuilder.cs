@@ -45,14 +45,36 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    var center = new Vector3((float)((b.X0 + b.X1) * 0.5), 2.35f, (float)((b.Y0 + b.Y1) * 0.5));
-                    var building = Create("Server building • " + b.Kind, PrimitiveType.Cube, world,
-                        center, new Vector3(width, 4.7f, depth), _timber, false);
-                    var collider = building.AddComponent<BoxCollider>();
-                    collider.size = Vector3.one;
-                    building.layer = 2; // PresentationCameraRig's obstruction mask.
-                    var roof = Create("Thatched roof • " + b.Kind, PrimitiveType.Cube, world,
-                        new Vector3(center.x, 4.95f, center.z), new Vector3(width + 0.8f, 0.65f, depth + 0.8f), _roof, false);
+                    var centerX = (float)((b.X0 + b.X1) * 0.5);
+                    var centerZ = (float)((b.Y0 + b.Y1) * 0.5);
+                    var collision = new GameObject("Server collision • " + b.Kind);
+                    collision.transform.SetParent(world, false);
+                    collision.transform.localPosition = new Vector3(centerX, 2.35f, centerZ);
+                    collision.layer = 2; // Same obstruction layer used by the presentation camera.
+                    var collider = collision.AddComponent<BoxCollider>();
+                    collider.size = new Vector3(width, 4.7f, depth);
+
+                    // Render a hollow shell, not a solid opaque cube: the server footprint is
+                    // a collision volume, while the visible house/tavern model remains readable.
+                    var wallHeight = 4.5f;
+                    const float wallThickness = 0.45f;
+                    Create("Building back wall • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX, wallHeight * 0.5f, centerZ + depth * 0.5f - wallThickness * 0.5f),
+                        new Vector3(width, wallHeight, wallThickness), _timber, false);
+                    Create("Building left wall • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX - width * 0.5f + wallThickness * 0.5f, wallHeight * 0.5f, centerZ),
+                        new Vector3(wallThickness, wallHeight, depth), _timber, false);
+                    Create("Building right wall • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX + width * 0.5f - wallThickness * 0.5f, wallHeight * 0.5f, centerZ),
+                        new Vector3(wallThickness, wallHeight, depth), _timber, false);
+                    Create("Building front left • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX - width * 0.32f, wallHeight * 0.5f, centerZ - depth * 0.5f + wallThickness * 0.5f),
+                        new Vector3(width * 0.36f, wallHeight, wallThickness), _timber, false);
+                    Create("Building front right • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX + width * 0.32f, wallHeight * 0.5f, centerZ - depth * 0.5f + wallThickness * 0.5f),
+                        new Vector3(width * 0.36f, wallHeight, wallThickness), _timber, false);
+                    Create("Thatched roof • " + b.Kind, PrimitiveType.Cube, world,
+                        new Vector3(centerX, 4.75f, centerZ), new Vector3(width + 0.8f, 0.55f, depth + 0.8f), _roof, false);
                 }
             }
 
