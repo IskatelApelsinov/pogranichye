@@ -24,16 +24,16 @@ namespace Pogranichye.Client.Presentation
             if (root == null || layout == null || layout.Version != 2 || root.Find("ServerLayoutV2") != null) return;
             var world = new GameObject("ServerLayoutV2").transform;
             world.SetParent(root, false);
-            _ground = MakeMaterial("Layout ground", new Color(0.36f, 0.43f, 0.25f));
-            _water = MakeMaterial("Layout river", new Color(0.17f, 0.36f, 0.43f));
-            _timber = MakeMaterial("Layout timber", new Color(0.30f, 0.20f, 0.13f));
-            _roof = MakeMaterial("Layout thatch", new Color(0.24f, 0.20f, 0.14f));
-            _field = MakeMaterial("Layout field", new Color(0.57f, 0.57f, 0.30f));
-            _forest = MakeMaterial("Layout woodland", new Color(0.13f, 0.25f, 0.15f));
-            _trunk = MakeMaterial("Layout trunks", new Color(0.25f, 0.16f, 0.10f));
-            _road = MakeMaterial("Layout country roads", new Color(0.38f, 0.30f, 0.22f));
-            _straw = MakeMaterial("Farm straw", new Color(0.69f, 0.53f, 0.24f));
-            _scarecrowCloth = MakeMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f));
+            _ground = MakeTexturedMaterial("Layout ground • meadow", new Color(0.36f, 0.43f, 0.25f), 0, 10f, 10f);
+            _water = MakeTexturedMaterial("Layout river • current", new Color(0.17f, 0.36f, 0.43f), 5, 2f, 18f);
+            _timber = MakeTexturedMaterial("Layout timber • weathered boards", new Color(0.30f, 0.20f, 0.13f), 2, 2f, 2f);
+            _roof = MakeTexturedMaterial("Layout thatch • straw courses", new Color(0.24f, 0.20f, 0.14f), 3, 2f, 3f);
+            _field = MakeTexturedMaterial("Layout field • rough soil", new Color(0.57f, 0.57f, 0.30f), 1, 8f, 8f);
+            _forest = MakeTexturedMaterial("Layout woodland • foliage", new Color(0.13f, 0.25f, 0.15f), 0, 5f, 5f);
+            _trunk = MakeTexturedMaterial("Layout trunks • bark", new Color(0.25f, 0.16f, 0.10f), 2, 1f, 3f);
+            _road = MakeTexturedMaterial("Layout country roads • packed dirt", new Color(0.38f, 0.30f, 0.22f), 1, 2f, 12f);
+            _straw = MakeTexturedMaterial("Farm straw • dry stalks", new Color(0.69f, 0.53f, 0.24f), 3, 2f, 2f);
+            _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
@@ -316,6 +316,44 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
             }
 
+            // Exposed structural framing breaks up the large flat wall planes.
+            for (var y = 0; y < 2; y++)
+            {
+                var beamY = 0.72f + y * 1.65f;
+                Create("Front horizontal timber beam", PrimitiveType.Cube, root,
+                    new Vector3(0f, beamY, -depth * 0.5f + 0.02f),
+                    new Vector3(width - 0.12f, 0.16f, 0.32f), _trunk, false);
+                Create("Rear horizontal timber beam", PrimitiveType.Cube, root,
+                    new Vector3(0f, beamY, depth * 0.5f - 0.02f),
+                    new Vector3(width - 0.12f, 0.16f, 0.32f), _trunk, false);
+            }
+
+            // A dark recessed door and small framed windows give each footprint a readable facade.
+            var doorWidth = Mathf.Min(1.25f, opening * 0.52f);
+            Create("Shadowed doorway", PrimitiveType.Cube, root,
+                new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
+                new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
+            Create("Oak door leaf", PrimitiveType.Cube, root,
+                new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
+                new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
+            Create("Door iron latch", PrimitiveType.Sphere, root,
+                new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
+                new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var windowX = side * width * 0.31f;
+                var window = Create("Window dark recess", PrimitiveType.Cube, root,
+                    new Vector3(windowX, 1.95f, -depth * 0.5f - 0.015f),
+                    new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
+                Create("Window shutter", PrimitiveType.Cube, root,
+                    new Vector3(windowX, 1.95f, -depth * 0.5f - 0.065f),
+                    new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
+                Create("Window crossbar", PrimitiveType.Cube, root,
+                    new Vector3(windowX, 1.95f, -depth * 0.5f - 0.105f),
+                    new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
+            }
+
             // A broad two-slope roof reads at village scale and is not just a small stall canopy.
             var slopeWidth = width * 0.56f;
             var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
@@ -332,10 +370,90 @@ namespace Pogranichye.Client.Presentation
         {
             var delta = end - start;
             var center = (start + end) * 0.5f;
-            var road = Create("Country road • POI link", PrimitiveType.Cube, parent,
+            var rotation = Quaternion.Euler(0f, Mathf.Atan2(delta.x, delta.y) * Mathf.Rad2Deg, 0f);
+            var road = Create("Country road • packed earth", PrimitiveType.Cube, parent,
                 new Vector3(center.x, 0.105f, center.y),
                 new Vector3(width, 0.06f, delta.magnitude), _road, false);
-            road.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(delta.x, delta.y) * Mathf.Rad2Deg, 0f);
+            road.transform.rotation = rotation;
+
+            // Shallow wheel ruts and a raised grassy verge add scale and catch warm side-light.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var rut = Create("Worn cart rut", PrimitiveType.Cube, parent,
+                    new Vector3(center.x, 0.139f, center.y),
+                    new Vector3(0.16f, 0.012f, delta.magnitude * 0.96f),
+                    _trunk, false);
+                rut.transform.rotation = rotation;
+                rut.transform.localPosition += rotation * Vector3.right * (side * width * 0.23f);
+            }
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var verge = Create("Road grassy shoulder", PrimitiveType.Cube, parent,
+                    new Vector3(center.x, 0.075f, center.y),
+                    new Vector3(0.42f, 0.025f, delta.magnitude * 0.98f),
+                    _forest, false);
+                verge.transform.rotation = rotation;
+                verge.transform.localPosition += rotation * Vector3.right * (side * (width * 0.5f + 0.18f));
+            }
+        }
+
+        private static Material MakeTexturedMaterial(string name, Color tint, int pattern, float tilingX, float tilingY)
+        {
+            var material = MakeMaterial(name, tint);
+            var texture = MakeSurfaceTexture(name + " • 64px", pattern);
+            material.mainTexture = texture;
+            material.mainTextureScale = new Vector2(tilingX, tilingY);
+            if (material.HasProperty("_Smoothness"))
+                material.SetFloat("_Smoothness", pattern == 5 ? 0.58f : 0.12f);
+            if (material.HasProperty("_Metallic"))
+                material.SetFloat("_Metallic", pattern == 5 ? 0.08f : 0f);
+            return material;
+        }
+
+        private static Texture2D MakeSurfaceTexture(string textureName, int pattern)
+        {
+            const int size = 64;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear
+            };
+            var random = new System.Random(100 + pattern * 37);
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var noise = (float)random.NextDouble() * 0.12f - 0.06f;
+                var shade = 0.92f + noise;
+                switch (pattern)
+                {
+                    case 0: // meadow and foliage: irregular flecks
+                        if ((x * 17 + y * 29) % 41 == 0) shade -= 0.22f;
+                        if ((x + y * 3) % 53 == 0) shade += 0.12f;
+                        break;
+                    case 1: // packed earth and field soil
+                        if ((x * 11 + y * 7) % 37 < 3) shade -= 0.20f;
+                        if ((x + y * 3) % 53 == 0) shade += 0.10f;
+                        break;
+                    case 2: // timber grain and knots
+                        if (y % 13 < 2) shade -= 0.20f;
+                        if ((x - y * 2 + 64) % 47 < 3) shade -= 0.08f;
+                        if ((x % 29 < 4) && (y % 31 < 5)) shade += 0.10f;
+                        break;
+                    case 3: // overlapping thatch courses
+                        if (y % 9 < 2) shade -= 0.24f;
+                        if (((x + (y / 9) * 11) % 19) < 2) shade -= 0.12f;
+                        break;
+                    case 5: // river ripples and broken highlights
+                        if ((x * 7 + y * 3) % 29 < 3) shade += 0.18f;
+                        if ((x + y * 11) % 47 < 2) shade -= 0.10f;
+                        break;
+                }
+                shade = Mathf.Clamp(shade, 0.45f, 1.08f);
+                texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
+            }
+            texture.Apply();
+            return texture;
         }
 
         private static Material MakeMaterial(string name, Color color)
