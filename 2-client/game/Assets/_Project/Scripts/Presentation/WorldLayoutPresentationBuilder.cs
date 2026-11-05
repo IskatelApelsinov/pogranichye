@@ -30,7 +30,7 @@ namespace Pogranichye.Client.Presentation
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
-                new Vector3(0f, -0.025f, (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
+                new Vector3(0f, 0.025f, (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
                 new Vector3((float)(layout.WorldHalf * 2), 0.05f, (float)(layout.River.Y1 - layout.River.Y0)), _water, false);
             var bridgeWidth = (float)(layout.River.BridgeX1 - layout.River.BridgeX0);
             Create("Bridge • server layout", PrimitiveType.Cube, world,
@@ -57,11 +57,11 @@ namespace Pogranichye.Client.Presentation
             }
 
             // Broad, readable agricultural and woodland zones establish the scale of the 300 m world.
-            Create("West forest floor", PrimitiveType.Cube, world, new Vector3(-108f, -0.08f, 0f),
+            Create("West forest floor", PrimitiveType.Cube, world, new Vector3(-108f, 0.025f, 0f),
                 new Vector3(78f, 0.12f, 280f), _forest, false);
-            Create("East grain country", PrimitiveType.Cube, world, new Vector3(103f, -0.07f, 10f),
+            Create("East grain country", PrimitiveType.Cube, world, new Vector3(103f, 0.025f, 10f),
                 new Vector3(88f, 0.10f, 260f), _field, false);
-            Create("North meadow", PrimitiveType.Cube, world, new Vector3(8f, -0.075f, 112f),
+            Create("North meadow", PrimitiveType.Cube, world, new Vector3(8f, 0.025f, 112f),
                 new Vector3(115f, 0.10f, 64f), _field, false);
             var random = new System.Random(417);
             for (var i = 0; i < 72; i++)
