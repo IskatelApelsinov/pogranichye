@@ -48,6 +48,8 @@ namespace Pogranichye.Client.Presentation
                 new Vector3((float)((layout.River.BridgeX0 + layout.River.BridgeX1) * 0.5), 0.12f,
                     (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
                 new Vector3(bridgeWidth, 0.24f, (float)(layout.River.Y1 - layout.River.Y0) + 0.8f), _timber, false);
+            BuildRiverSurface(world, layout);
+            BuildRiverBankDetails(world, layout);
 
             if (layout.Buildings != null)
             {
@@ -204,6 +206,83 @@ namespace Pogranichye.Client.Presentation
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.On;
             renderer.receiveShadows = true;
+        }
+
+        private static void BuildRiverSurface(Transform parent, WorldLayoutFrame layout)
+        {
+            const int xSegments = 60;
+            const int zSegments = 4;
+            var xMin = (float)-layout.WorldHalf;
+            var xMax = (float)layout.WorldHalf;
+            var zMin = (float)layout.River.Y0;
+            var zMax = (float)layout.River.Y1;
+            var vertices = new Vector3[(xSegments + 1) * (zSegments + 1)];
+            var uv = new Vector2[vertices.Length];
+            var triangles = new int[xSegments * zSegments * 6];
+            for (var z = 0; z <= zSegments; z++)
+            for (var x = 0; x <= xSegments; x++)
+            {
+                var px = Mathf.Lerp(xMin, xMax, x / (float)xSegments);
+                var pz = Mathf.Lerp(zMin, zMax, z / (float)zSegments);
+                var wave = Mathf.Sin(px * 0.12f + pz * 0.42f) * 0.009f
+                    + Mathf.Sin(px * 0.047f - pz * 0.73f) * 0.006f;
+                var index = z * (xSegments + 1) + x;
+                vertices[index] = new Vector3(px, 0.056f + wave, pz);
+                uv[index] = new Vector2(x / (float)xSegments, z / (float)zSegments);
+            }
+            var t = 0;
+            for (var z = 0; z < zSegments; z++)
+            for (var x = 0; x < xSegments; x++)
+            {
+                var a = z * (xSegments + 1) + x;
+                var b = a + 1;
+                var d = a + xSegments + 1;
+                var c = d + 1;
+                // Up-facing triangles.
+                triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+            }
+            var mesh = new Mesh { name = "River surface • subtle low-poly current" };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var water = new GameObject("River surface • rippled overlay");
+            water.transform.SetParent(parent, false);
+            water.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = water.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _water;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static void BuildRiverBankDetails(Transform parent, WorldLayoutFrame layout)
+        {
+            var random = new System.Random(6137);
+            var vertices = new System.Collections.Generic.List<Vector3>(1800);
+            var triangles = new System.Collections.Generic.List<int>(2700);
+            var northBank = (float)layout.River.Y1 + 0.55f;
+            var southBank = (float)layout.River.Y0 - 0.55f;
+            for (var x = -74f; x <= 74f; x += 3.8f)
+            {
+                var px = x + ((float)random.NextDouble() - 0.5f) * 1.4f;
+                if (px > (float)layout.River.BridgeX0 - 4f && px < (float)layout.River.BridgeX1 + 4f) continue;
+                if (Mathf.Abs(px - 13.45f) < 5f) continue; // leave the fishing landing open
+                for (var bank = 0; bank < 2; bank++)
+                {
+                    var pz = bank == 0 ? northBank : southBank;
+                    var center = new Vector3(px, 0.08f, pz + ((float)random.NextDouble() - 0.5f) * 0.7f);
+                    for (var blade = 0; blade < 3; blade++)
+                    {
+                        var angle = blade * Mathf.PI / 3f + (float)random.NextDouble() * 0.45f;
+                        AddGrassBlade(vertices, triangles, center,
+                            0.42f + (float)random.NextDouble() * 0.48f,
+                            0.045f + (float)random.NextDouble() * 0.035f, angle);
+                    }
+                }
+            }
+            CreateCombinedMesh(parent, "River banks • combined reeds", vertices, triangles, _grass);
         }
 
         private static void BuildMeadowGrass(Transform parent)
