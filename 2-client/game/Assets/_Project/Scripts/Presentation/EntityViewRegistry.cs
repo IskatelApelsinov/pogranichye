@@ -115,7 +115,7 @@ namespace Pogranichye.Client.Presentation
                         view.transform.rotation = targetRotation;
                     }
                     // v1 has no server-authoritative familiarity flag. Unknown/missing means hidden.
-                    SetLabel(view, neighbor.Known ? neighbor.Name : neighbor.Description);
+                    SetLabel(view, shownIdentity);
                     visibleCount++;
                 }
             }
