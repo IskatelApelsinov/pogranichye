@@ -25,6 +25,8 @@ namespace Pogranichye.Client.Presentation
         private float _lastNetworkTargetAt;
         private float _greetingRemaining;
         private float _drinkGestureRemaining;
+        private float _talkGestureRemaining;
+        private float _cheersGestureRemaining;
         private Transform _attentionTarget;
         private Transform _focusTarget;
         private Quaternion _headTargetRotation;
@@ -144,6 +146,17 @@ namespace Pogranichye.Client.Presentation
             _drinkGestureRemaining = 1.35f;
         }
 
+        public void PlayTalkGesture()
+        {
+            _talkGestureRemaining = 1.8f;
+        }
+
+        public void PlayCheersGesture()
+        {
+            _cheersGestureRemaining = 1.6f;
+            _drinkGestureRemaining = 1.6f;
+        }
+
         /// <summary>
         /// Sets the observer used for the NPC's attention and gaze presentation.
         /// </summary>
@@ -178,6 +191,10 @@ namespace Pogranichye.Client.Presentation
 
             if (_drinkGestureRemaining > 0f)
                 _drinkGestureRemaining = Mathf.Max(0f, _drinkGestureRemaining - Time.deltaTime);
+            if (_talkGestureRemaining > 0f)
+                _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
+            if (_cheersGestureRemaining > 0f)
+                _cheersGestureRemaining = Mathf.Max(0f, _cheersGestureRemaining - Time.deltaTime);
 
             var resting = _activity.Contains("rest") || _activity.Contains("отдых");
             var working = _activity.Contains("work") || _activity.Contains("работ");
@@ -212,6 +229,18 @@ namespace Pogranichye.Client.Presentation
                 var wave = Mathf.Sin((1.65f - _greetingRemaining) * 15f);
                 rightArmAngle = -112f + wave * 9f;
                 rightArmYaw = wave * 28f;
+            }
+
+            if (_talkGestureRemaining > 0f && !walking)
+            {
+                rightArmAngle = -72f + Mathf.Sin((1.8f - _talkGestureRemaining) * 8f) * 10f;
+                leftArmAngle = 18f + Mathf.Sin((1.8f - _talkGestureRemaining) * 7f) * 8f;
+            }
+            if (_cheersGestureRemaining > 0f && !walking)
+            {
+                var toast = Mathf.Sin((1.6f - _cheersGestureRemaining) * 10f) * 8f;
+                rightArmAngle = -105f + toast;
+                leftArmAngle = -105f - toast;
             }
 
             var legSwing = walking ? swing * Mathf.Lerp(24f, 38f, _locomotion) : swing * 2f;
