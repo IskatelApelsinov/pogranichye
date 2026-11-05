@@ -98,6 +98,13 @@ func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 		{"woodcutter", "м", 24, false}, {"weaver", "ж", 33, true},
 		{"miner", "м", 36, false}, {"tavernkeeper", "ж", 48, true},
 		{"idler", "м", 7, false}, {"idler", "ж", 4, false}, // дети
+		// больше народу — деревня живёт полнее
+		{"farmer", "м", 52, true}, {"farmer", "ж", 48, true}, {"farmer", "м", 19, false},
+		{"fisher", "м", 35, true}, {"fisher", "ж", 30, false}, {"hunter", "м", 41, true},
+		{"woodcutter", "м", 33, true}, {"miner", "м", 28, false}, {"smith", "м", 23, false},
+		{"weaver", "ж", 26, false}, {"cook", "ж", 55, true}, {"herder", "ж", 22, false},
+		{"herbalist", "ж", 60, true}, {"idler", "м", 12, false}, {"idler", "ж", 9, false},
+		{"idler", "м", 2, false}, {"farmer", "м", 44, true}, {"farmer", "ж", 39, true},
 	}
 	var people []*core.Entity
 	for _, r := range roster {
@@ -109,7 +116,30 @@ func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 	bond(w, people[0], people[1]) // пахари-супруги
 	bond(w, people[4], people[6]) // пастух и знахарка
 
-	makeRealms(w, g, []core.ID{se.ID})
+	ids := []core.ID{se.ID}
+	// соседние деревни — стартовая локация это ЦЕНТР «Мира», прочее достижимо путешествием
+	for _, hn := range []string{"Берёзовка", "Залесье", "Крутой Яр"} {
+		hse := NewSettlement(w, g, hn, reg)
+		ids = append(ids, hse.ID)
+		hroster := []struct {
+			role string
+			sex  string
+			age  float64
+			home bool
+		}{
+			{"farmer", "м", 33, true}, {"farmer", "ж", 30, true}, {"fisher", "м", 28, false},
+			{"smith", "м", 40, true}, {"hunter", "м", 26, false}, {"tavernkeeper", "ж", 44, true},
+			{"weaver", "ж", 35, true}, {"herder", "м", 50, true}, {"cook", "ж", 37, true},
+			{"idler", "м", 8, false}, {"idler", "ж", 6, false},
+		}
+		var hp []*core.Entity
+		for _, r := range hroster {
+			hp = append(hp, starterPerson(w, g, hse.ID, r.role, r.sex, r.age, r.home))
+		}
+		core.Settle(hse).Keeper = hp[5].ID
+		bond(w, hp[0], hp[1])
+	}
+	makeRealms(w, g, ids)
 	return w, hub
 }
 

@@ -283,6 +283,10 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Line   string `json:"line"`   // выбранная реплика
 		// навигация менеджмент-клиента v1.6: дискретный переход в локацию
 		Location string `json:"location"`
+		// расширение v1.7: инвентарь/рынок/путешествия
+		Good string `json:"good"`
+		Side string `json:"side"`
+		Qty  int    `json:"qty"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -333,7 +337,43 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				sim.FishCatch(s.world, e, in.ReqID)
 			case "cast":
 				sim.CastSpark(s.world, e, in.ReqID)
+			case "build":
+				sim.Build(s.world, e, in.ReqID)
+			case "hunt":
+				sim.Hunt(s.world, e, in.ReqID)
+			case "fight":
+				sim.Fight(s.world, e, in.ReqID)
 			}
+		}
+		s.mu.Unlock()
+	case "take": // подобрать предмет (v1.7)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Take(s.world, e, in.Item, in.ReqID)
+		}
+		s.mu.Unlock()
+	case "equip":
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Equip(s.world, e, in.Item)
+		}
+		s.mu.Unlock()
+	case "wear":
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Wear(s.world, e, in.Item)
+		}
+		s.mu.Unlock()
+	case "trade": // рынок: купить/продать (v1.7)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Trade(s.world, e, in.Good, in.Side, in.Qty)
+		}
+		s.mu.Unlock()
+	case "travel": // перейти в другое поселение (v1.7)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.Travel(s.world, e, parseID(in.Target))
 		}
 		s.mu.Unlock()
 	case "goto": // дискретная навигация менеджмент-клиента: встать в локацию (v1.6)
@@ -428,6 +468,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"invite_from":  meInvite(s.world, e), // кто зовёт выпить вместе (co-drink, v1.4)
 			"social_event": meSocial(e),           // подтверждённый тост/угощение (монотонный seq) — v1.5
 			"known_places": s.meKnownPlaces(e),     // что игрок знает о поселениях: visited/known (#26, v1.5)
+			"desire":       sim.Desire(e),           // текущее главное желание (v1.7)
+			"inv":          meInv(e),                // инвентарь: предметы, рука, одежда (v1.7)
+			"world":        sim.Settlements(s.world), // карта поселений для путешествий (v1.7)
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -451,7 +494,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 						}
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": shownName, "known": known,
-							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct,
+							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct, "want": sim.Desire(o),
 							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
 							"player":   s.ctl[o.ID] != 0, // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
@@ -557,6 +600,15 @@ func meMug(e *core.Entity) bool {
 		return m.Has
 	}
 	return false
+}
+
+// meInv — инвентарь игрока: предметы, что в руке, надетая одежда (v1.7).
+func meInv(e *core.Entity) map[string]any {
+	i := sim.Inv(e)
+	if i == nil {
+		return map[string]any{"items": map[string]int{}, "hand": "", "worn": map[string]string{}}
+	}
+	return map[string]any{"items": i.Items, "hand": i.Hand, "worn": i.Worn}
 }
 
 // meSkills — умения игрока и их уровни (прокачка от труда). Пусто, если навыков нет.

@@ -34,7 +34,10 @@
     "talk": null,
     "invite_from": null,
     "social_event": null,
-    "known_places": []
+    "known_places": [],
+    "desire": "в порядке",
+    "inv": { "items": { "axe": 1 }, "hand": "axe", "worn": { "body": "cloak" } },
+    "world": [ { "id": "2", "name": "Починок", "tier": "village", "x": 500.0, "y": 500.0 } ]
   },
   "place": {
     "name": "Белогорье",
@@ -54,6 +57,7 @@
         "role": "farmer",
         "trait": "тихий",
         "act": "отдыхает",
+        "want": "при деле",
         "act_code": "rest_idle",
         "player": false,
         "pos": { "x": 5.2, "y": -3.1, "facing": 210 }
