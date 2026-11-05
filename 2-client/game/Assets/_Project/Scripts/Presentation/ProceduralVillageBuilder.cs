@@ -363,7 +363,7 @@ namespace Pogranichye.Client.Presentation
             var ambient = root.GetComponent<VillageAmbientMotion>();
             if (ambient != null) ambient.RegisterLight(warmLight, 0.08f, 2.0f);
 
-            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(1.1f, 0.08f, -2.0f),
+            CreatePoiMarker(root, "Таверна • поговорить", new Vector3(0f, 0.08f, -8.0f),
                 new Color(0.75f, 0.48f, 0.22f), "socialize");
         }
 
