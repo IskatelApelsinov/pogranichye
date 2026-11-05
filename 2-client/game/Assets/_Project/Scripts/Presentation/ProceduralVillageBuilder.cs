@@ -131,6 +131,7 @@ namespace Pogranichye.Client.Presentation
             CreatePoiMarker(village, "Лес • рубить дрова", new Vector3(-82f, 0.08f, 24f),
                 new Color(0.43f, 0.31f, 0.19f), null, "chop");
             BuildVillageLife(village, ambientMotion);
+            BuildChickenYard(village);
             BuildStreetDetails(village, worldSeed);
             BuildWornFootpaths(village, worldSeed);
             BuildRoadsidePuddles(village, worldSeed);
@@ -644,6 +645,103 @@ namespace Pogranichye.Client.Presentation
                     0f, (float)random.NextDouble() * 18f - 9f, 0f);
                 stone.isStatic = true;
             }
+        }
+
+private static void BuildChickenYard(Transform root)
+        {
+            // A tiny domestic yard adds movement and a clear everyday-life vignette.
+            // It is decorative only: no server fauna, POIs, collision or gameplay resources.
+            var yard = new GameObject("Chicken yard • domestic life").transform;
+            yard.SetParent(root, false);
+            yard.localPosition = new Vector3(12f, 0f, -7f);
+
+            var straw = CreatePrimitive("Chicken yard • straw ground", PrimitiveType.Cylinder, yard,
+                new Vector3(0f, 0.035f, 0f), new Vector3(2.25f, 0.025f, 1.75f), _pathMaterial);
+            straw.transform.localRotation = Quaternion.Euler(0f, 11f, 0f);
+
+            // Low rails mark the domestic space but remain visual dressing without colliders.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                for (var i = 0; i < 4; i++)
+                {
+                    var z = -1.9f + i * 1.27f;
+                    CreatePrimitive("Chicken yard • fence post", PrimitiveType.Cube, yard,
+                        new Vector3(side * 2.65f, 0.43f, z), new Vector3(0.11f, 0.86f, 0.11f), _woodMaterial);
+                }
+                CreatePrimitive("Chicken yard • fence rail", PrimitiveType.Cube, yard,
+                    new Vector3(side * 2.65f, 0.56f, 0f), new Vector3(0.09f, 0.10f, 4.0f), _roofMaterial);
+            }
+            // Leave a central opening toward the lane instead of fencing across the gate.
+            for (var side = -1; side <= 1; side += 2)
+                CreatePrimitive("Chicken yard • front rail", PrimitiveType.Cube, yard,
+                    new Vector3(side * 1.65f, 0.56f, 1.9f), new Vector3(2.0f, 0.10f, 0.09f), _roofMaterial);
+            CreatePrimitive("Chicken yard • gate post", PrimitiveType.Cube, yard,
+                new Vector3(-0.65f, 0.42f, 1.9f), new Vector3(0.11f, 0.84f, 0.11f), _woodMaterial);
+
+            var coop = new GameObject("Small chicken coop").transform;
+            coop.SetParent(yard, false);
+            coop.localPosition = new Vector3(-1.75f, 0f, -1.25f);
+            CreatePrimitive("Coop body", PrimitiveType.Cube, coop,
+                new Vector3(0f, 0.53f, 0f), new Vector3(1.25f, 0.92f, 0.95f), _woodMaterial);
+            CreatePrimitive("Coop roof", PrimitiveType.Cube, coop,
+                new Vector3(0f, 1.12f, 0f), new Vector3(1.48f, 0.16f, 1.12f), _roofMaterial);
+            CreatePrimitive("Coop entrance", PrimitiveType.Cube, coop,
+                new Vector3(0f, 0.28f, 0.49f), new Vector3(0.36f, 0.52f, 0.035f), _metalMaterial);
+            CreatePrimitive("Nest straw", PrimitiveType.Sphere, coop,
+                new Vector3(0.38f, 0.99f, -0.12f), new Vector3(0.34f, 0.12f, 0.30f), _produceMaterial);
+
+            CreatePrimitive("Chicken feed trough", PrimitiveType.Cube, yard,
+                new Vector3(1.72f, 0.19f, 0.75f), new Vector3(1.15f, 0.30f, 0.34f), _woodMaterial);
+            for (var i = 0; i < 5; i++)
+                CreatePrimitive("Scattered grain", PrimitiveType.Sphere, yard,
+                    new Vector3(1.35f + i * 0.17f, 0.36f, 0.53f + (i % 2) * 0.12f),
+                    new Vector3(0.045f, 0.025f, 0.045f), _produceMaterial);
+
+            BuildYardChicken(yard, new Vector3(-0.75f, 0f, 0.15f), _foamMaterial, 1701);
+            BuildYardChicken(yard, new Vector3(0.65f, 0f, -0.55f), _mugWoodMaterial, 1702);
+            BuildYardChicken(yard, new Vector3(1.45f, 0f, -0.95f), _foamMaterial, 1703);
+        }
+
+        private static void BuildYardChicken(Transform parent, Vector3 position, Material plumage, int seed)
+        {
+            var chicken = new GameObject("Village hen • ambient animal").transform;
+            chicken.SetParent(parent, false);
+            chicken.localPosition = position;
+
+            var body = CreatePrimitive("Hen body", PrimitiveType.Sphere, chicken,
+                new Vector3(0f, 0.43f, 0f), new Vector3(0.43f, 0.31f, 0.60f), plumage).transform;
+            CreatePrimitive("Hen wing L", PrimitiveType.Sphere, body,
+                new Vector3(-0.78f, 0.02f, -0.03f), new Vector3(0.42f, 0.68f, 0.78f), _clothMaterial);
+            CreatePrimitive("Hen wing R", PrimitiveType.Sphere, body,
+                new Vector3(0.78f, 0.02f, -0.03f), new Vector3(0.42f, 0.68f, 0.78f), _clothMaterial);
+            var tail = CreatePrimitive("Hen tail", PrimitiveType.Sphere, chicken,
+                new Vector3(0f, 0.59f, -0.48f), new Vector3(0.19f, 0.32f, 0.19f), plumage);
+            tail.transform.localRotation = Quaternion.Euler(25f, 0f, 0f);
+
+            var head = new GameObject("Hen head").transform;
+            head.SetParent(chicken, false);
+            head.localPosition = new Vector3(0f, 0.66f, 0.30f);
+            CreatePrimitive("Hen head plumage", PrimitiveType.Sphere, head,
+                Vector3.zero, new Vector3(0.23f, 0.23f, 0.23f), plumage);
+            CreatePrimitive("Hen beak", PrimitiveType.Cube, head,
+                new Vector3(0f, -0.015f, 0.18f), new Vector3(0.09f, 0.13f, 0.10f), _produceMaterial);
+            CreatePrimitive("Hen comb", PrimitiveType.Sphere, head,
+                new Vector3(0f, 0.16f, -0.015f), new Vector3(0.10f, 0.15f, 0.08f), _fireMaterial);
+            for (var side = -1; side <= 1; side += 2)
+                CreatePrimitive("Hen eye", PrimitiveType.Sphere, head,
+                    new Vector3(side * 0.105f, 0.025f, 0.12f), new Vector3(0.035f, 0.035f, 0.035f), _metalMaterial);
+
+            var leftLeg = CreatePrimitive("Hen leg L", PrimitiveType.Cylinder, chicken,
+                new Vector3(-0.13f, 0.14f, 0.04f), new Vector3(0.035f, 0.14f, 0.035f), _produceMaterial).transform;
+            var rightLeg = CreatePrimitive("Hen leg R", PrimitiveType.Cylinder, chicken,
+                new Vector3(0.13f, 0.14f, 0.04f), new Vector3(0.035f, 0.14f, 0.035f), _produceMaterial).transform;
+            CreatePrimitive("Hen foot L", PrimitiveType.Cube, chicken,
+                new Vector3(-0.13f, 0.025f, 0.11f), new Vector3(0.13f, 0.035f, 0.17f), _produceMaterial);
+            CreatePrimitive("Hen foot R", PrimitiveType.Cube, chicken,
+                new Vector3(0.13f, 0.025f, 0.11f), new Vector3(0.13f, 0.035f, 0.17f), _produceMaterial);
+
+            chicken.gameObject.AddComponent<VillageChickenMotion>()
+                .Initialize(body, head, leftLeg, rightLeg, seed);
         }
 
         private static void BuildVillageLife(Transform root, VillageAmbientMotion ambient)
