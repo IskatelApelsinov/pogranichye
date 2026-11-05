@@ -389,9 +389,19 @@ namespace Pogranichye.Client.Presentation
             if (_smokeMaterial == null)
             {
                 _smokeMaterial = new Material(shader) { name = "Chimney smoke • soft grey" };
-                var smokeColor = new Color(0.48f, 0.49f, 0.47f, 0.26f);
+                var smokeColor = new Color(0.48f, 0.49f, 0.47f, 0.48f);
                 if (_smokeMaterial.HasProperty("_BaseColor")) _smokeMaterial.SetColor("_BaseColor", smokeColor);
                 if (_smokeMaterial.HasProperty("_Color")) _smokeMaterial.SetColor("_Color", smokeColor);
+                _smokeMaterial.SetOverrideTag("RenderType", "Transparent");
+                if (_smokeMaterial.HasProperty("_Surface"))
+                {
+                    _smokeMaterial.SetFloat("_Surface", 1f);
+                    _smokeMaterial.SetFloat("_Blend", 0f);
+                    _smokeMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                }
+                if (_smokeMaterial.HasProperty("_ZWrite")) _smokeMaterial.SetFloat("_ZWrite", 0f);
+                _smokeMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _smokeMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 _smokeMaterial.renderQueue = 3000;
             }
 
@@ -406,7 +416,7 @@ namespace Pogranichye.Client.Presentation
             main.startLifetime = new ParticleSystem.MinMaxCurve(4.5f, 7f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.08f, 0.16f);
             main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.24f);
-            main.startColor = new Color(0.62f, 0.63f, 0.61f, 0.22f);
+            main.startColor = new Color(0.62f, 0.63f, 0.61f, 0.65f);
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
 
             var emission = particles.emission;
@@ -429,8 +439,8 @@ namespace Pogranichye.Client.Presentation
             var gradient = new Gradient();
             gradient.SetKeys(
                 new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.42f, 0.16f),
-                    new GradientAlphaKey(0.28f, 0.72f), new GradientAlphaKey(0f, 1f) });
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.62f, 0.16f),
+                    new GradientAlphaKey(0.42f, 0.72f), new GradientAlphaKey(0f, 1f) });
             fade.color = gradient;
 
             var renderer = holder.GetComponent<ParticleSystemRenderer>();
