@@ -1311,10 +1311,8 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(15.5f, -0.08f, 0), new Vector3(2.2f, 0.12f, 32f), _waterMaterial);
             var waterMotion = creek.AddComponent<CreekWaterDrift>();
             waterMotion.Initialize(_waterMaterial, 0.018f);
-            CreatePrimitive("Creek bank near", PrimitiveType.Cube, root,
-                new Vector3(14.25f, 0.02f, 0), new Vector3(0.35f, 0.18f, 32f), _pathMaterial);
-            CreatePrimitive("Creek bank far", PrimitiveType.Cube, root,
-                new Vector3(16.75f, 0.02f, 0), new Vector3(0.35f, 0.18f, 32f), _pathMaterial);
+            BuildCreekBank(root, -1);
+            BuildCreekBank(root, 1);
             var bridge = new GameObject("Old plank footbridge").transform;
             bridge.SetParent(root, false);
             bridge.position = new Vector3(15.5f, 0.12f, -2.5f);
@@ -1327,6 +1325,74 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(x * 0.9f, 0.48f, 0), new Vector3(0.12f, 0.95f, 0.12f), _woodMaterial);
                 CreatePrimitive("Bridge handrail", PrimitiveType.Cube, bridge,
                     new Vector3(x * 0.9f, 0.85f, 0), new Vector3(0.12f, 0.12f, 2.7f), _woodMaterial);
+            }
+        }
+
+        private static void BuildCreekBank(Transform root, int side)
+        {
+            // A shallow, uneven mesh replaces the hard rectangular creek-bank slabs.
+            // Outer edge blends into meadow; inner edge drops toward the water surface.
+            const int segments = 32;
+            var vertices = new Vector3[(segments + 1) * 2];
+            var triangles = new int[segments * 6];
+            var random = new System.Random(StableSeed("creek-bank:" + side));
+
+            for (var i = 0; i <= segments; i++)
+            {
+                var t = (float)i / segments;
+                var z = -15.8f + t * 31.6f;
+                var edgeJitter = ((float)random.NextDouble() - 0.5f) * 0.22f;
+                var outerX = side < 0 ? 13.55f : 17.45f;
+                var innerX = side < 0 ? 14.39f : 16.61f;
+                outerX += ((float)random.NextDouble() - 0.5f) * 0.10f;
+                innerX += ((float)random.NextDouble() - 0.5f) * 0.08f;
+                var outerY = 0.025f + ((float)random.NextDouble() - 0.5f) * 0.025f;
+                var innerY = -0.018f + ((float)random.NextDouble() - 0.5f) * 0.018f;
+                var row = i * 2;
+                vertices[row] = new Vector3(outerX, outerY, z + edgeJitter);
+                vertices[row + 1] = new Vector3(innerX, innerY, z + edgeJitter);
+            }
+
+            for (var i = 0; i < segments; i++)
+            {
+                var a = i * 2;
+                var b = a + 1;
+                var d = a + 2;
+                var e = a + 3;
+                var t = i * 6;
+                if (side < 0)
+                {
+                    // Counter-clockwise from above for the western bank.
+                    triangles[t] = a; triangles[t + 1] = d; triangles[t + 2] = b;
+                    triangles[t + 3] = b; triangles[t + 4] = d; triangles[t + 5] = e;
+                }
+                else
+                {
+                    triangles[t] = a; triangles[t + 1] = b; triangles[t + 2] = d;
+                    triangles[t + 3] = b; triangles[t + 4] = e; triangles[t + 5] = d;
+                }
+            }
+
+            var mesh = new Mesh { name = side < 0 ? "Creek west sloped bank" : "Creek east sloped bank" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var bank = CreateMeshPart("Uneven creek bank", root, mesh, _pathMaterial);
+            bank.isStatic = true;
+
+            // Scattered flat stones soften the waterline; leave the footbridge approach open.
+            for (var i = 0; i < 10; i++)
+            {
+                var z = -14.2f + i * 2.85f + ((float)random.NextDouble() - 0.5f) * 0.65f;
+                if (z > -4.2f && z < 0.2f) continue;
+                var x = side < 0 ? 14.20f : 16.80f;
+                x += ((float)random.NextDouble() - 0.5f) * 0.22f;
+                var size = 0.10f + (float)random.NextDouble() * 0.11f;
+                var stone = CreatePrimitive("Creek waterline stone", PrimitiveType.Sphere, root,
+                    new Vector3(x, 0.015f, z), new Vector3(size * 1.25f, 0.055f, size), _stoneMaterial);
+                stone.transform.rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 180f, 0f);
+                stone.isStatic = true;
             }
         }
 
