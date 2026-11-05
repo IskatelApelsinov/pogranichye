@@ -18,9 +18,11 @@ This folder contains the Unity client scaffold for the stable v1 protocol.
 
 ## World model — owner clarification (2026-11-06)
 
-**Canonical design: one persistent, continuous world divided into regions.** A region is not a separate world instance or an unreachable island. Regions organize geography, simulation load, biomes and streaming; the intended thick-client journey between them is physical travel through connected terrain, roads, bridges and passes. Teleport-style `op:travel` is currently a discrete settlement switch and must not be mistaken for the final thick-client world traversal model.
+**Two-tier model: bounded starter/demo territory + huge open world.** The starter territory contains several villages; travel between those villages is physical and road-based. Mountains/natural barriers form the outer perimeter separating the demo territory from the open world. A special gateway/teleport may be used only to cross from the starter/demo territory into the open world; this is not ordinary settlement travel.
 
-The current 300×300 m Layout v2 is the playable local settlement area, not the size or coordinate system of the entire world. The global world-coordinate/region-boundary contract is still a server architecture task; do not claim that the current client already traverses the full world.
+Inside the open world, regions are parts of one large connected geography. Travel between its settlements/regions is physical along roads, bridges, passes and other traversable routes; no ordinary teleport. `op:travel` must not silently represent village-to-village travel in the thick client.
+
+The current 300×300 m Layout v2 is the local playable area of one settlement, not the dimensions of the full multi-village demo territory or the open world. The global coordinate, region streaming and demo-gateway contract remain architecture work; do not claim the current client traverses these spaces already.
 
 ## Project target
 
