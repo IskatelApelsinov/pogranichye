@@ -805,7 +805,7 @@ namespace Pogranichye.Client.Presentation
             // A visible amber fill sits below the rim, inside the hollow vessel.
             // Primitive colliders are removed by CreatePrimitive, so this remains presentation-only.
             CreatePrimitive("Amber ale • liquid inside tankard", PrimitiveType.Cylinder, mug,
-                new Vector3(0f, 0.238f, 0f), new Vector3(0.136f, 0.006f, 0.136f), _beerMaterial);
+                new Vector3(0f, 0.261f, 0f), new Vector3(0.136f, 0.006f, 0.136f), _beerMaterial);
 
             // Replace the single placeholder foam sphere with a shallow, irregular low-poly cap.
             var foamCap = CreateMeshPart("Ale foam • irregular cap", mug,
@@ -816,7 +816,7 @@ namespace Pogranichye.Client.Presentation
                 var angle = i * Mathf.PI * 0.5f + 0.28f;
                 var radius = 0.055f + (i % 2) * 0.012f;
                 CreatePrimitive("Foam bubble", PrimitiveType.Sphere, mug,
-                    new Vector3(Mathf.Cos(angle) * radius, 0.301f + (i % 2) * 0.003f,
+                    new Vector3(Mathf.Cos(angle) * radius, 0.287f + (i % 2) * 0.003f,
                         Mathf.Sin(angle) * radius),
                     new Vector3(0.014f, 0.006f, 0.014f), _foamMaterial);
             }
@@ -837,10 +837,10 @@ namespace Pogranichye.Client.Presentation
                 var radius = 0.092f * scallop;
                 var x = Mathf.Cos(angle) * radius;
                 var z = Mathf.Sin(angle) * radius;
-                vertices[i] = new Vector3(x, 0.281f, z);
-                vertices[sides + i] = new Vector3(x, 0.294f, z);
+                vertices[i] = new Vector3(x, 0.269f, z);
+                vertices[sides + i] = new Vector3(x, 0.282f, z);
             }
-            vertices[center] = new Vector3(0f, 0.294f, 0f);
+            vertices[center] = new Vector3(0f, 0.282f, 0f);
 
             var t = 0;
             for (var i = 0; i < sides; i++)
