@@ -239,6 +239,34 @@ namespace Pogranichye.Client
                 GUILayout.EndHorizontal();
                 GUILayout.EndArea();
             }
+
+            // Outgoing co-drink is offered only for neighbors the server marks as controlled players.
+            var neighbors = _frame.Place?.Neighbors;
+            if (neighbors != null)
+            {
+                var inviteableCount = 0;
+                foreach (var neighbor in neighbors)
+                    if (neighbor != null && neighbor.Controlled) inviteableCount++;
+                if (inviteableCount > 0)
+                {
+                    var height = 56f + inviteableCount * 34f;
+                    var rect = new Rect(Screen.width - 330f, 18f, 310f, height);
+                    GUI.Box(rect, "Игроки рядом");
+                    GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 25f, rect.width - 20f, rect.height - 32f));
+                    foreach (var neighbor in neighbors)
+                    {
+                        if (neighbor == null || !neighbor.Controlled) continue;
+                        var label = neighbor.Known && !string.IsNullOrEmpty(neighbor.Name)
+                            ? neighbor.Name : (neighbor.Description ?? "Игрок");
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(label);
+                        if (GUILayout.Button("Позвать выпить", GUILayout.Width(130f)))
+                            _ = SendInviteDrinkAsync(neighbor.Id);
+                        GUILayout.EndHorizontal();
+                    }
+                    GUILayout.EndArea();
+                }
+            }
         }
 
         private async Task SendWorldActionAsync(string action)
@@ -286,6 +314,19 @@ namespace Pogranichye.Client
                 if (socket != null) await socket.SendEndTalkAsync(_lifetime.Token);
             }
             catch (Exception ex) { Enqueue(() => _status = "Не удалось закончить разговор: " + ex.Message); }
+        }
+
+        private async Task SendInviteDrinkAsync(string target)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendInviteDrinkAsync(target, _lifetime.Token);
+                Enqueue(() => _status = "Приглашение выпить отправлено серверу.");
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось пригласить игрока: " + ex.Message); }
         }
 
         private async Task SendDrinkResponseAsync(bool accept)
