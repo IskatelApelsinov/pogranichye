@@ -222,10 +222,8 @@ namespace Pogranichye.Client
                 }
                 GUILayout.Space(6);
                 GUILayout.Label("ДЕЙСТВИЯ В МИРЕ");
-                GUILayout.Label("Мана: " + _frame.Me.Mana.ToString("0") + " | Закрома: " +
-                    (_frame.Me.Stash != null && _frame.Me.Stash.Count > 0
-                        ? string.Join(", ", _frame.Me.Stash)
-                        : "пусто"));
+                GUILayout.Label("Мана: " + _frame.Me.Mana.ToString("0") + " | Видов товара в закромах: " +
+                    (_frame.Me.Stash != null ? _frame.Me.Stash.Count : 0));
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Рубить лес")) _ = SendWorldActionAsync("chop");
                 if (GUILayout.Button("Рыбачить")) _ = SendWorldActionAsync("fish");
