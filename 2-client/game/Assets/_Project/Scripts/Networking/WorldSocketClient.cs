@@ -67,6 +67,23 @@ namespace Pogranichye.Client.Networking
         public Task SendAcceptDrinkAsync(bool accept, CancellationToken cancellationToken) =>
             SendIntentAsync(accept ? "accept" : "declinedrink", null, null, cancellationToken);
 
+        public async Task SendActAsync(string action, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(action)) throw new ArgumentException("Не задано действие.", nameof(action));
+            if (!IsConnected) throw new InvalidOperationException("WebSocket не подключён.");
+            var payload = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["v"] = 1,
+                ["op"] = "act",
+                ["action"] = action,
+                ["reqid"] = Guid.NewGuid().ToString("N")
+            };
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try { await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false); }
+            finally { _sendGate.Release(); }
+        }
+
         private async Task SendIntentAsync(string op, string target, string line, CancellationToken cancellationToken)
         {
             if (!IsConnected) throw new InvalidOperationException("WebSocket не подключён.");
