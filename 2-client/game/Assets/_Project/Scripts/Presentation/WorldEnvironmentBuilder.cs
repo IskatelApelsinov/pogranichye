@@ -108,7 +108,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildDistantLandscape(Transform root)
         {
-            // A faceted ridgeline replaces dozens of isolated sphere hills with one mesh.
+            // A faceted mountain ridge sits well beyond the 300×300 m playable area.
             var random = new System.Random(14027);
             var vertices = new System.Collections.Generic.List<Vector3>(2400);
             var paletteTriangles = new System.Collections.Generic.List<int>[5];
@@ -126,7 +126,7 @@ namespace Pogranichye.Client.Presentation
                     height, (float)random.NextDouble() * Mathf.PI * 2f, random);
             }
 
-            // A few nearer angular outcrops break the flat horizon around the creek.
+            // Low foothills form a second, distant layer without crowding the village or fields.
             for (var i = 0; i < 12; i++)
             {
                 var angle = i * Mathf.PI * 2f / 12f + 0.18f;
