@@ -19,6 +19,25 @@ namespace Pogranichye.Client.Networking
             _baseUrl = baseUrl.TrimEnd('/');
         }
 
+        public async Task<WorldLayoutFrame> GetLayoutAsync()
+        {
+            using (var request = UnityWebRequest.Get(_baseUrl + "/api/layout"))
+            {
+                request.timeout = 15;
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/layout: " + request.error);
+                var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
+                if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
+                    layout.Buildings == null || layout.River == null || layout.Pois == null)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию мира.");
+                return layout;
+            }
+        }
+
         public Task<AuthResponse> RegisterAsync(string login, string password)
         {
             return PostAsync("/api/register", login, password);
