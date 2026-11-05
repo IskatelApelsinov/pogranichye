@@ -139,6 +139,35 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+
+        private static void AlignBuildingsToServerLayout(Transform village)
+        {
+            // GeometryVersion 2: these centres and footprints mirror sim/world_geometry.go.
+            PlaceLayoutBuilding(village, "Tutorial Tavern", -33f, 20f, 1.45f, 1.55f);
+            PlaceLayoutBuilding(village, "Blacksmith workshop", 29f, 22f, 3.0f, 2.8f);
+            PlaceLayoutBuilding(village, "Outlying farm barn", -2f, 36f, 2.8f, 3.0f);
+            PlaceLayoutBuilding(village, "Village market", 1f, 11f, 2.8f, 2.8f);
+            PlaceLayoutBuilding(village, "North cottage", -34f, -25f, 3.3f, 3.4f);
+            PlaceLayoutBuilding(village, "East cottage", 33f, -24f, 3.3f, 3.4f);
+            PlaceLayoutBuilding(village, "West cottage", -8f, -29f, 3.3f, 3.4f);
+            PlaceLayoutBuilding(village, "Northwest cottage", 12f, -31f, 3.3f, 3.4f);
+
+            // The two remaining decorative homes are retired: v2 has four house footprints.
+            var extra = village.Find("North lane cottage");
+            if (extra != null) extra.gameObject.SetActive(false);
+            extra = village.Find("Northeast cottage");
+            if (extra != null) extra.gameObject.SetActive(false);
+        }
+
+        private static void PlaceLayoutBuilding(Transform village, string objectName,
+            float x, float z, float scaleX, float scaleZ)
+        {
+            var building = village.Find(objectName);
+            if (building == null) return;
+            building.localPosition = new Vector3(x, 0f, z);
+            building.localScale = new Vector3(scaleX, 1f, scaleZ);
+        }
+
         private static void BuildHouse(Transform root, string name, Vector3 position, float yaw)
         {
             var house = new GameObject(name).transform;
@@ -1309,23 +1338,23 @@ namespace Pogranichye.Client.Presentation
         private static void BuildCreekAndFootbridge(Transform root)
         {
             var creek = CreatePrimitive("Narrow village creek", PrimitiveType.Cube, root,
-                new Vector3(15.5f, -0.08f, 0), new Vector3(2.2f, 0.12f, 32f), _waterMaterial);
+                new Vector3(0f, -0.08f, -84f), new Vector3(12f, 0.12f, 300f), _waterMaterial);
             var waterMotion = creek.AddComponent<CreekWaterDrift>();
             waterMotion.Initialize(_waterMaterial, 0.018f);
             BuildCreekBank(root, -1);
             BuildCreekBank(root, 1);
             var bridge = new GameObject("Old plank footbridge").transform;
             bridge.SetParent(root, false);
-            bridge.position = new Vector3(15.5f, 0.12f, -2.5f);
-            for (var i = -2; i <= 2; i++)
+            bridge.position = new Vector3(0f, 0.12f, -84f);
+            for (var i = -9; i <= 9; i++)
                 CreatePrimitive("Bridge plank", PrimitiveType.Cube, bridge,
-                    new Vector3(i * 0.36f, 0, 0), new Vector3(0.34f, 0.12f, 2.7f), _woodMaterial);
+                    new Vector3(i * 0.62f, 0, 0), new Vector3(0.58f, 0.12f, 12.8f), _woodMaterial);
             for (var x = -1; x <= 1; x += 2)
             {
                 CreatePrimitive("Bridge rail post", PrimitiveType.Cube, bridge,
-                    new Vector3(x * 0.9f, 0.48f, 0), new Vector3(0.12f, 0.95f, 0.12f), _woodMaterial);
+                    new Vector3(x * 5.8f, 0.48f, 0), new Vector3(0.12f, 0.95f, 0.12f), _woodMaterial);
                 CreatePrimitive("Bridge handrail", PrimitiveType.Cube, bridge,
-                    new Vector3(x * 0.9f, 0.85f, 0), new Vector3(0.12f, 0.12f, 2.7f), _woodMaterial);
+                    new Vector3(x * 5.8f, 0.85f, 0), new Vector3(0.12f, 0.12f, 12.8f), _woodMaterial);
             }
         }
 
@@ -1341,17 +1370,17 @@ namespace Pogranichye.Client.Presentation
             for (var i = 0; i <= segments; i++)
             {
                 var t = (float)i / segments;
-                var z = -15.8f + t * 31.6f;
+                var x = -150f + t * 300f;
                 var edgeJitter = ((float)random.NextDouble() - 0.5f) * 0.22f;
-                var outerX = side < 0 ? 13.55f : 17.45f;
-                var innerX = side < 0 ? 14.39f : 16.61f;
-                outerX += ((float)random.NextDouble() - 0.5f) * 0.10f;
-                innerX += ((float)random.NextDouble() - 0.5f) * 0.08f;
+                var outerZ = side < 0 ? -93.0f : -75.0f;
+                var innerZ = side < 0 ? -89.8f : -78.2f;
+                outerZ += ((float)random.NextDouble() - 0.5f) * 0.10f;
+                innerZ += ((float)random.NextDouble() - 0.5f) * 0.08f;
                 var outerY = 0.025f + ((float)random.NextDouble() - 0.5f) * 0.025f;
                 var innerY = -0.018f + ((float)random.NextDouble() - 0.5f) * 0.018f;
                 var row = i * 2;
-                vertices[row] = new Vector3(outerX, outerY, z + edgeJitter);
-                vertices[row + 1] = new Vector3(innerX, innerY, z + edgeJitter);
+                vertices[row] = new Vector3(x + edgeJitter, outerY, outerZ);
+                vertices[row + 1] = new Vector3(x + edgeJitter, innerY, innerZ);
             }
 
             for (var i = 0; i < segments; i++)
@@ -1385,10 +1414,10 @@ namespace Pogranichye.Client.Presentation
             // Scattered flat stones soften the waterline; leave the footbridge approach open.
             for (var i = 0; i < 10; i++)
             {
-                var z = -14.2f + i * 2.85f + ((float)random.NextDouble() - 0.5f) * 0.65f;
-                if (z > -4.2f && z < 0.2f) continue;
-                var x = side < 0 ? 14.20f : 16.80f;
-                x += ((float)random.NextDouble() - 0.5f) * 0.22f;
+                var x = -145f + i * 3.7f + ((float)random.NextDouble() - 0.5f) * 0.65f;
+                if (Mathf.Abs(x) < 9f) continue;
+                var z = side < 0 ? -89.8f : -78.2f;
+                z += ((float)random.NextDouble() - 0.5f) * 0.22f;
                 var size = 0.10f + (float)random.NextDouble() * 0.11f;
                 var stone = CreatePrimitive("Creek waterline stone", PrimitiveType.Sphere, root,
                     new Vector3(x, 0.015f, z), new Vector3(size * 1.25f, 0.055f, size), _stoneMaterial);
@@ -1406,11 +1435,11 @@ namespace Pogranichye.Client.Presentation
             // Reeds follow both banks, leaving the old footbridge approach clear.
             for (var side = -1; side <= 1; side += 2)
             {
-                for (var i = 0; i < 15; i++)
+                for (var i = 0; i < 78; i++)
                 {
-                    var z = -14.5f + i * 2.05f + (float)random.NextDouble() * 0.55f;
-                    if (z > -4.4f && z < 0.4f) continue;
-                    var x = 15.5f + side * (1.18f + (float)random.NextDouble() * 0.32f);
+                    var x = -145f + i * 3.75f + (float)random.NextDouble() * 0.55f;
+                    if (Mathf.Abs(x) < 9f) continue;
+                    var z = (side < 0 ? -89.8f : -78.2f) + (float)random.NextDouble() * 0.32f;
                     var clump = new Vector3(x, 0.08f, z);
                     var stalks = 3 + random.Next(3);
                     for (var stalk = 0; stalk < stalks; stalk++)
@@ -1523,26 +1552,27 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildRuralLandscape(Transform root, string worldSeed)
         {
-            // Broad, legible farmland and country lanes make the settlement read as part
-            // of a rural region. These are presentation-only: no colliders, POIs or server
-            // navigation are created here. Keep the playable/server boundary unchanged.
-            CreateCountryRoad(root, "Northwest country road", new Vector3(-18f, 0.018f, 0f),
-                new Vector3(34f, 0.045f, 2.8f), -32f);
-            CreateCountryRoad(root, "Eastern country road", new Vector3(18f, 0.020f, -3f),
-                new Vector3(34f, 0.045f, 3.1f), 24f);
-            CreateCountryRoad(root, "Southern farm lane", new Vector3(-4f, 0.022f, -22f),
-                new Vector3(42f, 0.045f, 2.5f), 8f);
+            // Wide rural routes connect the settlement to the woods, eastern fields and the
+            // bridge. These are visual roads only; movement permission comes from the server.
+            CreateCountryRoad(root, "Northwest country road", new Vector3(-82f, 0.018f, 35f),
+                new Vector3(105f, 0.045f, 4.2f), -24f);
+            CreateCountryRoad(root, "Eastern country road", new Vector3(78f, 0.020f, 3f),
+                new Vector3(125f, 0.045f, 4.4f), 3f);
+            CreateCountryRoad(root, "Southern farm lane", new Vector3(0f, 0.022f, -54f),
+                new Vector3(5.5f, 0.045f, 65f), 0f);
+            CreateCountryRoad(root, "North meadow track", new Vector3(5f, 0.020f, 77f),
+                new Vector3(5f, 0.045f, 80f), 0f);
 
-            BuildLargeField(root, "West grain field", new Vector3(-21f, 0f, -19f),
-                15f, 11f, 10, 0.2f, worldSeed + ":west-field");
-            BuildLargeField(root, "East grain field", new Vector3(22f, 0f, 17f),
-                13f, 15f, 11, 0.8f, worldSeed + ":east-field");
-            BuildLargeField(root, "Northern meadow plots", new Vector3(-5f, 0f, 25f),
-                17f, 8f, 8, -0.35f, worldSeed + ":north-meadow");
+            BuildLargeField(root, "West grain field", new Vector3(-108f, 0f, 28f),
+                28f, 24f, 14, 0.2f, worldSeed + ":west-field");
+            BuildLargeField(root, "East grain field", new Vector3(104f, 0f, 24f),
+                30f, 34f, 16, 0.8f, worldSeed + ":east-field");
+            BuildLargeField(root, "Northern meadow plots", new Vector3(12f, 0f, 112f),
+                38f, 22f, 12, -0.35f, worldSeed + ":north-meadow");
 
             // Broken hedgerows and tree belts frame the fields without forming hard walls.
-            BuildFieldTreeBelt(root, new Vector3(-29f, 0f, -18f), 13, true, worldSeed + ":west-belt");
-            BuildFieldTreeBelt(root, new Vector3(29f, 0f, 16f), 15, false, worldSeed + ":east-belt");
+            BuildFieldTreeBelt(root, new Vector3(-138f, 0f, 18f), 24, true, worldSeed + ":west-belt");
+            BuildFieldTreeBelt(root, new Vector3(136f, 0f, -5f), 26, false, worldSeed + ":east-belt");
             BuildDistantRuralHorizon(root, worldSeed);
         }
 
@@ -1633,18 +1663,18 @@ namespace Pogranichye.Client.Presentation
         private static void BuildDistantRuralHorizon(Transform root, string worldSeed)
         {
             var random = new System.Random(StableSeed(worldSeed + ":distant-horizon"));
-            // Low-detail tree masses beyond the current 30 m server scene radius.
+            // Low-detail tree masses beyond the 150 m server world boundary.
             // They are a visual horizon only, not traversable world or NPC destinations.
             for (var belt = 0; belt < 3; belt++)
             for (var i = 0; i < 24; i++)
             {
                 var side = belt == 0 ? -1f : belt == 1 ? 1f : 0f;
                 var x = side == 0f
-                    ? -54f + i * 4.7f
-                    : side * (43f + (float)random.NextDouble() * 5f);
+                    ? -165f + i * 14f
+                    : side * (164f + (float)random.NextDouble() * 8f);
                 var z = side == 0f
-                    ? 43f + (float)random.NextDouble() * 4f
-                    : -48f + i * 4.1f;
+                    ? 164f + (float)random.NextDouble() * 8f
+                    : -165f + i * 14f;
                 var scale = 2.2f + (float)random.NextDouble() * 1.5f;
                 var tree = new GameObject("Distant woodland mass").transform;
                 tree.SetParent(root, false);
