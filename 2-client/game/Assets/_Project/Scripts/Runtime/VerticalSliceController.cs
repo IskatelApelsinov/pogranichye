@@ -42,6 +42,12 @@ namespace Pogranichye.Client
         private string _tutorialPendingGoal;
         private bool _firstPerson;
         private bool _hudCollapsed;
+        private bool _movementDebugVisible;
+        private Vector2 _movementInputDebug;
+        private Vector3 _movementDirectionDebug;
+        private float _movementCameraYawDebug;
+        private float _movementPlayerYawDebug;
+        private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
         [SerializeField] private float moveSendInterval = 0.05f;
         private float _moveSendAccumulator;
@@ -86,6 +92,7 @@ namespace Pogranichye.Client
         {
             while (_mainThread.TryDequeue(out var action)) action();
             if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
+            if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
@@ -212,7 +219,26 @@ namespace Pogranichye.Client
                 GUI.Label(new Rect(Screen.width * 0.5f - 8f, Screen.height * 0.5f - 12f, 16f, 24f), "·");
                 GUI.color = previousColor;
             }
+            DrawMovementDebugOverlay();
             DrawSocialOverlay();
+        }
+
+        private void DrawMovementDebugOverlay()
+        {
+            if (!_movementDebugVisible) return;
+
+            var rect = new Rect(Screen.width - 326f, 12f, 314f, 142f);
+            GUI.Box(rect, "ДВИЖЕНИЕ / КАМЕРА [F3]");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
+                "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 48f, rect.width - 20f, 20f),
+                $"WASD input: X {_movementInputDebug.x:0.00} / Y {_movementInputDebug.y:0.00}");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 68f, rect.width - 20f, 20f),
+                $"Направление мира: X {_movementDirectionDebug.x:0.00} / Z {_movementDirectionDebug.z:0.00}");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 88f, rect.width - 20f, 20f),
+                $"Yaw камеры {_movementCameraYawDebug:0.0}° | yaw игрока {_movementPlayerYawDebug:0.0}°");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 108f, rect.width - 20f, 20f),
+                $"Facing сервера {_movementServerFacingDebug:0.0}°");
         }
 
         private void DrawInventorySummary()
@@ -653,15 +679,27 @@ namespace Pogranichye.Client
             var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(input, 1f);
 
-            // Use the actual controlled presentation rig, not an arbitrary Camera.main
-            // camera that may have been left in the scene by an earlier setup.
+            // Derive movement from the camera's actual planar view basis. Projecting the
+            // basis onto the ground avoids Euler-angle decomposition surprises when the
+            // camera is pitched, while preserving camera-relative WASD in both view modes.
             var viewTransform = _cameraRig != null ? _cameraRig.transform : Camera.main != null ? Camera.main.transform : player;
-            var yawRotation = Quaternion.Euler(0f, viewTransform.eulerAngles.y, 0f);
-            var forward = yawRotation * Vector3.forward;
-            var right = yawRotation * Vector3.right;
+            var forward = Vector3.ProjectOnPlane(viewTransform.forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.0001f)
+                forward = Quaternion.Euler(0f, viewTransform.eulerAngles.y, 0f) * Vector3.forward;
+            forward.Normalize();
+            var right = Vector3.ProjectOnPlane(viewTransform.right, Vector3.up);
+            if (right.sqrMagnitude < 0.0001f)
+                right = Vector3.Cross(Vector3.up, forward);
+            right.Normalize();
 
             var worldMove = forward * input.y + right * input.x;
             if (worldMove.sqrMagnitude > 1f) worldMove.Normalize();
+
+            _movementInputDebug = input;
+            _movementDirectionDebug = worldMove;
+            _movementCameraYawDebug = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+            _movementPlayerYawDebug = player.eulerAngles.y;
+            _movementServerFacingDebug = _frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
             var runRequested = moving && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
