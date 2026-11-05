@@ -98,17 +98,107 @@ namespace Pogranichye.Client.Presentation
             AddRoad(world, bridgeCenter, new Vector2(bridgeCenter.x, -110f), 2.8f);
             AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, (float)layout.WorldHalf - 10f), 2.8f);
             var random = new System.Random(417);
+            var trunkVertices = new System.Collections.Generic.List<Vector3>(3000);
+            var trunkTriangles = new System.Collections.Generic.List<int>(6000);
+            var canopyVertices = new System.Collections.Generic.List<Vector3>(12000);
+            var canopyTriangles = new System.Collections.Generic.List<int>(24000);
             for (var i = 0; i < 72; i++)
             {
                 var x = -145f + (float)random.NextDouble() * 70f;
                 var z = -142f + (float)random.NextDouble() * 284f;
                 if (Math.Abs(z + 84f) < 9f || Math.Abs(x) < 3f && z > -50f && z < 50f) continue;
                 var height = 4f + (float)random.NextDouble() * 5f;
-                var trunk = Create("Far woodland trunk", PrimitiveType.Cylinder, world,
-                    new Vector3(x, height * 0.28f, z), new Vector3(0.24f, height * 0.28f, 0.24f), _trunk, false);
-                var crown = Create("Far woodland crown", PrimitiveType.Sphere, world,
-                    new Vector3(x, height * 0.82f, z), new Vector3(2.2f, height * 0.55f, 2.2f), _forest, false);
+                var radius = 1.65f + (float)random.NextDouble() * 1.05f;
+                AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
+                    new Vector3(x, 0f, z), height, radius, random);
             }
+            CreateCombinedMesh(world, "Far woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
+            CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
+        }
+
+        private static void AddLowPolyTree(
+            System.Collections.Generic.List<Vector3> trunkVertices,
+            System.Collections.Generic.List<int> trunkTriangles,
+            System.Collections.Generic.List<Vector3> canopyVertices,
+            System.Collections.Generic.List<int> canopyTriangles,
+            Vector3 position, float height, float radius, System.Random random)
+        {
+            // Six-sided tapered trunk, with three irregular foliage tiers instead of a single sphere.
+            var trunkBase = trunkVertices.Count;
+            const int trunkSides = 6;
+            var trunkRadius = 0.20f + (float)random.NextDouble() * 0.10f;
+            for (var ring = 0; ring < 2; ring++)
+            for (var side = 0; side < trunkSides; side++)
+            {
+                var angle = side * Mathf.PI * 2f / trunkSides;
+                var r = trunkRadius * (ring == 0 ? 1f : 0.72f);
+                trunkVertices.Add(position + new Vector3(Mathf.Cos(angle) * r,
+                    ring == 0 ? 0.05f : height * 0.72f,
+                    Mathf.Sin(angle) * r));
+            }
+            for (var side = 0; side < trunkSides; side++)
+            {
+                var next = (side + 1) % trunkSides;
+                trunkTriangles.Add(trunkBase + side);
+                trunkTriangles.Add(trunkBase + next);
+                trunkTriangles.Add(trunkBase + trunkSides + next);
+                trunkTriangles.Add(trunkBase + side);
+                trunkTriangles.Add(trunkBase + trunkSides + next);
+                trunkTriangles.Add(trunkBase + trunkSides + side);
+            }
+
+            var tiers = 3;
+            for (var tier = 0; tier < tiers; tier++)
+            {
+                var tierBase = canopyVertices.Count;
+                const int sides = 7;
+                var tierY = height * (0.38f + tier * 0.19f);
+                var tierHeight = height * (0.50f - tier * 0.055f);
+                var tierRadius = radius * (1f - tier * 0.22f);
+                var rotation = (float)random.NextDouble() * Mathf.PI * 2f;
+                var wobble = 0.10f + (float)random.NextDouble() * 0.12f;
+                for (var ring = 0; ring < 2; ring++)
+                for (var side = 0; side < sides; side++)
+                {
+                    var angle = rotation + side * Mathf.PI * 2f / sides;
+                    var irregular = 1f + Mathf.Sin(side * 2.17f + tier) * wobble;
+                    var r = tierRadius * (ring == 0 ? irregular : 0.08f);
+                    canopyVertices.Add(position + new Vector3(Mathf.Cos(angle) * r,
+                        tierY + (ring == 0 ? 0f : tierHeight),
+                        Mathf.Sin(angle) * r));
+                }
+                for (var side = 0; side < sides; side++)
+                {
+                    var next = (side + 1) % sides;
+                    canopyTriangles.Add(tierBase + side);
+                    canopyTriangles.Add(tierBase + next);
+                    canopyTriangles.Add(tierBase + sides + next);
+                    canopyTriangles.Add(tierBase + side);
+                    canopyTriangles.Add(tierBase + sides + next);
+                    canopyTriangles.Add(tierBase + sides + side);
+                }
+            }
+        }
+
+        private static void CreateCombinedMesh(Transform parent, string objectName,
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles, Material material)
+        {
+            if (vertices.Count == 0 || triangles.Count == 0) return;
+            var mesh = new Mesh { name = objectName };
+            mesh.indexFormat = vertices.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var go = new GameObject(objectName);
+            go.transform.SetParent(parent, false);
+            go.isStatic = true;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
         }
 
         private static void BuildCropRows(Transform parent)
