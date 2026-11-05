@@ -33,6 +33,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("goal")] public string Goal { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
+        [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("talk")] public TalkFrame Talk { get; set; }
+        [JsonProperty("invite_from")] public InviteFrame InviteFrom { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -72,7 +75,34 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("desc")] public string Description { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkFrame
+    {
+        [JsonProperty("with")] public string With { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("line")] public string Line { get; set; }
+        [JsonProperty("options")] public List<TalkOptionFrame> Options { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkOptionFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class InviteFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("desc")] public string Description { get; set; }
     }
 
     [Serializable]
