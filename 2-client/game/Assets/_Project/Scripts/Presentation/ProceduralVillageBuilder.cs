@@ -1413,7 +1413,7 @@ namespace Pogranichye.Client.Presentation
             bank.isStatic = true;
 
             // Scattered flat stones soften the waterline; leave the footbridge approach open.
-            for (var i = 0; i < 10; i++)
+            for (var i = 0; i < 78; i++)
             {
                 var x = -145f + i * 3.7f + ((float)random.NextDouble() - 0.5f) * 0.65f;
                 if (Mathf.Abs(x) < 9f) continue;
@@ -1490,8 +1490,8 @@ namespace Pogranichye.Client.Presentation
         {
             for (var i = 0; i < 18; i++)
             {
-                var x = -20f + i * 2.35f;
-                var z = 20f + Mathf.Sin(i * 0.7f) * 2.5f;
+                var x = -145f + i * 8.5f;
+                var z = 162f + Mathf.Sin(i * 0.7f) * 4.5f;
                 var tree = new GameObject("Distant tree silhouette").transform;
                 tree.SetParent(root, false);
                 tree.position = new Vector3(x, 0, z);
