@@ -802,12 +802,68 @@ namespace Pogranichye.Client.Presentation
             // reaches into the body wall; an extra X offset would leave a visible gap.
             handle.transform.localPosition = new Vector3(0f, 0.17f, 0f);
 
-            CreatePrimitive("Ale foam", PrimitiveType.Sphere, mug,
-                new Vector3(0f, 0.305f, 0f), new Vector3(0.105f, 0.025f, 0.105f), _foamMaterial);
-            for (var i = 0; i < 3; i++)
+            // A visible amber fill sits below the rim, inside the hollow vessel.
+            // Primitive colliders are removed by CreatePrimitive, so this remains presentation-only.
+            CreatePrimitive("Amber ale • liquid inside tankard", PrimitiveType.Cylinder, mug,
+                new Vector3(0f, 0.238f, 0f), new Vector3(0.136f, 0.006f, 0.136f), _beerMaterial);
+
+            // Replace the single placeholder foam sphere with a shallow, irregular low-poly cap.
+            var foamCap = CreateMeshPart("Ale foam • irregular cap", mug,
+                BuildTankardFoamMesh(), _foamMaterial);
+            foamCap.transform.localPosition = Vector3.zero;
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * Mathf.PI * 0.5f + 0.28f;
+                var radius = 0.055f + (i % 2) * 0.012f;
                 CreatePrimitive("Foam bubble", PrimitiveType.Sphere, mug,
-                    new Vector3(-0.035f + i * 0.032f, 0.318f + (i % 2) * 0.004f, -0.012f),
-                    Vector3.one * 0.012f, _foamMaterial);
+                    new Vector3(Mathf.Cos(angle) * radius, 0.301f + (i % 2) * 0.003f,
+                        Mathf.Sin(angle) * radius),
+                    new Vector3(0.014f, 0.006f, 0.014f), _foamMaterial);
+            }
+        }
+
+        private static Mesh BuildTankardFoamMesh()
+        {
+            const int sides = 12;
+            var vertices = new Vector3[sides * 2 + 1];
+            var triangles = new int[sides * 9];
+            var center = sides * 2;
+
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                var scallop = 1f + Mathf.Sin(i * 2.37f) * 0.045f
+                    + Mathf.Cos(i * 1.61f) * 0.025f;
+                var radius = 0.092f * scallop;
+                var x = Mathf.Cos(angle) * radius;
+                var z = Mathf.Sin(angle) * radius;
+                vertices[i] = new Vector3(x, 0.281f, z);
+                vertices[sides + i] = new Vector3(x, 0.294f, z);
+            }
+            vertices[center] = new Vector3(0f, 0.294f, 0f);
+
+            var t = 0;
+            for (var i = 0; i < sides; i++)
+            {
+                var next = (i + 1) % sides;
+                // Outer skirt, followed by an upward-facing top fan.
+                triangles[t++] = i;
+                triangles[t++] = next;
+                triangles[t++] = sides + i;
+                triangles[t++] = next;
+                triangles[t++] = sides + next;
+                triangles[t++] = sides + i;
+                triangles[t++] = center;
+                triangles[t++] = sides + next;
+                triangles[t++] = sides + i;
+            }
+
+            var mesh = new Mesh { name = "Irregular low-poly ale foam cap" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static GameObject CreateMeshPart(string name, Transform parent, Mesh mesh, Material material)
