@@ -1,5 +1,6 @@
 using System;
 using Pogranichye.Client.Networking.Protocol;
+using UnityEngine.Rendering;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
