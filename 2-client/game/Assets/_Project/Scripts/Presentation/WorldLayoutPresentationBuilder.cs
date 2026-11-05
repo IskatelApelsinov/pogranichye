@@ -16,6 +16,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _forest;
         private static Material _trunk;
         private static Material _road;
+        private static Material _straw;
+        private static Material _scarecrowCloth;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
@@ -30,6 +32,8 @@ namespace Pogranichye.Client.Presentation
             _forest = MakeMaterial("Layout woodland", new Color(0.13f, 0.25f, 0.15f));
             _trunk = MakeMaterial("Layout trunks", new Color(0.25f, 0.16f, 0.10f));
             _road = MakeMaterial("Layout country roads", new Color(0.38f, 0.30f, 0.22f));
+            _straw = MakeMaterial("Farm straw", new Color(0.69f, 0.53f, 0.24f));
+            _scarecrowCloth = MakeMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f));
 
             // Water and bridge are placed from the exact server geometry.
             var river = Create("River • server layout", PrimitiveType.Cube, world,
@@ -75,6 +79,7 @@ namespace Pogranichye.Client.Presentation
             // Long crop strips make the eastern agricultural zone read as cultivated land.
             // They are presentation-only: no colliders, gameplay harvest state or navigation data.
             BuildCropRows(world);
+            BuildFarmProps(world);
 
             // The same roads connect the server POIs: woods, fields, mine and river bridge.
             if (layout.Pois.TryGetValue("woods", out var woods))
@@ -182,6 +187,48 @@ namespace Pogranichye.Client.Presentation
             triangles.Add(start); triangles.Add(start + 3); triangles.Add(start + 2);
             triangles.Add(start + 1); triangles.Add(start + 2); triangles.Add(start);
             triangles.Add(start + 2); triangles.Add(start + 3); triangles.Add(start);
+        }
+
+        private static void BuildFarmProps(Transform parent)
+        {
+            // Small, non-interactive dressing props. They deliberately have no colliders:
+            // server Layout v2 remains the only source of gameplay obstruction.
+            var scarecrow = new GameObject("Farm scarecrow • presentation only").transform;
+            scarecrow.SetParent(parent, false);
+            scarecrow.localPosition = new Vector3(116f, 0f, 42f);
+
+            Create("Scarecrow oak stake", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 1.05f, 0f), new Vector3(0.09f, 1.05f, 0.09f), _trunk, false);
+            var crossbar = Create("Scarecrow crossbar", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 1.55f, 0f), new Vector3(0.065f, 0.62f, 0.065f), _trunk, false);
+            crossbar.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            Create("Scarecrow worn tunic", PrimitiveType.Capsule, scarecrow,
+                new Vector3(0f, 1.18f, 0f), new Vector3(0.34f, 0.43f, 0.20f), _scarecrowCloth, false);
+            Create("Scarecrow sack head", PrimitiveType.Sphere, scarecrow,
+                new Vector3(0f, 1.86f, 0f), new Vector3(0.31f, 0.34f, 0.28f), _straw, false);
+            Create("Scarecrow hat brim", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 2.04f, 0f), new Vector3(0.27f, 0.035f, 0.27f), _trunk, false);
+            Create("Scarecrow hat crown", PrimitiveType.Cylinder, scarecrow,
+                new Vector3(0f, 2.15f, 0f), new Vector3(0.16f, 0.11f, 0.16f), _trunk, false);
+
+            BuildHayBale(parent, new Vector3(136f, 0.47f, 105f), 0.92f);
+            BuildHayBale(parent, new Vector3(139f, 0.47f, 108f), 0.78f);
+            BuildHayBale(parent, new Vector3(134f, 0.47f, 111f), 0.72f);
+        }
+
+        private static void BuildHayBale(Transform parent, Vector3 position, float scale)
+        {
+            var bale = Create("Field hay bale • low-poly", PrimitiveType.Cylinder, parent,
+                position, new Vector3(0.52f * scale, 0.46f * scale, 0.52f * scale), _straw, false);
+            bale.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            // Two dark twine bands make the silhouette legible without adding separate meshes.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var band = Create("Hay bale binding", PrimitiveType.Cube, bale.transform,
+                    new Vector3(side * 0.17f, 0f, 0f),
+                    new Vector3(0.035f, 0.94f, 0.94f), _trunk, false);
+            }
         }
 
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
