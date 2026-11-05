@@ -220,6 +220,18 @@ namespace Pogranichye.Client
                         GUILayout.EndHorizontal();
                     }
                 }
+                GUILayout.Space(6);
+                GUILayout.Label("ДЕЙСТВИЯ В МИРЕ");
+                GUILayout.Label("Мана: " + _frame.Me.Mana.ToString("0") + " | Закрома: " +
+                    (_frame.Me.Stash != null && _frame.Me.Stash.Count > 0
+                        ? string.Join(", ", _frame.Me.Stash)
+                        : "пусто"));
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Рубить лес")) _ = SendWorldActionAsync("chop");
+                if (GUILayout.Button("Рыбачить")) _ = SendWorldActionAsync("fish");
+                if (GUILayout.Button("Разряд")) _ = SendWorldActionAsync("cast");
+                GUILayout.EndHorizontal();
+                GUILayout.Label("Действия проверяются сервером по месту, силам и мане.");
                 GUILayout.Label("🍺 Разговоры, знакомство и совместное питьё подключены сервером v1.4.");
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
@@ -718,6 +730,30 @@ namespace Pogranichye.Client
                 _moveSendInFlight = false;
                 StartNextMoveSend();
             });
+        }
+
+        private async Task SendWorldActionAsync(string action)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendActionAsync(action, Guid.NewGuid().ToString("N"), _lifetime.Token);
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Действие отправлено серверу: " + action;
+                });
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось выполнить действие: " + ex.Message;
+                });
+            }
         }
 
         private async Task SendSocialIntentAsync(string operation, string target, string line)
