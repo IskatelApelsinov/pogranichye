@@ -218,6 +218,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	if e := s.world.Get(cid); e != nil {
 		sim.EnsureScenePos(s.world, e)
 		sim.EnsurePlayer(s.world, e)
+		if pl := core.Place(e); pl != nil {
+			sim.LearnVisited(s.world, e, pl.Settlement) // вселился → поселение посещено (#26 visited)
+		}
 	}
 	s.mu.Unlock()
 	conn, err := wsUpgrade(w, r)
@@ -411,8 +414,10 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash": meStash(e),
 			"pos":   mePos(e), // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
-			"talk":  meTalk(s.world, e),   // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
-			"invite_from": meInvite(s.world, e), // кто зовёт выпить вместе (co-drink, v1.4)
+			"talk":         meTalk(s.world, e),   // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
+			"invite_from":  meInvite(s.world, e), // кто зовёт выпить вместе (co-drink, v1.4)
+			"social_event": meSocial(e),           // подтверждённый тост/угощение (монотонный seq) — v1.5
+			"known_places": s.meKnownPlaces(e),     // что игрок знает о поселениях: visited/known (#26, v1.5)
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -506,6 +511,34 @@ func meInvite(w *core.World, e *core.Entity) any {
 		}
 	}
 	return map[string]any{"from": eid(c.Partner), "who": who}
+}
+
+// meKnownPlaces — что игрок знает о поселениях (#26): список visited/known с именами. Пусто, если ничего
+// не знает. Неизвестные поселения в кадр НЕ попадают (не раскрываем неоткрытый мир).
+func (s *Server) meKnownPlaces(e *core.Entity) []map[string]any {
+	k := sim.Knowledge(e)
+	out := []map[string]any{}
+	if k == nil {
+		return out
+	}
+	for sid, f := range k.Places {
+		name := ""
+		if st := core.Settle(s.world.Get(sid)); st != nil {
+			name = st.Name
+		}
+		out = append(out, map[string]any{"id": eid(sid), "name": name, "visited": f.Visited, "known": f.Known})
+	}
+	return out
+}
+
+// meSocial — последнее подтверждённое соц-событие (тост co-drink / угощение) с монотонным seq.
+// nil, если событий не было. Клиент проигрывает жест ОДИН раз на новый seq, не по клику/morale.
+func meSocial(e *core.Entity) any {
+	ev := sim.SocialEvent(e)
+	if ev == nil || ev.Seq == 0 {
+		return nil
+	}
+	return map[string]any{"seq": ev.Seq, "type": ev.Type, "with": eid(ev.With)}
 }
 
 // meMug — держит ли игрок кружку (для показа кружки/руки на клиенте только по подтверждению).

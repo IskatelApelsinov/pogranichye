@@ -347,8 +347,13 @@ function render(s){
  const inv=me.invite_from;
  if(inv){ $('invite').style.display=''; $('invwho').textContent=inv.who; }
  else $('invite').style.display='none';
+ // подтверждённый сервером момент тоста (co-drink/угощение) — проигрываем один раз на новый seq
+ const se=me.social_event;
+ if(se && se.seq && se.seq!==lastSocialSeq){ lastSocialSeq=se.seq;
+   tmsg(se.type==='codrink'?'🍻 Вы чокнулись кружками!':'🍻 Тост за здоровье!'); }
  drawScene(s);
 }
+let lastSocialSeq=0;
 </script>
 </body>
 </html>
