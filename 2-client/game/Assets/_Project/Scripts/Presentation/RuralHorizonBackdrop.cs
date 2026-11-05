@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -21,6 +22,8 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float cameraFollowHeight = 0f;
         private Transform _cameraTransform;
         private Transform _ring;
+        private readonly List<Mesh> _meshes = new List<Mesh>();
+        private readonly List<Material> _materials = new List<Material>();
 
         public static RuralHorizonBackdrop Build(Transform worldRoot, Camera camera, float worldHalf)
         {
@@ -55,6 +58,16 @@ namespace Pogranichye.Client.Presentation
             _ring.position = new Vector3(p.x, cameraFollowHeight, p.z);
         }
 
+        private void OnDestroy()
+        {
+            foreach (var mesh in _meshes)
+                if (mesh != null) Destroy(mesh);
+            foreach (var material in _materials)
+                if (material != null) Destroy(material);
+            _meshes.Clear();
+            _materials.Clear();
+        }
+
         private void CreateRing(Texture2D[] textures)
         {
             _ring = new GameObject("JPEG horizon ring • non-traversable").transform;
@@ -83,6 +96,7 @@ namespace Pogranichye.Client.Presentation
                 mesh.triangles = new[] { 0, 2, 1, 1, 2, 3, 1, 2, 0, 3, 2, 1 };
                 mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
+                _meshes.Add(mesh);
 
                 var segment = new GameObject("Horizon • " + Directions[i]);
                 segment.transform.SetParent(_ring, false);
@@ -98,6 +112,7 @@ namespace Pogranichye.Client.Presentation
                 };
                 material.mainTextureScale = new Vector2(1f, 1f);
                 material.SetInt("_Cull", 0);
+                _materials.Add(material);
                 renderer.sharedMaterial = material;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
