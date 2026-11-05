@@ -48,7 +48,7 @@ namespace Pogranichye.Client.Presentation
             _groundMaterial = CreateMaterial("Ground • moss", Color.white);
             _groundTexture = MakeGroundTexture();
             _groundMaterial.mainTexture = _groundTexture;
-            _groundMaterial.mainTextureScale = new Vector2(40, 40);
+            _groundMaterial.mainTextureScale = new Vector2(80, 80);
             _pathTexture = MakeSurfaceTexture("Packed earth texture", 1);
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
             _pathMaterial.mainTexture = _pathTexture;
@@ -84,7 +84,7 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial.mainTextureScale = new Vector2(1.5f, 8f);
 
             var ground = CreatePrimitive("Meadow", PrimitiveType.Plane, village, Vector3.zero,
-                new Vector3(6, 1, 6), _groundMaterial);
+                new Vector3(12, 1, 12), _groundMaterial);
             ground.isStatic = true;
 
             CreatePrimitive("Village path", PrimitiveType.Cube, village, new Vector3(0, 0.025f, 0),
@@ -109,6 +109,7 @@ namespace Pogranichye.Client.Presentation
             BuildCreekBankVegetation(village);
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
+            BuildRuralLandscape(village, worldSeed);
             BuildFarmsteadAndOrchard(village);
             BuildNorthernResidentialLane(village, ambientMotion);
             BuildPracticeStations(village);
@@ -1518,6 +1519,142 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0, 1.12f, -0.02f), new Vector3(0.58f, 0.72f, 0.06f), _clothMaterial);
             }
             rotor.gameObject.AddComponent<WindmillRotor>().Initialize(8f);
+        }
+
+        private static void BuildRuralLandscape(Transform root, string worldSeed)
+        {
+            // Broad, legible farmland and country lanes make the settlement read as part
+            // of a rural region. These are presentation-only: no colliders, POIs or server
+            // navigation are created here. Keep the playable/server boundary unchanged.
+            CreateCountryRoad(root, "Northwest country road", new Vector3(-18f, 0.018f, 0f),
+                new Vector3(34f, 0.045f, 2.8f), -32f);
+            CreateCountryRoad(root, "Eastern country road", new Vector3(18f, 0.020f, -3f),
+                new Vector3(34f, 0.045f, 3.1f), 24f);
+            CreateCountryRoad(root, "Southern farm lane", new Vector3(-4f, 0.022f, -22f),
+                new Vector3(42f, 0.045f, 2.5f), 8f);
+
+            BuildLargeField(root, "West grain field", new Vector3(-21f, 0f, -19f),
+                15f, 11f, 10, 0.2f, worldSeed + ":west-field");
+            BuildLargeField(root, "East grain field", new Vector3(22f, 0f, 17f),
+                13f, 15f, 11, 0.8f, worldSeed + ":east-field");
+            BuildLargeField(root, "Northern meadow plots", new Vector3(-5f, 0f, 25f),
+                17f, 8f, 8, -0.35f, worldSeed + ":north-meadow");
+
+            // Broken hedgerows and tree belts frame the fields without forming hard walls.
+            BuildFieldTreeBelt(root, new Vector3(-29f, 0f, -18f), 13, true, worldSeed + ":west-belt");
+            BuildFieldTreeBelt(root, new Vector3(29f, 0f, 16f), 15, false, worldSeed + ":east-belt");
+            BuildDistantRuralHorizon(root, worldSeed);
+        }
+
+        private static void CreateCountryRoad(Transform root, string name, Vector3 position,
+            Vector3 size, float yaw)
+        {
+            var road = CreatePrimitive(name, PrimitiveType.Cube, root, position, size, _pathMaterial);
+            road.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            road.isStatic = true;
+        }
+
+        private static void BuildLargeField(Transform root, string name, Vector3 center,
+            float halfWidth, float halfLength, int rows, float yaw, string seedKey)
+        {
+            var field = new GameObject(name).transform;
+            field.SetParent(root, false);
+            field.position = center;
+            field.rotation = Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f);
+
+            // A single irregular low-poly soil patch reads as a proper field, not a tiny garden bed.
+            const int sides = 16;
+            var vertices = new Vector3[sides + 1];
+            var triangles = new int[sides * 3];
+            var random = new System.Random(StableSeed(seedKey));
+            vertices[0] = new Vector3(0f, 0.028f, 0f);
+            for (var i = 0; i < sides; i++)
+            {
+                var angle = i * Mathf.PI * 2f / sides;
+                var variation = 0.90f + (float)random.NextDouble() * 0.16f;
+                vertices[i + 1] = new Vector3(Mathf.Cos(angle) * halfWidth * variation,
+                    0.028f, Mathf.Sin(angle) * halfLength * variation);
+            }
+            for (var i = 0; i < sides; i++)
+            {
+                var t = i * 3;
+                triangles[t] = 0;
+                triangles[t + 1] = (i + 1) % sides + 1;
+                triangles[t + 2] = i + 1;
+            }
+            var soilMesh = new Mesh { name = name + " • irregular soil" };
+            soilMesh.vertices = vertices;
+            soilMesh.triangles = triangles;
+            soilMesh.RecalculateNormals();
+            soilMesh.RecalculateBounds();
+            var soil = CreateMeshPart(name + " soil", field, soilMesh, _pathMaterial);
+            soil.isStatic = true;
+
+            // Long, widely spaced furrows provide scale and a readable agricultural rhythm.
+            var rowLength = halfWidth * 1.72f;
+            for (var row = 0; row < rows; row++)
+            {
+                var z = Mathf.Lerp(-halfLength * 0.76f, halfLength * 0.76f,
+                    (row + 0.5f) / rows);
+                var ridge = CreatePrimitive("Long crop furrow", PrimitiveType.Cube, field,
+                    new Vector3(0f, 0.105f, z),
+                    new Vector3(rowLength, 0.13f, 0.34f), _groundMaterial);
+                ridge.isStatic = true;
+                for (var clump = 0; clump < 9; clump++)
+                {
+                    var x = Mathf.Lerp(-rowLength * 0.46f, rowLength * 0.46f, (clump + 0.5f) / 9f);
+                    var height = 0.42f + (float)random.NextDouble() * 0.25f;
+                    var crop = CreatePrimitive("Field crop clump", PrimitiveType.Sphere, field,
+                        new Vector3(x, 0.24f + height * 0.42f, z),
+                        new Vector3(0.34f, height, 0.38f), _leafMaterial);
+                    crop.transform.localRotation = Quaternion.Euler(0f,
+                        (float)random.NextDouble() * 180f, 0f);
+                    crop.isStatic = true;
+                }
+            }
+        }
+
+        private static void BuildFieldTreeBelt(Transform root, Vector3 start, int count,
+            bool alongX, string seedKey)
+        {
+            var random = new System.Random(StableSeed(seedKey));
+            for (var i = 0; i < count; i++)
+            {
+                // Gaps keep the belt organic and preserve long views across the farmland.
+                if (random.NextDouble() < 0.22) continue;
+                var offset = i * 2.15f + (float)random.NextDouble() * 0.8f;
+                var position = start + (alongX
+                    ? new Vector3(offset, 0f, (float)random.NextDouble() * 2.2f - 1.1f)
+                    : new Vector3((float)random.NextDouble() * 2.2f - 1.1f, 0f, offset));
+                BuildTree(root, position, 1.15f + (float)random.NextDouble() * 0.65f);
+            }
+        }
+
+        private static void BuildDistantRuralHorizon(Transform root, string worldSeed)
+        {
+            var random = new System.Random(StableSeed(worldSeed + ":distant-horizon"));
+            // Low-detail tree masses beyond the current 30 m server scene radius.
+            // They are a visual horizon only, not traversable world or NPC destinations.
+            for (var belt = 0; belt < 3; belt++)
+            for (var i = 0; i < 24; i++)
+            {
+                var side = belt == 0 ? -1f : belt == 1 ? 1f : 0f;
+                var x = side == 0f
+                    ? -54f + i * 4.7f
+                    : side * (43f + (float)random.NextDouble() * 5f);
+                var z = side == 0f
+                    ? 43f + (float)random.NextDouble() * 4f
+                    : -48f + i * 4.1f;
+                var scale = 2.2f + (float)random.NextDouble() * 1.5f;
+                var tree = new GameObject("Distant woodland mass").transform;
+                tree.SetParent(root, false);
+                tree.position = new Vector3(x, 0f, z);
+                tree.localScale = Vector3.one * scale;
+                CreatePrimitive("Distant trunk", PrimitiveType.Cylinder, tree,
+                    new Vector3(0f, 1.2f, 0f), new Vector3(0.13f, 1.2f, 0.13f), _woodMaterial);
+                CreatePrimitive("Distant canopy", PrimitiveType.Sphere, tree,
+                    new Vector3(0f, 3f, 0f), new Vector3(1.3f, 1.7f, 1.2f), _leafMaterial);
+            }
         }
 
         private static void BuildFarmsteadAndOrchard(Transform root)
