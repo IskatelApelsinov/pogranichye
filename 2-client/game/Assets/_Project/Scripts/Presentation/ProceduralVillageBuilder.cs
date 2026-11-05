@@ -444,7 +444,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(-0.78f, 0.02f, -0.03f), new Vector3(0.42f, 0.68f, 0.78f), _clothMaterial);
             CreatePrimitive("Hen wing R", PrimitiveType.Sphere, body,
                 new Vector3(0.78f, 0.02f, -0.03f), new Vector3(0.42f, 0.68f, 0.78f), _clothMaterial);
-            var tail = CreatePrimitive("Hen tail", PrimitiveType.Cone, chicken,
+            var tail = CreatePrimitive("Hen tail", PrimitiveType.Sphere, chicken,
                 new Vector3(0f, 0.59f, -0.48f), new Vector3(0.19f, 0.32f, 0.19f), plumage);
             tail.transform.localRotation = Quaternion.Euler(25f, 0f, 0f);
 
@@ -453,7 +453,7 @@ namespace Pogranichye.Client.Presentation
             head.localPosition = new Vector3(0f, 0.66f, 0.30f);
             CreatePrimitive("Hen head plumage", PrimitiveType.Sphere, head,
                 Vector3.zero, new Vector3(0.23f, 0.23f, 0.23f), plumage);
-            CreatePrimitive("Hen beak", PrimitiveType.Cone, head,
+            CreatePrimitive("Hen beak", PrimitiveType.Cube, head,
                 new Vector3(0f, -0.015f, 0.18f), new Vector3(0.09f, 0.13f, 0.10f), _produceMaterial);
             CreatePrimitive("Hen comb", PrimitiveType.Sphere, head,
                 new Vector3(0f, 0.16f, -0.015f), new Vector3(0.10f, 0.15f, 0.08f), _fireMaterial);
