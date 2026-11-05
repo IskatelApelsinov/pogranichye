@@ -13,32 +13,35 @@
    max-width:680px;margin:0 auto;padding:16px}
  h1{font-size:25px;margin:.2em 0;color:#f2d9a7;text-shadow:0 2px #39291e} .sub{color:var(--sub);font-size:13px}
  .card{background:linear-gradient(145deg,#454032,#332f27);border:1px solid var(--line);border-radius:9px;padding:16px;margin:12px 0;box-shadow:0 5px 14px #1117}
- .village-art{padding:5px;overflow:hidden;background:#4a4635;border-color:#9b7951}
- .village-art img{display:block;width:100%;height:auto;image-rendering:pixelated;border:3px solid #7b6242;border-radius:4px}
- .scene-caption{display:flex;justify-content:space-between;gap:8px;padding:5px 7px 1px;color:#e7d3a7;font-size:12px}
- .scene-caption span:last-child{color:#c5b18b}
  input{width:100%;background:#26251f;color:var(--ink);border:1px solid var(--line);
    border-radius:10px;padding:12px;font:inherit;margin:6px 0;min-height:46px}
  button{background:linear-gradient(#67533b,#493a2b);color:var(--ink);border:1px solid #8b704b;border-radius:7px;
    padding:12px 14px;font:inherit;cursor:pointer;min-height:46px;touch-action:manipulation}
  button.primary{background:linear-gradient(#b77b4e,#865334);border-color:#d3a06a;color:#fff4dc;width:100%}
- button:active{filter:brightness(1.2)}
- .row{display:flex;gap:8px;flex-wrap:wrap}
+ button:active{filter:brightness(1.2)} button:disabled{opacity:.45;cursor:default}
+ .row{display:flex;gap:8px;flex-wrap:wrap} .between{justify-content:space-between;align-items:center}
  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
- .bar{height:10px;border-radius:3px;background:#211f1a;border:1px solid #5c4a35;overflow:hidden;margin:3px 0 10px}
+ .locgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+ .loc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;line-height:1.2}
+ .loc .ico{font-size:22px} .loc.here{background:linear-gradient(#b77b4e,#865334);border-color:#d3a06a;color:#fff4dc}
+ .bar{height:12px;border-radius:3px;background:#211f1a;border:1px solid #5c4a35;overflow:hidden;margin:3px 0 8px}
  .bar>div{height:100%}
- .stat{font-size:13px;color:var(--sub)}
- .big{font-size:20px;font-weight:700}
- .tag{font-size:12px;padding:2px 9px;border-radius:4px;background:#514431;color:#ead4a7;border:1px solid #786143}
- .nb{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+ .stat{font-size:13px;color:var(--sub)} .big{font-size:20px;font-weight:700}
+ .tag{font-size:12px;padding:2px 9px;border-radius:999px;background:#514431;color:#ead4a7;border:1px solid #786143;display:inline-block;margin:2px 3px 0 0}
+ .skill{font-size:12px;padding:2px 8px;border-radius:999px;background:#2d3a24;color:#cfe0b0;border:1px solid #4a6035;display:inline-block;margin:2px 3px 0 0}
+ .nb{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;padding:7px 0;border-bottom:1px solid var(--line)}
  .nb:last-child{border:0}
- #err{color:var(--bad);font-size:13px;min-height:18px}
- .hidden{display:none}
- .gold{color:var(--gold)}
+ #err{color:var(--bad);font-size:13px;min-height:18px} .hidden{display:none} .gold{color:var(--gold)}
+ .mg{background:#2b2922;border:1px solid #5c4a35;border-radius:8px;padding:12px;margin-top:8px}
+ .track{position:relative;height:26px;background:#1d1b16;border:1px solid #5c4a35;border-radius:6px;overflow:hidden}
+ .zone{position:absolute;top:0;bottom:0;background:#3c5a2e}
+ .mark{position:absolute;top:0;bottom:0;width:4px;background:#ffe9a8}
+ .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#c9924a,#8a5a2b)}
+ .toast{color:#ffe1a0;font-size:14px;min-height:20px;margin-top:6px}
 </style>
 </head>
 <body>
-<h1>Приграничье <span class="sub" id="ver">· живой мир</span></h1>
+<h1>Приграничье <span class="sub">· хозяйство</span></h1>
 
 <!-- вход / регистрация -->
 <div class="card" id="auth">
@@ -50,73 +53,35 @@
  <input id="pass" type="password" placeholder="пароль (от 4 символов)" autocomplete="current-password">
  <button class="primary" id="go">Войти в мир</button>
  <div id="err"></div>
- <div class="sub" style="margin-top:8px">Регистрация отдельна от мира: один аккаунт — любой клиент.
-  Войдя, ты вселяешься в жителя Приграничья и живёшь его жизнью.</div>
+ <div class="sub" style="margin-top:8px">Один аккаунт — любой клиент. Войдя, ты вселяешься в жителя и ведёшь его хозяйство.</div>
 </div>
 
-<!-- игра -->
-<div id="game" class="hidden">
- <div class="card village-art">
-  <canvas id="scene" style="display:block;width:100%;height:360px;border:3px solid #7b6242;border-radius:4px;background:#5a6b3a"></canvas>
-  <div class="scene-caption"><span id="scenehint">ДЕРЕВНЯ · ВИД СВЕРХУ</span><span class="sub">WASD/стрелки — ходить · Shift — бежать</span></div>
- </div>
- <div class="card">
-  <div class="row" style="justify-content:space-between;align-items:center">
-   <div><span class="big" id="who">—</span> <span class="sub" id="role"></span></div>
-   <span class="tag" id="when">—</span>
-  </div>
-  <div class="stat">здоровье <span id="hv"></span></div><div class="bar"><div id="hbar"></div></div>
-  <div class="stat">сытость <span id="fv"></span></div><div class="bar"><div id="fbar"></div></div>
-  <div class="stat">силы <span id="ev"></span></div><div class="bar"><div id="ebar"></div></div>
-  <div class="stat">настрой <span id="mv"></span></div><div class="bar"><div id="mbar"></div></div>
-  <div class="sub" id="last" style="margin-top:6px"></div>
-  <div style="margin-top:6px" id="purse">💰 <span class="gold" id="coins">0</span> монет <span class="sub" id="debt"></span></div>
-  <div class="sub" id="wounds" style="margin-top:6px"></div>
-  <div class="sub" id="stash" style="margin-top:4px"></div>
- </div>
+<!-- игра (менеджмент/ферма по тапам) -->
+<div class="hidden" id="game">
+ <div class="card" id="charcard"></div>
 
  <div class="card">
-  <div><b id="place">—</b> <span class="tag" id="tier"></span></div>
-  <div class="sub" id="placefood" style="margin:4px 0 8px"></div>
-  <b class="sub">чем займёшься</b>
-  <div class="acts">
-   <button onclick="goal('work')">⚒ Работать</button>
-   <button onclick="goal('eat')">🍞 Поесть</button>
-   <button onclick="goal('rest')">💤 Отдохнуть</button>
-   <button onclick="goal('socialize')">🍯 В таверну</button>
-  </div>
-  <div id="tavernbox" style="margin-top:10px">
-   <b class="sub">корчма <span class="sub" id="beerinfo"></span></b>
-   <div class="acts">
-    <button id="buybtn" onclick="buyBeer()">🍺 Заказать кружку</button>
-    <button id="drinkbtn" onclick="drinkBeer()">🍻 Выпить</button>
-   </div>
-   <div class="sub" id="tavernmsg" style="margin-top:4px"></div>
-  </div>
-  <div style="margin-top:10px">
-   <b class="sub">действия в мире <span class="sub" id="manainfo"></span></b>
-   <div class="acts">
-    <button id="chopbtn" onclick="act('chop')">🪓 Рубить лес</button>
-    <button id="fishbtn" onclick="act('fish')">🎣 Рыбачить</button>
-    <button id="castbtn" onclick="act('cast')">✨ Разряд</button>
-   </div>
-   <div class="sub" id="actmsg" style="margin-top:4px"></div>
-  </div>
+  <div class="row between"><b class="sub">Мир</b><span class="sub" id="daytime"></span></div>
+  <div class="locgrid" id="locgrid"></div>
  </div>
 
- <div class="card">
-  <b class="sub">рядом живут</b>
-  <div id="neighbors"></div>
+ <div class="card" id="locscreen">
+  <div class="row between"><b id="locname">—</b><span class="sub" id="loccount"></span></div>
+  <div class="sub" id="locdesc"></div>
+  <div id="locactions" class="acts"></div>
+  <div id="minigame"></div>
+  <div class="toast" id="toast"></div>
+  <div style="margin-top:8px"><b class="sub">кто здесь</b><div id="who"></div></div>
  </div>
 
- <div class="card" id="dialog" style="display:none;border-color:#c9a86a">
+ <div class="card hidden" id="dialog" style="border-color:#c9a86a">
   <div><b id="dlgwho">—</b> <span class="sub">говорит:</span></div>
   <div id="dlgline" style="margin:6px 0;color:#ead9b0">…</div>
   <div class="acts" id="dlgopts"></div>
   <button onclick="send({op:'endtalk'})" style="width:auto;margin-top:6px;padding:3px 10px">Отойти</button>
  </div>
 
- <div class="card" id="invite" style="display:none;border-color:#d3a06a;background:#4a3f2c">
+ <div class="card hidden" id="invite" style="border-color:#d3a06a;background:#4a3f2c">
   <div><b id="invwho">—</b> <span class="sub">зовёт выпить вместе</span></div>
   <div class="acts" style="margin-top:6px">
    <button class="primary" style="width:auto" onclick="send({op:'accept'})">🍻 Принять</button>
@@ -132,7 +97,6 @@ let token=null, ws=null, mode='login';
 const $=id=>document.getElementById(id);
 $('tabLogin').onclick=()=>{mode='login';$('tabLogin').className='primary';$('tabReg').className='';$('go').textContent='Войти в мир';};
 $('tabReg').onclick =()=>{mode='reg';  $('tabReg').className='primary';$('tabLogin').className='';$('go').textContent='Создать и войти';};
-
 async function api(path,body){
  const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  return r.json();
@@ -141,219 +105,158 @@ $('go').onclick=async()=>{
  $('err').textContent='';
  const login=$('login').value.trim(), pass=$('pass').value;
  if(!login||pass.length<4){$('err').textContent='нужен логин и пароль от 4 символов';return;}
- if(mode==='reg'){
-   const rr=await api('/api/register',{login,pass});
-   if(!rr.ok){$('err').textContent=rr.msg||'не удалось зарегистрироваться';return;}
- }
+ if(mode==='reg'){ const rr=await api('/api/register',{login,pass});
+   if(!rr.ok){$('err').textContent=rr.msg||'не удалось зарегистрироваться';return;} }
  const lr=await api('/api/login',{login,pass});
  if(!lr.ok){$('err').textContent=lr.msg||'неверный вход';return;}
  token=lr.token; connect();
 };
-
-let LAYOUT=null;
 async function connect(){
- try{ LAYOUT=await (await fetch('/api/layout')).json(); }catch(e){ LAYOUT=null; } // геометрия мира
  const proto=location.protocol==='https:'?'wss':'ws';
  ws=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
  ws.onmessage=e=>render(JSON.parse(e.data));
  ws.onclose=()=>{ if(token){ $('err').textContent='связь прервалась'; } };
- ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); };
+ ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); goTo('well'); };
 }
 function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({v:1},o))); }
-function goal(g){ send({op:'goal',goal:g}); }
+function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
-// --- ходьба: клавиши задают направление, шлём op:"move" с растущим seq и реальным dt ---
-const keys={};
-let seq=0, lastMove=performance.now();
-addEventListener('keydown',e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)){keys[mapKey(e.key)]=1; e.preventDefault();} });
-addEventListener('keyup',  e=>{ keys.Shift=e.shiftKey; if(mapKey(e.key)) keys[mapKey(e.key)]=0; });
-function mapKey(k){ k=k.toLowerCase();
- return ({w:'N',arrowup:'N',s:'S',arrowdown:'S',a:'W',arrowleft:'W',d:'E',arrowright:'E'})[k]||''; }
-setInterval(()=>{
- if(!ws||ws.readyState!==1) return;
- const now=performance.now(), dt=Math.min(0.25,(now-lastMove)/1000); lastMove=now;
- let mx=(keys.E?1:0)-(keys.W?1:0), my=(keys.N?1:0)-(keys.S?1:0);
- if(mx===0&&my===0) return; // стоим — не шлём
- const face=Math.atan2(my,mx)*180/Math.PI;
- ws.send(JSON.stringify({v:1,op:'move',mx,my,run:keys.Shift?true:false,face,dt,seq:++seq}));
-},100);
+// ---------- локации (тап-навигация, без ходьбы) ----------
+const LOCS=[
+ {key:'well',   name:'Площадь',  ico:'⛲', desc:'Сердце деревни. Можно поговорить с людьми и дать отпор зверю.'},
+ {key:'tavern', name:'Корчма',   ico:'🍺', desc:'Кружка пива, знакомства, посиделки.'},
+ {key:'river',  name:'Река',     ico:'🎣', desc:'Рыбалка — подсеки в нужный миг.'},
+ {key:'woods',  name:'Лес',      ico:'🪓', desc:'Рубка дров — бей в полную силу.'},
+ {key:'garden', name:'Поля',     ico:'🥕', desc:'Пахари работают в поле.'},
+ {key:'smithy', name:'Кузница',  ico:'⚒', desc:'Кузнец куёт железо.'},
+ {key:'granary',name:'Амбар',    ico:'🌾', desc:'Общие запасы зерна и хлеба.'},
+ {key:'mine',   name:'Рудник',   ico:'⛏', desc:'Рудокопы добывают руду.'},
+];
+let curLoc='well', last=null;
+function goTo(key){ curLoc=key; stopMinigames(); send({op:'goto',location:key}); if(last) drawLoc(last); toast(''); }
+function toast(t){ $('toast').textContent=t; }
 
-// --- пиво: buy/consume, reqid для идемпотентности; исход увидим в кадре (me.mug) ---
-function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-function buyBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'buy',item:'beer',reqid:rid()})); tmsg('заказываю…'); } }
-function drinkBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'consume',item:'beer',reqid:rid()})); tmsg('пью…'); } }
-function tmsg(t){ $('tavernmsg').textContent=t; }
+function render(s){ last=s; drawChar(s); drawWorld(s); drawLoc(s); drawDialog(s); }
 
-// --- действия в мире: рубка/рыбалка/магия (op:"act"), исход в кадре (закрома, силы, мана) ---
-function act(a){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'act',action:a,reqid:rid()}));
-  $('actmsg').textContent={chop:'рублю…',fish:'закидываю…',cast:'творю разряд…'}[a]||''; } }
-function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+function drawChar(s){
+ const me=s.me||{}; const bar=(v,c)=>`<div class="bar"><div style="width:${Math.max(0,Math.min(100,v))}%;background:${c}"></div></div>`;
+ const skills=Object.entries(me.skills||{}).sort((a,b)=>b[1]-a[1]).slice(0,6)
+   .map(([k,v])=>`<span class="skill">${k} · ${Math.round(v)}</span>`).join('')||'<span class="sub">пока без умений</span>';
+ $('charcard').innerHTML=
+  `<div class="row between"><div><span class="big">${me.name||'—'}</span> <span class="sub">${me.surname||''} ${me.nick?('«'+me.nick+'»'):''}</span></div>
+     <span class="tag">${me.role||''}</span></div>
+   <div class="sub">${me.trait||''}${me.origin?(' · '+me.origin):''} · ${me.sex==='ж'?'женщина':'мужчина'} · ${Math.round(me.age||0)} лет · 💰 ${me.coins??0}</div>
+   <div style="margin-top:8px">
+     <span class="stat">здоровье</span>${bar(me.health,'#8da96a')}
+     <span class="stat">сытость</span>${bar(me.hunger,'#c9a24a')}
+     <span class="stat">силы</span>${bar(me.energy,'#6ab0d9')}
+     <span class="stat">настрой</span>${bar(me.morale,'#c58fd0')}
+   </div>
+   <div style="margin-top:4px">${skills}</div>`;
+}
+function drawWorld(s){
+ $('daytime').textContent=`${s.season||''}, день ${s.day||0}, год ${s.year||0}`;
+ const g=$('locgrid');
+ if(g.childElementCount!==LOCS.length){ g.replaceChildren(); LOCS.forEach(L=>{
+   const b=document.createElement('button'); b.className='loc'; b.dataset.k=L.key;
+   b.innerHTML=`<span class="ico">${L.ico}</span><span>${L.name}</span>`;
+   b.onclick=()=>goTo(L.key); g.appendChild(b);
+ });}
+ [...g.children].forEach(b=>b.classList.toggle('here',b.dataset.k===curLoc));
+}
 
-// --- играбельная карта сверху: камера за игроком, здания/река из /api/layout, живые жители ---
-function drawScene(s){
- const cv=$('scene'); if(!cv) return;
- const W=cv.clientWidth, H=cv.clientHeight; cv.width=W; cv.height=H;
- const g=cv.getContext('2d');
- const me=s.me&&s.me.pos?s.me.pos:{x:0,y:0};
- const VIEW=130; // метров по ширине обзора — видно деревню и что мир больше
- const sc=W/VIEW; const cx=me.x, cy=me.y;
- const toPx=(x,y)=>[W/2+(x-cx)*sc, H/2-(y-cy)*sc]; // камера на игроке, +Y вверх
- // земля
- g.fillStyle='#5a6b3a'; g.fillRect(0,0,W,H);
- const px=(x,y)=>toPx(x,y)[0], py=(x,y)=>toPx(x,y)[1];
- if(LAYOUT){
-   // лес на западе (x≤-70, темнее) и поля на востоке (x≥50, светлее) — крупными зонами
-   g.fillStyle='#3f5230'; g.fillRect(0,0,Math.max(0,px(-70,0)),H);
-   g.fillStyle='#6d7d44'; g.fillRect(px(50,0),0,W-px(50,0),H);
-   // река (полоса) + мост (проём)
-   const r=LAYOUT.river, ryTop=py(0,r.y1), ryBot=py(0,r.y0);
-   g.fillStyle='#3a6b86'; g.fillRect(0,ryTop,W,ryBot-ryTop);
-   g.fillStyle='#6b543a'; g.fillRect(px(r.bridge_x0,0),ryTop,px(r.bridge_x1,0)-px(r.bridge_x0,0),ryBot-ryTop);
-   // граница мира
-   const wh=LAYOUT.world_half;
-   g.strokeStyle='#2a3320'; g.lineWidth=3; g.strokeRect(px(-wh,wh),py(-wh,wh),px(wh,-wh)-px(-wh,wh),py(wh,-wh)-py(-wh,wh));
-   // здания
-   g.font='10px Georgia'; g.textAlign='center';
-   (LAYOUT.buildings||[]).forEach(b=>{
-     let[x0,y1]=toPx(b.x0,b.y1),[x1,y0]=toPx(b.x1,b.y0);
-     g.fillStyle='#7a5a3c'; g.fillRect(x0,y1,x1-x0,y0-y1);
-     g.strokeStyle='#4a3524'; g.lineWidth=2; g.strokeRect(x0,y1,x1-x0,y0-y1);
-     g.fillStyle='#e8d6ad'; g.fillText(b.name,(x0+x1)/2,(y0+y1)/2+3);
-   });
-   // POI-метки (река/лес/поля/рудник — зоны действий)
-   g.fillStyle='#d8c070'; g.font='italic 10px Georgia';
-   [['woods','лес'],['river','река'],['garden','поля'],['mine','рудник']].forEach(([k,lbl])=>{
-     const p=LAYOUT.pois[k]; if(!p)return; const[px,py]=toPx(p.x,p.y); g.fillText(lbl,px,py);
-   });
- }
- // жители (анонимно — имена только у знакомых, #66 сервера)
- g.textAlign='center';
- (s.place&&s.place.neighbors||[]).forEach(n=>{ if(!n.pos)return;
-   const[px,py]=toPx(n.pos.x,n.pos.y);
-   // живые игроки — ярче и крупнее, с кольцом; НПС — тусклые точки
-   g.beginPath(); g.arc(px,py,n.player?5:4,0,7); g.fillStyle=n.player?'#8ad0ff':'#d8c0a0'; g.fill();
-   if(n.player){ g.lineWidth=2; g.strokeStyle='#2a5a7a'; g.stroke(); }
-   const tag = n.player?'игрок':(n.name||'');
-   if(tag){ g.fillStyle=n.player?'#cfeaff':'#ead9b0'; g.font='10px Georgia'; g.fillText(tag,px,py-7); }
+function drawLoc(s){
+ const L=LOCS.find(x=>x.key===curLoc)||LOCS[0];
+ $('locname').textContent=`${L.ico} ${L.name}`; $('locdesc').textContent=L.desc;
+ const me=s.me||{};
+ // кто здесь: соседи у этой локации (по близости к POI из layout — но нам хватит всех соседей сцены)
+ const here=(s.place&&s.place.neighbors)||[];
+ $('loccount').textContent=here.length?`${here.length} рядом`:'';
+ const who=$('who'); who.replaceChildren();
+ if(!here.length){ const d=document.createElement('div'); d.className='sub'; d.textContent='никого рядом'; who.appendChild(d); }
+ here.forEach(n=>{
+   const row=document.createElement('div'); row.className='nb';
+   const nm=n.player?'🧑 игрок':(n.known?(n.name||'житель'):(n.desc||'житель'));
+   const lab=document.createElement('span'); lab.innerHTML=`${(n.known||n.player)?'<b>'+nm+'</b>':nm} <span class="sub">— ${n.act||''}${n.trait?(' · '+n.trait):''}</span>`;
+   row.appendChild(lab);
+   if(!me.talk){
+     const b=document.createElement('button'); b.style.cssText='width:auto;padding:4px 10px';
+     if(n.player){ b.textContent='🍻 позвать'; b.onclick=()=>send({op:'invite',target:n.id}); }
+     else { b.textContent='💬'; b.onclick=()=>send({op:'talk',target:n.id}); }
+     row.appendChild(b);
+   }
+   who.appendChild(row);
  });
- // игрок
- if(s.me&&s.me.pos){ const[px,py]=toPx(me.x,me.y);
-   g.beginPath(); g.arc(px,py,6,0,7); g.fillStyle='#ffe9a8'; g.fill();
-   g.lineWidth=2; g.strokeStyle='#8a5a2b'; g.stroke();
-   // направление взгляда
-   const f=(s.me.pos.facing||0)*Math.PI/180; g.beginPath(); g.moveTo(px,py);
-   g.lineTo(px+Math.cos(f)*11,py-Math.sin(f)*11); g.strokeStyle='#fff4dc'; g.stroke();
-   g.fillStyle='#fff4dc'; g.font='bold 11px Georgia'; g.fillText('ты',px,py-10);
- }
+ drawLocActions(s,L);
 }
 
-function barColor(v){ return v<25?'var(--bad)':v<55?'var(--warn)':'var(--good)'; }
-function setBar(id,val,invert){
- const shown=invert?100-val:val;
- $(id+'bar').style.width=Math.max(0,Math.min(100,shown))+'%';
- $(id+'bar').style.background=barColor(invert?100-val:val);
- $(id+'v').textContent=Math.round(val);
-}
-function render(s){
- if(!s.alive){ $('who').textContent='твоё тело покинуло мир'; return; }
- const me=s.me;
- $('who').textContent=me.name+(me.surname?' '+me.surname:'');
- $('role').textContent='· '+me.role+' · '+me.age+' лет';
- $('when').textContent=`год ${s.year}, ${s.season}, день ${s.day}`;
- setBar('h',me.health); setBar('f',100-me.hunger); // сытость = 100-голод
- $('fv').textContent=Math.round(100-me.hunger);
- setBar('e',me.energy); setBar('m',me.morale);
- const goalNames={work:'работает',eat:'ест',rest:'отдыхает',socialize:'в таверне',seek_home:'ищет дом',leave:'в пути',wander:'бродит'};
- $('last').textContent='сейчас: '+(goalNames[me.goal]||'занят делом')+' · '+(me.last||'');
- $('coins').textContent=me.coins;
- $('debt').textContent=(me.debt>0)?('· 🧾 долг '+me.debt):'';
- const parts={head:'голова',torso:'торс',arm:'рука',leg:'нога'};
- const w=me.wounds||{}; const ws=Object.keys(w);
- if(ws.length||me.bleeding>0){
-   let t='🩹 раны: '+ws.map(p=>(parts[p]||p)+' '+w[p]).join(', ');
-   if(me.bleeding>0) t+=(ws.length?' · ':'раны: ')+'🩸 кровит '+me.bleeding;
-   $('wounds').textContent=t;
- } else { $('wounds').textContent=''; }
- const goods={wheat:'зерно',bread:'хлеб',fish:'рыба',meat:'мясо',milk:'молоко',veg:'овощи',cheese:'сыр',egg:'яйца',game:'дичь',wood:'дерево',beer:'пиво'};
- const stash=me.stash||{}; const sk=Object.keys(stash);
- $('stash').textContent = sk.length ? ('🧺 в закромах: '+sk.map(g=>(goods[g]||g)+' '+stash[g]).join(', ')) : '';
- // действия: мана и доступность по близости (считаем на клиенте по /api/layout; сервер всё равно проверит)
- const mp=me.pos||{x:0,y:0}, L=LAYOUT, R=6;
- const near=k=>{ if(!L||!L.pois[k])return false; return dist(mp.x,mp.y,L.pois[k].x,L.pois[k].y)<=R; };
- const atWoods = (mp.x<=-70) || near('woods');
- const atRiver = near('river') || (L&&Math.abs(mp.y-(L.river?L.river.y1:-78))<=6);
- $('manainfo').textContent = L?('· мана '+(me.mana!=null?me.mana:'—')+(atWoods?' · у леса':atRiver?' · у реки':'')):'';
- $('chopbtn').disabled = !atWoods || me.energy<8;
- $('fishbtn').disabled = !atRiver || me.energy<7;
- $('castbtn').disabled = (me.mana||0)<25;
- if(s.place){
-   $('place').textContent=s.place.name;
-   $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;
-   $('placefood').textContent=`на рынке: еды ${s.place.food}, хлеба ${s.place.bread} (цена ${s.place.bread_price}⌾)`;
-   const neighborList=$('neighbors');
-   neighborList.replaceChildren();
-   const nearby=Array.isArray(s.place.neighbors)?s.place.neighbors:[];
-   const myp=me.pos||{x:0,y:0};
-   if(nearby.length===0){
-     const empty=document.createElement('div'); empty.className='sub';
-     empty.textContent='никого рядом'; neighborList.appendChild(empty);
-   } else {
-     nearby.forEach(n=>{
-       const row=document.createElement('div'); row.className='nb';
-       const who=n.player?'🧑 игрок':(n.known?(n.name||'житель'):(n.desc||'житель'));
-       const label=document.createElement('span');
-       label.innerHTML=((n.known||n.player)?'<b>'+who+'</b>':who)+' <span class="sub">— '+(n.act||'')+'</span>';
-       row.appendChild(label);
-       // рядом ли (чтобы заговорить/позвать)
-       const close = n.pos && dist(myp.x,myp.y,n.pos.x,n.pos.y)<=8;
-       if(close && !me.talk){
-         if(n.player){ // живого игрока — зовём выпить
-           const invb=document.createElement('button'); invb.textContent='🍻 позвать';
-           invb.title='позвать игрока выпить'; invb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
-           invb.onclick=()=>send({op:'invite',target:n.id}); row.appendChild(invb);
-         } else { // с НПС — заговорить
-           const talkb=document.createElement('button'); talkb.textContent='💬 заговорить';
-           talkb.style.cssText='width:auto;padding:2px 8px;margin-left:6px';
-           talkb.onclick=()=>send({op:'talk',target:n.id}); row.appendChild(talkb);
-         }
-       }
-       neighborList.appendChild(row);
-     });
-   }
-   // корчма: показываем запас/цену, кнопки по состоянию кружки и наличию пива
-   const hasTavern=s.place.tavern, beer=s.place.beer||0, price=s.place.beer_price, mug=!!me.mug;
-   $('tavernbox').style.display=hasTavern?'':'none';
-   if(hasTavern){
-     $('beerinfo').textContent=`· пива ${beer} · кружка ${price}⌾`+(mug?' · 🍺 у тебя кружка':'');
-     $('buybtn').disabled = mug || beer<1 || me.coins<price;
-     $('drinkbtn').disabled = !mug;
-     if(mug) tmsg('кружка в руке — можно выпить');
-     else if(beer<1) tmsg('пиво кончилось');
-   }
+// контекстные действия и мини-игры локации
+function drawLocActions(s,L){
+ const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren();
+ const me=s.me||{};
+ if(L.key==='tavern'){
+   const beer=(s.place&&s.place.beer)||0, price=(s.place&&s.place.beer_price), mug=!!me.mug;
+   const b1=btn(mug?'🍺 кружка в руке':'🍺 Заказать ('+(price??'?')+'⌾)', ()=>send({op:'buy',item:'beer',reqid:rid()}), mug||beer<1||me.coins<price);
+   const b2=btn('🍻 Выпить', ()=>send({op:'consume',item:'beer',reqid:rid()}), !mug);
+   A.append(b1,b2);
+   M.innerHTML=`<div class="sub">пива в корчме: ${beer}</div>`;
+ } else if(L.key==='river'){
+   fishingGame(M);
+ } else if(L.key==='woods'){
+   choppingGame(M);
+ } else if(L.key==='well'){
+   A.append(btn('✨ Разряд (защита) · мана '+(me.mana??0), ()=>send({op:'act',action:'cast',reqid:rid()}), (me.mana||0)<25));
+ } else {
+   M.innerHTML='<div class="sub">Здесь трудятся жители. Поговори с ними — со временем появятся занятия (помощь в работе).</div>';
  }
- // разговор с жителем: реплика собеседника + кнопки ответов
- const talk=me.talk;
- if(talk){
-   $('dialog').style.display='';
-   $('dlgwho').textContent = talk.who + (talk.known?'':' · незнакомец');
-   $('dlgline').textContent = talk.line || '…';
-   const opts=$('dlgopts'); opts.replaceChildren();
-   (talk.options||[]).forEach(o=>{ const b=document.createElement('button');
-     b.textContent=o.text; b.style.cssText='width:auto';
-     b.onclick=()=>send({op:'say',line:o.id}); opts.appendChild(b); });
- } else $('dialog').style.display='none';
- // приглашение выпить от другого игрока
- const inv=me.invite_from;
- if(inv){ $('invite').style.display=''; $('invwho').textContent=inv.who; }
- else $('invite').style.display='none';
- // подтверждённый сервером момент тоста (co-drink/угощение) — проигрываем один раз на новый seq
- const se=me.social_event;
- if(se && se.seq && se.seq!==lastSocialSeq){ lastSocialSeq=se.seq;
-   tmsg(se.type==='codrink'?'🍻 Вы чокнулись кружками!':'🍻 Тост за здоровье!'); }
- drawScene(s);
 }
-let lastSocialSeq=0;
+function btn(text,fn,dis){ const b=document.createElement('button'); b.textContent=text; b.onclick=fn; b.disabled=!!dis; return b; }
+
+// ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
+let mgRAF=0;
+function stopMinigames(){ if(mgRAF){ cancelAnimationFrame(mgRAF); mgRAF=0; } }
+function fishingGame(M){
+ M.className='mg'; M.innerHTML=`<b class="sub">Рыбалка</b>
+   <div class="track" id="ftrack"><div class="zone" id="fzone"></div><div class="mark" id="fmark"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="fcast">🎣 Подсечь</button></div>`;
+ const zone=$('fzone'), mark=$('fmark');
+ const zx=20+Math.random()*55, zw=18; zone.style.left=zx+'%'; zone.style.width=zw+'%';
+ let t=0;
+ const loop=()=>{ t+=0.03; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ loop();
+ $('fcast').onclick=()=>{ const p=parseFloat(mark.dataset.p||'0');
+   if(p>=zx&&p<=zx+zw){ send({op:'act',action:'fish',reqid:rid()}); toast('🐟 Подсёк! рыбина в закромах'); }
+   else toast('…сорвалось, лови момент'); };
+}
+// ---------- мини-игра РУБКА: останови шкалу силы на максимуме ----------
+function choppingGame(M){
+ M.className='mg'; M.innerHTML=`<b class="sub">Рубка дров</b>
+   <div class="track" id="ctrack"><div class="fill" id="cfill" style="width:0%"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="cchop">🪓 Бить</button></div>`;
+ const fill=$('cfill'); let t=0;
+ const loop=()=>{ t+=0.045; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ loop();
+ $('cchop').onclick=()=>{ const p=parseFloat(fill.dataset.p||'0');
+   if(p>=70){ send({op:'act',action:'chop',reqid:rid()}); toast(p>=92?'🪵 Мощный удар! бревно':'🪵 Срубил, бревно в закромах'); }
+   else toast('…слабо, бей в полную силу'); };
+}
+
+// ---------- разговор / приглашение / тост ----------
+let lastSocial=0;
+function drawDialog(s){
+ const me=s.me||{}, talk=me.talk;
+ if(talk){ $('dialog').classList.remove('hidden');
+   $('dlgwho').textContent=talk.who+(talk.known?'':' · незнакомец'); $('dlgline').textContent=talk.line||'…';
+   const o=$('dlgopts'); o.replaceChildren();
+   (talk.options||[]).forEach(op=>{ const b=document.createElement('button'); b.textContent=op.text; b.style.cssText='width:auto';
+     b.onclick=()=>send({op:'say',line:op.id}); o.appendChild(b); });
+ } else $('dialog').classList.add('hidden');
+ const inv=me.invite_from;
+ if(inv){ $('invite').classList.remove('hidden'); $('invwho').textContent=inv.who; } else $('invite').classList.add('hidden');
+ const se=me.social_event;
+ if(se&&se.seq&&se.seq!==lastSocial){ lastSocial=se.seq; toast(se.type==='codrink'?'🍻 Вы чокнулись кружками!':'🍻 Тост за здоровье!'); }
+}
 </script>
 </body>
 </html>

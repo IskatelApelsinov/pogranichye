@@ -84,6 +84,16 @@ func RegenMana(w *core.World, dt float64) {
 	})
 }
 
+// trainSkill растит умение игрока от дела (прокачка с замедлением — см. SkillsC.Train).
+func trainSkill(w *core.World, e *core.Entity, name string, amt float64) {
+	sk := core.Skills(e)
+	if sk == nil {
+		sk = &core.SkillsC{Skills: map[string]float64{}}
+		w.Attach(e, sk)
+	}
+	sk.Train(name, amt)
+}
+
 func addStash(w *core.World, e *core.Entity, good string, n float64) {
 	s := econ.Stash(e)
 	if s == nil {
@@ -119,6 +129,7 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	}
 	v.Energy -= chopEnergy
 	addStash(w, e, econ.GoodWood, chopYield)
+	trainSkill(w, e, "woodcutter", 0.6) // прокачка дровосека
 	pc.markDone(reqid) // запись только при успехе
 	return true, ""
 }
@@ -146,6 +157,7 @@ func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	}
 	v.Energy -= fishEnergy
 	addStash(w, e, econ.GoodFish, fishYield)
+	trainSkill(w, e, "fisher", 0.6) // прокачка рыбака
 	pc.markDone(reqid)
 	return true, ""
 }
@@ -172,6 +184,7 @@ func CastSpark(w *core.World, e *core.Entity, reqid string) (bool, string) {
 		return false, "не хватает маны"
 	}
 	pc.Mana -= sparkCost
+	trainSkill(w, e, "mage", 0.3) // прокачка дара
 	pc.markDone(reqid)
 	// бьёт по опасному зверю в угодьях поселения (если есть)
 	if se := w.Get(pl.Settlement); se != nil {

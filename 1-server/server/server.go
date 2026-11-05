@@ -281,6 +281,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		// социальное v1.4: разговор/знакомство/совместное питьё
 		Target string `json:"target"` // id собеседника/партнёра (uint64 строкой)
 		Line   string `json:"line"`   // выбранная реплика
+		// навигация менеджмент-клиента v1.6: дискретный переход в локацию
+		Location string `json:"location"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -332,6 +334,12 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "cast":
 				sim.CastSpark(s.world, e, in.ReqID)
 			}
+		}
+		s.mu.Unlock()
+	case "goto": // дискретная навигация менеджмент-клиента: встать в локацию (v1.6)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			sim.GoTo(s.world, e, in.Location)
 		}
 		s.mu.Unlock()
 	case "talk": // заговорить с жителем рядом (v1.4)
@@ -403,9 +411,11 @@ func (s *Server) stateJSON(cid core.ID) string {
 		"season": s.runner.Clock.Season().String(),
 		"me": map[string]any{
 			"id":   eid(e.ID), // uint64 строкой — чтобы JS не терял точность; ключ Entity View
-			"name": id.Name, "surname": id.Surname, "role": id.Role, "sex": id.Sex,
+			"name": id.Name, "surname": id.Surname, "nick": id.Nick, "role": id.Role, "sex": id.Sex,
+			"trait": id.Trait, "origin": id.Origin, // характеристики личности (v1.6)
 			"age": round1(v.Age), "health": round0(v.Health), "hunger": round0(v.Hunger),
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
+			"skills": meSkills(e), // умения и их уровни — прокачка от труда (v1.6)
 			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
 			"act_code": m.ActCode, // стабильный код занятия для анимаций клиента (#23)
 			"mug":      meMug(e),  // держит ли кружку (интерактивность v1.2)
@@ -441,7 +451,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 						}
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": shownName, "known": known,
-							"desc": sim.DescFor(oi.Role), "role": oi.Role, "act": om.LastAct,
+							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct,
 							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
 							"player":   s.ctl[o.ID] != 0, // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
@@ -547,6 +557,17 @@ func meMug(e *core.Entity) bool {
 		return m.Has
 	}
 	return false
+}
+
+// meSkills — умения игрока и их уровни (прокачка от труда). Пусто, если навыков нет.
+func meSkills(e *core.Entity) map[string]any {
+	out := map[string]any{}
+	if sk := core.Skills(e); sk != nil {
+		for name, lvl := range sk.Skills {
+			out[name] = round1(lvl)
+		}
+	}
+	return out
 }
 
 // meMana — мана игрока для магического разряда (0..100).

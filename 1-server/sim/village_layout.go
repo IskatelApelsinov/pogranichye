@@ -1,6 +1,10 @@
 package sim
 
-import "math"
+import (
+	"math"
+
+	"pogranichye/core"
+)
 
 // Раскладка деревни: точки интереса (двери зданий, колодец, лес, река, поля) и куда идут жители.
 // Координаты берутся из world_geometry.go (POINamed) — единая версионированная истина для сервера и
@@ -52,6 +56,24 @@ func targetForGoal(role, goal string) (x, y float64) {
 	default:
 		return poiByKind("well")
 	}
+}
+
+// GoTo — ДИСКРЕТНАЯ серверно-авторитетная навигация для менеджмент-клиента (тонкий web/mobile):
+// выбор локации тапом ставит тело игрока в точку этой локации. Это не фальшивое перемещение — сервер
+// остаётся владельцем позиции, просто навигация дискретная (в отличие от непрерывной ходьбы Unity).
+// Возвращает (ок, причина). Локации — ключи POINamed (tavern/smithy/river/woods/...).
+func GoTo(w *core.World, e *core.Entity, location string) (bool, string) {
+	p, ok := POINamed[location]
+	if !ok {
+		return false, "нет такой локации"
+	}
+	sp := EnsureScenePos(w, e)
+	x, y := p[0], p[1]
+	if Blocked(x, y) { // точка POI должна быть проходимой; если вдруг нет — чуть сместим к центру
+		x, y = x*0.9, y*0.9
+	}
+	sp.X, sp.Y = x, y
+	return true, ""
 }
 
 // idOffset — устойчивое личное смещение жителя вокруг целевой точки (чтобы НПС не слипались в POI).
