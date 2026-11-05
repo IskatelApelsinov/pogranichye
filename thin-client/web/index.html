@@ -161,8 +161,6 @@ function drinkBeer(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({op:'con
 function tmsg(t){ $('tavernmsg').textContent=t; }
 
 // --- живая карта: рисуем игрока и соседей по их координатам сцены (они двигаются сервером) ---
-const roleColor={farmer:'#9bd36a',smith:'#d98b4e',fisher:'#6ab0d9',hunter:'#c7703a',cook:'#d9c24e',
- tavernkeeper:'#d36ad0',herbalist:'#6ad9a3',weaver:'#b0a0d9',miner:'#b0b0b0',herder:'#c9d96a',woodcutter:'#8a9b5a'};
 function drawScene(s){
  const cv=$('scene'), img=$('sceneimg'); if(!cv||!img.clientWidth) return;
  const W=img.clientWidth, H=img.clientHeight; cv.width=W; cv.height=H;
@@ -171,11 +169,10 @@ function drawScene(s){
  const toPx=(x,y)=>[cx+x*sc, cy-y*sc]; // +Y на север (вверх)
  const dot=(x,y,r,col,ring)=>{ const[px,py]=toPx(x,y); g.beginPath(); g.arc(px,py,r,0,7); g.fillStyle=col; g.fill();
    if(ring){ g.lineWidth=2; g.strokeStyle=ring; g.stroke(); } return[px,py]; };
+ // Незнакомые жители остаются анонимными: карта показывает только их присутствие и движение.
  (s.place&&s.place.neighbors||[]).forEach(n=>{
    if(!n.pos) return;
-   const[px,py]=dot(n.pos.x,n.pos.y,4,roleColor[n.role]||'#caa',null);
-   g.fillStyle='#ead9b0'; g.font='10px Georgia'; g.textAlign='center';
-   g.fillText(n.name||'', px, py-7);
+   dot(n.pos.x,n.pos.y,4,'#caa',null);
  });
  if(s.me&&s.me.pos){ const[px,py]=dot(s.me.pos.x,s.me.pos.y,6,'#ffe9a8','#8a5a2b');
    g.fillStyle='#fff4dc'; g.font='bold 11px Georgia'; g.textAlign='center'; g.fillText('ты',px,py-9); }
@@ -198,7 +195,7 @@ function render(s){
  $('fv').textContent=Math.round(100-me.hunger);
  setBar('e',me.energy); setBar('m',me.morale);
  const goalNames={work:'работает',eat:'ест',rest:'отдыхает',socialize:'в таверне',seek_home:'ищет дом',leave:'в пути',wander:'бродит'};
- $('last').innerHTML='сейчас: <span class="gold">'+(goalNames[me.goal]||me.goal||'—')+'</span> · '+(me.last||'');
+ $('last').textContent='сейчас: '+(goalNames[me.goal]||'занят делом')+' · '+(me.last||'');
  $('coins').textContent=me.coins;
  $('debt').textContent=(me.debt>0)?('· 🧾 долг '+me.debt):'';
  const parts={head:'голова',torso:'торс',arm:'рука',leg:'нога'};
@@ -215,8 +212,22 @@ function render(s){
    $('place').textContent=s.place.name;
    $('tier').textContent={village:'деревня',town:'городок',city:'город'}[s.place.tier]||s.place.tier;
    $('placefood').textContent=`на рынке: еды ${s.place.food}, хлеба ${s.place.bread} (цена ${s.place.bread_price}⌾)`;
-   $('neighbors').innerHTML=(s.place.neighbors||[]).map(n=>
-     `<div class="nb">${n.name} <span class="sub">— ${n.role}, ${n.act}</span></div>`).join('')||'<div class="sub">никого рядом</div>';
+   const neighborList=$('neighbors');
+   neighborList.replaceChildren();
+   const nearby=Array.isArray(s.place.neighbors)?s.place.neighbors:[];
+   if(nearby.length===0){
+     const empty=document.createElement('div');
+     empty.className='sub';
+     empty.textContent='никого рядом';
+     neighborList.appendChild(empty);
+   } else {
+     nearby.forEach(()=>{
+       const row=document.createElement('div');
+       row.className='nb';
+       row.textContent='житель';
+       neighborList.appendChild(row);
+     });
+   }
    // корчма: показываем запас/цену, кнопки по состоянию кружки и наличию пива
    const hasTavern=s.place.tavern, beer=s.place.beer||0, price=s.place.beer_price, mug=!!me.mug;
    $('tavernbox').style.display=hasTavern?'':'none';
