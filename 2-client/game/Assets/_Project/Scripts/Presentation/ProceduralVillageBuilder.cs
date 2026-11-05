@@ -848,11 +848,11 @@ namespace Pogranichye.Client.Presentation
                 var next = (i + 1) % sides;
                 // Outer skirt, followed by an upward-facing top fan.
                 triangles[t++] = i;
-                triangles[t++] = next;
                 triangles[t++] = sides + i;
                 triangles[t++] = next;
+                triangles[t++] = next;
+                triangles[t++] = sides + i;
                 triangles[t++] = sides + next;
-                triangles[t++] = sides + i;
                 triangles[t++] = center;
                 triangles[t++] = sides + next;
                 triangles[t++] = sides + i;
