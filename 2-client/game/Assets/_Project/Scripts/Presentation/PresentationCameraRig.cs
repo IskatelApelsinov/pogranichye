@@ -5,14 +5,14 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Presentation-only hybrid camera. It never changes authoritative world position.</summary>
     public sealed class PresentationCameraRig : MonoBehaviour
     {
-        [SerializeField] private Vector3 offset = new Vector3(0, 8, -10);
+        [SerializeField] private Vector3 offset = new Vector3(0, 22, -28);
         [SerializeField] private float followSharpness = 5f;
         [SerializeField] private float mouseSensitivity = 2.2f;
         [SerializeField] private float thirdPersonMinPitch = 18f;
         [SerializeField] private float thirdPersonMaxPitch = 62f;
         [SerializeField] private float zoomSpeed = 5f;
-        [SerializeField] private float minZoomDistance = 5f;
-        [SerializeField] private float maxZoomDistance = 17f;
+        [SerializeField] private float minZoomDistance = 8f;
+        [SerializeField] private float maxZoomDistance = 110f;
         [SerializeField] private float collisionRadius = 0.22f;
         [Header("First-person feel")]
         [SerializeField] private float headBobAmplitude = 0.035f;
