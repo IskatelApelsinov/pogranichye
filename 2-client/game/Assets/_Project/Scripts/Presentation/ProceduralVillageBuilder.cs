@@ -401,12 +401,10 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Chicken yard • fence rail", PrimitiveType.Cube, yard,
                     new Vector3(side * 2.65f, 0.56f, 0f), new Vector3(0.09f, 0.10f, 4.0f), _roofMaterial);
             }
+            // Leave a central opening toward the lane instead of fencing across the gate.
             for (var side = -1; side <= 1; side += 2)
-            {
                 CreatePrimitive("Chicken yard • front rail", PrimitiveType.Cube, yard,
-                    new Vector3(0f, 0.56f, side * 1.9f), new Vector3(5.3f, 0.10f, 0.09f), _roofMaterial);
-            }
-            // A deliberately open gate faces the village lane.
+                    new Vector3(side * 1.65f, 0.56f, 1.9f), new Vector3(2.0f, 0.10f, 0.09f), _roofMaterial);
             CreatePrimitive("Chicken yard • gate post", PrimitiveType.Cube, yard,
                 new Vector3(-0.65f, 0.42f, 1.9f), new Vector3(0.11f, 0.84f, 0.11f), _woodMaterial);
 
@@ -448,7 +446,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.78f, 0.02f, -0.03f), new Vector3(0.42f, 0.68f, 0.78f), _clothMaterial);
             var tail = CreatePrimitive("Hen tail", PrimitiveType.Cone, chicken,
                 new Vector3(0f, 0.59f, -0.48f), new Vector3(0.19f, 0.32f, 0.19f), plumage);
-            tail.transform.localRotation = new Quaternion(0.38f, 0f, 0f, 0.92f);
+            tail.transform.localRotation = Quaternion.Euler(25f, 0f, 0f);
 
             var head = new GameObject("Hen head").transform;
             head.SetParent(chicken, false);
