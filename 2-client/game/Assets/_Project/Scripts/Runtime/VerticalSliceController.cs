@@ -178,6 +178,12 @@ namespace Pogranichye.Client
                 GUILayout.Space(5);
                 GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
                 GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54));
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("🪓 Рубить")) _ = SendWorldActionAsync("chop");
+                if (GUILayout.Button("🎣 Рыбачить")) _ = SendWorldActionAsync("fish");
+                if (GUILayout.Button("✨ Разряд")) _ = SendWorldActionAsync("cast");
+                GUILayout.EndHorizontal();
+                GUILayout.Label("Мана: " + _frame.Me.Mana.ToString("0.0"));
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -233,6 +239,19 @@ namespace Pogranichye.Client
                 GUILayout.EndHorizontal();
                 GUILayout.EndArea();
             }
+        }
+
+        private async Task SendWorldActionAsync(string action)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendActAsync(action, _lifetime.Token);
+                Enqueue(() => _status = "Действие отправлено: " + action + ". Результат подтвердит сервер.");
+            }
+            catch (Exception ex) { Enqueue(() => _status = "Не удалось выполнить действие: " + ex.Message); }
         }
 
         private async Task SendTalkAsync(string target)
