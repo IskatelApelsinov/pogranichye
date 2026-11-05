@@ -54,6 +54,10 @@ namespace Pogranichye.Client.Presentation
                     collision.layer = 2; // Same obstruction layer used by the presentation camera.
                     var collider = collision.AddComponent<BoxCollider>();
                     collider.size = new Vector3(width, 4.7f, depth);
+
+                    // Match visible mass to the authoritative obstruction footprint.
+                    if (b.Kind == "tavern" || b.Kind == "smithy" || b.Kind == "market")
+                        BuildFootprintBuilding(world, b, width, depth);
                 }
             }
 
@@ -105,7 +109,7 @@ namespace Pogranichye.Client.Presentation
 
             var isMarket = building.Kind == "market";
             var wallHeight = isMarket ? 2.8f : 3.8f;
-            var wall = isMarket ? _timber : _timber;
+            var wall = _timber;
             var roof = _roof;
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
