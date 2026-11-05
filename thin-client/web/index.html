@@ -158,9 +158,14 @@ function drawInv(s){
 function drawTravel(s){
  const world=(s.me&&s.me.world)||[], here=(s.me&&s.me.known_places)||[];
  const visited=new Set(here.filter(p=>p.visited).map(p=>p.id));
- let h='<b class="sub">мир · путешествия</b> <span class="sub">стартовая деревня — центр Мира</span><div class="acts">';
- world.forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">🧭 ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
- h+='</div>'; $('travelcard').innerHTML=h;
+ const near=world.filter(p=>!p.outer), outer=world.filter(p=>p.outer);
+ let h='<b class="sub">родной край</b><div class="acts">';
+ near.forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">🧭 ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
+ h+='</div>';
+ if(outer.length){ h+=`<div style="margin-top:10px"><b class="sub">🌀 Телепорт во внешний мир</b> <span class="sub">(вокруг горы — ножками не дойти) · ${outer.length} поселений</span><div class="acts">`;
+   outer.slice(0,40).forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">${p.tier==='city'?'🏰':'🏘'} ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
+   h+='</div></div>'; }
+ $('travelcard').innerHTML=h;
 }
 
 function drawChar(s){

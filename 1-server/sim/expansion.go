@@ -208,7 +208,8 @@ func Settlements(w *core.World) []map[string]any {
 			return
 		}
 		out = append(out, map[string]any{"id": se.ID, "name": s.Name, "tier": s.Tier,
-			"x": round1x(s.X), "y": round1x(s.Y)})
+			"x": round1x(s.X), "y": round1x(s.Y),
+			"outer": s.Region != homeRegion}) // внешний мир — только телепортом (вокруг горы)
 	})
 	return out
 }
