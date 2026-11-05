@@ -494,17 +494,17 @@ namespace Pogranichye.Client.Presentation
             var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
                 new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
                 new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
             var roofB = Create("Roof slope east", PrimitiveType.Cube, root,
                 new Vector3(width * 0.25f, wallHeight + 0.45f, 0f),
                 new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
 
             // Close the triangular roof ends so the building reads as a complete timber house.
-            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.087f, -1f);
-            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.087f, 1f);
+            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, -1f);
+            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, 1f);
             var ridge = Create("Roof ridge timber", PrimitiveType.Cylinder, root,
-                new Vector3(0f, wallHeight + width * 0.087f, 0f),
+                new Vector3(0f, wallHeight + width * 0.1335f, 0f),
                 new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
             ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
