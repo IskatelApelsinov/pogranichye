@@ -228,7 +228,7 @@ namespace Pogranichye.Client.Presentation
                     + Mathf.Sin(px * 0.047f - pz * 0.73f) * 0.006f;
                 var index = z * (xSegments + 1) + x;
                 vertices[index] = new Vector3(px, 0.056f + wave, pz);
-                uv[index] = new Vector2(px / 18f, pz / 5f);
+                uv[index] = new Vector2(x / (float)xSegments, z / (float)zSegments);
             }
             var t = 0;
             for (var z = 0; z < zSegments; z++)
@@ -267,7 +267,7 @@ namespace Pogranichye.Client.Presentation
             for (var x = -74f; x <= 74f; x += 3.8f)
             {
                 var px = x + ((float)random.NextDouble() - 0.5f) * 1.4f;
-                if (Mathf.Abs(px) < (float)(layout.River.BridgeX1 + 4f)) continue;
+                if (px > (float)layout.River.BridgeX0 - 4f && px < (float)layout.River.BridgeX1 + 4f) continue;
                 if (Mathf.Abs(px - 13.45f) < 5f) continue; // leave the fishing landing open
                 for (var bank = 0; bank < 2; bank++)
                 {
