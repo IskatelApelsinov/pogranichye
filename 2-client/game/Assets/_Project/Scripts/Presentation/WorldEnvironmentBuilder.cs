@@ -648,6 +648,7 @@ namespace Pogranichye.Client.Presentation
             var velocity = particles.velocityOverLifetime;
             velocity.enabled = true;
             velocity.x = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
+            velocity.y = new ParticleSystem.MinMaxCurve(0f, 0f);
             velocity.z = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
             var noise = particles.noise;
             noise.enabled = true;
