@@ -68,6 +68,19 @@ namespace Pogranichye.Client.Networking
             finally { _sendGate.Release(); }
         }
 
+        public async Task SendActionAsync(string action, string requestId, CancellationToken cancellationToken)
+        {
+            if (!IsConnected) throw new InvalidOperationException("WebSocket не подключён.");
+            var payload = new { v = 1, op = "act", action, reqid = requestId };
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
+            }
+            finally { _sendGate.Release(); }
+        }
+
         public async Task SendMoveAsync(float mx, float my, bool run, float face, float dt,
             long sequence, CancellationToken cancellationToken)
         {
