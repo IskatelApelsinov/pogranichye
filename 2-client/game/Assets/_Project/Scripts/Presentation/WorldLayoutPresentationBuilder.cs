@@ -251,6 +251,7 @@ namespace Pogranichye.Client.Presentation
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
             var water = new GameObject("River surface • rippled overlay");
             water.transform.SetParent(parent, false);
             water.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -351,6 +352,7 @@ namespace Pogranichye.Client.Presentation
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+            _generatedAssets.Add(mesh);
 
             var crops = new GameObject("Cultivated grain • combined low-poly rows");
             crops.transform.SetParent(parent, false);
