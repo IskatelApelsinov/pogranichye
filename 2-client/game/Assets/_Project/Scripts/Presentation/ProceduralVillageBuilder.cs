@@ -647,7 +647,7 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-private static void BuildChickenYard(Transform root)
+        private static void BuildChickenYard(Transform root)
         {
             // A tiny domestic yard adds movement and a clear everyday-life vignette.
             // It is decorative only: no server fauna, POIs, collision or gameplay resources.
