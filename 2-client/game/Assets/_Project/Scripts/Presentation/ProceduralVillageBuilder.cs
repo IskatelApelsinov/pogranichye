@@ -139,6 +139,7 @@ namespace Pogranichye.Client.Presentation
             BuildVillageLife(village, ambientMotion);
             BuildChickenYard(village);
             BuildStreetDetails(village, worldSeed);
+            BuildFirewoodYards(village, worldSeed);
             BuildWornFootpaths(village, worldSeed);
             BuildRoadsidePuddles(village, worldSeed);
 
@@ -491,7 +492,68 @@ namespace Pogranichye.Client.Presentation
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.alignment = ParticleSystemRenderSpace.View;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
+            private static void BuildFirewoodYards(Transform root, string worldSeed)
+        {
+            // Small stacked firewood reserves make the cottages feel inhabited.
+            // These are static presentation props only: no resources, colliders or server POIs.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":firewood-yards"));
+            var yards = new[]
+            {
+                new Vector3(-39f, 0f, -18f),
+                new Vector3(18f, 0f, -36f),
+                new Vector3(39f, 0f, -17f)
+            };
+
+            for (var yardIndex = 0; yardIndex < yards.Length; yardIndex++)
+            {
+                var yard = new GameObject("Firewood stack • cottage yard " + (yardIndex + 1)).transform;
+                yard.SetParent(root, false);
+                yard.localPosition = yards[yardIndex];
+                yard.localRotation = Quaternion.Euler(0f, (float)random.NextDouble() * 24f - 12f, 0f);
+
+                // Two low stone skids keep the bottom logs out of the mud.
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    var skid = CreatePrimitive("Firewood stack • stone skid", PrimitiveType.Cube, yard,
+                        new Vector3(side * 0.34f, 0.075f, 0f),
+                        new Vector3(0.16f, 0.15f, 1.05f), _stoneMaterial);
+                    skid.isStatic = true;
+                }
+
+                // Alternating log directions create a stable, readable hand-stacked pile.
+                for (var layer = 0; layer < 3; layer++)
+                {
+                    var across = layer == 1 ? 3 : 4;
+                    for (var i = 0; i < across; i++)
+                    {
+                        var offset = (i - (across - 1) * 0.5f) * 0.22f;
+                        var alongX = layer != 1;
+                        var log = CreatePrimitive("Firewood • split log", PrimitiveType.Cylinder, yard,
+                            alongX
+                                ? new Vector3(0f, 0.18f + layer * 0.19f, offset)
+                                : new Vector3(offset, 0.18f + layer * 0.19f, 0f),
+                            alongX ? new Vector3(0.105f, 0.34f, 0.105f)
+                                   : new Vector3(0.105f, 0.34f, 0.105f),
+                            (i + layer + yardIndex) % 3 == 0 ? _roofMaterial : _woodMaterial);
+                        log.transform.localRotation = Quaternion.Euler(90f, 0f,
+                            alongX ? 0f : 90f);
+                        log.isStatic = true;
+                    }
+                }
+
+                // A few short offcuts and bark pieces make the pile less perfectly uniform.
+                for (var i = 0; i < 3; i++)
+                {
+                    var chip = CreatePrimitive("Firewood • loose offcut", PrimitiveType.Cylinder, yard,
+                        new Vector3((float)random.NextDouble() * 0.65f - 0.32f,
+                            0.08f + (float)random.NextDouble() * 0.07f,
+                            (float)random.NextDouble() * 0.92f - 0.46f),
+                        new Vector3(0.075f, 0.16f, 0.075f), _woodMaterial);
+                    chip.transform.localRotation = Quaternion.Euler(90f,
+                        (float)random.NextDouble() * 180f, 0f);
+                    chip.isStatic = true;
+                }
+            }
         }
 
         private static void BuildStreetDetails(Transform root, string worldSeed)
