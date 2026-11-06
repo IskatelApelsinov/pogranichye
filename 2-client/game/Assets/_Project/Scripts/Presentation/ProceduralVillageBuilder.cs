@@ -2323,14 +2323,45 @@ namespace Pogranichye.Client.Presentation
                 {
                     var x = -3.0f + plant * 0.75f;
                     var height = 0.38f + ((row + plant) % 3) * 0.08f;
-                    var crop = CreatePrimitive("Field crop", PrimitiveType.Sphere, field,
-                        new Vector3(x, 0.30f + height * 0.42f, z),
-                        new Vector3(0.25f, height, 0.25f), _leafMaterial);
-                    crop.transform.localRotation = Quaternion.Euler(0f, (row * 31 + plant * 17) % 360, 0f);
+                    var yaw = (row * 31 + plant * 17) % 360;
+                    var lean = ((row + plant) % 2 == 0 ? -1f : 1f) * (0.025f + (plant % 3) * 0.012f);
+                    var stem = CreatePrimitive("Field crop stalk", PrimitiveType.Cylinder, field,
+                        new Vector3(x + lean * 0.35f, 0.20f + height * 0.5f, z),
+                        new Vector3(0.026f, height * 0.5f, 0.026f), _leafMaterial);
+                    stem.transform.localRotation = Quaternion.Euler(0f, 0f, lean * 32f);
+                    stem.isStatic = true;
+
+                    // Two slim blades break up the old round crop silhouettes.
+                    for (var blade = 0; blade < 2; blade++)
+                    {
+                        var side = blade == 0 ? -1f : 1f;
+                        var bladeHeight = height * (blade == 0 ? 0.38f : 0.58f);
+                        var bladeObject = CreatePrimitive("Field crop leaf", PrimitiveType.Sphere, field,
+                            new Vector3(x + lean * 0.35f + side * 0.075f, 0.20f + bladeHeight, z),
+                            new Vector3(0.17f, 0.035f, 0.045f), _leafMaterial);
+                        bladeObject.transform.localRotation = Quaternion.Euler(0f, yaw + side * 22f,
+                            side * (blade == 0 ? -28f : 34f));
+                        bladeObject.isStatic = true;
+                    }
+
+                    // Only a portion of the stalks carry ripe seed heads, so the field reads as unevenly mature.
                     if ((row + plant) % 4 == 0)
-                        CreatePrimitive("Ripened crop head", PrimitiveType.Sphere, field,
-                            new Vector3(x + 0.05f, 0.55f + height * 0.55f, z),
-                            new Vector3(0.16f, 0.12f, 0.16f), _produceMaterial);
+                    {
+                        var headPosition = new Vector3(x + lean, 0.20f + height + 0.06f, z);
+                        var head = CreatePrimitive("Ripened grain head", PrimitiveType.Sphere, field,
+                            headPosition, new Vector3(0.075f, 0.19f, 0.075f), _produceMaterial);
+                        head.transform.localRotation = Quaternion.Euler(0f, yaw, lean * 18f);
+                        head.isStatic = true;
+                        for (var grain = 0; grain < 3; grain++)
+                        {
+                            var offset = (grain - 1) * 0.055f;
+                            var kernel = CreatePrimitive("Grain kernel", PrimitiveType.Sphere, field,
+                                headPosition + new Vector3(offset, -Mathf.Abs(grain - 1) * 0.025f, 0f),
+                                new Vector3(0.055f, 0.075f, 0.055f), _produceMaterial);
+                            kernel.transform.localRotation = Quaternion.Euler(0f, yaw, (grain - 1) * 18f);
+                            kernel.isStatic = true;
+                        }
+                    }
                 }
             }
 
