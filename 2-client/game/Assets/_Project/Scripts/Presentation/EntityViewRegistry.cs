@@ -545,6 +545,8 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
+            var motion = view.GetComponent<EntityMotion>();
+            if (motion != null) motion.SetHeldTankard(held ? mug : null);
             mug.gameObject.SetActive(held);
         }
 
