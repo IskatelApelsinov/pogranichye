@@ -2287,15 +2287,25 @@ namespace Pogranichye.Client.Presentation
             tree.localScale = Vector3.one * scale;
             CreatePrimitive("Trunk", PrimitiveType.Cylinder, tree, new Vector3(0, 1.1f, 0),
                 new Vector3(0.22f, 1.1f, 0.22f), _woodMaterial);
-            CreatePrimitive("Canopy", PrimitiveType.Sphere, tree, new Vector3(0, 2.65f, 0),
+
+            // Keep the crown on a pivot above the trunk so a light breeze moves foliage,
+            // not the whole tree or its collision-free trunk silhouette.
+            var crown = new GameObject("Willow crown • wind pivot").transform;
+            crown.SetParent(tree, false);
+            crown.localPosition = new Vector3(0f, 2.25f, 0f);
+            CreatePrimitive("Canopy", PrimitiveType.Sphere, crown, new Vector3(0, 0.30f, 0),
                 new Vector3(2.0f, 1.8f, 1.9f), _leafMaterial);
             for (var i = 0; i < 5; i++)
             {
                 var angle = i * Mathf.PI * 2f / 5f;
-                CreatePrimitive("Hanging foliage", PrimitiveType.Sphere, tree,
-                    new Vector3(Mathf.Cos(angle) * 0.72f, 1.75f, Mathf.Sin(angle) * 0.72f),
+                CreatePrimitive("Hanging foliage", PrimitiveType.Sphere, crown,
+                    new Vector3(Mathf.Cos(angle) * 0.72f, -0.60f, Mathf.Sin(angle) * 0.72f),
                     new Vector3(0.45f, 1.25f, 0.45f), _leafMaterial);
             }
+
+            var ambient = root.GetComponent<VillageAmbientMotion>();
+            if (ambient != null)
+                ambient.RegisterSway(crown, 1.1f + scale * 0.35f, 0.62f + scale * 0.12f);
         }
 
         private static void BuildWell(Transform root, Vector3 position)
