@@ -196,10 +196,10 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0, 2.02f, -1.44f), new Vector3(3.2f, 0.13f, 0.13f), _roofMaterial);
             var leftRoof = CreatePrimitive("Thatched roof left", PrimitiveType.Cube, house,
                 new Vector3(-0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
-            leftRoof.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+            leftRoof.transform.localRotation = Quaternion.Euler(0, 0, 25f);
             var rightRoof = CreatePrimitive("Thatched roof right", PrimitiveType.Cube, house,
                 new Vector3(0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
-            rightRoof.transform.localRotation = Quaternion.Euler(0, 0, 25f);
+            rightRoof.transform.localRotation = Quaternion.Euler(0, 0, -25f);
             CreatePrimitive("Door", PrimitiveType.Cube, house, new Vector3(0, 0.72f, -1.415f),
                 new Vector3(0.75f, 1.45f, 0.08f), _roofMaterial);
             BuildYardApron(house, name);
