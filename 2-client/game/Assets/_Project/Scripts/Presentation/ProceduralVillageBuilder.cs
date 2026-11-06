@@ -140,6 +140,7 @@ namespace Pogranichye.Client.Presentation
             BuildChickenYard(village);
             BuildStreetDetails(village, worldSeed);
             BuildFirewoodYards(village, worldSeed);
+            BuildYardWaterTroughs(village);
             BuildWornFootpaths(village, worldSeed);
             BuildRoadsidePuddles(village, worldSeed);
 
@@ -557,6 +558,69 @@ namespace Pogranichye.Client.Presentation
                         (float)random.NextDouble() * 180f, 0f);
                     chip.isStatic = true;
                 }
+            }
+        }
+
+        private static void BuildYardWaterTroughs(Transform root)
+        {
+            // Everyday water points belong beside the outlying cottages, not on the shared road.
+            // All pieces are static, collider-free presentation props; water is not a gameplay resource.
+            var positions = new[]
+            {
+                new Vector3(-40.5f, 0f, -10.5f),
+                new Vector3(40.5f, 0f, -10.5f)
+            };
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var trough = new GameObject("Yard water trough • " + (i + 1)).transform;
+                trough.SetParent(root, false);
+                trough.localPosition = positions[i];
+                trough.localRotation = Quaternion.Euler(0f, i == 0 ? -8f : 11f, 0f);
+
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    var foot = CreatePrimitive("Trough • stone foot", PrimitiveType.Cube, trough,
+                        new Vector3(side * 0.31f, 0.075f, 0f),
+                        new Vector3(0.20f, 0.15f, 0.24f), _stoneMaterial);
+                    foot.isStatic = true;
+                }
+
+                var bottom = CreatePrimitive("Trough • oak bottom", PrimitiveType.Cube, trough,
+                    new Vector3(0f, 0.19f, 0f), new Vector3(0.86f, 0.12f, 1.62f), _woodMaterial);
+                bottom.isStatic = true;
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    var wall = CreatePrimitive("Trough • long oak side", PrimitiveType.Cube, trough,
+                        new Vector3(side * 0.43f, 0.40f, 0f),
+                        new Vector3(0.12f, 0.42f, 1.68f), _woodMaterial);
+                    wall.isStatic = true;
+                    var end = CreatePrimitive("Trough • end board", PrimitiveType.Cube, trough,
+                        new Vector3(0f, 0.40f, side * 0.80f),
+                        new Vector3(0.86f, 0.42f, 0.12f), _woodMaterial);
+                    end.isStatic = true;
+                }
+
+                var water = CreatePrimitive("Trough • still water", PrimitiveType.Cube, trough,
+                    new Vector3(0f, 0.345f, 0f), new Vector3(0.69f, 0.018f, 1.39f), _waterMaterial);
+                water.isStatic = true;
+
+                var bucket = CreatePrimitive("Trough • wooden bucket", PrimitiveType.Cylinder, trough,
+                    new Vector3(0.83f, 0.24f, 0.48f), new Vector3(0.18f, 0.23f, 0.18f), _woodMaterial);
+                bucket.isStatic = true;
+                var bucketBand = CreatePrimitive("Trough • bucket iron band", PrimitiveType.Cylinder, trough,
+                    new Vector3(0.83f, 0.20f, 0.48f), new Vector3(0.185f, 0.035f, 0.185f), _metalMaterial);
+                bucketBand.isStatic = true;
+                for (var handleSide = -1; handleSide <= 1; handleSide += 2)
+                {
+                    var handlePost = CreatePrimitive("Trough • bucket handle post", PrimitiveType.Cube, trough,
+                        new Vector3(0.83f + handleSide * 0.13f, 0.39f, 0.48f),
+                        new Vector3(0.025f, 0.25f, 0.025f), _metalMaterial);
+                    handlePost.isStatic = true;
+                }
+                var handleGrip = CreatePrimitive("Trough • bucket handle grip", PrimitiveType.Cube, trough,
+                    new Vector3(0.83f, 0.515f, 0.48f), new Vector3(0.285f, 0.025f, 0.035f), _metalMaterial);
+                handleGrip.isStatic = true;
             }
         }
 
