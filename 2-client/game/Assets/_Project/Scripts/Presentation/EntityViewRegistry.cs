@@ -322,36 +322,82 @@ namespace Pogranichye.Client.Presentation
             var crown = CreatePart("Worn hat • crown", PrimitiveType.Cylinder, root,
                 new Vector3(0f, 1.91f, 0f), new Vector3(0.17f, 0.10f, 0.17f));
             ApplyColor(crown.GetComponent<Renderer>(), wool);
+            var top = CreatePart("Worn hat • crown top", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 2.012f, 0f), new Vector3(0.165f, 0.012f, 0.165f));
+            ApplyColor(top.GetComponent<Renderer>(), new Color(0.30f, 0.27f, 0.22f));
             var band = CreatePart("Worn hat • leather band", PrimitiveType.Cylinder, root,
                 new Vector3(0f, 1.88f, 0f), new Vector3(0.174f, 0.018f, 0.174f));
             ApplyColor(band.GetComponent<Renderer>(), new Color(0.30f, 0.17f, 0.09f));
+            var brimStitch = CreatePart("Worn hat • brim stitching", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 1.846f, 0f), new Vector3(0.236f, 0.006f, 0.236f));
+            ApplyColor(brimStitch.GetComponent<Renderer>(), new Color(0.43f, 0.36f, 0.25f));
         }
 
         private void BuildWornCloak(Transform root)
         {
             var cloth = new Color(0.28f, 0.25f, 0.19f);
-            var mantle = CreatePart("Worn cloak • mantle", PrimitiveType.Capsule, root,
-                new Vector3(0f, 0.98f, -0.015f), new Vector3(0.50f, 0.55f, 0.35f));
+            var shadow = new Color(0.19f, 0.18f, 0.14f);
+            var edging = new Color(0.43f, 0.36f, 0.24f);
+            var leather = new Color(0.22f, 0.14f, 0.085f);
+
+            var mantle = CreatePart("Worn cloak • shoulder mantle", PrimitiveType.Capsule, root,
+                new Vector3(0f, 1.02f, -0.015f), new Vector3(0.50f, 0.52f, 0.35f));
             ApplyColor(mantle.GetComponent<Renderer>(), cloth);
             var back = CreatePart("Worn cloak • hanging back", PrimitiveType.Cube, root,
-                new Vector3(0f, 0.83f, -0.205f), new Vector3(0.43f, 0.70f, 0.075f));
+                new Vector3(0f, 0.82f, -0.205f), new Vector3(0.43f, 0.68f, 0.075f));
             ApplyColor(back.GetComponent<Renderer>(), cloth);
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var fold = CreatePart("Worn cloak • cloth fold", PrimitiveType.Capsule, root,
+                    new Vector3(side * 0.14f, 0.84f, -0.248f), new Vector3(0.035f, 0.29f, 0.018f));
+                ApplyColor(fold.GetComponent<Renderer>(), side < 0 ? shadow : edging);
+                var shoulder = CreatePart("Worn cloak • shoulder drape", PrimitiveType.Capsule, root,
+                    new Vector3(side * 0.19f, 1.28f, -0.015f), new Vector3(0.16f, 0.12f, 0.23f));
+                shoulder.transform.localRotation = Quaternion.Euler(0f, 0f, side * -12f);
+                ApplyColor(shoulder.GetComponent<Renderer>(), cloth);
+                var sideEdge = CreatePart("Worn cloak • side hem", PrimitiveType.Cube, root,
+                    new Vector3(side * 0.205f, 0.82f, -0.205f), new Vector3(0.035f, 0.61f, 0.025f));
+                ApplyColor(sideEdge.GetComponent<Renderer>(), edging);
+            }
+
+            var hem = CreatePart("Worn cloak • lower hem", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.49f, -0.207f), new Vector3(0.43f, 0.045f, 0.085f));
+            ApplyColor(hem.GetComponent<Renderer>(), edging);
+            var frontClosure = CreatePart("Worn cloak • front closure", PrimitiveType.Cube, root,
+                new Vector3(0f, 1.19f, 0.174f), new Vector3(0.055f, 0.20f, 0.025f));
+            ApplyColor(frontClosure.GetComponent<Renderer>(), leather);
             var clasp = CreatePart("Worn cloak • bronze clasp", PrimitiveType.Sphere, root,
-                new Vector3(0f, 1.31f, 0.19f), new Vector3(0.075f, 0.075f, 0.035f));
+                new Vector3(0f, 1.32f, 0.19f), new Vector3(0.075f, 0.075f, 0.035f));
             ApplyColor(clasp.GetComponent<Renderer>(), new Color(0.62f, 0.43f, 0.17f));
         }
 
         private void BuildWornBoots(Transform root)
         {
             var leather = new Color(0.20f, 0.12f, 0.075f);
+            var darkLeather = new Color(0.12f, 0.075f, 0.045f);
+            var wornLeather = new Color(0.30f, 0.19f, 0.11f);
             for (var side = -1; side <= 1; side += 2)
             {
+                var x = side * 0.14f;
+                var sole = CreatePart("Worn boots • thick sole", PrimitiveType.Cube, root,
+                    new Vector3(x, 0.045f, 0.065f), new Vector3(0.225f, 0.055f, 0.33f));
+                ApplyColor(sole.GetComponent<Renderer>(), darkLeather);
                 var boot = CreatePart("Worn boots • leather boot", PrimitiveType.Cube, root,
-                    new Vector3(side * 0.14f, 0.13f, 0.055f), new Vector3(0.22f, 0.19f, 0.31f));
+                    new Vector3(x, 0.13f, 0.055f), new Vector3(0.22f, 0.19f, 0.31f));
                 ApplyColor(boot.GetComponent<Renderer>(), leather);
+                var toe = CreatePart("Worn boots • rounded toe", PrimitiveType.Sphere, root,
+                    new Vector3(x, 0.115f, 0.19f), new Vector3(0.105f, 0.085f, 0.12f));
+                ApplyColor(toe.GetComponent<Renderer>(), wornLeather);
                 var cuff = CreatePart("Worn boots • cuff", PrimitiveType.Cylinder, root,
-                    new Vector3(side * 0.14f, 0.23f, 0f), new Vector3(0.105f, 0.035f, 0.105f));
-                ApplyColor(cuff.GetComponent<Renderer>(), new Color(0.29f, 0.18f, 0.10f));
+                    new Vector3(x, 0.23f, 0f), new Vector3(0.105f, 0.035f, 0.105f));
+                ApplyColor(cuff.GetComponent<Renderer>(), wornLeather);
+                var ankleStrap = CreatePart("Worn boots • ankle strap", PrimitiveType.Cube, root,
+                    new Vector3(x, 0.205f, 0.105f), new Vector3(0.19f, 0.035f, 0.035f));
+                ApplyColor(ankleStrap.GetComponent<Renderer>(), darkLeather);
+                var buckle = CreatePart("Worn boots • brass buckle", PrimitiveType.Cube, root,
+                    new Vector3(x + side * 0.075f, 0.205f, 0.128f), new Vector3(0.035f, 0.045f, 0.018f));
+                ApplyColor(buckle.GetComponent<Renderer>(), new Color(0.58f, 0.42f, 0.18f));
             }
         }
 
