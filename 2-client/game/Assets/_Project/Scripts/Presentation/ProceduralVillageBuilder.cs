@@ -492,7 +492,10 @@ namespace Pogranichye.Client.Presentation
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.alignment = ParticleSystemRenderSpace.View;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            private static void BuildFirewoodYards(Transform root, string worldSeed)
+            renderer.receiveShadows = false;
+        }
+
+        private static void BuildFirewoodYards(Transform root, string worldSeed)
         {
             // Small stacked firewood reserves make the cottages feel inhabited.
             // These are static presentation props only: no resources, colliders or server POIs.
