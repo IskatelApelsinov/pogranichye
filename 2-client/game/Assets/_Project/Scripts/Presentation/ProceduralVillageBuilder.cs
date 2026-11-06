@@ -2442,9 +2442,27 @@ namespace Pogranichye.Client.Presentation
                 var z = -0.8f + row * 0.62f;
                 CreatePrimitive("Kitchen garden bed", PrimitiveType.Cube, kitchenGarden,
                     new Vector3(x, 0.10f, z), new Vector3(0.48f, 0.18f, 0.46f), _pathMaterial);
-                var plant = CreatePrimitive("Kitchen garden herb", PrimitiveType.Sphere, kitchenGarden,
-                    new Vector3(x, 0.34f, z), new Vector3(0.20f, 0.34f, 0.20f), _leafMaterial);
-                plant.transform.localRotation = Quaternion.Euler(0f, (row * 37 + col * 23) % 360, 0f);
+                // Build a small leafy herb instead of a single placeholder sphere.
+                // Fixed row/column offsets keep the patch deterministic across clients.
+                var herbHeight = 0.22f + ((row + col) % 3) * 0.035f;
+                var stem = CreatePrimitive("Kitchen herb stem", PrimitiveType.Cylinder, kitchenGarden,
+                    new Vector3(x, 0.20f + herbHeight * 0.5f, z),
+                    new Vector3(0.022f, herbHeight * 0.5f, 0.022f), _leafMaterial);
+                stem.isStatic = true;
+                for (var leaf = 0; leaf < 4; leaf++)
+                {
+                    var angle = leaf * 90f + ((row * 37 + col * 23) % 45);
+                    var radians = angle * Mathf.Deg2Rad;
+                    var height = leaf < 2 ? 0.34f : 0.42f;
+                    var offset = new Vector3(Mathf.Cos(radians) * 0.095f, 0f,
+                        Mathf.Sin(radians) * 0.095f);
+                    var leafObject = CreatePrimitive("Kitchen herb leaf", PrimitiveType.Sphere, kitchenGarden,
+                        new Vector3(x + offset.x, height + herbHeight * (leaf == 3 ? 0.12f : 0f),
+                            z + offset.z),
+                        new Vector3(0.14f, 0.055f, 0.085f), _leafMaterial);
+                    leafObject.transform.localRotation = Quaternion.Euler(0f, angle, (leaf % 2 == 0 ? -24f : 24f));
+                    leafObject.isStatic = true;
+                }
             }
             BuildFence(kitchenGarden, new Vector3(0f, 0f, 1.45f), 5, 0.52f);
 
