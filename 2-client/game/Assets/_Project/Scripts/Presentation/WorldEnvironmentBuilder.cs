@@ -469,6 +469,7 @@ namespace Pogranichye.Client.Presentation
             var soilMaterial = new Material(shader) { name = "Rural plots • worked soil", color = new Color(0.34f, 0.29f, 0.20f) };
             var furrowMaterial = new Material(shader) { name = "Rural plots • furrows", color = new Color(0.22f, 0.19f, 0.14f) };
             var cropMaterial = new Material(shader) { name = "Rural plots • young crops", color = new Color(0.43f, 0.48f, 0.24f) };
+            if (cropMaterial.HasProperty("_Cull")) cropMaterial.SetInt("_Cull", 0);
             _landscapeMaterials.Add(soilMaterial);
             _landscapeMaterials.Add(furrowMaterial);
             _landscapeMaterials.Add(cropMaterial);
@@ -569,8 +570,8 @@ namespace Pogranichye.Client.Presentation
             vertices.Add(start - halfWidth + Vector3.up * height);
             vertices.Add(end - halfWidth + Vector3.up * height);
             vertices.Add(end + halfWidth + Vector3.up * height);
-            triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 1);
-            triangles.Add(first); triangles.Add(first + 3); triangles.Add(first + 2);
+            triangles.Add(first); triangles.Add(first + 1); triangles.Add(first + 2);
+            triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 3);
         }
 
         private static void BuildGroundDetails(Transform root)
