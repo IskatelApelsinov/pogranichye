@@ -455,8 +455,6 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        /// <summary>Small rock groups, wildflowers and scrub break up the uniform meadow without filling paths.</summary>
-
         /// <summary>
         /// Adds presentation-only cultivated plots beyond the village tree belt.
         /// These are visual scenery only: no colliders, ownership, crops or server state.
@@ -574,6 +572,7 @@ namespace Pogranichye.Client.Presentation
             triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 3);
         }
 
+        /// <summary>Small rock groups, wildflowers and scrub break up the uniform meadow without filling paths.</summary>
         private static void BuildGroundDetails(Transform root)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
