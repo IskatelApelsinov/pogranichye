@@ -39,7 +39,6 @@ namespace Pogranichye.Client
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
         private int _tutorialStep;
-        private string _tutorialPendingGoal;
         private string _tutorialNpcTargetId;
         private bool _firstPerson;
         private bool _hudCollapsed;
@@ -77,8 +76,6 @@ namespace Pogranichye.Client
             public float Face;
             public float DeltaTime;
         }
-
-        private static readonly string[] TutorialGoals = { "socialize", "work", "eat", "rest" };
 
         private void Awake()
         {
@@ -194,14 +191,14 @@ namespace Pogranichye.Client
                     ? "WASD — движение; Shift — бег; Space — прыжок; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
                     : "WASD — движение; Shift — бег; Space — прыжок; мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
                 GUILayout.Space(4);
-                GUILayout.Label("ПЕРВЫЕ ШАГИ");
-                GUILayout.Label(TutorialHint(), GUILayout.Height(38));
+                GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
+                GUILayout.Label(TutorialHint(), GUILayout.Height(58));
                 GUILayout.Label(_tutorialStep == 0
                     ? "Для знакомства наведитесь на жителя и нажмите E. Реплика «Будем знакомы» должна подтвердиться сервером."
-                    : "Выберите занятие — сервер выполнит действие по правилам мира:");
-                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestTutorialGoal("work");
-                if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
-                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
+                    : "Свободная практика: выберите занятие. Сервер проверит действие по правилам мира; это пока не этап задания:");
+                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
+                if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
+                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
                 GUILayout.Space(5);
                 GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
                 GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54));
@@ -469,25 +466,16 @@ namespace Pogranichye.Client
             if (!acquainted) return;
             _tutorialStep = 1;
             _tutorialNpcTargetId = null;
-            _status = "Знакомство подтверждено сервером. Теперь попробуйте работу.";
+            _status = "Знакомство подтверждено сервером. Дальше доступны занятия для свободной практики.";
         }
 
         private string TutorialHint()
         {
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
-            if (_tutorialStep >= TutorialGoals.Length)
-                return "Основные действия освоены. Разговоры, знакомство и совместное питьё теперь подтверждаются сервером.";
-            if (!string.IsNullOrEmpty(_tutorialPendingGoal))
-                return "Ожидаем подтверждение сервера. Последнее действие: " + _frame.Me.Last;
-
-            switch (_tutorialStep)
-            {
-                case 0: return "Шаг 1/4 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
-                case 1: return "Шаг 2/4 — попробуйте работу. Профессия персонажа влияет на результат.";
-                case 2: return "Шаг 3/4 — выберите еду. Следите за голодом и запасами поселения.";
-                default: return "Шаг 4/4 — отдохните. Энергия восстанавливается по правилам сервера.";
-            }
+            if (_tutorialStep == 0)
+                return "Шаг 1/1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
+            return "Знакомство подтверждено сервером. Полноценное задание появится после серверной реализации; пока это свободная практика.";
         }
 
         private void SetCameraMode(bool firstPerson)
@@ -516,7 +504,7 @@ namespace Pogranichye.Client
                 return;
             }
 
-            RequestTutorialGoal(poi.Goal);
+            RequestPracticeGoal(poi.Goal);
             _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
         }
 
@@ -535,9 +523,9 @@ namespace Pogranichye.Client
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
-        private void RequestTutorialGoal(string goal)
+        private void RequestPracticeGoal(string goal)
         {
-            _tutorialPendingGoal = goal;
+            // Practice intents are server-validated, but are not tutorial completion or quest progress.
             _goalToSend = goal;
         }
 
@@ -659,12 +647,6 @@ namespace Pogranichye.Client
 
                     _frame = frame;
                     UpdateTutorialIntroduction(frame);
-                    if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
-                    {
-                        if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
-                            _tutorialStep++;
-                        _tutorialPendingGoal = null;
-                    }
                     if (!frame.Alive)
                     {
                         _moveSendInFlight = false;
@@ -995,7 +977,6 @@ namespace Pogranichye.Client
             _movementCorrectionRemaining = 0f;
             ResetJumpPresentation();
             _views.Clear();
-            _tutorialPendingGoal = null;
             _tutorialNpcTargetId = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_firstPerson) SetCameraMode(false);
