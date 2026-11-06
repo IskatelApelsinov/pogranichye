@@ -2043,7 +2043,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, 2.52f, -2.12f), new Vector3(0.92f, 0.07f, 0.06f), _woodMaterial);
             loftCrossbar.isStatic = true;
 
-            BuildFence(root, new Vector3(-20f, 0f, -17f), 8, 0.65f);
+            BuildBarnFenceAndGate(root, new Vector3(-20f, 0f, -17f));
 
             var mill = new GameObject("Old windmill").transform;
             mill.SetParent(root, false);
@@ -2864,6 +2864,64 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(count * spacing, 0.12f, 0.12f), _woodMaterial);
         }
 
+
+        private static void BuildBarnFenceAndGate(Transform root, Vector3 position)
+        {
+            var fence = new GameObject("Barn yard fence with open gate").transform;
+            fence.SetParent(root, false);
+            fence.localPosition = position;
+
+            // The fence stops at a real opening aligned with the barn doors.
+            for (var i = 0; i <= 8; i++)
+            {
+                var x = (i - 4f) * 0.65f;
+                if (Mathf.Abs(x) < 0.64f) continue;
+                var post = CreatePrimitive("Barn yard fence • upright post", PrimitiveType.Cube, fence,
+                    new Vector3(x, 0.55f, 0f), new Vector3(0.13f, 1.1f, 0.13f), _woodMaterial);
+                post.isStatic = true;
+            }
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var rail = CreatePrimitive("Barn yard fence • upper rail", PrimitiveType.Cube, fence,
+                    new Vector3(side * 1.625f, 0.78f, 0f), new Vector3(1.95f, 0.12f, 0.12f), _woodMaterial);
+                rail.isStatic = true;
+                var lowerRail = CreatePrimitive("Barn yard fence • lower rail", PrimitiveType.Cube, fence,
+                    new Vector3(side * 1.625f, 0.35f, 0f), new Vector3(1.95f, 0.12f, 0.12f), _woodMaterial);
+                lowerRail.isStatic = true;
+            }
+
+            // Leave the gate ajar, as if a farm worker has just led a cart through.
+            var gate = new GameObject("Barn yard • open timber gate").transform;
+            gate.SetParent(fence, false);
+            gate.localPosition = new Vector3(-0.65f, 0f, 0f);
+            gate.localRotation = Quaternion.Euler(0f, -55f, 0f);
+            for (var side = 0; side <= 1; side++)
+            {
+                var upright = CreatePrimitive("Gate • upright", PrimitiveType.Cube, gate,
+                    new Vector3(side * 1.30f, 0.55f, 0f), new Vector3(0.13f, 1.1f, 0.13f), _roofMaterial);
+                upright.isStatic = true;
+            }
+
+            var gateTop = CreatePrimitive("Gate • upper cross rail", PrimitiveType.Cube, gate,
+                new Vector3(0.65f, 0.82f, 0f), new Vector3(1.30f, 0.13f, 0.12f), _woodMaterial);
+            gateTop.isStatic = true;
+            var gateBottom = CreatePrimitive("Gate • lower cross rail", PrimitiveType.Cube, gate,
+                new Vector3(0.65f, 0.34f, 0f), new Vector3(1.30f, 0.13f, 0.12f), _woodMaterial);
+            gateBottom.isStatic = true;
+            var gateBrace = CreatePrimitive("Gate • diagonal brace", PrimitiveType.Cube, gate,
+                new Vector3(0.65f, 0.58f, 0f), new Vector3(1.15f, 0.10f, 0.10f), _roofMaterial);
+            gateBrace.transform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+            gateBrace.isStatic = true;
+
+            for (var hinge = -1; hinge <= 1; hinge += 2)
+            {
+                var strap = CreatePrimitive("Gate • iron hinge strap", PrimitiveType.Cube, gate,
+                    new Vector3(0.08f, 0.55f + hinge * 0.25f, -0.075f),
+                    new Vector3(0.34f, 0.055f, 0.035f), _metalMaterial);
+                strap.isStatic = true;
+            }
+        }
 
         private static void CreateCameraObstacle(Transform parent, string name, Vector3 center, Vector3 size)
         {
