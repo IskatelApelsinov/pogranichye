@@ -41,6 +41,7 @@ namespace Pogranichye.Client
         private int _tutorialStep;
         private string _tutorialNpcTargetId;
         private string _pendingTalkTargetId;
+        private string _confirmedTalkTargetId;
         private float _pendingTalkDeadline;
         private string _talkFeedback;
         private bool _talkConfirmationTimedOut;
@@ -400,6 +401,7 @@ namespace Pogranichye.Client
                     if (string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
                     {
                         _pendingTalkTargetId = null;
+                        _confirmedTalkTargetId = null;
                         _talkConfirmationTimedOut = false;
                         _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
                     }
@@ -416,16 +418,29 @@ namespace Pogranichye.Client
                 return;
 
             _talkConfirmationTimedOut = true;
+            _confirmedTalkTargetId = null;
             _talkFeedback = "В последних кадрах сервера нет разговора с выбранным жителем. Сервер не подтвердил запрос; возможно, цель слишком далеко или уже ушла. Подойдите ближе и попробуйте снова.";
         }
 
         private void UpdateTalkConfirmation(WorldFrame frame)
         {
-            if (string.IsNullOrEmpty(_pendingTalkTargetId) || frame?.Me == null) return;
+            if (frame?.Me == null) return;
             var talk = frame.Me.Talk;
+            if (string.IsNullOrEmpty(_pendingTalkTargetId))
+            {
+                if (!string.IsNullOrEmpty(_confirmedTalkTargetId) &&
+                    (talk == null || !string.Equals(talk.With, _confirmedTalkTargetId, StringComparison.Ordinal)))
+                {
+                    _confirmedTalkTargetId = null;
+                    _talkFeedback = null;
+                }
+                return;
+            }
+
             if (talk == null || !string.Equals(talk.With, _pendingTalkTargetId, StringComparison.Ordinal))
                 return;
 
+            _confirmedTalkTargetId = _pendingTalkTargetId;
             _pendingTalkTargetId = null;
             _talkConfirmationTimedOut = false;
             _talkFeedback = "В кадре сервера подтверждён активный разговор с выбранным жителем.";
@@ -571,6 +586,7 @@ namespace Pogranichye.Client
             var targetId = npc.EntityId.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
             _pendingTalkTargetId = targetId;
+            _confirmedTalkTargetId = null;
             _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
             _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
@@ -622,6 +638,7 @@ namespace Pogranichye.Client
             _frame = null;
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
+            _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
             ResetJumpPresentation();
