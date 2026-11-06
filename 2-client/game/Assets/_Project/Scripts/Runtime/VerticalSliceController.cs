@@ -40,6 +40,7 @@ namespace Pogranichye.Client
         private bool _busy;
         private int _tutorialStep;
         private string _tutorialPendingGoal;
+        private string _tutorialNpcTargetId;
         private bool _firstPerson;
         private bool _hudCollapsed;
         private bool _movementDebugVisible;
@@ -195,11 +196,9 @@ namespace Pogranichye.Client
                 GUILayout.Space(4);
                 GUILayout.Label("ПЕРВЫЕ ШАГИ");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(38));
-                GUILayout.Label("Выберите занятие — сервер выполнит действие по правилам мира:");
-                if (_tutorialStep == 0 && !IsNearTavern())
-                    GUILayout.Label("Подойдите к входу в таверну и нажмите E у указателя. Сейчас вы ещё далеко.");
-                else if (GUILayout.Button("🍺 Таверна — поговорить"))
-                    RequestTutorialGoal("socialize");
+                GUILayout.Label(_tutorialStep == 0
+                    ? "Для знакомства наведитесь на жителя и нажмите E. Реплика «Будем знакомы» должна подтвердиться сервером."
+                    : "Выберите занятие — сервер выполнит действие по правилам мира:");
                 if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestTutorialGoal("work");
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestTutorialGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestTutorialGoal("rest");
@@ -444,6 +443,35 @@ namespace Pogranichye.Client
             }
         }
 
+        private void UpdateTutorialIntroduction(WorldFrame frame)
+        {
+            // The first tutorial step is a real acquaintance, not a tavern goal.
+            // Advance only after the server marks this exact resident as known.
+            if (_tutorialStep != 0 || string.IsNullOrEmpty(_tutorialNpcTargetId) ||
+                frame == null || !frame.Alive || frame.Me == null)
+                return;
+
+            var acquainted = frame.Me.Talk != null && frame.Me.Talk.Known &&
+                string.Equals(frame.Me.Talk.With, _tutorialNpcTargetId, StringComparison.Ordinal);
+            if (!acquainted && frame.Place?.Neighbors != null)
+            {
+                foreach (var neighbor in frame.Place.Neighbors)
+                {
+                    if (neighbor != null && neighbor.Known &&
+                        string.Equals(neighbor.Id, _tutorialNpcTargetId, StringComparison.Ordinal))
+                    {
+                        acquainted = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!acquainted) return;
+            _tutorialStep = 1;
+            _tutorialNpcTargetId = null;
+            _status = "Знакомство подтверждено сервером. Теперь попробуйте работу.";
+        }
+
         private string TutorialHint()
         {
             if (_frame == null || _frame.Me == null)
@@ -501,28 +529,14 @@ namespace Pogranichye.Client
                 return;
             }
 
-            _ = SendTalkAsync(npc.EntityId.ToString());
+            var targetId = npc.EntityId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
+            _ = SendTalkAsync(targetId);
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
-        }
-
-        private bool IsNearTavern()
-        {
-            var player = _views != null ? _views.PlayerTransform : null;
-            if (player == null) return false;
-
-            if (_layout?.Pois == null || !_layout.Pois.TryGetValue("tavern", out var tavern)) return false;
-            var offset = new Vector2(player.position.x - (float)tavern.X, player.position.z - (float)tavern.Y);
-            return offset.sqrMagnitude <= 8f * 8f;
         }
 
         private void RequestTutorialGoal(string goal)
         {
-            if (goal == "socialize" && _tutorialStep == 0 && !IsNearTavern())
-            {
-                _status = "Сначала подойдите к входу в таверну. Наведите камеру на указатель и нажмите E.";
-                return;
-            }
-
             _tutorialPendingGoal = goal;
             _goalToSend = goal;
         }
@@ -563,6 +577,7 @@ namespace Pogranichye.Client
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
+            _tutorialNpcTargetId = null;
             ResetJumpPresentation();
             _views.Clear();
             _hasMovementBaseline = false;
@@ -643,6 +658,7 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    UpdateTutorialIntroduction(frame);
                     if (frame.Alive && frame.Me != null && _tutorialPendingGoal == frame.Me.Goal)
                     {
                         if (_tutorialStep < TutorialGoals.Length && _tutorialPendingGoal == TutorialGoals[_tutorialStep])
@@ -980,6 +996,7 @@ namespace Pogranichye.Client
             ResetJumpPresentation();
             _views.Clear();
             _tutorialPendingGoal = null;
+            _tutorialNpcTargetId = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_firstPerson) SetCameraMode(false);
             socket?.Dispose();
