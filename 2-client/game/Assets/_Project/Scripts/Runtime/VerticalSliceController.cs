@@ -42,6 +42,8 @@ namespace Pogranichye.Client
         private string _tutorialNpcTargetId;
         private string _pendingTalkTargetId;
         private string _confirmedTalkTargetId;
+        private int _talkRequestSerial;
+        private int _pendingTalkRequestSerial;
         private float _pendingTalkDeadline;
         private string _talkFeedback;
         private bool _talkConfirmationTimedOut;
@@ -385,7 +387,7 @@ namespace Pogranichye.Client
             catch (Exception ex) { Enqueue(() => _status = "Не удалось выполнить действие: " + ex.Message); }
         }
 
-        private async Task SendTalkAsync(string target)
+        private async Task SendTalkAsync(string target, int requestSerial)
         {
             var socket = _socket;
             try
@@ -398,9 +400,12 @@ namespace Pogranichye.Client
             {
                 Enqueue(() =>
                 {
-                    if (string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
+                    if (_pendingTalkRequestSerial == requestSerial &&
+                        string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
                     {
                         _pendingTalkTargetId = null;
+                        _pendingTalkRequestSerial = 0;
+            _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
                         _talkConfirmationTimedOut = false;
                         _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
@@ -442,6 +447,7 @@ namespace Pogranichye.Client
 
             _confirmedTalkTargetId = _pendingTalkTargetId;
             _pendingTalkTargetId = null;
+            _pendingTalkRequestSerial = 0;
             _talkConfirmationTimedOut = false;
             _talkFeedback = "В кадре сервера подтверждён активный разговор с выбранным жителем.";
         }
@@ -585,12 +591,13 @@ namespace Pogranichye.Client
 
             var targetId = npc.EntityId.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
+            var requestSerial = ++_talkRequestSerial;
             _pendingTalkTargetId = targetId;
             _confirmedTalkTargetId = null;
             _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
             _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
-            _ = SendTalkAsync(targetId);
+            _ = SendTalkAsync(targetId, requestSerial);
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
@@ -638,6 +645,7 @@ namespace Pogranichye.Client
             _frame = null;
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
+            _pendingTalkRequestSerial = 0;
             _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
@@ -699,6 +707,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
             _pendingTalkTargetId = null;
+            _pendingTalkRequestSerial = 0;
             _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
@@ -730,6 +739,8 @@ namespace Pogranichye.Client
                     if (!frame.Alive)
                     {
                         _pendingTalkTargetId = null;
+                        _pendingTalkRequestSerial = 0;
+            _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
                         _talkFeedback = null;
                         _talkConfirmationTimedOut = false;
@@ -1063,6 +1074,7 @@ namespace Pogranichye.Client
             _views.Clear();
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
+            _pendingTalkRequestSerial = 0;
             _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
