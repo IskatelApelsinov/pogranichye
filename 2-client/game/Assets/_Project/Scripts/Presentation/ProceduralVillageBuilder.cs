@@ -130,6 +130,7 @@ namespace Pogranichye.Client.Presentation
             // The server-owned south river and bridge are built from Layout v2 by WorldLayoutPresentationBuilder.
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
+            BuildHayBales(village, worldSeed);
             BuildRuralLandscape(village, worldSeed);
             BuildFarmsteadAndOrchard(village);
             BuildNorthernResidentialLane(village, ambientMotion);
@@ -2019,6 +2020,61 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0, 1.12f, -0.02f), new Vector3(0.58f, 0.72f, 0.06f), _clothMaterial);
             }
             rotor.gameObject.AddComponent<WindmillRotor>().Initialize(8f);
+        }
+
+        private static void BuildHayBales(Transform root, string worldSeed)
+        {
+            // A small stack beside the outlying barn makes the farmyard read as an active
+            // harvest site. These are static presentation props, not inventory or resources.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":barn-hay"));
+            var stack = new GameObject("Barn hay bales • harvest storage").transform;
+            stack.SetParent(root, false);
+            stack.localPosition = new Vector3(-25.5f, 0f, -12.1f);
+            stack.localRotation = Quaternion.Euler(0f, -9f, 0f);
+
+            BuildHayBale(stack, new Vector3(-0.62f, 0.38f, 0f), random);
+            BuildHayBale(stack, new Vector3(0.62f, 0.38f, 0.04f), random);
+            BuildHayBale(stack, new Vector3(0f, 1.14f, 0.02f), random);
+
+            // Loose straw around the stack softens its silhouette against the packed earth.
+            for (var i = 0; i < 9; i++)
+            {
+                var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                var radius = 0.95f + (float)random.NextDouble() * 0.55f;
+                var straw = CreatePrimitive("Loose straw at hay stack", PrimitiveType.Cube, stack,
+                    new Vector3(Mathf.Cos(angle) * radius, 0.045f, Mathf.Sin(angle) * radius),
+                    new Vector3(0.16f, 0.025f, 0.035f), _produceMaterial);
+                straw.transform.localRotation = Quaternion.Euler(0f,
+                    (float)random.NextDouble() * 180f, (float)random.NextDouble() * 12f - 6f);
+                straw.isStatic = true;
+            }
+        }
+
+        private static void BuildHayBale(Transform parent, Vector3 position, System.Random random)
+        {
+            var bale = new GameObject("Bound rectangular hay bale").transform;
+            bale.SetParent(parent, false);
+            bale.localPosition = position;
+            bale.localRotation = Quaternion.Euler(0f, (float)random.NextDouble() * 14f - 7f, 0f);
+
+            var body = CreatePrimitive("Compressed golden hay", PrimitiveType.Cube, bale,
+                Vector3.zero, new Vector3(1.08f, 0.70f, 0.76f), _produceMaterial);
+            body.isStatic = true;
+
+            // Two visible twine loops cross the top and both long faces of each bale.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var x = side * 0.29f;
+                var top = CreatePrimitive("Hay bale • binding across top", PrimitiveType.Cube, bale,
+                    new Vector3(x, 0.356f, 0f), new Vector3(0.035f, 0.018f, 0.80f), _woodMaterial);
+                top.isStatic = true;
+                for (var face = -1; face <= 1; face += 2)
+                {
+                    var strap = CreatePrimitive("Hay bale • binding down face", PrimitiveType.Cube, bale,
+                        new Vector3(x, 0f, face * 0.386f), new Vector3(0.035f, 0.72f, 0.018f), _woodMaterial);
+                    strap.isStatic = true;
+                }
+            }
         }
 
         private static void BuildRuralLandscape(Transform root, string worldSeed)
