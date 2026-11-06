@@ -611,10 +611,16 @@ namespace Pogranichye.Client.Presentation
                 var bucketBand = CreatePrimitive("Trough • bucket iron band", PrimitiveType.Cylinder, trough,
                     new Vector3(0.83f, 0.20f, 0.48f), new Vector3(0.185f, 0.035f, 0.185f), _metalMaterial);
                 bucketBand.isStatic = true;
-                var handle = CreatePrimitive("Trough • bucket handle", PrimitiveType.Cube, trough,
-                    new Vector3(0.83f, 0.48f, 0.48f), new Vector3(0.025f, 0.22f, 0.30f), _metalMaterial);
-                handle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-                handle.isStatic = true;
+                for (var handleSide = -1; handleSide <= 1; handleSide += 2)
+                {
+                    var handlePost = CreatePrimitive("Trough • bucket handle post", PrimitiveType.Cube, trough,
+                        new Vector3(0.83f + handleSide * 0.13f, 0.39f, 0.48f),
+                        new Vector3(0.025f, 0.25f, 0.025f), _metalMaterial);
+                    handlePost.isStatic = true;
+                }
+                var handleGrip = CreatePrimitive("Trough • bucket handle grip", PrimitiveType.Cube, trough,
+                    new Vector3(0.83f, 0.515f, 0.48f), new Vector3(0.285f, 0.025f, 0.035f), _metalMaterial);
+                handleGrip.isStatic = true;
             }
         }
 
