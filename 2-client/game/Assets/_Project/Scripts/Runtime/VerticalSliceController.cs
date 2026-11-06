@@ -699,6 +699,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
             _pendingTalkTargetId = null;
+            _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
             _moveSendInFlight = false;
@@ -728,6 +729,10 @@ namespace Pogranichye.Client
                     UpdateTutorialIntroduction(frame);
                     if (!frame.Alive)
                     {
+                        _pendingTalkTargetId = null;
+                        _confirmedTalkTargetId = null;
+                        _talkFeedback = null;
+                        _talkConfirmationTimedOut = false;
                         _moveSendInFlight = false;
                         _pendingMoveIntents.Clear();
                         _moveSendQueue.Clear();
@@ -1058,6 +1063,7 @@ namespace Pogranichye.Client
             _views.Clear();
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
+            _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
