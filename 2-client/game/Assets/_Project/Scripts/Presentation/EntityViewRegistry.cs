@@ -139,8 +139,9 @@ namespace Pogranichye.Client.Presentation
             var head = GetWornItem(worn, "head");
             var body = GetWornItem(worn, "body");
             var feet = GetWornItem(worn, "feet");
+            var carriedSignature = GetCarriedItemsSignature(inventory, handItem, head, body, feet);
             var signature = player.GetInstanceID() + "|" + handItem + "|" + head + "|" + body + "|" + feet +
-                "|" + (tankardHeld ? "mug" : "free");
+                "|" + carriedSignature + "|" + (tankardHeld ? "mug" : "free");
             var motion = player.GetComponent<EntityMotion>();
             if (motion != null) motion.SetEquippedHandItem(handItem, tankardHeld);
             if (signature == _lastPlayerEquipmentSignature) return;
@@ -156,6 +157,12 @@ namespace Pogranichye.Client.Presentation
             if (body == "cloak") BuildWornCloak(wornRoot);
             if (feet == "boots") BuildWornBoots(wornRoot);
 
+            var oldCarried = _playerVisualRoot.Find("Carried equipment");
+            if (oldCarried != null) Object.Destroy(oldCarried.gameObject);
+            var carriedRoot = new GameObject("Carried equipment").transform;
+            carriedRoot.SetParent(_playerVisualRoot, false);
+            BuildCarriedEquipment(carriedRoot, inventory, handItem, head, body, feet);
+
             // In first person, body clothing stays on the hidden world model. Hand-held
             // equipment remains attached to the camera-following arm and stays visible.
             if (_firstPersonArmsAttached)
@@ -168,6 +175,137 @@ namespace Pogranichye.Client.Presentation
             if (oldHeld != null) Object.Destroy(oldHeld.gameObject);
             if (tankardHeld || string.IsNullOrEmpty(handItem)) return;
             BuildHeldItem(hand, handItem);
+        }
+
+        private static string GetCarriedItemsSignature(InventoryFrame inventory,
+            string handItem, string head, string body, string feet)
+        {
+            if (inventory?.Items == null) return string.Empty;
+            var signature = string.Empty;
+            var visualItems = new[] { "axe", "sword", "bow", "rod", "torch", "lantern", "cloak", "boots", "hat" };
+            foreach (var item in visualItems)
+            {
+                if (item == handItem || item == head || item == body || item == feet) continue;
+                if (inventory.Items.TryGetValue(item, out var count) && count > 0)
+                    signature += item + ":" + count + ";";
+            }
+            return signature;
+        }
+
+        private void BuildCarriedEquipment(Transform root, InventoryFrame inventory,
+            string handItem, string head, string body, string feet)
+        {
+            if (inventory?.Items == null) return;
+            foreach (var item in new[] { "axe", "sword", "bow", "rod", "torch", "lantern" })
+            {
+                if (item == handItem || !inventory.Items.TryGetValue(item, out var count) || count < 1)
+                    continue;
+                switch (item)
+                {
+                    case "axe":
+                        BuildCarriedAxe(root);
+                        break;
+                    case "sword":
+                        BuildCarriedSword(root);
+                        break;
+                    case "bow":
+                        BuildCarriedBow(root);
+                        break;
+                    case "rod":
+                        BuildCarriedRod(root);
+                        break;
+                    case "torch":
+                        BuildCarriedTorch(root);
+                        break;
+                    case "lantern":
+                        BuildCarriedLantern(root);
+                        break;
+                }
+            }
+
+            // Clothing not currently worn is represented as a compact folded bundle,
+            // rather than being rendered on the body as if it were equipped.
+            var hasPackedClothing =
+                (inventory.Items.TryGetValue("cloak", out var cloakCount) && cloakCount > 0 && body != "cloak") ||
+                (inventory.Items.TryGetValue("boots", out var bootsCount) && bootsCount > 0 && feet != "boots") ||
+                (inventory.Items.TryGetValue("hat", out var hatCount) && hatCount > 0 && head != "hat");
+            if (hasPackedClothing)
+            {
+                var bundle = CreatePart("Carried clothing • bedroll", PrimitiveType.Capsule, root,
+                    new Vector3(0f, 1.03f, -0.25f), new Vector3(0.20f, 0.31f, 0.17f));
+                bundle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                ApplyColor(bundle.GetComponent<Renderer>(), new Color(0.43f, 0.34f, 0.23f));
+                var strap = CreatePart("Carried clothing • leather strap", PrimitiveType.Cube, root,
+                    new Vector3(0f, 1.03f, -0.17f), new Vector3(0.40f, 0.045f, 0.035f));
+                strap.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                ApplyColor(strap.GetComponent<Renderer>(), new Color(0.22f, 0.13f, 0.075f));
+            }
+        }
+
+        private void BuildCarriedAxe(Transform root)
+        {
+            var wood = new Color(0.28f, 0.16f, 0.085f);
+            var iron = new Color(0.31f, 0.34f, 0.36f);
+            var haft = CreatePart("Carried axe • haft", PrimitiveType.Cylinder, root,
+                new Vector3(0.22f, 1.04f, -0.23f), new Vector3(0.018f, 0.27f, 0.018f));
+            haft.transform.localRotation = Quaternion.Euler(0f, 0f, -22f);
+            ApplyColor(haft.GetComponent<Renderer>(), wood);
+            var blade = CreatePart("Carried axe • head", PrimitiveType.Cube, root,
+                new Vector3(0.10f, 1.28f, -0.23f), new Vector3(0.16f, 0.11f, 0.045f));
+            ApplyColor(blade.GetComponent<Renderer>(), iron);
+        }
+
+        private void BuildCarriedSword(Transform root)
+        {
+            var sheath = CreatePart("Carried sword • scabbard", PrimitiveType.Cube, root,
+                new Vector3(-0.30f, 0.79f, -0.08f), new Vector3(0.075f, 0.54f, 0.075f));
+            sheath.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+            ApplyColor(sheath.GetComponent<Renderer>(), new Color(0.22f, 0.12f, 0.07f));
+            var hilt = CreatePart("Carried sword • hilt", PrimitiveType.Cylinder, root,
+                new Vector3(-0.35f, 1.08f, -0.07f), new Vector3(0.025f, 0.11f, 0.025f));
+            hilt.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            ApplyColor(hilt.GetComponent<Renderer>(), new Color(0.55f, 0.39f, 0.16f));
+        }
+
+        private void BuildCarriedBow(Transform root)
+        {
+            var wood = new Color(0.30f, 0.19f, 0.10f);
+            var upper = CreatePart("Carried bow • upper limb", PrimitiveType.Cylinder, root,
+                new Vector3(0.20f, 1.43f, -0.24f), new Vector3(0.018f, 0.24f, 0.018f));
+            upper.transform.localRotation = Quaternion.Euler(0f, 0f, -22f);
+            ApplyColor(upper.GetComponent<Renderer>(), wood);
+            var lower = CreatePart("Carried bow • lower limb", PrimitiveType.Cylinder, root,
+                new Vector3(-0.02f, 1.08f, -0.24f), new Vector3(0.018f, 0.24f, 0.018f));
+            lower.transform.localRotation = Quaternion.Euler(0f, 0f, 22f);
+            ApplyColor(lower.GetComponent<Renderer>(), wood);
+            var grip = CreatePart("Carried bow • grip", PrimitiveType.Cylinder, root,
+                new Vector3(0.09f, 1.25f, -0.22f), new Vector3(0.025f, 0.09f, 0.025f));
+            ApplyColor(grip.GetComponent<Renderer>(), new Color(0.55f, 0.39f, 0.16f));
+        }
+
+        private void BuildCarriedRod(Transform root)
+        {
+            var rod = CreatePart("Carried rod • staff", PrimitiveType.Cylinder, root,
+                new Vector3(-0.22f, 1.18f, -0.23f), new Vector3(0.012f, 0.42f, 0.012f));
+            rod.transform.localRotation = Quaternion.Euler(0f, 0f, 15f);
+            ApplyColor(rod.GetComponent<Renderer>(), new Color(0.30f, 0.19f, 0.10f));
+        }
+
+        private void BuildCarriedTorch(Transform root)
+        {
+            var handle = CreatePart("Carried torch • handle", PrimitiveType.Cylinder, root,
+                new Vector3(0.30f, 0.73f, 0.10f), new Vector3(0.015f, 0.17f, 0.015f));
+            ApplyColor(handle.GetComponent<Renderer>(), new Color(0.28f, 0.16f, 0.085f));
+        }
+
+        private void BuildCarriedLantern(Transform root)
+        {
+            var frame = CreatePart("Carried lantern • frame", PrimitiveType.Cube, root,
+                new Vector3(0.30f, 0.79f, 0.10f), new Vector3(0.13f, 0.17f, 0.09f));
+            ApplyColor(frame.GetComponent<Renderer>(), new Color(0.55f, 0.39f, 0.16f));
+            var glass = CreatePart("Carried lantern • glass", PrimitiveType.Sphere, root,
+                new Vector3(0.30f, 0.79f, 0.15f), new Vector3(0.065f, 0.10f, 0.025f));
+            ApplyColor(glass.GetComponent<Renderer>(), new Color(0.80f, 0.62f, 0.30f));
         }
 
         private static string GetWornItem(Dictionary<string, string> worn, string slot)
