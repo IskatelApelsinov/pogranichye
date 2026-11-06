@@ -535,8 +535,9 @@ namespace Pogranichye.Client.Presentation
                             alongX ? new Vector3(0.105f, 0.34f, 0.105f)
                                    : new Vector3(0.105f, 0.34f, 0.105f),
                             (i + layer + yardIndex) % 3 == 0 ? _roofMaterial : _woodMaterial);
-                        log.transform.localRotation = Quaternion.Euler(90f, 0f,
-                            alongX ? 0f : 90f);
+                        log.transform.localRotation = alongX
+                            ? Quaternion.Euler(0f, 0f, 90f)
+                            : Quaternion.Euler(90f, 0f, 0f);
                         log.isStatic = true;
                     }
                 }
