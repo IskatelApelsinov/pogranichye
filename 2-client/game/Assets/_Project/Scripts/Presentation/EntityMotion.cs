@@ -11,6 +11,7 @@ namespace Pogranichye.Client.Presentation
         private Transform _rightArm;
         private Transform _rightHand;
         private GameObject _activityTool;
+        private bool _suppressActivityTool;
         private Transform _leftLeg;
         private Transform _rightLeg;
         private float _phase;
@@ -158,8 +159,25 @@ namespace Pogranichye.Client.Presentation
             }
 
             if (previousActivity == _activity) return;
+            RefreshActivityTool();
+        }
+
+        /// <summary>
+        /// Suppresses the generic activity prop while the authoritative inventory says
+        /// the character is holding a real item or the server-confirmed tankard.
+        /// </summary>
+        public void SetEquippedHandItem(string item, bool tankardHeld)
+        {
+            _suppressActivityTool = !string.IsNullOrEmpty(item) || tankardHeld;
+            RefreshActivityTool();
+        }
+
+        private void RefreshActivityTool()
+        {
             if (_activityTool != null) Destroy(_activityTool);
-            _activityTool = ProceduralVillageBuilder.CreateActivityToolView(_rightHand, _activity);
+            _activityTool = _suppressActivityTool
+                ? null
+                : ProceduralVillageBuilder.CreateActivityToolView(_rightHand, _activity);
         }
 
         /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
