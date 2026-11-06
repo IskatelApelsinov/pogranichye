@@ -678,7 +678,8 @@ namespace Pogranichye.Client.Presentation
         private void SetMug(GameObject view, bool held)
         {
             if (view == null) return;
-            var hand = view.transform.Find("Right arm/Right hand");
+            var hand = view.transform.Find("PlayerVisualRoot/Right arm/Right hand");
+            if (hand == null) hand = view.transform.Find("Right arm/Right hand");
             if (hand == null) return;
 
             var mug = hand.Find("Held tankard");
