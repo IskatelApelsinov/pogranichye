@@ -25,6 +25,8 @@ namespace Pogranichye.Client.Presentation
         private float _lastNetworkTargetAt;
         private float _greetingRemaining;
         private float _drinkGestureRemaining;
+        private Transform _heldTankard;
+        private Quaternion _heldTankardRestRotation;
         private float _talkGestureRemaining;
         private float _clinkGestureRemaining;
         private Transform _attentionTarget;
@@ -155,6 +157,14 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
         public bool IsDrinkGesturePlaying => _drinkGestureRemaining > 0f;
 
+        /// <summary>Registers the held tankard so the confirmed sip can tilt it visually.</summary>
+        public void SetHeldTankard(Transform tankard)
+        {
+            if (_heldTankard == tankard) return;
+            _heldTankard = tankard;
+            if (_heldTankard != null) _heldTankardRestRotation = _heldTankard.localRotation;
+        }
+
         public void PlayDrinkGesture()
         {
             _drinkGestureRemaining = 1.35f;
@@ -210,6 +220,16 @@ namespace Pogranichye.Client.Presentation
                 _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
+
+            if (_heldTankard != null)
+            {
+                var sipProgress = 1f - Mathf.Clamp01(_drinkGestureRemaining / 1.35f);
+                var sipTilt = _drinkGestureRemaining > 0f ? Mathf.Sin(sipProgress * Mathf.PI) * 20f : 0f;
+                var targetTankardRotation = _heldTankardRestRotation * Quaternion.Euler(0f, 0f, sipTilt);
+                _heldTankard.localRotation = Quaternion.Slerp(
+                    _heldTankard.localRotation, targetTankardRotation,
+                    1f - Mathf.Exp(-14f * Time.deltaTime));
+            }
 
             var resting = _activity == "rest";
             var chopping = _activity == "chop";
