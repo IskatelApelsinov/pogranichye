@@ -40,6 +40,10 @@ namespace Pogranichye.Client
         private bool _busy;
         private int _tutorialStep;
         private string _tutorialNpcTargetId;
+        private string _pendingTalkTargetId;
+        private float _pendingTalkDeadline;
+        private string _talkFeedback;
+        private const float TalkConfirmationTimeoutSeconds = 4f;
         private bool _firstPerson;
         private bool _hudCollapsed;
         private bool _movementDebugVisible;
@@ -94,6 +98,7 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            UpdateTalkConfirmationTimeout();
             if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
             if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
             if (Input.GetKeyDown(KeyCode.F11)) ToggleFullscreen();
@@ -300,6 +305,8 @@ namespace Pogranichye.Client
                 GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
                 GUILayout.Label(talk.Who ?? "Собеседник");
                 GUILayout.Label(talk.Line ?? "…", GUILayout.Height(54f));
+                if (!string.IsNullOrEmpty(_talkFeedback))
+                    GUILayout.Label(_talkFeedback, GUILayout.Height(34f));
                 if (talk.Options != null)
                 {
                     foreach (var option in talk.Options)
@@ -309,6 +316,14 @@ namespace Pogranichye.Client
                     }
                 }
                 if (GUILayout.Button("Закончить разговор")) _ = SendEndTalkAsync();
+                GUILayout.EndArea();
+            }
+            else if (!string.IsNullOrEmpty(_talkFeedback))
+            {
+                var rect = new Rect(Screen.width - 430f, Screen.height - 126f, 410f, 110f);
+                GUI.Box(rect, "Разговор с жителем");
+                GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
+                GUILayout.Label(_talkFeedback, GUILayout.Height(66f));
                 GUILayout.EndArea();
             }
 
@@ -377,7 +392,40 @@ namespace Pogranichye.Client
                     throw new InvalidOperationException("Мир ещё не подключён.");
                 await socket.SendTalkAsync(target, _lifetime.Token);
             }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось начать разговор: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
+                    {
+                        _pendingTalkTargetId = null;
+                        _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
+                    }
+                    _status = "Не удалось начать разговор: " + ex.Message;
+                });
+            }
+        }
+
+        private void UpdateTalkConfirmationTimeout()
+        {
+            if (string.IsNullOrEmpty(_pendingTalkTargetId) ||
+                _connectionState != WorldConnectionState.Active ||
+                Time.unscaledTime < _pendingTalkDeadline)
+                return;
+
+            _pendingTalkTargetId = null;
+            _talkFeedback = "В последних кадрах сервера нет разговора с выбранным жителем. Сервер не подтвердил запрос; возможно, цель слишком далеко или уже ушла. Подойдите ближе и попробуйте снова.";
+        }
+
+        private void UpdateTalkConfirmation(WorldFrame frame)
+        {
+            if (string.IsNullOrEmpty(_pendingTalkTargetId) || frame?.Me == null) return;
+            var talk = frame.Me.Talk;
+            if (talk == null || !string.Equals(talk.With, _pendingTalkTargetId, StringComparison.Ordinal))
+                return;
+
+            _pendingTalkTargetId = null;
+            _talkFeedback = "В кадре сервера подтверждён активный разговор с выбранным жителем.";
         }
 
         private async Task SendSayAsync(string line)
@@ -519,6 +567,9 @@ namespace Pogranichye.Client
 
             var targetId = npc.EntityId.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
+            _pendingTalkTargetId = targetId;
+            _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
+            _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
             _ = SendTalkAsync(targetId);
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
@@ -566,6 +617,8 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
             _tutorialNpcTargetId = null;
+            _pendingTalkTargetId = null;
+            _talkFeedback = null;
             ResetJumpPresentation();
             _views.Clear();
             _hasMovementBaseline = false;
@@ -623,6 +676,8 @@ namespace Pogranichye.Client
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
+            _pendingTalkTargetId = null;
+            _talkFeedback = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
@@ -646,6 +701,7 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    UpdateTalkConfirmation(frame);
                     UpdateTutorialIntroduction(frame);
                     if (!frame.Alive)
                     {
@@ -978,6 +1034,8 @@ namespace Pogranichye.Client
             ResetJumpPresentation();
             _views.Clear();
             _tutorialNpcTargetId = null;
+            _pendingTalkTargetId = null;
+            _talkFeedback = null;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_firstPerson) SetCameraMode(false);
             socket?.Dispose();
