@@ -1668,6 +1668,23 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.045f, 0.25f, 0.045f), i % 2 == 0 ? _woodMaterial : _roofMaterial);
                 stave.transform.localRotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 0f);
             }
+
+            // Two continuous-looking reed courses weave around the upright staves.
+            for (var course = 0; course < 2; course++)
+            {
+                var y = course == 0 ? 0.115f : 0.215f;
+                for (var i = 0; i < 12; i++)
+                {
+                    var angle = i * Mathf.PI * 2f / 12f;
+                    var reed = CreatePrimitive("Basket horizontal wicker weave", PrimitiveType.Cube, basket,
+                        new Vector3(Mathf.Cos(angle) * width * 0.40f, y,
+                            Mathf.Sin(angle) * depth * 0.40f),
+                        new Vector3(0.12f, 0.018f, 0.028f),
+                        (i + course) % 2 == 0 ? _roofMaterial : _woodMaterial);
+                    reed.transform.localRotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg + 90f, 0f);
+                }
+            }
+
             CreatePrimitive("Basket rim", PrimitiveType.Cylinder, basket,
                 new Vector3(0f, 0.285f, 0f), new Vector3(width * 0.92f, 0.035f, depth * 0.92f), _woodMaterial);
             CreatePrimitive("Basket lower binding", PrimitiveType.Cylinder, basket,
