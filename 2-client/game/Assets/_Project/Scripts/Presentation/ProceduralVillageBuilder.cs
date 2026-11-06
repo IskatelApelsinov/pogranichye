@@ -2896,12 +2896,10 @@ namespace Pogranichye.Client.Presentation
             gate.SetParent(fence, false);
             gate.localPosition = new Vector3(-0.65f, 0f, 0f);
             gate.localRotation = Quaternion.Euler(0f, -55f, 0f);
-            for (var side = 0; side <= 1; side++)
-            {
-                var upright = CreatePrimitive("Gate • upright", PrimitiveType.Cube, gate,
-                    new Vector3(side * 1.30f, 0.55f, 0f), new Vector3(0.13f, 1.1f, 0.13f), _roofMaterial);
-                upright.isStatic = true;
-            }
+            // The hinge side reuses the fence's end post; only the free gate edge needs its own upright.
+            var gateFreeUpright = CreatePrimitive("Gate • free upright", PrimitiveType.Cube, gate,
+                new Vector3(1.30f, 0.55f, 0f), new Vector3(0.13f, 1.1f, 0.13f), _roofMaterial);
+            gateFreeUpright.isStatic = true;
 
             var gateTop = CreatePrimitive("Gate • upper cross rail", PrimitiveType.Cube, gate,
                 new Vector3(0.65f, 0.82f, 0f), new Vector3(1.30f, 0.13f, 0.12f), _woodMaterial);
