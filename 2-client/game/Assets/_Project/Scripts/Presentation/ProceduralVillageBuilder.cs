@@ -2320,6 +2320,27 @@ namespace Pogranichye.Client.Presentation
             }
 
             BuildRoadPath(root, name, centerline, size.z);
+            BuildCountryRoadDitches(root, name, centerline, size.z);
+        }
+
+        private static void BuildCountryRoadDitches(Transform root, string name,
+            Vector3[] centerline, float roadWidth)
+        {
+            // Shallow drainage runs follow the road's actual bends instead of cutting across
+            // the meadow. Their wet centre and muddy lips are presentation-only mesh ribbons.
+            var ditchOffset = roadWidth * 0.5f + 0.62f;
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var bank = CreateMeshPart(name + " • muddy drainage bank", root,
+                    BuildRoadRibbonMesh(name + " • ditch bank", centerline,
+                        0.48f, side * ditchOffset, 0.004f, false), _pathMaterial);
+                bank.isStatic = true;
+
+                var water = CreateMeshPart(name + " • shallow roadside water", root,
+                    BuildRoadRibbonMesh(name + " • ditch water", centerline,
+                        0.18f, side * ditchOffset, 0.013f, false), _waterMaterial);
+                water.isStatic = true;
+            }
         }
 
         /// <summary>
