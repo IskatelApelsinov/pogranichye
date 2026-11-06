@@ -58,12 +58,14 @@ namespace Pogranichye.Client.Presentation
             }
             // Activity animation is driven only by the server-confirmed registry code.
             SetActivityCode(player, frame.Me.ActivityCode);
-            SetMug(player, frame.Me.Mug);
-            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug)
-            {
-                var playerMotion = player.GetComponent<EntityMotion>();
-                if (playerMotion != null) playerMotion.PlayDrinkGesture();
-            }
+            var playerMotion = player.GetComponent<EntityMotion>();
+            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug && playerMotion != null)
+                playerMotion.PlayDrinkGesture();
+
+            // Keep the consumed tankard visible for the full presentation gesture.
+            // Inventory/mug state remains server-authoritative; this is only a short visual tail.
+            var showTankard = frame.Me.Mug || (playerMotion != null && playerMotion.IsDrinkGesturePlaying);
+            SetMug(player, showTankard);
             _hasPlayerMugState = true;
             _playerHadMug = frame.Me.Mug;
             PlayerTransform = player.transform;
