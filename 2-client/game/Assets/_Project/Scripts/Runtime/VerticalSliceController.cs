@@ -194,8 +194,8 @@ namespace Pogranichye.Client
                 GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(58));
                 GUILayout.Label(_tutorialStep == 0
-                    ? "Для знакомства наведитесь на жителя и нажмите E. Реплика «Будем знакомы» должна подтвердиться сервером."
-                    : "Свободная практика: выберите занятие. Сервер проверит действие по правилам мира; это пока не этап задания:");
+                    ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
+                    : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
                 if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
                 if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
                 if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
@@ -466,7 +466,7 @@ namespace Pogranichye.Client
             if (!acquainted) return;
             _tutorialStep = 1;
             _tutorialNpcTargetId = null;
-            _status = "Знакомство подтверждено сервером. Дальше доступны занятия для свободной практики.";
+            _status = "Вы познакомились с жителем. Дальше доступны свободные занятия.";
         }
 
         private string TutorialHint()
@@ -475,7 +475,7 @@ namespace Pogranichye.Client
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
             if (_tutorialStep == 0)
                 return "Шаг 1/1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
-            return "Знакомство подтверждено сервером. Полноценное задание появится после серверной реализации; пока это свободная практика.";
+            return "Вы познакомились с жителем. Отдельного поручения пока нет; можно освоиться и попробовать занятия.";
         }
 
         private void SetCameraMode(bool firstPerson)
