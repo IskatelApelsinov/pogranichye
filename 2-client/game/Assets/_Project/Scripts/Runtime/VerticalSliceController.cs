@@ -405,7 +405,6 @@ namespace Pogranichye.Client
                     {
                         _pendingTalkTargetId = null;
                         _pendingTalkRequestSerial = 0;
-            _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
                         _talkConfirmationTimedOut = false;
                         _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
@@ -740,7 +739,6 @@ namespace Pogranichye.Client
                     {
                         _pendingTalkTargetId = null;
                         _pendingTalkRequestSerial = 0;
-            _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
                         _talkFeedback = null;
                         _talkConfirmationTimedOut = false;
