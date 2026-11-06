@@ -168,7 +168,9 @@ namespace Pogranichye.Client.Presentation
         /// </summary>
         public void SetEquippedHandItem(string item, bool tankardHeld)
         {
-            _suppressActivityTool = !string.IsNullOrEmpty(item) || tankardHeld;
+            var suppress = !string.IsNullOrEmpty(item) || tankardHeld;
+            if (_suppressActivityTool == suppress) return;
+            _suppressActivityTool = suppress;
             RefreshActivityTool();
         }
 
