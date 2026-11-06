@@ -2586,6 +2586,7 @@ namespace Pogranichye.Client.Presentation
         {
             DestroyAsset(_groundMaterial);
             DestroyAsset(_pathMaterial);
+            DestroyAsset(_roadRutMaterial);
             DestroyAsset(_woodMaterial);
             DestroyAsset(_roofMaterial);
             DestroyAsset(_stoneMaterial);
@@ -2620,6 +2621,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_creekReedMesh);
             _groundMaterial = null;
             _pathMaterial = null;
+            _roadRutMaterial = null;
             _woodMaterial = null;
             _roofMaterial = null;
             _stoneMaterial = null;
