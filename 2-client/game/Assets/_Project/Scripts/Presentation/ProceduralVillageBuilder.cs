@@ -1001,16 +1001,25 @@ namespace Pogranichye.Client.Presentation
 
         private static void CreateBeerMug(Transform parent, Vector3 position)
         {
-            // A small hollow, tapered low-poly tankard: open rim, visible inner wall,
-            // stave-like facets, two iron hoops and a real curved handle.
-            var mug = new GameObject("Oak beer tankard").transform;
+            var mug = CreateTankardView(parent, "Oak beer tankard");
+            if (mug != null) mug.transform.localPosition = position;
+        }
+
+        /// <summary>
+        /// Creates the same detailed tankard mesh used by tavern props for a held-item view.
+        /// Returns null until the village presentation materials have been initialized.
+        /// </summary>
+        public static GameObject CreateTankardView(Transform parent, string objectName)
+        {
+            if (parent == null || _mugWoodMaterial == null || _mugBandMaterial == null ||
+                _beerMaterial == null || _foamMaterial == null) return null;
+
+            var mug = new GameObject(string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName).transform;
             mug.SetParent(parent, false);
-            mug.localPosition = position;
+            mug.localPosition = Vector3.zero;
             mug.localScale = Vector3.one;
 
-            var body = CreateMeshPart("Hollow oak tankard", mug, BuildTankardBodyMesh(), _mugWoodMaterial);
-            body.transform.localPosition = Vector3.zero;
-
+            CreateMeshPart("Hollow oak tankard", mug, BuildTankardBodyMesh(), _mugWoodMaterial);
             for (var y = 0.055f; y <= 0.255f; y += 0.20f)
             {
                 var hoop = CreateMeshPart("Forged iron tankard hoop", mug,
@@ -1020,19 +1029,11 @@ namespace Pogranichye.Client.Presentation
 
             var handle = CreateMeshPart("Curved wooden tankard handle", mug,
                 BuildTankardHandleMesh(), _mugWoodMaterial);
-            // The handle mesh is authored in tankard-local coordinates and already
-            // reaches into the body wall; an extra X offset would leave a visible gap.
             handle.transform.localPosition = new Vector3(0f, 0.17f, 0f);
 
-            // A visible amber fill sits below the rim, inside the hollow vessel.
-            // Primitive colliders are removed by CreatePrimitive, so this remains presentation-only.
             CreatePrimitive("Amber ale • liquid inside tankard", PrimitiveType.Cylinder, mug,
                 new Vector3(0f, 0.261f, 0f), new Vector3(0.136f, 0.006f, 0.136f), _beerMaterial);
-
-            // Replace the single placeholder foam sphere with a shallow, irregular low-poly cap.
-            var foamCap = CreateMeshPart("Ale foam • irregular cap", mug,
-                BuildTankardFoamMesh(), _foamMaterial);
-            foamCap.transform.localPosition = Vector3.zero;
+            CreateMeshPart("Ale foam • irregular cap", mug, BuildTankardFoamMesh(), _foamMaterial);
             for (var i = 0; i < 4; i++)
             {
                 var angle = i * Mathf.PI * 0.5f + 0.28f;
@@ -1042,6 +1043,8 @@ namespace Pogranichye.Client.Presentation
                         Mathf.Sin(angle) * radius),
                     new Vector3(0.014f, 0.006f, 0.014f), _foamMaterial);
             }
+
+            return mug.gameObject;
         }
 
         private static Mesh BuildTankardFoamMesh()
