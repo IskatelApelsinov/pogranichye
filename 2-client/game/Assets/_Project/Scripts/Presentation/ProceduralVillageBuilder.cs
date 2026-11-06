@@ -2418,8 +2418,20 @@ namespace Pogranichye.Client.Presentation
                 tree.localScale = Vector3.one * scale;
                 CreatePrimitive("Orchard trunk", PrimitiveType.Cylinder, tree,
                     new Vector3(0f, 1.0f, 0f), new Vector3(0.16f, 1.0f, 0.16f), _woodMaterial);
-                CreatePrimitive("Fruit canopy", PrimitiveType.Sphere, tree,
-                    new Vector3(0f, 2.35f, 0f), new Vector3(1.55f, 1.35f, 1.45f), _leafMaterial);
+
+                // Layer several offset foliage masses to avoid a single round lollipop crown.
+                var crown = CreatePrimitive("Fruit canopy • main crown", PrimitiveType.Sphere, tree,
+                    new Vector3(0f, 2.38f, 0f), new Vector3(1.22f, 1.12f, 1.18f), _leafMaterial);
+                crown.isStatic = true;
+                for (var lobe = 0; lobe < 3; lobe++)
+                {
+                    var angle = lobe * Mathf.PI * 2f / 3f + i * 0.41f;
+                    var lobePosition = new Vector3(Mathf.Cos(angle) * 0.68f,
+                        2.42f + ((lobe + i) % 2) * 0.18f, Mathf.Sin(angle) * 0.68f);
+                    var foliage = CreatePrimitive("Fruit canopy • foliage lobe", PrimitiveType.Sphere, tree,
+                        lobePosition, new Vector3(0.92f, 0.86f, 0.90f), _leafMaterial);
+                    foliage.isStatic = true;
+                }
                 for (var fruit = 0; fruit < 4; fruit++)
                 {
                     var angle = fruit * Mathf.PI * 0.5f + i * 0.37f;
