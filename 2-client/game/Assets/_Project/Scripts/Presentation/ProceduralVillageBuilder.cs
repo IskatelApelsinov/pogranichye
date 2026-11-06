@@ -2139,7 +2139,7 @@ namespace Pogranichye.Client.Presentation
                 grip.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 grip.isStatic = true;
 
-                BuildFarmCartWheel(cart, side * 0.91f, random);
+                BuildFarmCartWheel(cart, side * 0.91f);
             }
 
             // A few loose sacks and a crate make the cart look used without implying loot.
@@ -2164,16 +2164,12 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildFarmCartWheel(Transform cart, float x, System.Random random)
+        private static void BuildFarmCartWheel(Transform cart, float x)
         {
             var wheel = new GameObject("Farm cart • wooden spoked wheel").transform;
             wheel.SetParent(cart, false);
             wheel.localPosition = new Vector3(x, 0.57f, -0.18f);
             wheel.localRotation = Quaternion.Euler(0f, 0f, 90f);
-
-            var disk = CreatePrimitive("Wheel • timber disk", PrimitiveType.Cylinder, wheel,
-                Vector3.zero, new Vector3(1.02f, 0.065f, 1.02f), _woodMaterial);
-            disk.isStatic = true;
 
             // Eight visible spokes and a faceted outer rim keep the wheels readable at village scale.
             for (var spoke = 0; spoke < 8; spoke++)
@@ -2192,7 +2188,7 @@ namespace Pogranichye.Client.Presentation
                 var rim = CreatePrimitive("Wheel • outer wooden rim segment", PrimitiveType.Cube, wheel,
                     new Vector3(Mathf.Cos(angle) * 0.49f, 0f, Mathf.Sin(angle) * 0.49f),
                     new Vector3(0.30f, 0.11f, 0.10f), _woodMaterial);
-                rim.transform.localRotation = Quaternion.Euler(0f, -segment * 30f, 0f);
+                rim.transform.localRotation = Quaternion.Euler(0f, segment * 30f + 90f, 0f);
                 rim.isStatic = true;
             }
 
