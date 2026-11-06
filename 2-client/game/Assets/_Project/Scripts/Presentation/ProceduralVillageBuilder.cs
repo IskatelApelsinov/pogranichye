@@ -1995,6 +1995,54 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(-0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
             CreatePrimitive("Barn double door right", PrimitiveType.Cube, barn,
                 new Vector3(0.62f, 1.0f, -2.08f), new Vector3(1.18f, 2f, 0.10f), _roofMaterial);
+
+            // Individual boards and diagonal braces break the broad door slabs into old timberwork.
+            for (var leaf = -1; leaf <= 1; leaf += 2)
+            {
+                var centerX = leaf * 0.62f;
+                for (var plank = -1; plank <= 1; plank++)
+                {
+                    var board = CreatePrimitive("Barn door • vertical oak board", PrimitiveType.Cube, barn,
+                        new Vector3(centerX + plank * 0.34f, 1.0f, -2.145f),
+                        new Vector3(0.075f, 1.82f, 0.025f), _woodMaterial);
+                    board.isStatic = true;
+                }
+
+                var brace = CreatePrimitive("Barn door • diagonal timber brace", PrimitiveType.Cube, barn,
+                    new Vector3(centerX, 1.0f, -2.17f),
+                    new Vector3(1.02f, 0.12f, 0.055f), _woodMaterial);
+                brace.transform.localRotation = Quaternion.Euler(0f, 0f, leaf * 31f);
+                brace.isStatic = true;
+
+                for (var hinge = -1; hinge <= 1; hinge += 2)
+                {
+                    var ironHinge = CreatePrimitive("Barn door • iron strap hinge", PrimitiveType.Cube, barn,
+                        new Vector3(centerX + leaf * 0.48f, hinge * 0.62f + 1.0f, -2.19f),
+                        new Vector3(0.48f, 0.065f, 0.035f), _metalMaterial);
+                    ironHinge.isStatic = true;
+                }
+            }
+
+            // A small dark loft opening gives the barn a readable upper working level.
+            var loftOpening = CreatePrimitive("Barn loft • dark hay opening", PrimitiveType.Cube, barn,
+                new Vector3(0f, 2.52f, -2.035f), new Vector3(0.92f, 0.52f, 0.035f), _metalMaterial);
+            loftOpening.isStatic = true;
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var jamb = CreatePrimitive("Barn loft • timber jamb", PrimitiveType.Cube, barn,
+                    new Vector3(side * 0.52f, 2.52f, -2.09f), new Vector3(0.10f, 0.70f, 0.12f), _roofMaterial);
+                jamb.isStatic = true;
+            }
+            var loftLintel = CreatePrimitive("Barn loft • timber lintel", PrimitiveType.Cube, barn,
+                new Vector3(0f, 2.88f, -2.09f), new Vector3(1.14f, 0.10f, 0.12f), _roofMaterial);
+            loftLintel.isStatic = true;
+            var loftSill = CreatePrimitive("Barn loft • timber sill", PrimitiveType.Cube, barn,
+                new Vector3(0f, 2.16f, -2.09f), new Vector3(1.14f, 0.10f, 0.12f), _roofMaterial);
+            loftSill.isStatic = true;
+            var loftCrossbar = CreatePrimitive("Barn loft • wooden crossbar", PrimitiveType.Cube, barn,
+                new Vector3(0f, 2.52f, -2.12f), new Vector3(0.92f, 0.07f, 0.06f), _woodMaterial);
+            loftCrossbar.isStatic = true;
+
             BuildFence(root, new Vector3(-20f, 0f, -17f), 8, 0.65f);
 
             var mill = new GameObject("Old windmill").transform;
