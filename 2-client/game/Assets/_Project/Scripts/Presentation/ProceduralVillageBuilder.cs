@@ -131,6 +131,7 @@ namespace Pogranichye.Client.Presentation
             BuildDistantTreeLine(village);
             BuildOutskirts(village);
             BuildHayBales(village, worldSeed);
+            BuildFarmCart(village, worldSeed);
             BuildRuralLandscape(village, worldSeed);
             BuildFarmsteadAndOrchard(village);
             BuildNorthernResidentialLane(village, ambientMotion);
@@ -2096,6 +2097,104 @@ namespace Pogranichye.Client.Presentation
                     (float)random.NextDouble() * 180f, (float)random.NextDouble() * 12f - 6f);
                 straw.isStatic = true;
             }
+        }
+
+        private static void BuildFarmCart(Transform root, string worldSeed)
+        {
+            // A parked harvest cart gives the barn yard a readable working purpose.
+            // It is a static visual prop: no collider, inventory, resource or server state.
+            var random = new System.Random(StableSeed((worldSeed ?? string.Empty) + ":barn-farm-cart"));
+            var cart = new GameObject("Barn yard • parked harvest cart").transform;
+            cart.SetParent(root, false);
+            cart.localPosition = new Vector3(-23.2f, 0f, -15.0f);
+            cart.localRotation = Quaternion.Euler(0f, 180f + (float)random.NextDouble() * 5f - 2.5f, 0f);
+
+            // The timber bed sits above a single cross-axle, with open space below the boards.
+            var axle = CreatePrimitive("Farm cart • iron-bound axle", PrimitiveType.Cylinder, cart,
+                new Vector3(0f, 0.57f, -0.18f), new Vector3(0.075f, 0.94f, 0.075f), _metalMaterial);
+            axle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            axle.isStatic = true;
+
+            CreatePrimitive("Farm cart • timber bed", PrimitiveType.Cube, cart,
+                new Vector3(0f, 1.03f, 0f), new Vector3(1.55f, 0.16f, 1.55f), _woodMaterial);
+            CreatePrimitive("Farm cart • front board", PrimitiveType.Cube, cart,
+                new Vector3(0f, 1.34f, 0.73f), new Vector3(1.58f, 0.48f, 0.10f), _roofMaterial);
+            CreatePrimitive("Farm cart • rear board", PrimitiveType.Cube, cart,
+                new Vector3(0f, 1.34f, -0.73f), new Vector3(1.58f, 0.48f, 0.10f), _roofMaterial);
+
+            for (var side = -1; side <= 1; side += 2)
+            {
+                CreatePrimitive("Farm cart • side board", PrimitiveType.Cube, cart,
+                    new Vector3(side * 0.75f, 1.34f, 0f), new Vector3(0.10f, 0.48f, 1.42f), _woodMaterial);
+
+                // Long shafts point toward the open yard gate, ready for a horse or ox.
+                var shaft = CreatePrimitive("Farm cart • pulling shaft", PrimitiveType.Cube, cart,
+                    new Vector3(side * 0.49f, 0.53f, 1.32f), new Vector3(0.12f, 0.12f, 1.65f), _woodMaterial);
+                shaft.transform.localRotation = Quaternion.Euler(
+                    (float)random.NextDouble() * 2f - 1f, 0f, (float)random.NextDouble() * 2f - 1f);
+                shaft.isStatic = true;
+
+                var grip = CreatePrimitive("Farm cart • shaft iron tip", PrimitiveType.Cylinder, cart,
+                    new Vector3(side * 0.49f, 0.53f, 2.13f), new Vector3(0.075f, 0.09f, 0.075f), _metalMaterial);
+                grip.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                grip.isStatic = true;
+
+                BuildFarmCartWheel(cart, side * 0.91f);
+            }
+
+            // A few loose sacks and a crate make the cart look used without implying loot.
+            var sackA = CreatePrimitive("Farm cart • grain sack", PrimitiveType.Capsule, cart,
+                new Vector3(-0.34f, 1.38f, -0.12f), new Vector3(0.30f, 0.27f, 0.28f), _clothMaterial);
+            sackA.transform.localRotation = Quaternion.Euler(0f, 18f, 9f);
+            sackA.isStatic = true;
+            var sackB = CreatePrimitive("Farm cart • grain sack", PrimitiveType.Capsule, cart,
+                new Vector3(0.30f, 1.37f, 0.18f), new Vector3(0.27f, 0.25f, 0.27f), _clothMaterial);
+            sackB.transform.localRotation = Quaternion.Euler(0f, -24f, -7f);
+            sackB.isStatic = true;
+            var crate = CreatePrimitive("Farm cart • seed crate", PrimitiveType.Cube, cart,
+                new Vector3(0.28f, 1.28f, -0.48f), new Vector3(0.48f, 0.34f, 0.42f), _roofMaterial);
+            crate.transform.localRotation = Quaternion.Euler(0f, 7f, 0f);
+            crate.isStatic = true;
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var crateSlat = CreatePrimitive("Farm cart • crate slat", PrimitiveType.Cube, cart,
+                    new Vector3(0.28f + side * 0.17f, 1.30f, -0.265f),
+                    new Vector3(0.035f, 0.28f, 0.025f), _woodMaterial);
+                crateSlat.isStatic = true;
+            }
+        }
+
+        private static void BuildFarmCartWheel(Transform cart, float x)
+        {
+            var wheel = new GameObject("Farm cart • wooden spoked wheel").transform;
+            wheel.SetParent(cart, false);
+            wheel.localPosition = new Vector3(x, 0.57f, -0.18f);
+            wheel.localRotation = Quaternion.Euler(0f, 0f, 90f);
+
+            // Eight visible spokes and a faceted outer rim keep the wheels readable at village scale.
+            for (var spoke = 0; spoke < 8; spoke++)
+            {
+                var angle = spoke * Mathf.PI / 4f;
+                var beam = CreatePrimitive("Wheel • wooden spoke", PrimitiveType.Cube, wheel,
+                    new Vector3(Mathf.Cos(angle) * 0.25f, 0f, Mathf.Sin(angle) * 0.25f),
+                    new Vector3(0.50f, 0.075f, 0.065f), _roofMaterial);
+                beam.transform.localRotation = Quaternion.Euler(0f, -spoke * 45f, 0f);
+                beam.isStatic = true;
+            }
+
+            for (var segment = 0; segment < 12; segment++)
+            {
+                var angle = segment * Mathf.PI / 6f;
+                var rim = CreatePrimitive("Wheel • outer wooden rim segment", PrimitiveType.Cube, wheel,
+                    new Vector3(Mathf.Cos(angle) * 0.49f, 0f, Mathf.Sin(angle) * 0.49f),
+                    new Vector3(0.30f, 0.11f, 0.10f), _woodMaterial);
+                rim.transform.localRotation = Quaternion.Euler(0f, segment * 30f + 90f, 0f);
+                rim.isStatic = true;
+            }
+
+            var hub = CreatePrimitive("Wheel • iron hub", PrimitiveType.Cylinder, wheel,
+                Vector3.zero, new Vector3(0.16f, 0.10f, 0.16f), _metalMaterial);
+            hub.isStatic = true;
         }
 
         private static void BuildHayBale(Transform parent, Vector3 position, System.Random random)
