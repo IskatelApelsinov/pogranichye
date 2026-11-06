@@ -410,7 +410,7 @@ namespace Pogranichye.Client
 
         private void UpdateTalkConfirmationTimeout()
         {
-            if (string.IsNullOrEmpty(_pendingTalkTargetId) ||
+            if (string.IsNullOrEmpty(_pendingTalkTargetId) || _talkConfirmationTimedOut ||
                 _connectionState != WorldConnectionState.Active ||
                 Time.unscaledTime < _pendingTalkDeadline)
                 return;
