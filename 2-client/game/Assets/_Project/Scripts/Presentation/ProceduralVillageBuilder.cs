@@ -1267,6 +1267,73 @@ namespace Pogranichye.Client.Presentation
             return mug.gameObject;
         }
 
+        /// <summary>
+        /// Builds a small, presentation-only tool in an entity's hand from the server activity code.
+        /// Returns null for neutral activities or before the village materials are initialized.
+        /// </summary>
+        public static GameObject CreateActivityToolView(Transform hand, string activity)
+        {
+            if (hand == null || _woodMaterial == null || _metalMaterial == null) return null;
+            if (activity != "chop" && activity != "mine" && activity != "forge" &&
+                activity != "farm" && activity != "fish" && activity != "hunt")
+                return null;
+
+            var tool = new GameObject("Held activity tool • " + activity).transform;
+            tool.SetParent(hand, false);
+            tool.localPosition = new Vector3(0f, -0.04f, 0.10f);
+            tool.localRotation = Quaternion.identity;
+            tool.localScale = Vector3.one * 3f;
+
+            // Handles are deliberately simple, but their silhouettes make the server-driven
+            // work animations readable from the village square.
+            var handle = CreatePrimitive("Tool • wooden haft", PrimitiveType.Cylinder, tool,
+                new Vector3(0f, 0.20f, 0f), new Vector3(0.022f, 0.22f, 0.022f), _woodMaterial);
+            handle.isStatic = true;
+
+            switch (activity)
+            {
+                case "chop":
+                    var axeBlade = CreatePrimitive("Tool • axe iron blade", PrimitiveType.Cube, tool,
+                        new Vector3(0.13f, 0.38f, 0f), new Vector3(0.24f, 0.13f, 0.055f), _metalMaterial);
+                    axeBlade.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+                    axeBlade.isStatic = true;
+                    break;
+                case "mine":
+                    var pickHead = CreatePrimitive("Tool • pick iron head", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.42f, 0f), new Vector3(0.34f, 0.075f, 0.075f), _metalMaterial);
+                    pickHead.isStatic = true;
+                    break;
+                case "forge":
+                    var hammerHead = CreatePrimitive("Tool • smith hammer head", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.43f, 0f), new Vector3(0.23f, 0.13f, 0.13f), _metalMaterial);
+                    hammerHead.isStatic = true;
+                    break;
+                case "farm":
+                    var hoeBlade = CreatePrimitive("Tool • hoe iron blade", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.43f, 0f), new Vector3(0.29f, 0.055f, 0.075f), _metalMaterial);
+                    hoeBlade.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                    hoeBlade.isStatic = true;
+                    break;
+                case "fish":
+                    var rod = CreatePrimitive("Tool • fishing rod", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.42f, 0f), new Vector3(0.010f, 0.26f, 0.010f), _woodMaterial);
+                    rod.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+                    rod.isStatic = true;
+                    var line = CreatePrimitive("Tool • fishing line", PrimitiveType.Cube, tool,
+                        new Vector3(0.045f, 0.66f, 0.015f), new Vector3(0.006f, 0.22f, 0.006f), _clothMaterial);
+                    line.isStatic = true;
+                    break;
+                case "hunt":
+                    var spearTip = CreatePrimitive("Tool • hunting spear tip", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.45f, 0f), new Vector3(0.075f, 0.17f, 0.045f), _metalMaterial);
+                    spearTip.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                    spearTip.isStatic = true;
+                    break;
+            }
+
+            return tool.gameObject;
+        }
+
         private static Mesh BuildTankardFoamMesh()
         {
             const int sides = 12;
