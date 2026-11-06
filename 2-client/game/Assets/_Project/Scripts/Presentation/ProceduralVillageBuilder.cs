@@ -1633,7 +1633,7 @@ namespace Pogranichye.Client.Presentation
                     var height = 0.30f + ((row + col + plant) % 3) * 0.055f;
                     var stem = CreatePrimitive("Garden crop • stem", PrimitiveType.Cylinder, garden,
                         new Vector3(x + side, 0.24f + height * 0.5f, z + (plant == 0 ? -0.08f : 0.08f)),
-                        new Vector3(0.025f, height * 0.5f, 0.025f), _woodMaterial);
+                        new Vector3(0.025f, height * 0.5f, 0.025f), _leafMaterial);
                     stem.isStatic = true;
 
                     for (var leaf = 0; leaf < 3; leaf++)
