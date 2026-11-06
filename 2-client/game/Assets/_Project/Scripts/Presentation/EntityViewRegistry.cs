@@ -57,8 +57,6 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
-            // Activity animation is driven only by the server-confirmed registry code.
-            SetActivityCode(player, frame.Me.ActivityCode);
             var playerMotion = player.GetComponent<EntityMotion>();
             if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug && playerMotion != null)
                 playerMotion.PlayDrinkGesture();
@@ -68,6 +66,10 @@ namespace Pogranichye.Client.Presentation
             var showTankard = frame.Me.Mug || (playerMotion != null && playerMotion.IsDrinkGesturePlaying);
             SetMug(player, showTankard);
             ApplyPlayerInventoryAppearance(player, frame.Me.Inventory, showTankard);
+            // Activity animation is driven only by the server-confirmed registry code.
+            // Apply inventory first so a real held item suppresses the generic activity prop
+            // before the activity code is refreshed for this snapshot.
+            SetActivityCode(player, frame.Me.ActivityCode);
             _hasPlayerMugState = true;
             _playerHadMug = frame.Me.Mug;
             PlayerTransform = player.transform;
