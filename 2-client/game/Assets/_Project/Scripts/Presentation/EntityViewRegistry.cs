@@ -681,6 +681,7 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(rightThumb.GetComponent<Renderer>(), skin);
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
+            AddBaseClothingDetails(visualRoot, id);
             AddFaceDetails(visualRoot);
             AddRoleAccessories(visualRoot, role);
 
@@ -767,6 +768,37 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0f, 1.47f, 0.16f), new Vector3(0.19f, 0.18f, 0.13f));
                 ApplyColor(beard.GetComponent<Renderer>(), hairColor);
             }
+        }
+
+        private void AddBaseClothingDetails(Transform root, ulong id)
+        {
+            var leather = id % 3UL == 0UL
+                ? new Color(0.20f, 0.12f, 0.075f)
+                : id % 3UL == 1UL
+                    ? new Color(0.27f, 0.17f, 0.095f)
+                    : new Color(0.16f, 0.13f, 0.09f);
+            var bronze = new Color(0.58f, 0.42f, 0.18f);
+            var seam = new Color(0.39f, 0.31f, 0.21f);
+
+            var belt = CreatePart("Clothing • leather waist belt", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 0.76f, 0f), new Vector3(0.247f, 0.035f, 0.17f));
+            ApplyColor(belt.GetComponent<Renderer>(), leather);
+
+            var buckle = CreatePart("Clothing • belt buckle", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.76f, 0.171f), new Vector3(0.085f, 0.075f, 0.025f));
+            ApplyColor(buckle.GetComponent<Renderer>(), bronze);
+            var buckleInset = CreatePart("Clothing • buckle inset", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.76f, 0.187f), new Vector3(0.043f, 0.035f, 0.008f));
+            ApplyColor(buckleInset.GetComponent<Renderer>(), leather);
+
+            var beltTail = CreatePart("Clothing • belt tail", PrimitiveType.Cube, root,
+                new Vector3(0.13f, 0.76f, 0.16f), new Vector3(0.09f, 0.025f, 0.018f));
+            beltTail.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+            ApplyColor(beltTail.GetComponent<Renderer>(), leather);
+
+            var hem = CreatePart("Clothing • tunic hem", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 0.49f, 0f), new Vector3(0.238f, 0.018f, 0.16f));
+            ApplyColor(hem.GetComponent<Renderer>(), seam);
         }
 
         private void AddFaceDetails(Transform root)
