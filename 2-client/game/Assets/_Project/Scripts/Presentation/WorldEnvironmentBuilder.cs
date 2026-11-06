@@ -24,6 +24,7 @@ namespace Pogranichye.Client.Presentation
         private static Mesh _flowerMesh;
         private static Mesh _starMesh;
         private static Mesh _grassMesh;
+        private static Mesh _ruralFieldMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
 
         public static void Build(Transform root, Camera camera)
@@ -37,6 +38,7 @@ namespace Pogranichye.Client.Presentation
             BuildClouds(environment);
             BuildGrass(environment);
             BuildForest(environment);
+            BuildRuralFields(environment);
             BuildGroundDetails(environment);
             BuildAmbientMotes(environment);
             BuildLowlandMist(environment);
@@ -454,6 +456,123 @@ namespace Pogranichye.Client.Presentation
         }
 
         /// <summary>Small rock groups, wildflowers and scrub break up the uniform meadow without filling paths.</summary>
+
+        /// <summary>
+        /// Adds presentation-only cultivated plots beyond the village tree belt.
+        /// These are visual scenery only: no colliders, ownership, crops or server state.
+        /// </summary>
+        private static void BuildRuralFields(Transform root)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return;
+
+            var soilMaterial = new Material(shader) { name = "Rural plots • worked soil", color = new Color(0.34f, 0.29f, 0.20f) };
+            var furrowMaterial = new Material(shader) { name = "Rural plots • furrows", color = new Color(0.22f, 0.19f, 0.14f) };
+            var cropMaterial = new Material(shader) { name = "Rural plots • young crops", color = new Color(0.43f, 0.48f, 0.24f) };
+            _landscapeMaterials.Add(soilMaterial);
+            _landscapeMaterials.Add(furrowMaterial);
+            _landscapeMaterials.Add(cropMaterial);
+
+            var soilVertices = new System.Collections.Generic.List<Vector3>(256);
+            var soilTriangles = new System.Collections.Generic.List<int>(384);
+            var furrowVertices = new System.Collections.Generic.List<Vector3>(1024);
+            var furrowTriangles = new System.Collections.Generic.List<int>(1536);
+            var cropVertices = new System.Collections.Generic.List<Vector3>(4096);
+            var cropTriangles = new System.Collections.Generic.List<int>(6144);
+            var random = new System.Random(88421);
+
+            // Eight small plots form a loose countryside ring, not a second settlement.
+            for (var plot = 0; plot < 8; plot++)
+            {
+                var angle = (22.5f + plot * 45f + ((float)random.NextDouble() - 0.5f) * 8f) * Mathf.Deg2Rad;
+                var radius = 82f + (float)random.NextDouble() * 48f;
+                var center = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                var halfWidth = 5.5f + (float)random.NextDouble() * 2.0f;
+                var halfLength = 8.5f + (float)random.NextDouble() * 4.0f;
+                var yaw = angle + Mathf.PI * 0.5f + ((float)random.NextDouble() - 0.5f) * 0.5f;
+                var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+                var side = new Vector3(forward.z, 0f, -forward.x);
+                var cornerNoise = 0.55f + (float)random.NextDouble() * 0.45f;
+                var p0 = center - side * (halfWidth * cornerNoise) - forward * halfLength;
+                var p1 = center + side * halfWidth - forward * (halfLength * 0.92f);
+                var p2 = center + side * (halfWidth * 0.92f) + forward * halfLength;
+                var p3 = center - side * halfWidth + forward * (halfLength * cornerNoise);
+                var baseIndex = soilVertices.Count;
+                soilVertices.Add(p0 + Vector3.up * 0.018f);
+                soilVertices.Add(p1 + Vector3.up * 0.018f);
+                soilVertices.Add(p2 + Vector3.up * 0.018f);
+                soilVertices.Add(p3 + Vector3.up * 0.018f);
+                soilTriangles.Add(baseIndex); soilTriangles.Add(baseIndex + 2); soilTriangles.Add(baseIndex + 1);
+                soilTriangles.Add(baseIndex); soilTriangles.Add(baseIndex + 3); soilTriangles.Add(baseIndex + 2);
+
+                const int rows = 7;
+                for (var row = 0; row < rows; row++)
+                {
+                    var lateral = Mathf.Lerp(-halfWidth * 0.78f, halfWidth * 0.78f, row / (float)(rows - 1));
+                    var rowStart = center + side * lateral - forward * (halfLength * 0.78f);
+                    var rowEnd = center + side * lateral + forward * (halfLength * 0.78f);
+                    AppendRuralStrip(furrowVertices, furrowTriangles, rowStart, rowEnd, side * 0.12f, 0.045f);
+                    for (var plant = 0; plant < 8; plant++)
+                    {
+                        var t = (plant + 0.25f + (float)random.NextDouble() * 0.5f) / 8f;
+                        var basePoint = Vector3.Lerp(rowStart, rowEnd, t) + Vector3.up * 0.055f;
+                        var height = 0.24f + (float)random.NextDouble() * 0.18f;
+                        var bladeWidth = 0.055f + (float)random.NextDouble() * 0.025f;
+                        var lean = side * (((float)random.NextDouble() - 0.5f) * 0.13f);
+                        var first = cropVertices.Count;
+                        cropVertices.Add(basePoint - side * bladeWidth);
+                        cropVertices.Add(basePoint + side * bladeWidth);
+                        cropVertices.Add(basePoint + Vector3.up * height + lean);
+                        cropTriangles.Add(first); cropTriangles.Add(first + 2); cropTriangles.Add(first + 1);
+                    }
+                }
+            }
+
+            var allVertices = new System.Collections.Generic.List<Vector3>(
+                soilVertices.Count + furrowVertices.Count + cropVertices.Count);
+            allVertices.AddRange(soilVertices);
+            allVertices.AddRange(furrowVertices);
+            allVertices.AddRange(cropVertices);
+            var allTriangles = new[] { soilTriangles, furrowTriangles, cropTriangles };
+            var offsets = new[] { 0, soilVertices.Count, soilVertices.Count + furrowVertices.Count };
+            _ruralFieldMesh = new Mesh { name = "Rural farmland • combined plots and crop rows" };
+            _ruralFieldMesh.indexFormat = IndexFormat.UInt16;
+            _ruralFieldMesh.subMeshCount = 3;
+            _ruralFieldMesh.SetVertices(allVertices);
+            for (var submesh = 0; submesh < allTriangles.Length; submesh++)
+            {
+                var indices = allTriangles[submesh];
+                var offset = offsets[submesh];
+                for (var i = 0; i < indices.Count; i++) indices[i] += offset;
+                _ruralFieldMesh.SetTriangles(indices, submesh);
+            }
+            _ruralFieldMesh.RecalculateNormals();
+            _ruralFieldMesh.RecalculateBounds();
+
+            var fields = new GameObject("Rural farmland • scattered cultivated plots");
+            fields.transform.SetParent(root, false);
+            fields.isStatic = true;
+            fields.AddComponent<MeshFilter>().sharedMesh = _ruralFieldMesh;
+            var renderer = fields.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = new[] { soilMaterial, furrowMaterial, cropMaterial };
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static void AppendRuralStrip(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 start, Vector3 end, Vector3 halfWidth, float height)
+        {
+            var first = vertices.Count;
+            vertices.Add(start + halfWidth + Vector3.up * height);
+            vertices.Add(start - halfWidth + Vector3.up * height);
+            vertices.Add(end - halfWidth + Vector3.up * height);
+            vertices.Add(end + halfWidth + Vector3.up * height);
+            triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 1);
+            triangles.Add(first); triangles.Add(first + 3); triangles.Add(first + 2);
+        }
+
         private static void BuildGroundDetails(Transform root)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
@@ -724,6 +843,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_flowerMesh);
             DestroyAsset(_starMesh);
             DestroyAsset(_grassMesh);
+            DestroyAsset(_ruralFieldMesh);
             foreach (var material in _landscapeMaterials) DestroyAsset(material);
             _landscapeMaterials.Clear();
             _cloudMaterial = null;
@@ -737,6 +857,7 @@ namespace Pogranichye.Client.Presentation
             _flowerMesh = null;
             _starMesh = null;
             _grassMesh = null;
+            _ruralFieldMesh = null;
             _skyMaterial = null;
             _starMaterial = null;
             _grassMaterial = null;
