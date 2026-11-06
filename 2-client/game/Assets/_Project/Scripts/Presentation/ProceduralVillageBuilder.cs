@@ -2147,7 +2147,52 @@ namespace Pogranichye.Client.Presentation
             // Broken hedgerows and tree belts frame the fields without forming hard walls.
             BuildFieldTreeBelt(root, new Vector3(-29f, 0f, -18f), 13, true, worldSeed + ":west-belt");
             BuildFieldTreeBelt(root, new Vector3(29f, 0f, 16f), 15, false, worldSeed + ":east-belt");
+
+            // Low wildflowers soften the transition from cultivated soil to meadow.
+            // Keep them at the outer margins, away from road ribbons and clear walking lines.
+            BuildWildflowerStrip(root, new Vector3(-25f, 0f, -32.2f), 14f, true,
+                worldSeed + ":west-flowers");
+            BuildWildflowerStrip(root, new Vector3(37.2f, 0f, 15f), 19f, false,
+                worldSeed + ":east-flowers");
+            BuildWildflowerStrip(root, new Vector3(-6f, 0f, 34.8f), 18f, true,
+                worldSeed + ":north-flowers");
+
             BuildDistantRuralHorizon(root, worldSeed);
+        }
+
+        private static void BuildWildflowerStrip(Transform root, Vector3 center, float length,
+            bool alongX, string seedKey)
+        {
+            var random = new System.Random(StableSeed(seedKey));
+            const int flowers = 24;
+            for (var i = 0; i < flowers; i++)
+            {
+                // Small gaps and uneven offsets create a naturally colonised field edge.
+                if (random.NextDouble() < 0.18) continue;
+                var t = (i + (float)random.NextDouble()) / flowers - 0.5f;
+                var lateral = ((float)random.NextDouble() - 0.5f) * 1.15f;
+                var position = center + (alongX
+                    ? new Vector3(t * length, 0f, lateral)
+                    : new Vector3(lateral, 0f, t * length));
+                var height = 0.22f + (float)random.NextDouble() * 0.19f;
+                var stem = CreatePrimitive("Wildflower • slender stem", PrimitiveType.Cylinder, root,
+                    position + Vector3.up * (height * 0.5f), new Vector3(0.018f, height * 0.5f, 0.018f),
+                    _grassMaterial);
+                stem.transform.localRotation = Quaternion.Euler(
+                    (float)random.NextDouble() * 10f - 5f,
+                    (float)random.NextDouble() * 360f,
+                    (float)random.NextDouble() * 10f - 5f);
+                stem.isStatic = true;
+
+                var bloomPosition = position + Vector3.up * height;
+                var bloom = CreatePrimitive("Wildflower • pale bloom", PrimitiveType.Sphere, root,
+                    bloomPosition, new Vector3(0.095f, 0.065f, 0.095f), _foamMaterial);
+                bloom.isStatic = true;
+                var heart = CreatePrimitive("Wildflower • golden heart", PrimitiveType.Sphere, root,
+                    bloomPosition + Vector3.up * 0.018f,
+                    new Vector3(0.038f, 0.035f, 0.038f), _produceMaterial);
+                heart.isStatic = true;
+            }
         }
 
         private static void CreateCountryRoad(Transform root, string name, Vector3 position,
