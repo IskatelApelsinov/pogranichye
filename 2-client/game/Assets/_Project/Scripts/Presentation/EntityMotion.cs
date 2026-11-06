@@ -153,6 +153,8 @@ namespace Pogranichye.Client.Presentation
         }
 
         /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
+        public bool IsDrinkGesturePlaying => _drinkGestureRemaining > 0f;
+
         public void PlayDrinkGesture()
         {
             _drinkGestureRemaining = 1.35f;
