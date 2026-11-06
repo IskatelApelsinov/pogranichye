@@ -234,10 +234,55 @@ namespace Pogranichye.Client.Presentation
             if (villageAmbient != null) villageAmbient.RegisterLight(houseLight, 0.06f, 1.6f);
             CreatePrimitive("Roof ridge", PrimitiveType.Cube, house, new Vector3(0, 3.02f, 0),
                 new Vector3(0.18f, 0.18f, 3.35f), _woodMaterial);
+            BuildCottageGables(house);
             CreatePrimitive("Front timber beam", PrimitiveType.Cube, house, new Vector3(0, 2.05f, -1.44f),
                 new Vector3(3.35f, 0.13f, 0.12f), _roofMaterial);
             CreatePrimitive("Door handle", PrimitiveType.Sphere, house, new Vector3(0.23f, 0.72f, -1.48f),
                 new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
+        }
+
+        private static void BuildCottageGables(Transform house)
+        {
+            // Close the triangular ends beneath the pitched roof with narrow weathered boards.
+            // The same restrained timber framing is used on both ends of every cottage.
+            for (var end = -1; end <= 1; end += 2)
+            {
+                var faceZ = end * 1.46f;
+                for (var plank = -5; plank <= 5; plank++)
+                {
+                    var x = plank * 0.29f;
+                    var top = 3.02f - Mathf.Abs(x) * (0.72f / 1.7f);
+                    var height = Mathf.Max(0.06f, top - 2.30f);
+                    var board = CreatePrimitive("Cottage gable • vertical infill board", PrimitiveType.Cube, house,
+                        new Vector3(x, 2.30f + height * 0.5f, faceZ),
+                        new Vector3(0.27f, height, 0.045f), _woodMaterial);
+                    board.isStatic = true;
+                }
+
+                // Exposed sloping trim follows the corrected roof pitch and frames the gable.
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    var trim = CreatePrimitive("Cottage gable • sloping timber trim", PrimitiveType.Cube, house,
+                        new Vector3(side * 0.85f, 2.66f, faceZ + end * 0.035f),
+                        new Vector3(1.94f, 0.12f, 0.085f), _roofMaterial);
+                    trim.transform.localRotation = Quaternion.Euler(0f, 0f, side < 0 ? 23f : -23f);
+                    trim.isStatic = true;
+                }
+
+                // A small dark loft vent gives the otherwise solid gable a useful detail.
+                var vent = CreatePrimitive("Cottage gable • loft vent", PrimitiveType.Cube, house,
+                    new Vector3(0f, 2.70f, faceZ + end * 0.065f),
+                    new Vector3(0.34f, 0.18f, 0.035f), _metalMaterial);
+                vent.isStatic = true;
+                var ventLintel = CreatePrimitive("Cottage gable • vent lintel", PrimitiveType.Cube, house,
+                    new Vector3(0f, 2.81f, faceZ + end * 0.085f),
+                    new Vector3(0.46f, 0.055f, 0.045f), _woodMaterial);
+                ventLintel.isStatic = true;
+                var ventSill = CreatePrimitive("Cottage gable • vent sill", PrimitiveType.Cube, house,
+                    new Vector3(0f, 2.59f, faceZ + end * 0.085f),
+                    new Vector3(0.46f, 0.055f, 0.045f), _woodMaterial);
+                ventSill.isStatic = true;
+            }
         }
 
         private static void BuildYardApron(Transform house, string houseName)
