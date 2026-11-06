@@ -29,6 +29,7 @@ namespace Pogranichye.Client.Presentation
         private bool _firstPersonArmsAttached;
         private bool _hasPlayerMugState;
         private bool _playerHadMug;
+        private string _lastPlayerEquipmentSignature = string.Empty;
         private string _lastTalkEvent = string.Empty;
         private string _lastSocialEvent = string.Empty;
 
@@ -56,8 +57,6 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
-            // Activity animation is driven only by the server-confirmed registry code.
-            SetActivityCode(player, frame.Me.ActivityCode);
             var playerMotion = player.GetComponent<EntityMotion>();
             if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug && playerMotion != null)
                 playerMotion.PlayDrinkGesture();
@@ -66,6 +65,11 @@ namespace Pogranichye.Client.Presentation
             // Inventory/mug state remains server-authoritative; this is only a short visual tail.
             var showTankard = frame.Me.Mug || (playerMotion != null && playerMotion.IsDrinkGesturePlaying);
             SetMug(player, showTankard);
+            ApplyPlayerInventoryAppearance(player, frame.Me.Inventory, showTankard);
+            // Activity animation is driven only by the server-confirmed registry code.
+            // Apply inventory first so a real held item suppresses the generic activity prop
+            // before the activity code is refreshed for this snapshot.
+            SetActivityCode(player, frame.Me.ActivityCode);
             _hasPlayerMugState = true;
             _playerHadMug = frame.Me.Mug;
             PlayerTransform = player.transform;
@@ -126,6 +130,175 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+
+        private void ApplyPlayerInventoryAppearance(GameObject player, InventoryFrame inventory, bool tankardHeld)
+        {
+            if (player == null) return;
+            var handItem = inventory != null ? inventory.Hand ?? string.Empty : string.Empty;
+            var worn = inventory != null ? inventory.Worn : null;
+            var head = GetWornItem(worn, "head");
+            var body = GetWornItem(worn, "body");
+            var feet = GetWornItem(worn, "feet");
+            var signature = player.GetInstanceID() + "|" + handItem + "|" + head + "|" + body + "|" + feet +
+                "|" + (tankardHeld ? "mug" : "free");
+            var motion = player.GetComponent<EntityMotion>();
+            if (motion != null) motion.SetEquippedHandItem(handItem, tankardHeld);
+            if (signature == _lastPlayerEquipmentSignature) return;
+            _lastPlayerEquipmentSignature = signature;
+
+            if (_playerVisualRoot == null) return;
+            var oldWorn = _playerVisualRoot.Find("Worn equipment");
+            if (oldWorn != null) Object.Destroy(oldWorn.gameObject);
+            var wornRoot = new GameObject("Worn equipment").transform;
+            wornRoot.SetParent(_playerVisualRoot, false);
+
+            if (head == "hat") BuildWornHat(wornRoot);
+            if (body == "cloak") BuildWornCloak(wornRoot);
+            if (feet == "boots") BuildWornBoots(wornRoot);
+
+            // In first person, body clothing stays on the hidden world model. Hand-held
+            // equipment remains attached to the camera-following arm and stays visible.
+            if (_firstPersonArmsAttached)
+                foreach (var renderer in wornRoot.GetComponentsInChildren<Renderer>(true))
+                    renderer.enabled = false;
+
+            var hand = player.transform.Find("PlayerVisualRoot/Right arm/Right hand");
+            if (hand == null) return;
+            var oldHeld = hand.Find("Held equipment item");
+            if (oldHeld != null) Object.Destroy(oldHeld.gameObject);
+            if (tankardHeld || string.IsNullOrEmpty(handItem)) return;
+            BuildHeldItem(hand, handItem);
+        }
+
+        private static string GetWornItem(Dictionary<string, string> worn, string slot)
+        {
+            return worn != null && worn.TryGetValue(slot, out var item) ? item ?? string.Empty : string.Empty;
+        }
+
+        private void BuildWornHat(Transform root)
+        {
+            var wool = new Color(0.25f, 0.22f, 0.18f);
+            var brim = CreatePart("Worn hat • brim", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 1.82f, 0f), new Vector3(0.25f, 0.035f, 0.25f));
+            ApplyColor(brim.GetComponent<Renderer>(), wool);
+            var crown = CreatePart("Worn hat • crown", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 1.91f, 0f), new Vector3(0.17f, 0.10f, 0.17f));
+            ApplyColor(crown.GetComponent<Renderer>(), wool);
+            var band = CreatePart("Worn hat • leather band", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 1.88f, 0f), new Vector3(0.174f, 0.018f, 0.174f));
+            ApplyColor(band.GetComponent<Renderer>(), new Color(0.30f, 0.17f, 0.09f));
+        }
+
+        private void BuildWornCloak(Transform root)
+        {
+            var cloth = new Color(0.28f, 0.25f, 0.19f);
+            var mantle = CreatePart("Worn cloak • mantle", PrimitiveType.Capsule, root,
+                new Vector3(0f, 0.98f, -0.015f), new Vector3(0.50f, 0.55f, 0.35f));
+            ApplyColor(mantle.GetComponent<Renderer>(), cloth);
+            var back = CreatePart("Worn cloak • hanging back", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.83f, -0.205f), new Vector3(0.43f, 0.70f, 0.075f));
+            ApplyColor(back.GetComponent<Renderer>(), cloth);
+            var clasp = CreatePart("Worn cloak • bronze clasp", PrimitiveType.Sphere, root,
+                new Vector3(0f, 1.31f, 0.19f), new Vector3(0.075f, 0.075f, 0.035f));
+            ApplyColor(clasp.GetComponent<Renderer>(), new Color(0.62f, 0.43f, 0.17f));
+        }
+
+        private void BuildWornBoots(Transform root)
+        {
+            var leather = new Color(0.20f, 0.12f, 0.075f);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var boot = CreatePart("Worn boots • leather boot", PrimitiveType.Cube, root,
+                    new Vector3(side * 0.14f, 0.13f, 0.055f), new Vector3(0.22f, 0.19f, 0.31f));
+                ApplyColor(boot.GetComponent<Renderer>(), leather);
+                var cuff = CreatePart("Worn boots • cuff", PrimitiveType.Cylinder, root,
+                    new Vector3(side * 0.14f, 0.23f, 0f), new Vector3(0.105f, 0.035f, 0.105f));
+                ApplyColor(cuff.GetComponent<Renderer>(), new Color(0.29f, 0.18f, 0.10f));
+            }
+        }
+
+        private void BuildHeldItem(Transform hand, string item)
+        {
+            var held = new GameObject("Held equipment item").transform;
+            held.SetParent(hand, false);
+            held.localPosition = new Vector3(0f, -0.04f, 0.10f);
+            held.localRotation = Quaternion.identity;
+            held.localScale = Vector3.one * 3f;
+            var wood = new Color(0.28f, 0.16f, 0.085f);
+            var iron = new Color(0.31f, 0.34f, 0.36f);
+            var gold = new Color(0.55f, 0.39f, 0.16f);
+
+            if (item == "axe" || item == "rod" || item == "torch" || item == "lantern")
+            {
+                var shaft = CreatePart("Held item • wooden shaft", PrimitiveType.Cylinder, held,
+                    new Vector3(0f, 0.20f, 0f), new Vector3(0.022f, 0.22f, 0.022f));
+                ApplyColor(shaft.GetComponent<Renderer>(), wood);
+            }
+
+            switch (item)
+            {
+                case "axe":
+                {
+                    var blade = CreatePart("Held axe • iron blade", PrimitiveType.Cube, held,
+                        new Vector3(0.13f, 0.38f, 0f), new Vector3(0.24f, 0.13f, 0.055f));
+                    ApplyColor(blade.GetComponent<Renderer>(), iron);
+                    break;
+                }
+                case "sword":
+                {
+                    var blade = CreatePart("Held sword • blade", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.47f, 0f), new Vector3(0.045f, 0.34f, 0.035f));
+                    ApplyColor(blade.GetComponent<Renderer>(), iron);
+                    var guard = CreatePart("Held sword • crossguard", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.27f, 0f), new Vector3(0.17f, 0.035f, 0.045f));
+                    ApplyColor(guard.GetComponent<Renderer>(), gold);
+                    var grip = CreatePart("Held sword • grip", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.13f, 0f), new Vector3(0.022f, 0.075f, 0.022f));
+                    ApplyColor(grip.GetComponent<Renderer>(), wood);
+                    break;
+                }
+                case "bow":
+                {
+                    var upper = CreatePart("Held bow • upper limb", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.43f, 0f), new Vector3(0.018f, 0.17f, 0.018f));
+                    upper.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+                    ApplyColor(upper.GetComponent<Renderer>(), wood);
+                    var lower = CreatePart("Held bow • lower limb", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.12f, 0f), new Vector3(0.018f, 0.17f, 0.018f));
+                    lower.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+                    ApplyColor(lower.GetComponent<Renderer>(), wood);
+                    var grip = CreatePart("Held bow • grip", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.27f, 0f), new Vector3(0.023f, 0.09f, 0.023f));
+                    ApplyColor(grip.GetComponent<Renderer>(), gold);
+                    break;
+                }
+                case "rod":
+                {
+                    var tip = CreatePart("Held rod • tip", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.49f, 0f), new Vector3(0.009f, 0.12f, 0.009f));
+                    tip.transform.localRotation = Quaternion.Euler(0f, 0f, -10f);
+                    ApplyColor(tip.GetComponent<Renderer>(), wood);
+                    break;
+                }
+                case "torch":
+                {
+                    var flame = CreatePart("Held torch • flame", PrimitiveType.Sphere, held,
+                        new Vector3(0f, 0.48f, 0f), new Vector3(0.10f, 0.15f, 0.10f));
+                    ApplyColor(flame.GetComponent<Renderer>(), new Color(1f, 0.48f, 0.10f));
+                    break;
+                }
+                case "lantern":
+                {
+                    var frame = CreatePart("Held lantern • body", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.43f, 0f), new Vector3(0.16f, 0.20f, 0.12f));
+                    ApplyColor(frame.GetComponent<Renderer>(), gold);
+                    var glow = CreatePart("Held lantern • glass", PrimitiveType.Sphere, held,
+                        new Vector3(0f, 0.43f, 0.065f), new Vector3(0.075f, 0.11f, 0.035f));
+                    ApplyColor(glow.GetComponent<Renderer>(), new Color(1f, 0.72f, 0.30f));
+                    break;
+                }
+            }
+        }
 
         public bool TryGetView(string entityId, out GameObject view)
         {
@@ -268,6 +441,7 @@ namespace Pogranichye.Client.Presentation
             _lastSocialEvent = string.Empty;
             _hasPlayerMugState = false;
             _playerHadMug = false;
+            _lastPlayerEquipmentSignature = string.Empty;
             PlayerTransform = null;
         }
 
@@ -506,7 +680,8 @@ namespace Pogranichye.Client.Presentation
         private void SetMug(GameObject view, bool held)
         {
             if (view == null) return;
-            var hand = view.transform.Find("Right arm/Right hand");
+            var hand = view.transform.Find("PlayerVisualRoot/Right arm/Right hand");
+            if (hand == null) hand = view.transform.Find("Right arm/Right hand");
             if (hand == null) return;
 
             var mug = hand.Find("Held tankard");
