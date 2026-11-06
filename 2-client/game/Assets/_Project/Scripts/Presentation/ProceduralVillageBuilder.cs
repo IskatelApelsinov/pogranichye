@@ -1299,13 +1299,13 @@ namespace Pogranichye.Client.Presentation
                 }
                 case "mine":
                 {
-                    var pickHead = CreatePrimitive("Tool • pick iron head", PrimitiveType.Cube, tool,
+                    CreatePrimitive("Tool • pick iron head", PrimitiveType.Cube, tool,
                         new Vector3(0f, 0.42f, 0f), new Vector3(0.34f, 0.075f, 0.075f), _metalMaterial);
                     break;
                 }
                 case "forge":
                 {
-                    var hammerHead = CreatePrimitive("Tool • smith hammer head", PrimitiveType.Cube, tool,
+                    CreatePrimitive("Tool • smith hammer head", PrimitiveType.Cube, tool,
                         new Vector3(0f, 0.43f, 0f), new Vector3(0.23f, 0.13f, 0.13f), _metalMaterial);
                     break;
                 }
