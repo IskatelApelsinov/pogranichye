@@ -141,6 +141,7 @@ namespace Pogranichye.Client.Presentation
             BuildStreetDetails(village, worldSeed);
             BuildFirewoodYards(village, worldSeed);
             BuildYardWaterTroughs(village);
+            BuildYardChoppingStations(village);
             BuildWornFootpaths(village, worldSeed);
             BuildRoadsidePuddles(village, worldSeed);
 
@@ -621,6 +622,48 @@ namespace Pogranichye.Client.Presentation
                 var handleGrip = CreatePrimitive("Trough • bucket handle grip", PrimitiveType.Cube, trough,
                     new Vector3(0.83f, 0.515f, 0.48f), new Vector3(0.285f, 0.025f, 0.035f), _metalMaterial);
                 handleGrip.isStatic = true;
+            }
+        }
+
+        private static void BuildYardChoppingStations(Transform root)
+        {
+            // A small chopping place completes the firewood routine around the cottages.
+            // These are static scenery props, not an interactive resource or server work POI.
+            var positions = new[]
+            {
+                new Vector3(-36.5f, 0f, -13.2f),
+                new Vector3(36.5f, 0f, -13.2f)
+            };
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var station = new GameObject("Cottage chopping place • " + (i + 1)).transform;
+                station.SetParent(root, false);
+                station.localPosition = positions[i];
+                station.localRotation = Quaternion.Euler(0f, i == 0 ? -13f : 9f, 0f);
+
+                var stump = CreatePrimitive("Chopping block • cut oak stump", PrimitiveType.Cylinder, station,
+                    new Vector3(0f, 0.31f, 0f), new Vector3(0.34f, 0.31f, 0.34f), _woodMaterial);
+                stump.isStatic = true;
+                var cutTop = CreatePrimitive("Chopping block • pale cut surface", PrimitiveType.Cylinder, station,
+                    new Vector3(0f, 0.625f, 0f), new Vector3(0.31f, 0.018f, 0.31f), _roofMaterial);
+                cutTop.isStatic = true;
+
+                // A split billet rests beside the stump, with its cut face visible.
+                var billet = CreatePrimitive("Chopping place • split billet", PrimitiveType.Cylinder, station,
+                    new Vector3(0.58f, 0.16f, 0.24f), new Vector3(0.13f, 0.25f, 0.13f), _woodMaterial);
+                billet.transform.localRotation = Quaternion.Euler(90f, 0f, 90f);
+                billet.isStatic = true;
+
+                // A simple low-poly axe leans against the stump: wooden haft and iron head.
+                var haft = CreatePrimitive("Chopping place • axe haft", PrimitiveType.Cylinder, station,
+                    new Vector3(-0.39f, 0.59f, 0.08f), new Vector3(0.035f, 0.43f, 0.035f), _woodMaterial);
+                haft.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+                haft.isStatic = true;
+                var blade = CreatePrimitive("Chopping place • iron axe head", PrimitiveType.Cube, station,
+                    new Vector3(-0.52f, 0.91f, 0.08f), new Vector3(0.22f, 0.16f, 0.055f), _metalMaterial);
+                blade.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                blade.isStatic = true;
             }
         }
 
