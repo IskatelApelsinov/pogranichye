@@ -1623,10 +1623,31 @@ namespace Pogranichye.Client.Presentation
             {
                 var x = col * 0.8f - 1.2f;
                 var z = row * 0.9f + 2.8f;
-                CreatePrimitive("Garden bed", PrimitiveType.Cube, garden,
+                CreatePrimitive("Garden bed • raised soil", PrimitiveType.Cube, garden,
                     new Vector3(x, 0.12f, z), new Vector3(0.62f, 0.22f, 0.68f), _pathMaterial);
-                CreatePrimitive("Crop", PrimitiveType.Sphere, garden,
-                    new Vector3(x, 0.42f, z), new Vector3(0.34f, 0.55f, 0.34f), _leafMaterial);
+
+                // Two separate leafy plants replace the old single green sphere per bed.
+                for (var plant = 0; plant < 2; plant++)
+                {
+                    var side = plant == 0 ? -0.14f : 0.14f;
+                    var height = 0.30f + ((row + col + plant) % 3) * 0.055f;
+                    var stem = CreatePrimitive("Garden crop • stem", PrimitiveType.Cylinder, garden,
+                        new Vector3(x + side, 0.24f + height * 0.5f, z + (plant == 0 ? -0.08f : 0.08f)),
+                        new Vector3(0.025f, height * 0.5f, 0.025f), _leafMaterial);
+                    stem.isStatic = true;
+
+                    for (var leaf = 0; leaf < 3; leaf++)
+                    {
+                        var direction = leaf == 0 ? -1f : leaf == 1 ? 1f : 0f;
+                        var leafObject = CreatePrimitive("Garden crop • leaf", PrimitiveType.Sphere, garden,
+                            new Vector3(x + side + direction * 0.105f,
+                                0.34f + height * (leaf == 2 ? 0.72f : 0.48f),
+                                z + (plant == 0 ? -0.08f : 0.08f) + (leaf == 2 ? 0.025f : direction * 0.035f)),
+                            new Vector3(0.20f, 0.075f, 0.105f), _leafMaterial);
+                        leafObject.transform.localRotation = Quaternion.Euler(0f, direction * 24f, direction * -28f);
+                        leafObject.isStatic = true;
+                    }
+                }
             }
             CreatePoiMarker(root, "Огород • работать", new Vector3(70f, 0.08f, -20f), new Color(0.32f, 0.58f, 0.28f), "work");
         }
