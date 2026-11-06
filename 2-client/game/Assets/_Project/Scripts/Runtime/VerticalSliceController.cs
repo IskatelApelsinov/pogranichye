@@ -43,6 +43,7 @@ namespace Pogranichye.Client
         private string _pendingTalkTargetId;
         private float _pendingTalkDeadline;
         private string _talkFeedback;
+        private bool _talkConfirmationTimedOut;
         private const float TalkConfirmationTimeoutSeconds = 4f;
         private bool _firstPerson;
         private bool _hudCollapsed;
@@ -399,6 +400,7 @@ namespace Pogranichye.Client
                     if (string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
                     {
                         _pendingTalkTargetId = null;
+                        _talkConfirmationTimedOut = false;
                         _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
                     }
                     _status = "Не удалось начать разговор: " + ex.Message;
@@ -413,7 +415,7 @@ namespace Pogranichye.Client
                 Time.unscaledTime < _pendingTalkDeadline)
                 return;
 
-            _pendingTalkTargetId = null;
+            _talkConfirmationTimedOut = true;
             _talkFeedback = "В последних кадрах сервера нет разговора с выбранным жителем. Сервер не подтвердил запрос; возможно, цель слишком далеко или уже ушла. Подойдите ближе и попробуйте снова.";
         }
 
@@ -425,6 +427,7 @@ namespace Pogranichye.Client
                 return;
 
             _pendingTalkTargetId = null;
+            _talkConfirmationTimedOut = false;
             _talkFeedback = "В кадре сервера подтверждён активный разговор с выбранным жителем.";
         }
 
@@ -569,6 +572,7 @@ namespace Pogranichye.Client
             if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
             _pendingTalkTargetId = targetId;
             _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
+            _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
             _ = SendTalkAsync(targetId);
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
@@ -619,6 +623,7 @@ namespace Pogranichye.Client
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
             _talkFeedback = null;
+            _talkConfirmationTimedOut = false;
             ResetJumpPresentation();
             _views.Clear();
             _hasMovementBaseline = false;
@@ -678,6 +683,7 @@ namespace Pogranichye.Client
             _frame = null;
             _pendingTalkTargetId = null;
             _talkFeedback = null;
+            _talkConfirmationTimedOut = false;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
@@ -1036,6 +1042,7 @@ namespace Pogranichye.Client
             _tutorialNpcTargetId = null;
             _pendingTalkTargetId = null;
             _talkFeedback = null;
+            _talkConfirmationTimedOut = false;
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_firstPerson) SetCameraMode(false);
             socket?.Dispose();
