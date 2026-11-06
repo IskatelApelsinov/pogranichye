@@ -308,7 +308,7 @@ namespace Pogranichye.Client
                 GUILayout.Label(talk.Who ?? "Собеседник");
                 GUILayout.Label(talk.Line ?? "…", GUILayout.Height(54f));
                 if (!string.IsNullOrEmpty(_talkFeedback))
-                    GUILayout.Label(_talkFeedback, GUILayout.Height(34f));
+                    GUILayout.Label(_talkFeedback, GUILayout.Height(44f));
                 if (talk.Options != null)
                 {
                     foreach (var option in talk.Options)
@@ -419,7 +419,7 @@ namespace Pogranichye.Client
 
             _talkConfirmationTimedOut = true;
             _confirmedTalkTargetId = null;
-            _talkFeedback = "В последних кадрах сервера нет разговора с выбранным жителем. Сервер не подтвердил запрос; возможно, цель слишком далеко или уже ушла. Подойдите ближе и попробуйте снова.";
+            _talkFeedback = "В кадре сервера нет разговора с этим жителем. Запрос не подтверждён; подойдите ближе и повторите.";
         }
 
         private void UpdateTalkConfirmation(WorldFrame frame)
