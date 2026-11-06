@@ -10,6 +10,7 @@ namespace Pogranichye.Client.Presentation
     {
         private static Material _groundMaterial;
         private static Material _pathMaterial;
+        private static Material _roadRutMaterial;
         private static Material _woodMaterial;
         private static Material _roofMaterial;
         private static Material _stoneMaterial;
@@ -57,6 +58,9 @@ namespace Pogranichye.Client.Presentation
             _pathMaterial = CreateMaterial("Path • packed earth", new Color(0.48f, 0.38f, 0.27f));
             _pathMaterial.mainTexture = _pathTexture;
             _pathMaterial.mainTextureScale = new Vector2(3, 8);
+            _roadRutMaterial = CreateMaterial("Road • dark wheel-worn earth", new Color(0.31f, 0.25f, 0.19f));
+            _roadRutMaterial.mainTexture = _pathTexture;
+            _roadRutMaterial.mainTextureScale = new Vector2(2, 7);
             _woodTexture = MakeSurfaceTexture("Weathered timber texture", 2);
             _woodMaterial = CreateMaterial("Wood • warm timber", new Color(0.30f, 0.19f, 0.12f));
             _woodMaterial.mainTexture = _woodTexture;
@@ -1848,9 +1852,115 @@ namespace Pogranichye.Client.Presentation
         private static void CreateCountryRoad(Transform root, string name, Vector3 position,
             Vector3 size, float yaw)
         {
-            var road = CreatePrimitive(name, PrimitiveType.Cube, root, position, size, _pathMaterial);
-            road.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            // Build a deterministic, gently wandering centerline. The same road-path
+            // helper also accepts arbitrary waypoint polylines, so later settlement-to-
+            // settlement routes can reuse the exact surface/rut treatment without seams.
+            var radians = yaw * Mathf.Deg2Rad;
+            var forward = new Vector3(Mathf.Cos(radians), 0f, -Mathf.Sin(radians));
+            var side = new Vector3(-forward.z, 0f, forward.x);
+            var start = position - forward * (size.x * 0.5f);
+            var end = position + forward * (size.x * 0.5f);
+            var random = new System.Random(StableSeed(name));
+            var bend = ((float)random.NextDouble() - 0.5f) * 1.35f;
+            var centerline = new Vector3[9];
+            for (var i = 0; i < centerline.Length; i++)
+            {
+                var t = i / (float)(centerline.Length - 1);
+                var edgeNoise = i == 0 || i == centerline.Length - 1
+                    ? 0f
+                    : ((float)random.NextDouble() - 0.5f) * 0.16f;
+                centerline[i] = Vector3.Lerp(start, end, t)
+                    + side * (Mathf.Sin(t * Mathf.PI) * bend + edgeNoise);
+                centerline[i].y = position.y;
+            }
+
+            BuildRoadPath(root, name, centerline, size.z);
+        }
+
+        /// <summary>
+        /// Builds a presentation-only dirt road from shared waypoints. Adjacent road
+        /// segments can reuse the same endpoint, allowing a continuous road graph between
+        /// villages once the world/settlement placement data is available.
+        /// </summary>
+        public static void BuildRoadPath(Transform root, string name, Vector3[] centerline, float width)
+        {
+            if (root == null || centerline == null || centerline.Length < 2 ||
+                _pathMaterial == null || _roadRutMaterial == null) return;
+
+            var road = CreateMeshPart(name + " • packed-earth ribbon", root,
+                BuildRoadRibbonMesh(name + " • surface", centerline, width, 0f, 0.025f, true),
+                _pathMaterial);
             road.isStatic = true;
+
+            // Two darker wheel tracks make the lane read as a used road rather than a flat strip.
+            var rutOffset = width * 0.20f;
+            var rutWidth = Mathf.Clamp(width * 0.085f, 0.16f, 0.28f);
+            var leftRut = CreateMeshPart(name + " • left wheel rut", root,
+                BuildRoadRibbonMesh(name + " • left rut", centerline, rutWidth, rutOffset, 0.032f, false),
+                _roadRutMaterial);
+            leftRut.isStatic = true;
+            var rightRut = CreateMeshPart(name + " • right wheel rut", root,
+                BuildRoadRibbonMesh(name + " • right rut", centerline, rutWidth, -rutOffset, 0.032f, false),
+                _roadRutMaterial);
+            rightRut.isStatic = true;
+        }
+
+        private static Mesh BuildRoadRibbonMesh(string meshName, Vector3[] centerline,
+            float width, float lateralOffset, float height, bool irregularEdges)
+        {
+            var vertices = new Vector3[centerline.Length * 2];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[(centerline.Length - 1) * 6];
+            var distance = 0f;
+            for (var i = 0; i < centerline.Length; i++)
+            {
+                var tangent = i == 0
+                    ? centerline[1] - centerline[0]
+                    : i == centerline.Length - 1
+                        ? centerline[i] - centerline[i - 1]
+                        : centerline[i + 1] - centerline[i - 1];
+                tangent.y = 0f;
+                if (tangent.sqrMagnitude < 0.0001f) tangent = Vector3.forward;
+                tangent.Normalize();
+                var perpendicular = new Vector3(-tangent.z, 0f, tangent.x);
+                var edgeVariation = irregularEdges
+                    ? Mathf.Sin(i * 1.73f) * 0.035f + Mathf.Sin(i * 0.61f + 1.2f) * 0.022f
+                    : 0f;
+                var halfWidth = Mathf.Max(0.05f, width * 0.5f + edgeVariation);
+                var center = centerline[i] + perpendicular * lateralOffset;
+                center.y += height;
+                var left = center + perpendicular * halfWidth;
+                var right = center - perpendicular * halfWidth;
+                vertices[i * 2] = left;
+                vertices[i * 2 + 1] = right;
+
+                if (i > 0) distance += Vector3.Distance(centerline[i - 1], centerline[i]);
+                uvs[i * 2] = new Vector2(distance * 0.20f, 0f);
+                uvs[i * 2 + 1] = new Vector2(distance * 0.20f, 1f);
+            }
+
+            var triangle = 0;
+            for (var i = 0; i < centerline.Length - 1; i++)
+            {
+                var left = i * 2;
+                var right = left + 1;
+                var nextLeft = left + 2;
+                var nextRight = left + 3;
+                triangles[triangle++] = left;
+                triangles[triangle++] = nextLeft;
+                triangles[triangle++] = right;
+                triangles[triangle++] = nextLeft;
+                triangles[triangle++] = nextRight;
+                triangles[triangle++] = right;
+            }
+
+            var mesh = new Mesh { name = meshName };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static void BuildLargeField(Transform root, string name, Vector3 center,
@@ -2476,6 +2586,7 @@ namespace Pogranichye.Client.Presentation
         {
             DestroyAsset(_groundMaterial);
             DestroyAsset(_pathMaterial);
+            DestroyAsset(_roadRutMaterial);
             DestroyAsset(_woodMaterial);
             DestroyAsset(_roofMaterial);
             DestroyAsset(_stoneMaterial);
@@ -2510,6 +2621,7 @@ namespace Pogranichye.Client.Presentation
             DestroyAsset(_creekReedMesh);
             _groundMaterial = null;
             _pathMaterial = null;
+            _roadRutMaterial = null;
             _woodMaterial = null;
             _roofMaterial = null;
             _stoneMaterial = null;
