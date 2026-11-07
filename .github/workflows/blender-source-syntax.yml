@@ -1,0 +1,23 @@
+name: Blender source syntax
+
+on:
+  pull_request:
+    paths:
+      - "2-client/art-source/blender/**"
+      - ".github/workflows/blender-source-syntax.yml"
+  push:
+    paths:
+      - "2-client/art-source/blender/**"
+      - ".github/workflows/blender-source-syntax.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Compile Blender scripts without importing bpy
+        run: python3 -m py_compile 2-client/art-source/blender/*.py
