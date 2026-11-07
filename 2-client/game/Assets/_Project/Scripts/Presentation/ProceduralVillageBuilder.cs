@@ -1817,48 +1817,57 @@ namespace Pogranichye.Client.Presentation
         private static Mesh BuildBarrelBodyMesh()
         {
             const int sides = 10;
+            const int ringStride = sides + 1;
             var profile = new[] { new Vector2(0.31f, 0.02f), new Vector2(0.37f, 0.16f),
                 new Vector2(0.405f, 0.48f), new Vector2(0.37f, 0.80f), new Vector2(0.31f, 0.94f) };
-            var vertices = new Vector3[profile.Length * sides + 2];
+            var vertices = new Vector3[profile.Length * ringStride + 2];
+            var uvs = new Vector2[vertices.Length];
             var triangles = new int[(profile.Length - 1) * sides * 6 + sides * 6];
             for (var ring = 0; ring < profile.Length; ring++)
-            for (var side = 0; side < sides; side++)
+            for (var side = 0; side <= sides; side++)
             {
                 var angle = side * Mathf.PI * 2f / sides;
-                vertices[ring * sides + side] = new Vector3(
+                var index = ring * ringStride + side;
+                vertices[index] = new Vector3(
                     Mathf.Cos(angle) * profile[ring].x, profile[ring].y,
                     Mathf.Sin(angle) * profile[ring].x);
+                // Duplicate the seam vertex so the timber texture wraps cleanly from U=1 to U=0.
+                uvs[index] = new Vector2((float)side / sides, profile[ring].y / 0.94f);
             }
 
             var t = 0;
             for (var ring = 0; ring < profile.Length - 1; ring++)
             for (var side = 0; side < sides; side++)
             {
-                var a = ring * sides + side;
-                var b = ring * sides + (side + 1) % sides;
-                var c = (ring + 1) * sides + (side + 1) % sides;
-                var d = (ring + 1) * sides + side;
+                var a = ring * ringStride + side;
+                var b = a + 1;
+                var c = (ring + 1) * ringStride + side + 1;
+                var d = (ring + 1) * ringStride + side;
                 triangles[t++] = a; triangles[t++] = d; triangles[t++] = b;
                 triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
             }
 
-            var bottomCenter = profile.Length * sides;
+            var bottomCenter = profile.Length * ringStride;
             var topCenter = bottomCenter + 1;
             vertices[bottomCenter] = Vector3.up * profile[0].y;
             vertices[topCenter] = Vector3.up * profile[profile.Length - 1].y;
+            uvs[bottomCenter] = new Vector2(0.5f, 0.5f);
+            uvs[topCenter] = new Vector2(0.5f, 0.5f);
             for (var side = 0; side < sides; side++)
             {
+                // Down-facing bottom cap and up-facing top cap.
                 triangles[t++] = bottomCenter;
-                triangles[t++] = (side + 1) % sides;
+                triangles[t++] = side + 1;
                 triangles[t++] = side;
-                var top = (profile.Length - 1) * sides;
+                var top = (profile.Length - 1) * ringStride;
                 triangles[t++] = topCenter;
                 triangles[t++] = top + side;
-                triangles[t++] = top + (side + 1) % sides;
+                triangles[t++] = top + side + 1;
             }
 
             var mesh = new Mesh { name = "Ten-sided bulging oak barrel" };
             mesh.vertices = vertices;
+            mesh.uv = uvs;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
