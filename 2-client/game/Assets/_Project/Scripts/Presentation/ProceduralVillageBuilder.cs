@@ -1820,14 +1820,19 @@ namespace Pogranichye.Client.Presentation
             var profile = new[] { new Vector2(0.31f, 0.02f), new Vector2(0.37f, 0.16f),
                 new Vector2(0.405f, 0.48f), new Vector2(0.37f, 0.80f), new Vector2(0.31f, 0.94f) };
             var vertices = new Vector3[profile.Length * sides + 2];
+            var uvs = new Vector2[vertices.Length];
             var triangles = new int[(profile.Length - 1) * sides * 6 + sides * 6];
             for (var ring = 0; ring < profile.Length; ring++)
             for (var side = 0; side < sides; side++)
             {
                 var angle = side * Mathf.PI * 2f / sides;
-                vertices[ring * sides + side] = new Vector3(
+                var index = ring * sides + side;
+                vertices[index] = new Vector3(
                     Mathf.Cos(angle) * profile[ring].x, profile[ring].y,
                     Mathf.Sin(angle) * profile[ring].x);
+                // Stretch the weathered timber grain vertically around the barrel.
+                // U wraps once around the ten-sided body; V follows the barrel height.
+                uvs[index] = new Vector2((float)side / sides, profile[ring].y / 0.94f);
             }
 
             var t = 0;
@@ -1846,6 +1851,8 @@ namespace Pogranichye.Client.Presentation
             var topCenter = bottomCenter + 1;
             vertices[bottomCenter] = Vector3.up * profile[0].y;
             vertices[topCenter] = Vector3.up * profile[profile.Length - 1].y;
+            uvs[bottomCenter] = new Vector2(0.5f, 0.5f);
+            uvs[topCenter] = new Vector2(0.5f, 0.5f);
             for (var side = 0; side < sides; side++)
             {
                 triangles[t++] = bottomCenter;
@@ -1859,6 +1866,7 @@ namespace Pogranichye.Client.Presentation
 
             var mesh = new Mesh { name = "Ten-sided bulging oak barrel" };
             mesh.vertices = vertices;
+            mesh.uv = uvs;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
