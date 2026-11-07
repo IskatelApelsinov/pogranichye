@@ -1958,7 +1958,7 @@ namespace Pogranichye.Client.Presentation
                         var spokeView = CreatePrimitive("Cart wheel wooden spoke", PrimitiveType.Cylinder, cart,
                             new Vector3(faceX, 0.42f + direction.y * 0.235f,
                                 direction.z * 0.235f),
-                            new Vector3(0.035f, 0.235f, 0.035f), _roofMaterial);
+                            new Vector3(0.035f, 0.235f, 0.035f), _woodMaterial);
                         spokeView.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction);
                     }
 
