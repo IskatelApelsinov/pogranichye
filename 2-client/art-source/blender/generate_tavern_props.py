@@ -380,6 +380,7 @@ def selected_hierarchy(root):
 def export_prop(root, output_dir):
     name = root.name.replace("PROP_", "").lower()
     selected_hierarchy(root)
+    exported = False
     if hasattr(bpy.ops.export_scene, "fbx"):
         bpy.ops.export_scene.fbx(
             filepath=str(output_dir / (name + ".fbx")),
@@ -394,8 +395,7 @@ def export_prop(root, output_dir):
             path_mode="COPY",
             embed_textures=True,
         )
-    else:
-        raise RuntimeError("Blender FBX exporter is unavailable; enable io_scene_fbx.")
+        exported = True
     if hasattr(bpy.ops.export_scene, "gltf"):
         bpy.ops.export_scene.gltf(
             filepath=str(output_dir / (name + ".glb")),
@@ -407,6 +407,9 @@ def export_prop(root, output_dir):
             export_materials="EXPORT",
             export_image_format="AUTO",
         )
+        exported = True
+    if not exported:
+        raise RuntimeError("No FBX or glTF exporter is available in this Blender installation.")
 
 
 def preview_sheet(roots, materials):
