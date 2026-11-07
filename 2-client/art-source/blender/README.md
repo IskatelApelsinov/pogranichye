@@ -49,4 +49,4 @@ The script targets roughly 300–2,000 triangles per prop and records the actual
 
 ## Validation status
 
-The repository's current execution environment did not contain Blender, so this source could not be executed here and no generated `.blend`, FBX, GLB or preview image is claimed by this change. The first Blender run must validate script execution, triangle counts, texture packing and Unity import scale before the assets are used in the playable scene.
+The GitHub Actions workflow runs `python3 -m py_compile` on the source. This validates Python syntax only; the repository's current execution environment did not contain Blender, so Blender operators, generated `.blend`/FBX/GLB files, triangle counts, texture packing, preview render and Unity import scale remain unverified. The first Blender run must validate those before the assets are used in the playable scene.
