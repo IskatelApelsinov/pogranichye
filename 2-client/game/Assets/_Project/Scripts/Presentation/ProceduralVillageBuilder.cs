@@ -1939,36 +1939,123 @@ namespace Pogranichye.Client.Presentation
             for (var z = -1; z <= 1; z += 2)
                 CreatePrimitive("Cart side", PrimitiveType.Cube, cart, new Vector3(x * 0.58f, 0.95f, z * 0.38f),
                     new Vector3(0.10f, 0.62f, 0.85f), _woodMaterial);
+
+            const float wheelCenterY = 0.275f;
+            const float wheelFaceOffset = 0.068f;
+            const float hubRadius = 0.055f;
+            const float rimInnerRadius = 0.205f;
+            var spokeLength = rimInnerRadius - hubRadius;
+            var spokeCenterRadius = (rimInnerRadius + hubRadius) * 0.5f;
             for (var x = -1; x <= 1; x += 2)
             {
-                var wheel = CreatePrimitive("Cart wheel", PrimitiveType.Cylinder, cart,
-                    new Vector3(x * 0.72f, 0.42f, 0), new Vector3(0.12f, 0.55f, 0.55f), _woodMaterial);
-                wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
+                var wheelCenterX = x * 0.72f;
+                var wheel = CreateMeshPart("Cart wheel open wooden rim", cart,
+                    BuildCartWheelMesh(), _woodMaterial);
+                wheel.transform.localPosition = new Vector3(wheelCenterX, wheelCenterY, 0f);
 
-                // Eight spokes and an iron hub make the wheel read as a built wooden cart wheel,
-                // rather than a solid cylinder. Both faces are dressed because the cart is visible
-                // while approaching from either side.
+                // The rim is a hollow ring. Eight spokes bridge its inner edge to the hub
+                // on both visible faces; their ends stay inside the rim instead of protruding.
                 for (var face = -1; face <= 1; face += 2)
                 {
-                    var faceX = x * 0.72f + face * 0.125f;
+                    var faceX = wheelCenterX + face * wheelFaceOffset;
                     for (var spoke = 0; spoke < 8; spoke++)
                     {
                         var angle = spoke * Mathf.PI * 0.25f;
                         var direction = new Vector3(0f, Mathf.Cos(angle), Mathf.Sin(angle));
                         var spokeView = CreatePrimitive("Cart wheel wooden spoke", PrimitiveType.Cylinder, cart,
-                            new Vector3(faceX, 0.42f + direction.y * 0.235f,
-                                direction.z * 0.235f),
-                            new Vector3(0.035f, 0.235f, 0.035f), _woodMaterial);
+                            new Vector3(faceX, wheelCenterY + direction.y * spokeCenterRadius,
+                                direction.z * spokeCenterRadius),
+                            new Vector3(0.035f, spokeLength * 0.5f, 0.035f), _woodMaterial);
                         spokeView.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction);
                     }
 
                     var hub = CreatePrimitive("Cart wheel iron hub", PrimitiveType.Cylinder, cart,
-                        new Vector3(faceX, 0.42f, 0f), new Vector3(0.18f, 0.11f, 0.11f), _metalMaterial);
+                        new Vector3(faceX, wheelCenterY, 0f), new Vector3(0.11f, 0.035f, 0.11f), _metalMaterial);
                     hub.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
                 }
             }
             CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
                 new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
+        }
+
+        private static Mesh BuildCartWheelMesh()
+        {
+            const int sides = 12;
+            const float outerRadius = 0.275f;
+            const float innerRadius = 0.205f;
+            const float halfThickness = 0.06f;
+            var vertices = new Vector3[sides * 16];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[sides * 24];
+            var vertexIndex = 0;
+            var triangleIndex = 0;
+
+            void AddQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d,
+                Vector2 uvA, Vector2 uvB, Vector2 uvC, Vector2 uvD)
+            {
+                var first = vertexIndex;
+                vertices[vertexIndex] = a; uvs[vertexIndex++] = uvA;
+                vertices[vertexIndex] = b; uvs[vertexIndex++] = uvB;
+                vertices[vertexIndex] = c; uvs[vertexIndex++] = uvC;
+                vertices[vertexIndex] = d; uvs[vertexIndex++] = uvD;
+                triangles[triangleIndex++] = first;
+                triangles[triangleIndex++] = first + 1;
+                triangles[triangleIndex++] = first + 2;
+                triangles[triangleIndex++] = first;
+                triangles[triangleIndex++] = first + 2;
+                triangles[triangleIndex++] = first + 3;
+            }
+
+            Vector2 FaceUv(float radius, float angle)
+            {
+                var normalizedRadius = radius / (2f * outerRadius);
+                return new Vector2(0.5f + Mathf.Cos(angle) * normalizedRadius,
+                    0.5f + Mathf.Sin(angle) * normalizedRadius);
+            }
+
+            for (var side = 0; side < sides; side++)
+            {
+                var angle0 = side * Mathf.PI * 2f / sides;
+                var angle1 = (side + 1) * Mathf.PI * 2f / sides;
+                var cos0 = Mathf.Cos(angle0);
+                var sin0 = Mathf.Sin(angle0);
+                var cos1 = Mathf.Cos(angle1);
+                var sin1 = Mathf.Sin(angle1);
+                var outerFront0 = new Vector3(-halfThickness, cos0 * outerRadius, sin0 * outerRadius);
+                var outerFront1 = new Vector3(-halfThickness, cos1 * outerRadius, sin1 * outerRadius);
+                var innerFront0 = new Vector3(-halfThickness, cos0 * innerRadius, sin0 * innerRadius);
+                var innerFront1 = new Vector3(-halfThickness, cos1 * innerRadius, sin1 * innerRadius);
+                var outerBack0 = new Vector3(halfThickness, cos0 * outerRadius, sin0 * outerRadius);
+                var outerBack1 = new Vector3(halfThickness, cos1 * outerRadius, sin1 * outerRadius);
+                var innerBack0 = new Vector3(halfThickness, cos0 * innerRadius, sin0 * innerRadius);
+                var innerBack1 = new Vector3(halfThickness, cos1 * innerRadius, sin1 * innerRadius);
+                var u0 = (float)side / sides;
+                var u1 = (float)(side + 1) / sides;
+
+                // Front and back annuli face outward along -X and +X respectively.
+                AddQuad(outerFront0, innerFront0, innerFront1, outerFront1,
+                    FaceUv(outerRadius, angle0), FaceUv(innerRadius, angle0),
+                    FaceUv(innerRadius, angle1), FaceUv(outerRadius, angle1));
+                AddQuad(outerBack0, outerBack1, innerBack1, innerBack0,
+                    FaceUv(outerRadius, angle0), FaceUv(outerRadius, angle1),
+                    FaceUv(innerRadius, angle1), FaceUv(innerRadius, angle0));
+
+                // Close the outer and inner cylindrical walls of the wooden rim.
+                AddQuad(outerFront0, outerFront1, outerBack1, outerBack0,
+                    new Vector2(u0, 0f), new Vector2(u1, 0f),
+                    new Vector2(u1, 1f), new Vector2(u0, 1f));
+                AddQuad(innerFront0, innerBack0, innerBack1, innerFront1,
+                    new Vector2(u0, 0f), new Vector2(u0, 1f),
+                    new Vector2(u1, 1f), new Vector2(u1, 0f));
+            }
+
+            var mesh = new Mesh { name = "Twelve-sided open-spoked cart wheel rim" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static void BuildCreekAndFootbridge(Transform root)
