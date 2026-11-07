@@ -49,4 +49,4 @@ The script does not download or embed any third-party assets. All geometry and t
 
 ## Validation status
 
-The repository's current execution environment did not contain Blender, so this source could not be executed here and no generated `.blend`, FBX, GLB or preview image is claimed by this change. Python syntax is checked separately; the first Blender run should be reviewed for triangle counts, texture packing and Unity import scale before the assets are used in the playable scene.
+The repository's current execution environment did not contain Blender, so this source could not be executed here and no generated `.blend`, FBX, GLB or preview image is claimed by this change. The first Blender run must validate script execution, triangle counts, texture packing and Unity import scale before the assets are used in the playable scene.
