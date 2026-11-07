@@ -1944,6 +1944,28 @@ namespace Pogranichye.Client.Presentation
                 var wheel = CreatePrimitive("Cart wheel", PrimitiveType.Cylinder, cart,
                     new Vector3(x * 0.72f, 0.42f, 0), new Vector3(0.12f, 0.55f, 0.55f), _woodMaterial);
                 wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
+
+                // Eight spokes and an iron hub make the wheel read as a built wooden cart wheel,
+                // rather than a solid cylinder. Both faces are dressed because the cart is visible
+                // while approaching from either side.
+                for (var face = -1; face <= 1; face += 2)
+                {
+                    var faceX = x * 0.72f + face * 0.125f;
+                    for (var spoke = 0; spoke < 8; spoke++)
+                    {
+                        var angle = spoke * Mathf.PI * 0.25f;
+                        var direction = new Vector3(0f, Mathf.Cos(angle), Mathf.Sin(angle));
+                        var spokeView = CreatePrimitive("Cart wheel wooden spoke", PrimitiveType.Cylinder, cart,
+                            new Vector3(faceX, 0.42f + direction.y * 0.235f,
+                                direction.z * 0.235f),
+                            new Vector3(0.035f, 0.235f, 0.035f), _woodMaterial);
+                        spokeView.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction);
+                    }
+
+                    var hub = CreatePrimitive("Cart wheel iron hub", PrimitiveType.Cylinder, cart,
+                        new Vector3(faceX, 0.42f, 0f), new Vector3(0.18f, 0.11f, 0.11f), _metalMaterial);
+                    hub.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                }
             }
             CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
                 new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
