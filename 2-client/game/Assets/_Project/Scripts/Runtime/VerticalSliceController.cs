@@ -592,6 +592,7 @@ namespace Pogranichye.Client
             if (_tutorialStep == 0) _tutorialNpcTargetId = targetId;
             var requestSerial = ++_talkRequestSerial;
             _pendingTalkTargetId = targetId;
+            _pendingTalkRequestSerial = requestSerial;
             _confirmedTalkTargetId = null;
             _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
             _talkConfirmationTimedOut = false;
