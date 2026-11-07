@@ -17,7 +17,7 @@ The wooden handcart is deliberately not duplicated: it already has a dedicated U
 
 ## Generate
 
-Requires Blender 4.2 or newer. No third-party models or add-ons are used. At least one bundled exporter (FBX or glTF) must be available; on installations where it is not enabled, enable the corresponding Blender exporter before running.
+Requires Blender 4.2 or newer. No third-party models or add-ons are used. The generator attempts FBX and glTF independently: one exporter may fail while the other still produces a usable asset. Each manifest entry records successful formats and any exporter warnings; every prop must produce at least one format for the run to succeed. If neither format is available, enable the corresponding Blender exporter before running.
 
 From this folder:
 
