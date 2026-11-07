@@ -383,36 +383,61 @@ def selected_hierarchy(root):
 def export_prop(root, output_dir):
     name = root.name.replace("PROP_", "").lower()
     selected_hierarchy(root)
-    exported = False
-    if hasattr(bpy.ops.export_scene, "fbx"):
-        bpy.ops.export_scene.fbx(
-            filepath=str(output_dir / (name + ".fbx")),
-            use_selection=True,
-            object_types={"MESH", "EMPTY"},
-            apply_unit_scale=True,
-            apply_scale_options="FBX_SCALE_ALL",
-            axis_forward="-Z",
-            axis_up="Y",
-            use_mesh_modifiers=True,
-            bake_anim=False,
-            path_mode="COPY",
-            embed_textures=True,
-        )
-        exported = True
-    if hasattr(bpy.ops.export_scene, "gltf"):
-        bpy.ops.export_scene.gltf(
-            filepath=str(output_dir / (name + ".glb")),
-            export_format="GLB",
-            use_selection=True,
-            export_apply=True,
-            export_texcoords=True,
-            export_normals=True,
-            export_materials="EXPORT",
-            export_image_format="AUTO",
-        )
-        exported = True
+    exported = []
+    failures = []
+
+    def attempt(label, extension, operator, **kwargs):
+        if operator is None:
+            failures.append("%s: exporter is not available" % label)
+            return
+        filepath = output_dir / (name + extension)
+        try:
+            result = operator(filepath=str(filepath), **kwargs)
+            if "FINISHED" not in result:
+                raise RuntimeError("operator returned %r" % (result,))
+            exported.append(label)
+        except Exception as exc:
+            failures.append("%s: %s: %s" % (label, type(exc).__name__, exc))
+            print("[Pogranichye] WARNING: %s export failed for %s: %s" % (
+                label, root.name, exc
+            ))
+
+    export_scene = bpy.ops.export_scene
+    attempt(
+        "fbx",
+        ".fbx",
+        getattr(export_scene, "fbx", None),
+        use_selection=True,
+        object_types={"MESH", "EMPTY"},
+        apply_unit_scale=True,
+        apply_scale_options="FBX_SCALE_ALL",
+        axis_forward="-Z",
+        axis_up="Y",
+        use_mesh_modifiers=True,
+        bake_anim=False,
+        path_mode="COPY",
+        embed_textures=True,
+    )
+    attempt(
+        "glb",
+        ".glb",
+        getattr(export_scene, "gltf", None),
+        export_format="GLB",
+        use_selection=True,
+        export_apply=True,
+        export_texcoords=True,
+        export_normals=True,
+        export_materials="EXPORT",
+        export_image_format="AUTO",
+    )
+
     if not exported:
-        raise RuntimeError("No FBX or glTF exporter is available in this Blender installation.")
+        raise RuntimeError(
+            "No usable FBX or glTF export for %s. Attempts: %s" % (
+                root.name, "; ".join(failures)
+            )
+        )
+    return exported, failures
 
 
 def preview_sheet(roots, materials):
@@ -528,8 +553,10 @@ def build():
         })
 
     preview_sheet(roots, materials)
-    for root in roots:
-        export_prop(root, OUTPUT)
+    for root, asset in zip(roots, manifest["assets"]):
+        formats, warnings = export_prop(root, OUTPUT)
+        asset["exports"] = formats
+        asset["export_warnings"] = warnings
 
     (OUTPUT / "asset_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
