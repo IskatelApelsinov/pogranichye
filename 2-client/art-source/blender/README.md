@@ -17,7 +17,7 @@ The wooden handcart is deliberately not duplicated: it already has a dedicated U
 
 ## Generate
 
-Requires Blender 4.2 or newer. No third-party Blender add-ons or external models are used.
+Requires Blender 4.2 or newer. No third-party models or add-ons are used. At least one bundled exporter (FBX or glTF) must be available; on installations where it is not enabled, enable the corresponding Blender exporter before running.
 
 From this folder:
 
@@ -34,7 +34,7 @@ The script creates an ignored `generated/` folder containing:
 - `tavern_props_preview.png` — a simple asset-sheet render;
 - `asset_manifest.json` — generated triangle counts and export metadata.
 
-The script does not download or embed any third-party assets. All geometry and texture pixels are generated locally and deterministically.
+The script targets roughly 300–2,000 triangles per prop and records the actual count plus an in-budget flag in the manifest. It does not download or embed any third-party assets. All geometry and texture pixels are generated locally and deterministically.
 
 ## Scale, pivots and Unity import
 
