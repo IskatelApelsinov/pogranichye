@@ -21,6 +21,7 @@ HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "generated"
 TEXTURE_DIR = OUTPUT / "textures"
 TEXTURE_SIZE = 128
+TRIANGLE_BUDGET = (300, 2000)
 TAU = math.pi * 2.0
 
 
@@ -515,9 +516,12 @@ def build():
         "assets": [],
     }
     for root in roots:
+        triangles = triangle_count(root)
         manifest["assets"].append({
             "root": root.name,
-            "triangle_count": triangle_count(root),
+            "triangle_count": triangles,
+            "triangle_budget": list(TRIANGLE_BUDGET),
+            "within_triangle_budget": TRIANGLE_BUDGET[0] <= triangles <= TRIANGLE_BUDGET[1],
             "origin": "ground-centred",
             "materials": sorted({slot.material.name for obj in root.children_recursive
                                  if obj.type == "MESH" for slot in obj.material_slots if slot.material}),
@@ -536,6 +540,9 @@ def build():
 
     for asset in manifest["assets"]:
         print("[Pogranichye] %s: %d triangles" % (asset["root"], asset["triangle_count"]))
+        if not asset["within_triangle_budget"]:
+            print("[Pogranichye] WARNING: %s is outside the %d-%d triangle target." % (
+                asset["root"], TRIANGLE_BUDGET[0], TRIANGLE_BUDGET[1]))
     print("[Pogranichye] Outputs written to %s" % OUTPUT)
 
 
