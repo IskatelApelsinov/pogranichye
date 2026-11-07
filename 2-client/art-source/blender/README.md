@@ -28,8 +28,8 @@ blender --background --python generate_tavern_props.py
 The script creates an ignored `generated/` folder containing:
 
 - `Pogranichye_Tavern_Props.blend` — editable master scene;
-- one `.fbx` per prop for direct Unity import;
-- one `.glb` per prop for interchange/review when the glTF exporter is available;
+- one `.fbx` per prop for direct Unity import when the built-in FBX exporter is available;
+- one `.glb` per prop for interchange/review when the built-in glTF exporter is available (at least one exporter must be available);
 - `textures/*.png` — original 128×128 procedural colour textures;
 - `tavern_props_preview.png` — a simple asset-sheet render;
 - `asset_manifest.json` — generated triangle counts and export metadata.
