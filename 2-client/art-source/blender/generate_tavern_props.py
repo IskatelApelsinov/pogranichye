@@ -76,10 +76,12 @@ def make_material(name, colour, roughness=0.7, metallic=0.0, image=None):
     shader.inputs["Metallic"].default_value = metallic
     links.new(shader.outputs["BSDF"], output.inputs["Surface"])
     if image is not None:
+        coordinates = nodes.new("ShaderNodeTexCoord")
         texture = nodes.new("ShaderNodeTexImage")
         texture.image = image
         texture.interpolation = "Linear"
         texture.extension = "REPEAT"
+        links.new(coordinates.outputs["UV"], texture.inputs["Vector"])
         links.new(texture.outputs["Color"], shader.inputs["Base Color"])
     return material
 
