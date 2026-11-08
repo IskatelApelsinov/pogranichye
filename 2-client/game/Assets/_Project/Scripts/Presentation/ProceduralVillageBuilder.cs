@@ -1231,7 +1231,22 @@ namespace Pogranichye.Client.Presentation
         /// </summary>
         public static GameObject CreateTankardView(Transform parent, string objectName)
         {
-            if (parent == null || _mugWoodMaterial == null || _mugBandMaterial == null ||
+            if (parent == null) return null;
+
+            // The authored FBX is loaded from Resources so the same model is used on tables and in-hand.
+            // The existing procedural mesh remains a safe fallback until the generated asset is imported.
+            var authoredTankardPrefab = Resources.Load<GameObject>("Generated/Tavern/tankard_oakbeer");
+            if (authoredTankardPrefab != null)
+            {
+                var authoredTankard = UnityEngine.Object.Instantiate(authoredTankardPrefab, parent, false);
+                authoredTankard.name = string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName;
+                authoredTankard.transform.localPosition = Vector3.zero;
+                authoredTankard.transform.localRotation = Quaternion.identity;
+                authoredTankard.transform.localScale = Vector3.one;
+                return authoredTankard;
+            }
+
+            if (_mugWoodMaterial == null || _mugBandMaterial == null ||
                 _beerMaterial == null || _foamMaterial == null) return null;
 
             var mug = new GameObject(string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName).transform;
@@ -1789,6 +1804,18 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildBarrel(Transform root, Vector3 position, float scale)
         {
+            // Prefer the authored Blender prop when the generated Resources asset is present.
+            // Keep the procedural fallback so the village remains buildable before the asset pipeline runs.
+            var authoredBarrelPrefab = Resources.Load<GameObject>("Generated/Tavern/barrel_oak");
+            if (authoredBarrelPrefab != null)
+            {
+                var authoredBarrel = UnityEngine.Object.Instantiate(authoredBarrelPrefab, root, false);
+                authoredBarrel.name = "Oak barrel • authored";
+                authoredBarrel.transform.position = position;
+                authoredBarrel.transform.localScale = Vector3.one * (scale * 2.3f);
+                return;
+            }
+
             var barrel = new GameObject("Oak barrel").transform;
             barrel.SetParent(root, false);
             barrel.position = position;
