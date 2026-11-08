@@ -15,6 +15,7 @@ namespace Pogranichye.Client.Presentation
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         private readonly Dictionary<ulong, GameObject> _views = new Dictionary<ulong, GameObject>();
+        private readonly Dictionary<ulong, string> _neighborEquipmentSignatures = new Dictionary<ulong, string>();
         private readonly MaterialPropertyBlock _propertyBlock = new MaterialPropertyBlock();
         private readonly Transform _root;
         private Transform _leftPlayerArm;
@@ -94,6 +95,7 @@ namespace Pogranichye.Client.Presentation
                         : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
                     SetActivityCode(view, neighbor.ActivityCode);
+                    ApplyNeighborGearAppearance(view, neighbor.Gear, id);
                     var targetRotation = neighbor.Position != null
                         ? Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f)
                         : position.sqrMagnitude > 0.01f
@@ -127,9 +129,64 @@ namespace Pogranichye.Client.Presentation
             {
                 if (_views[id] != null) Object.Destroy(_views[id]);
                 _views.Remove(id);
+                _neighborEquipmentSignatures.Remove(id);
             }
         }
 
+
+        /// <summary>
+        /// Applies only the public hand/worn subset from neighbors[].gear. Never infers
+        /// equipment from role, activity text, or the client's own inventory.
+        /// </summary>
+        private void ApplyNeighborGearAppearance(GameObject view, NeighborGearFrame gear, ulong entityId)
+        {
+            if (view == null) return;
+
+            var handItem = gear != null ? gear.Hand ?? string.Empty : string.Empty;
+            var worn = gear != null ? gear.Worn : null;
+            var head = GetWornItem(worn, "head");
+            var body = GetWornItem(worn, "body");
+            var feet = GetWornItem(worn, "feet");
+            var signature = (gear == null ? "legacy" : "public") + "|" + handItem + "|" + head + "|" + body + "|" + feet;
+
+            var motion = view.GetComponent<EntityMotion>();
+            var supportedHandItem = IsSupportedHandItem(handItem) ? handItem : string.Empty;
+            if (motion != null) motion.SetEquippedHandItem(supportedHandItem, false);
+
+            if (_neighborEquipmentSignatures.TryGetValue(entityId, out var previous) && previous == signature)
+                return;
+            _neighborEquipmentSignatures[entityId] = signature;
+
+            var oldWorn = view.transform.Find("Worn equipment");
+            if (oldWorn != null) Object.Destroy(oldWorn.gameObject);
+            var wornRoot = new GameObject("Worn equipment").transform;
+            wornRoot.SetParent(view.transform, false);
+            if (head == "hat") BuildWornHat(wornRoot);
+            if (body == "cloak") BuildWornCloak(wornRoot);
+            if (feet == "boots") BuildWornBoots(wornRoot);
+
+            var hand = view.transform.Find("Right arm/Right hand");
+            if (hand == null) return;
+            var oldHeld = hand.Find("Held equipment item");
+            if (oldHeld != null) Object.Destroy(oldHeld.gameObject);
+            if (supportedHandItem.Length > 0) BuildHeldItem(hand, supportedHandItem);
+        }
+
+        private static bool IsSupportedHandItem(string item)
+        {
+            switch (item)
+            {
+                case "axe":
+                case "sword":
+                case "bow":
+                case "rod":
+                case "torch":
+                case "lantern":
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         private void ApplyPlayerInventoryAppearance(GameObject player, InventoryFrame inventory, bool tankardHeld)
         {
