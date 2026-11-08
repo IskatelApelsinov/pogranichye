@@ -5,6 +5,10 @@ on:
     paths:
       - "2-client/art-source/blender/**"
       - ".github/workflows/blender-asset-validation.yml"
+  push:
+    paths:
+      - "2-client/art-source/blender/**"
+      - ".github/workflows/blender-asset-validation.yml"
   workflow_dispatch:
 
 permissions:
