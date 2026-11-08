@@ -56,6 +56,7 @@ The validator opens the generated scene, checks the four root objects and ground
 - After a successful Blender validation run on `main`, a separate bot branch is created with the validated FBX files, source PNG textures and manifest under `2-client/game/Assets/Resources/TavernProps`; the workflow opens a normal pull request for review. It never commits generated assets directly to `main`. Unity imports these as Resources so the client can load them without scene/prefab GUID references.
 - `ProceduralVillageBuilder` uses the authored tankard, barrel, market basket and tavern bench when the Resources assets are present; its existing procedural meshes remain as a safe fallback for fresh clones or before Unity has imported the files.
 - Imported material slots are remapped to the client's initialized URP-compatible runtime materials by their Blender material names. This keeps the client from relying on Blender shader conversion; the original PNGs remain available for future authored material assets.
+- The authored barrel is non-uniformly scaled to match the former procedural prop's approximate 0.69 m diameter and 0.80 m height. The tavern bench is placed beyond the south edge of the server-blocked tavern footprint, near the existing tavern POI, rather than inside a region the server rejects as obstructed.
 - These are presentation assets only. They do not define server collision, POI coordinates, interaction range or authoritative item state.
 
 ## Validation status
