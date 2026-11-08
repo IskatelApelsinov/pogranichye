@@ -69,6 +69,10 @@ namespace Pogranichye.Client
         private float _movementPlayerYawDebug;
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
+        private readonly List<string> _sessionJournal = new List<string>();
+        private string _lastJournalAction;
+        private string _lastJournalTaskSignature;
+        private string _lastJournalResultId;
         [SerializeField] private float moveSendInterval = 0.05f;
         private float _moveSendAccumulator;
         private float _lastMoveSentAt;
@@ -368,7 +372,54 @@ namespace Pogranichye.Client
             GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Записей пока нет." : me.Last, GUILayout.Height(48f));
             if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
                 GUILayout.Label((me.Result.Ok ? "Успех: " : "Отказ: ") + (me.Result.Reason ?? me.Result.RequestId), GUILayout.Height(42f));
-            GUILayout.Label("История событий и слухи будут добавлены отдельным экраном после подключения серверной летописи.");
+
+            GUILayout.Space(8f);
+            GUILayout.Label("ЗАПИСИ ЭТОГО СЕАНСА");
+            if (_sessionJournal.Count == 0)
+                GUILayout.Label("Пока нет новых наблюдаемых событий.");
+            else
+                foreach (var entry in _sessionJournal)
+                    GUILayout.Label("• " + entry, GUILayout.Height(36f));
+            GUILayout.Label("Локальная история наблюдений с момента входа. Полная летопись персонажа появится после серверной поддержки.");
+        }
+
+        private void CaptureSessionJournal(WorldFrame frame)
+        {
+            if (frame?.Me == null) return;
+            var me = frame.Me;
+            var stamp = $"День {frame.Day}, год {frame.Year}";
+
+            if (!string.IsNullOrWhiteSpace(me.Last) && me.Last != _lastJournalAction)
+            {
+                _lastJournalAction = me.Last;
+                AddSessionJournalEntry(stamp + " · " + me.Last);
+            }
+
+            if (me.Task != null)
+            {
+                var signature = $"{me.Task.Met}|{me.Task.Worked}|{me.Task.Drank}|{me.Task.Done}|{me.Task.Text}";
+                if (signature != _lastJournalTaskSignature)
+                {
+                    _lastJournalTaskSignature = signature;
+                    AddSessionJournalEntry(stamp + " · Поручение: " + (me.Task.Text ?? "обновился прогресс"));
+                }
+            }
+
+            if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId)
+                && me.Result.RequestId != _lastJournalResultId)
+            {
+                _lastJournalResultId = me.Result.RequestId;
+                var outcome = me.Result.Ok ? "Подтверждено" : "Отказ сервера";
+                AddSessionJournalEntry(stamp + " · " + outcome + ": "
+                    + (me.Result.Reason ?? me.Result.RequestId));
+            }
+        }
+
+        private void AddSessionJournalEntry(string entry)
+        {
+            _sessionJournal.Insert(0, entry);
+            if (_sessionJournal.Count > 40)
+                _sessionJournal.RemoveAt(_sessionJournal.Count - 1);
         }
 
         private void DrawSettingsTab()
@@ -858,6 +909,7 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
                     UpdateTutorialIntroduction(frame);
                     if (!frame.Alive)
