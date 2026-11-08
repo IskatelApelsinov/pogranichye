@@ -506,7 +506,11 @@ namespace Pogranichye.Client.Presentation
             holder.transform.SetParent(parent, false);
             holder.transform.localPosition = localPosition;
             var particles = holder.AddComponent<ParticleSystem>();
+            // AddComponent may auto-start the default system. Stop and clear it before
+            // changing duration or other main-module settings during procedural setup.
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = particles.main;
+            main.playOnAwake = false;
             main.loop = true;
             main.duration = 12f;
             main.maxParticles = 10;
@@ -546,6 +550,7 @@ namespace Pogranichye.Client.Presentation
             renderer.alignment = ParticleSystemRenderSpace.View;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            particles.Play();
         }
 
         private static void BuildFirewoodYards(Transform root, string worldSeed)
