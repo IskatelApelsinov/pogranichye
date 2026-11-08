@@ -36,6 +36,14 @@ The script creates an ignored `generated/` folder containing:
 
 The script targets roughly 300–2,000 triangles per prop and records the actual count plus an in-budget flag in the manifest. It does not download or embed any third-party assets. All geometry and texture pixels are generated locally and deterministically.
 
+After generation, run the Blender-side structural check:
+
+```bash
+blender --background --python validate_tavern_props.py
+```
+
+The validator opens the generated scene, checks the four root objects and ground-centred pivots, finite mesh geometry, ground contact, triangle budgets, UVs for image-textured meshes, packed 128×128 textures, preview image, and the actual files for every export recorded in the manifest. It exits non-zero on a failed check. This is a separate Blender runtime check; Python syntax CI does not execute Blender.
+
 ## Scale, pivots and Unity import
 
 - Scene units are metric; one Blender unit represents one metre.
