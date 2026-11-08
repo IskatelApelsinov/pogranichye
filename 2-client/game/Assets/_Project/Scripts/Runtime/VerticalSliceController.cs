@@ -453,7 +453,19 @@ namespace Pogranichye.Client
                 foreach (var item in inventory.Items)
                 {
                     if (item.Value <= 0) continue;
-                    GUILayout.Label("• " + item.Key + "  × " + item.Value);
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("• " + item.Key + "  × " + item.Value, GUILayout.MinWidth(150f));
+                    if (IsHandEquipment(item.Key) && !string.Equals(inventory.Hand, item.Key, StringComparison.Ordinal))
+                    {
+                        if (GUILayout.Button("В руку", GUILayout.Width(86f)))
+                            _ = SendInventoryItemIntentAsync("equip", item.Key);
+                    }
+                    if (IsWearableEquipment(item.Key))
+                    {
+                        if (GUILayout.Button("Надеть", GUILayout.Width(86f)))
+                            _ = SendInventoryItemIntentAsync("wear", item.Key);
+                    }
+                    GUILayout.EndHorizontal();
                 }
             }
             else
@@ -468,6 +480,42 @@ namespace Pogranichye.Client
             }
             if (!string.IsNullOrEmpty(_frame.Me.Desire))
                 GUILayout.Label("Самочувствие: " + _frame.Me.Desire);
+        }
+
+        private static bool IsHandEquipment(string item)
+        {
+            return item == "axe" || item == "sword" || item == "bow"
+                || item == "rod" || item == "torch" || item == "lantern";
+        }
+
+        private static bool IsWearableEquipment(string item)
+        {
+            return item == "cloak" || item == "boots" || item == "hat";
+        }
+
+        private async Task SendInventoryItemIntentAsync(string op, string item)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendItemIntentAsync(op, item, _lifetime.Token);
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Отправлено действие с предметом: " + op + " / " + item
+                            + ". Ожидаю подтверждение сервера.";
+                });
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось выполнить действие с предметом: " + ex.Message;
+                });
+            }
         }
 
         private void DrawSocialOverlay()
