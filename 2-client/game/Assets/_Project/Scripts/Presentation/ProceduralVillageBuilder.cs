@@ -1991,7 +1991,6 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, wheelCenterY, 0f), new Vector3(0.10f, 0.66f, 0.10f), _woodMaterial);
             axle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
 
-}
             CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
                 new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
         }
