@@ -20,6 +20,14 @@ namespace Pogranichye.Client
             Active
         }
 
+        private enum HudTab
+        {
+            Character,
+            Inventory,
+            Journal,
+            Settings
+        }
+
         [SerializeField] private string serverUrl = "http://127.0.0.1:8090";
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
@@ -50,6 +58,7 @@ namespace Pogranichye.Client
         private const float TalkConfirmationTimeoutSeconds = 4f;
         private bool _firstPerson;
         private bool _hudCollapsed;
+        private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
         private Vector2 _movementInputDebug;
         private Vector2 _movementKeyboardDebug;
@@ -178,52 +187,33 @@ namespace Pogranichye.Client
             {
                 GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
                 if (_frame.Place != null)
-                {
                     GUILayout.Label($"{_frame.Place.Name} ({_frame.Place.Tier})");
-                    GUILayout.Label($"Еда: {_frame.Place.Food:0} | Хлеб: {_frame.Place.Bread:0} | Цена: {_frame.Place.BreadPrice:0.0}");
-                }
-                GUILayout.Space(6);
-                GUILayout.Label($"{_frame.Me.Name} {_frame.Me.Surname} — {_frame.Me.Role}");
-                GUILayout.Label($"Здоровье {_frame.Me.Health:0} | Голод {_frame.Me.Hunger:0} | Энергия {_frame.Me.Energy:0} | Настрой {_frame.Me.Morale:0}");
-                GUILayout.Label($"Цель: {_frame.Me.Goal} | Действие: {_frame.Me.Last}");
-                GUILayout.Label($"Монеты {_frame.Me.Coins:0.0} | Долг {_frame.Me.Debt:0.0}");
-                GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
-                DrawInventorySummary();
-                if (_frame.Me.Position != null)
-                    GUILayout.Label($"Сцена X {_frame.Me.Position.X:0.00} / Z {_frame.Me.Position.Y:0.00} | взгляд {_frame.Me.Position.Facing:0}° | seq {_frame.Me.Position.Sequence}/{_moveSequence}");
-                if (_frame.Me.Position != null)
-                    GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")}");
-                else
-                    GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
-                GUILayout.Space(6);
-                GUILayout.Space(8);
-                if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
-                    SetCameraMode(!_firstPerson);
-                GUILayout.Label(_firstPerson
-                    ? "WASD — движение; Shift — бег; Space — прыжок; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
-                    : "WASD — движение; Shift — бег; Space — прыжок; мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
-                GUILayout.Space(4);
-                GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
-                GUILayout.Label(TutorialHint(), GUILayout.Height(58));
-                if (_frame.Me.Result != null && !string.IsNullOrEmpty(_frame.Me.Result.RequestId))
-                    GUILayout.Label(_frame.Me.Result.Ok
-                        ? "Подтверждено сервером: " + _frame.Me.Result.RequestId
-                        : "Сервер отказал: " + (_frame.Me.Result.Reason ?? "причина не указана"));
-                GUILayout.Label(_tutorialStep == 0
-                    ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
-                    : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
-                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
-                if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
-                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
-                GUILayout.Space(5);
-                GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
-                GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54));
+
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("🪓 Рубить")) _ = SendWorldActionAsync("chop");
-                if (GUILayout.Button("🎣 Рыбачить")) _ = SendWorldActionAsync("fish");
-                if (GUILayout.Button("✨ Разряд")) _ = SendWorldActionAsync("cast");
+                DrawHudTabButton("Персонаж", HudTab.Character);
+                DrawHudTabButton("Инвентарь", HudTab.Inventory);
+                DrawHudTabButton("Журнал", HudTab.Journal);
+                DrawHudTabButton("Настройки", HudTab.Settings);
                 GUILayout.EndHorizontal();
-                GUILayout.Label("Мана: " + _frame.Me.Mana.ToString("0.0"));
+                GUILayout.Space(8f);
+
+                switch (_hudTab)
+                {
+                    case HudTab.Character:
+                        DrawCharacterTab();
+                        break;
+                    case HudTab.Inventory:
+                        DrawInventoryTab();
+                        break;
+                    case HudTab.Journal:
+                        DrawJournalTab();
+                        break;
+                    case HudTab.Settings:
+                        DrawSettingsTab();
+                        break;
+                }
+
+                GUILayout.Space(8f);
                 if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
                 if (GUILayout.Button("Выйти из аккаунта")) Logout();
             }
@@ -291,6 +281,114 @@ namespace Pogranichye.Client
             return pressed.Count == 0 ? "нет" : string.Join(", ", pressed);
         }
 
+        private void DrawHudTabButton(string label, HudTab tab)
+        {
+            var previous = GUI.color;
+            if (_hudTab == tab) GUI.color = new Color(0.88f, 0.72f, 0.48f);
+            if (GUILayout.Button(label, GUILayout.Height(32f))) _hudTab = tab;
+            GUI.color = previous;
+        }
+
+        private void DrawCharacterTab()
+        {
+            if (_frame?.Me == null) return;
+            var me = _frame.Me;
+            if (_frame.Place != null)
+                GUILayout.Label($"Еда: {_frame.Place.Food:0} | Хлеб: {_frame.Place.Bread:0} | Цена: {_frame.Place.BreadPrice:0.0}");
+            GUILayout.Label($"{me.Name} {me.Surname} — {me.Role}");
+            GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
+            GUILayout.Label($"Цель: {me.Goal} | Действие: {me.Last}");
+            GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
+            GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
+            if (me.Position != null)
+            {
+                GUILayout.Label($"Сцена X {me.Position.X:0.00} / Z {me.Position.Y:0.00} | взгляд {me.Position.Facing:0}°");
+                GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")}");
+            }
+            else GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
+
+            if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
+                SetCameraMode(!_firstPerson);
+            GUILayout.Label(_firstPerson
+                ? "WASD — движение; Shift — бег; Space — прыжок; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
+                : "WASD — движение; Shift — бег; Space — прыжок; мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
+            GUILayout.Space(4f);
+            GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
+            GUILayout.Label(TutorialHint(), GUILayout.Height(58f));
+            if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
+                GUILayout.Label(me.Result.Ok
+                    ? "Подтверждено сервером: " + me.Result.RequestId
+                    : "Сервер отказал: " + (me.Result.Reason ?? "причина не указана"));
+            GUILayout.Label(_tutorialStep == 0
+                ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
+                : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
+            if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
+            if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
+            if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
+            GUILayout.Space(5f);
+            GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
+            GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("🪓 Рубить")) _ = SendWorldActionAsync("chop");
+            if (GUILayout.Button("🎣 Рыбачить")) _ = SendWorldActionAsync("fish");
+            if (GUILayout.Button("✨ Разряд")) _ = SendWorldActionAsync("cast");
+            GUILayout.EndHorizontal();
+            GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
+        }
+
+        private void DrawInventoryTab()
+        {
+            if (_frame?.Me?.Inventory == null)
+            {
+                GUILayout.Label("Инвентарь пока недоступен.");
+                return;
+            }
+            GUILayout.Label("СУМКА И ЭКИПИРОВКА");
+            DrawInventorySummary();
+            GUILayout.Space(8f);
+            GUILayout.Label("Предметы и надетые вещи отображаются по подтверждённому серверному состоянию.");
+        }
+
+        private void DrawJournalTab()
+        {
+            if (_frame?.Me == null) return;
+            var me = _frame.Me;
+            GUILayout.Label("ЖУРНАЛ ПЕРСОНАЖА");
+            GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
+            GUILayout.Space(5f);
+            GUILayout.Label("Текущее поручение");
+            GUILayout.Label(me.Task?.Text ?? "Пока нет активной записи о поручении.", GUILayout.Height(58f));
+            if (me.Task != null)
+            {
+                GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Работа: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
+                GUILayout.Label(me.Task.Done ? "Вводное дело завершено." : "Дело ещё продолжается.");
+            }
+            GUILayout.Space(5f);
+            GUILayout.Label("Последнее действие");
+            GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Записей пока нет." : me.Last, GUILayout.Height(48f));
+            if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
+                GUILayout.Label((me.Result.Ok ? "Успех: " : "Отказ: ") + (me.Result.Reason ?? me.Result.RequestId), GUILayout.Height(42f));
+            GUILayout.Label("История событий и слухи будут добавлены отдельным экраном после подключения серверной летописи.");
+        }
+
+        private void DrawSettingsTab()
+        {
+            GUILayout.Label("НАСТРОЙКИ");
+            GUILayout.Label("Экран");
+            if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(34f)))
+                ToggleFullscreen();
+            GUILayout.Label($"Текущий режим: {(Screen.fullScreen ? "полный экран" : "окно")} · {Screen.width}×{Screen.height}");
+            GUILayout.Space(6f);
+            if (GUILayout.Button(_firstPerson ? "Камера: первое лицо" : "Камера: третье лицо", GUILayout.Height(30f)))
+                SetCameraMode(!_firstPerson);
+            GUILayout.Space(6f);
+            GUILayout.Label("Управление");
+            GUILayout.Label("WASD — движение · Shift — бег · Space — прыжок\nМышь — обзор · E — взаимодействие\nF1 — скрыть интерфейс · F3 — диагностика · F11 — экран");
+            GUILayout.Label("Диагностика ввода: " + (_movementDebugVisible ? "включена" : "выключена"));
+            if (GUILayout.Button(_movementDebugVisible ? "Скрыть диагностику [F3]" : "Показать диагностику [F3]"))
+                _movementDebugVisible = !_movementDebugVisible;
+        }
+
         private void DrawInventorySummary()
         {
             var inventory = _frame?.Me?.Inventory;
@@ -301,16 +399,11 @@ namespace Pogranichye.Client
             GUILayout.Label("В руке: " + (string.IsNullOrEmpty(inventory.Hand) ? "пусто" : inventory.Hand));
             if (inventory.Items != null && inventory.Items.Count > 0)
             {
-                var shown = 0;
                 foreach (var item in inventory.Items)
                 {
                     if (item.Value <= 0) continue;
-                    GUILayout.Label(item.Key + " × " + item.Value);
-                    shown++;
-                    if (shown >= 5) break;
+                    GUILayout.Label("• " + item.Key + "  × " + item.Value);
                 }
-                if (inventory.Items.Count > shown)
-                    GUILayout.Label("…и другие предметы");
             }
             else
             {
