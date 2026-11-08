@@ -1857,8 +1857,7 @@ namespace Pogranichye.Client.Presentation
                 Vector3.one * (scale * 1.17f), "Oak barrel • authored low-poly");
             if (authored != null) return;
 
-            var barrel = new GameObject("Oak barrel • procedural fallback").transform;        {
-            var barrel = new GameObject("Oak barrel").transform;
+            var barrel = new GameObject("Oak barrel • procedural fallback").transform;
             barrel.SetParent(root, false);
             barrel.position = position;
             barrel.localScale = Vector3.one * scale;
