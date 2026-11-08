@@ -423,6 +423,8 @@ namespace Pogranichye.Client.Presentation
 
             BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
             BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
+            CreateImportedProp(tavern, "bench_rustic", new Vector3(0.55f, 0f, -2.72f),
+                Vector3.one, "Tavern entrance bench • authored low-poly");
             // Keep the fire outside the server-blocked building footprint: the current
             // Layout v2 treats the tavern as a solid obstruction, so this courtyard fire
             // remains visible and reachable from the authoritative tavern POI.
@@ -1076,6 +1078,11 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.2f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _clothMaterial);
             CreatePrimitive("Flour sack", PrimitiveType.Capsule, goods,
                 new Vector3(0.92f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _foamMaterial);
+            if (CreateImportedProp(goods, "basket_wickermarket", new Vector3(2.25f, 0f, 0.10f),
+                Vector3.one, "Wicker market basket • authored low-poly") == null)
+            {
+                // Keep the existing crate-and-produce dressing when the optional asset is absent.
+            }
         }
 
         private static void BuildHitchingPost(Transform root, Vector3 position)
@@ -1221,8 +1228,68 @@ namespace Pogranichye.Client.Presentation
 
         private static void CreateBeerMug(Transform parent, Vector3 position)
         {
-            var mug = CreateTankardView(parent, "Oak beer tankard");
+            var authored = CreateImportedProp(parent, "tankard_oakbeer", position, Vector3.one,
+                "Oak beer tankard • authored low-poly");
+            if (authored != null) return;
+
+            var mug = CreateTankardView(parent, "Oak beer tankard • procedural fallback");
             if (mug != null) mug.transform.localPosition = position;
+        }
+
+        private static GameObject CreateImportedProp(Transform parent, string resourceName,
+            Vector3 localPosition, Vector3 localScale, string objectName)
+        {
+            if (parent == null || string.IsNullOrEmpty(resourceName)) return null;
+            var prefab = Resources.Load<GameObject>("TavernProps/" + resourceName);
+            if (prefab == null) return null;
+
+            var instance = Object.Instantiate(prefab, parent, false);
+            instance.name = string.IsNullOrEmpty(objectName) ? prefab.name : objectName;
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = localScale;
+            ApplyImportedPropMaterials(instance);
+            return instance;
+        }
+
+        private static void ApplyImportedPropMaterials(GameObject instance)
+        {
+            if (instance == null) return;
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                var renderer = renderers[rendererIndex];
+                var materials = renderer.sharedMaterials;
+                var changed = false;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var source = materials[materialIndex];
+                    if (source == null) continue;
+                    var materialName = source.name.ToLowerInvariant();
+                    Material replacement = null;
+                    if (materialName.Contains("amber") || materialName.Contains("ale"))
+                        replacement = _beerMaterial;
+                    else if (materialName.Contains("foam"))
+                        replacement = _foamMaterial;
+                    else if (materialName.Contains("iron"))
+                        replacement = _metalMaterial;
+                    else if (materialName.Contains("apple") || materialName.Contains("bread"))
+                        replacement = _produceMaterial;
+                    else if (materialName.Contains("wicker") || materialName.Contains("oak") ||
+                             materialName.Contains("timber"))
+                        replacement = _woodMaterial;
+                    else if (materialName.Contains("dark seam"))
+                        replacement = _roofMaterial;
+
+                    if (replacement != null)
+                    {
+                        materials[materialIndex] = replacement;
+                        changed = true;
+                    }
+                }
+
+                if (changed) renderer.sharedMaterials = materials;
+            }
         }
 
         /// <summary>
@@ -1789,6 +1856,11 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildBarrel(Transform root, Vector3 position, float scale)
         {
+            var authored = CreateImportedProp(root, "barrel_oak", position,
+                Vector3.one * (scale * 1.17f), "Oak barrel • authored low-poly");
+            if (authored != null) return;
+
+            var barrel = new GameObject("Oak barrel • procedural fallback").transform;        {
             var barrel = new GameObject("Oak barrel").transform;
             barrel.SetParent(root, false);
             barrel.position = position;
