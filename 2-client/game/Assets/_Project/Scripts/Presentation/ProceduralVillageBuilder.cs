@@ -1078,11 +1078,8 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.2f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _clothMaterial);
             CreatePrimitive("Flour sack", PrimitiveType.Capsule, goods,
                 new Vector3(0.92f, 0.36f, 0.86f), new Vector3(0.34f, 0.38f, 0.34f), _foamMaterial);
-            if (CreateImportedProp(goods, "basket_wickermarket", new Vector3(2.25f, 0f, 0.10f),
-                Vector3.one, "Wicker market basket • authored low-poly") == null)
-            {
-                // Keep the existing crate-and-produce dressing when the optional asset is absent.
-            }
+            CreateImportedProp(goods, "basket_wickermarket", new Vector3(2.25f, 0f, 0.10f),
+                Vector3.one, "Wicker market basket • authored low-poly");
         }
 
         private static void BuildHitchingPost(Transform root, Vector3 position)
@@ -1275,11 +1272,11 @@ namespace Pogranichye.Client.Presentation
                         replacement = _metalMaterial;
                     else if (materialName.Contains("apple") || materialName.Contains("bread"))
                         replacement = _produceMaterial;
+                    else if (materialName.Contains("dark seam"))
+                        replacement = _roofMaterial;
                     else if (materialName.Contains("wicker") || materialName.Contains("oak") ||
                              materialName.Contains("timber"))
                         replacement = _woodMaterial;
-                    else if (materialName.Contains("dark seam"))
-                        replacement = _roofMaterial;
 
                     if (replacement != null)
                     {
