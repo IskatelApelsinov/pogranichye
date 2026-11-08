@@ -1939,34 +1939,58 @@ namespace Pogranichye.Client.Presentation
             for (var z = -1; z <= 1; z += 2)
                 CreatePrimitive("Cart side", PrimitiveType.Cube, cart, new Vector3(x * 0.58f, 0.95f, z * 0.38f),
                     new Vector3(0.10f, 0.62f, 0.85f), _woodMaterial);
-            for (var x = -1; x <= 1; x += 2)
-            {
-                var wheel = CreatePrimitive("Cart wheel", PrimitiveType.Cylinder, cart,
-                    new Vector3(x * 0.72f, 0.42f, 0), new Vector3(0.12f, 0.55f, 0.55f), _woodMaterial);
-                wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
+            const float wheelRadius = 0.275f;
+            const float wheelCenterY = wheelRadius;
+            const float wheelThickness = 0.12f;
+            const int rimSegments = 12;
+            const int spokeCount = 8;
+            const float hubRadius = 0.055f;
+            const float rimInnerRadius = 0.205f;
+            const float spokeLength = rimInnerRadius - hubRadius;
+            const float spokeCenterRadius = (rimInnerRadius + hubRadius) * 0.5f;
+            const float rimCenterRadius = (wheelRadius + rimInnerRadius) * 0.5f;
+            const float rimRadialWidth = wheelRadius - rimInnerRadius;
 
-                // Eight spokes and an iron hub make the wheel read as a built wooden cart wheel,
-                // rather than a solid cylinder. Both faces are dressed because the cart is visible
-                // while approaching from either side.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var wheelX = side * 0.72f;
+                for (var segment = 0; segment < rimSegments; segment++)
+                {
+                    var angle = segment * (Mathf.PI * 2f / rimSegments);
+                    var radial = new Vector3(0f, Mathf.Cos(angle), Mathf.Sin(angle));
+                    var segmentLength = 2f * rimCenterRadius * Mathf.Sin(Mathf.PI / rimSegments) + 0.012f;
+                    var rimPiece = CreatePrimitive("Cart wheel wooden rim segment", PrimitiveType.Cube, cart,
+                        new Vector3(wheelX, wheelCenterY + radial.y * rimCenterRadius,
+                            radial.z * rimCenterRadius),
+                        new Vector3(wheelThickness, rimRadialWidth, segmentLength), _woodMaterial);
+                    rimPiece.transform.localRotation = Quaternion.Euler(segment * (360f / rimSegments), 0f, 0f);
+                }
+
                 for (var face = -1; face <= 1; face += 2)
                 {
-                    var faceX = x * 0.72f + face * 0.125f;
-                    for (var spoke = 0; spoke < 8; spoke++)
+                    var faceX = wheelX + face * (wheelThickness * 0.5f + 0.012f);
+                    for (var spoke = 0; spoke < spokeCount; spoke++)
                     {
-                        var angle = spoke * Mathf.PI * 0.25f;
+                        var angle = spoke * (Mathf.PI * 2f / spokeCount);
                         var direction = new Vector3(0f, Mathf.Cos(angle), Mathf.Sin(angle));
                         var spokeView = CreatePrimitive("Cart wheel wooden spoke", PrimitiveType.Cylinder, cart,
-                            new Vector3(faceX, 0.42f + direction.y * 0.235f,
-                                direction.z * 0.235f),
-                            new Vector3(0.035f, 0.235f, 0.035f), _woodMaterial);
+                            new Vector3(faceX, wheelCenterY + direction.y * spokeCenterRadius,
+                                direction.z * spokeCenterRadius),
+                            new Vector3(0.028f, spokeLength * 0.5f, 0.028f), _woodMaterial);
                         spokeView.transform.localRotation = Quaternion.FromToRotation(Vector3.up, direction);
                     }
 
                     var hub = CreatePrimitive("Cart wheel iron hub", PrimitiveType.Cylinder, cart,
-                        new Vector3(faceX, 0.42f, 0f), new Vector3(0.18f, 0.11f, 0.11f), _metalMaterial);
+                        new Vector3(faceX, wheelCenterY, 0f), new Vector3(0.16f, 0.065f, 0.065f), _metalMaterial);
                     hub.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
                 }
             }
+
+            // Presentation-only axle connects both wheel hubs; it does not affect server movement.
+            var axle = CreatePrimitive("Cart wooden axle", PrimitiveType.Cylinder, cart,
+                new Vector3(0f, wheelCenterY, 0f), new Vector3(0.10f, 0.66f, 0.10f), _woodMaterial);
+            axle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+
             CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
                 new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
         }
