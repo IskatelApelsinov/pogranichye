@@ -315,7 +315,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if in.Item == "beer" {
 			s.mu.Lock()
 			if e := s.world.Get(cid); e != nil {
-				sim.BuyBeer(s.world, e, in.ReqID) // атомарно/идемпотентно; исход виден в следующем кадре (me.mug)
+				rok, rwhy := sim.BuyBeer(s.world, e, in.ReqID) // атомарно/идемпотентно; исход в кадре (me.mug)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 			s.mu.Unlock()
 		}
@@ -323,7 +324,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if in.Item == "beer" {
 			s.mu.Lock()
 			if e := s.world.Get(cid); e != nil {
-				sim.DrinkBeer(s.world, e, in.ReqID)
+				rok, rwhy := sim.DrinkBeer(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 			s.mu.Unlock()
 		}
@@ -332,24 +333,24 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			switch in.Action {
 			case "chop":
-				sim.ChopWood(s.world, e, in.ReqID)
+				rok, rwhy := sim.ChopWood(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fish":
-				sim.FishCatch(s.world, e, in.ReqID)
+				rok, rwhy := sim.FishCatch(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "cast":
-				sim.CastSpark(s.world, e, in.ReqID)
+				rok, rwhy := sim.CastSpark(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "build":
-				sim.Build(s.world, e, in.ReqID)
+				rok, rwhy := sim.Build(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "hunt":
-				sim.Hunt(s.world, e, in.ReqID)
+				rok, rwhy := sim.Hunt(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fight":
-				sim.Fight(s.world, e, in.ReqID)
+				rok, rwhy := sim.Fight(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()
 	case "take": // подобрать предмет (v1.7)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.Take(s.world, e, in.Item, in.ReqID)
+			rok, rwhy := sim.Take(s.world, e, in.Item, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "equip":
@@ -367,7 +368,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "trade": // рынок: купить/продать (v1.7)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.Trade(s.world, e, in.Good, in.Side, in.Qty)
+			rok, rwhy := sim.Trade(s.world, e, in.Good, in.Side, in.Qty, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "travel": // перейти в другое поселение (v1.7)
@@ -391,7 +392,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "say": // выбрать реплику в разговоре (знакомство/угощение)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.Say(s.world, e, in.Line)
+			rok, rwhy := sim.Say(s.world, e, in.Line, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "endtalk":
@@ -471,6 +472,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"desire":       sim.Desire(e),           // текущее главное желание (v1.7)
 			"inv":          meInv(e),                // инвентарь: предметы, рука, одежда (v1.7)
 			"world":        sim.Settlements(s.world), // карта поселений для путешествий (v1.7)
+			"result":       meResult(e),              // ack последнего действия (reqid/ok/reason) — #40
+			"task":         sim.OpeningTask(e),       // минимальная вводная задача (#80)
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
@@ -495,6 +498,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": shownName, "known": known,
 							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct, "want": sim.Desire(o),
+							"gear": sim.PublicGear(o), // видимая экипировка: рука + надетое (#48), без личной сумы
 							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
 							"player":   s.ctl[o.ID] != 0, // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
@@ -600,6 +604,15 @@ func meMug(e *core.Entity) bool {
 		return m.Has
 	}
 	return false
+}
+
+// meResult — ack последнего действия игрока (reqid/ok/reason) для клиента; nil, если действий не было.
+func meResult(e *core.Entity) any {
+	p := sim.Player(e)
+	if p == nil || p.RReqid == "" {
+		return nil
+	}
+	return map[string]any{"reqid": p.RReqid, "ok": p.ROk, "reason": p.RReason}
 }
 
 // meInv — инвентарь игрока: предметы, что в руке, надетая одежда (v1.7).

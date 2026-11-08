@@ -59,6 +59,7 @@
 <!-- игра (менеджмент/ферма по тапам) -->
 <div class="hidden" id="game">
  <div class="card" id="charcard"></div>
+ <div class="card" id="taskcard" style="border-color:#c9a86a"></div>
 
  <div class="card">
   <div class="row between"><b class="sub">Мир</b><span class="sub" id="daytime"></span></div>
@@ -140,7 +141,17 @@ let curLoc='well', last=null;
 function goTo(key){ curLoc=key; stopMinigames(); send({op:'goto',location:key}); if(last) drawLoc(last); toast(''); }
 function toast(t){ $('toast').textContent=t; }
 
-function render(s){ last=s; drawChar(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s); }
+let lastResult='';
+function render(s){ last=s; drawChar(s); drawTask(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
+  const r=(s.me||{}).result;
+  if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason) toast('⚠ '+r.reason); }
+}
+function drawTask(s){ const t=(s.me||{}).task||{};
+  const steps=['познакомиться','поработать','выпить в корчме'];
+  const marks=[t.met,t.worked,t.drank].map(x=>x?'✅':'▫️');
+  $('taskcard').innerHTML=`<b class="sub">📜 первые шаги</b> ${t.done?'<span class="gold">— освоился!</span>':''}<div style="margin:4px 0">${t.text||''}</div>`+
+    `<div class="sub">${steps.map((s,i)=>marks[i]+' '+s).join(' · ')}</div>`;
+}
 
 function drawInv(s){
  const me=s.me||{}, inv=me.inv||{items:{},hand:'',worn:{}};
@@ -207,7 +218,7 @@ function drawLoc(s){
  here.forEach(n=>{
    const row=document.createElement('div'); row.className='nb';
    const nm=n.player?'🧑 игрок':(n.known?(n.name||'житель'):(n.desc||'житель'));
-   const lab=document.createElement('span'); lab.innerHTML=`${(n.known||n.player)?'<b>'+nm+'</b>':nm} <span class="sub">— ${n.act||''}${n.trait?(' · '+n.trait):''}</span>`;
+   const lab=document.createElement('span'); lab.innerHTML=`${(n.known||n.player)?'<b>'+nm+'</b>':nm} <span class="sub">— ${n.act||''}${n.want?(' · '+n.want):''}</span>`;
    row.appendChild(lab);
    if(!me.talk){
      const b=document.createElement('button'); b.style.cssText='width:auto;padding:4px 10px';

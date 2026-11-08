@@ -37,6 +37,20 @@ const dedupCap = 64 // сколько недавних reqid помним на �
 type PlayerC struct {
 	Mana float64  `json:"mana"`
 	Done []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
+	// коррелируемый результат последнего действия (#40 ack): клиент сверяет по reqid
+	RReqid  string `json:"-"`
+	ROk     bool   `json:"-"`
+	RReason string `json:"-"`
+	DrankBeer bool `json:"-"` // пил ли пиво (для вводной задачи #80)
+}
+
+// SetResult записывает результат последнего действия игрока (для ack в кадре me.result).
+func SetResult(w *core.World, e *core.Entity, reqid string, ok bool, reason string) {
+	if reqid == "" {
+		return
+	}
+	pc := EnsurePlayer(w, e)
+	pc.RReqid, pc.ROk, pc.RReason = reqid, ok, reason
 }
 
 func (c *PlayerC) Kind() string { return "player" }

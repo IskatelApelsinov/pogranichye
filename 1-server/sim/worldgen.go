@@ -68,17 +68,12 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 // GenerateStarter — ОДНА стартовая деревня для начала игры и тестов тонкого клиента: предсказуемый,
 // самодостаточный мирок с полным живым составом (все ключевые ремёсла, несколько пар для прироста),
 // запасами на гладкий старт. Детерминирован от семени — удобно подключаться всегда к одному месту.
-// homeRegion — регион стартового «центра Мира». Поселения из других регионов — внешний мир
-// (достижимы только телепортом op:"travel"; ножками не дойти — вокруг горы). Задаётся в GenerateStarter.
-var homeRegion core.ID
-
 func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 	w := core.NewWorld(seed)
 	hub := dice.NewHub(seed)
 	g := hub.Stream("worldgen")
 
 	reg := w.Spawn(&core.RegionC{Name: "Ополье", Biome: "plain", X: 500, Y: 500, Mana: 1.0})
-	homeRegion = reg.ID
 	se := NewSettlement(w, g, "Починок", reg)
 	// припасы на гладкий старт: сверх базового склада немного руды/снадобья/инструмента
 	st := core.Settle(se).Store
@@ -161,7 +156,7 @@ func generateOuterWorld(w *core.World, g *dice.Stream) {
 	// регионы внешнего мира
 	var regIDs []*core.Entity
 	for i, rn := range regions {
-		regIDs = append(regIDs, w.Spawn(&core.RegionC{Name: rn, Biome: "plain",
+		regIDs = append(regIDs, w.Spawn(&core.RegionC{Name: rn, Biome: "plain", Outer: true,
 			X: 1000 + float64(i*400), Y: 1000 + float64(i*250), Mana: 0.8 + 0.1*float64(i%3)}))
 	}
 	// деревни

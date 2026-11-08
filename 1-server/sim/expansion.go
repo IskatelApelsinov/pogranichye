@@ -122,9 +122,17 @@ func settlementEnt(w *core.World, e *core.Entity) *core.Entity {
 }
 
 // Trade — купить/продать товар на рынке поселения по текущей цене. side: "buy"|"sell".
-func Trade(w *core.World, e *core.Entity, good, side string, qty int) (bool, string) {
+// reqid обязателен и идемпотентен: повтор того же пакета не повторяет сделку (двойное списание).
+func Trade(w *core.World, e *core.Entity, good, side string, qty int, reqid string) (bool, string) {
 	if qty < 1 {
 		qty = 1
+	}
+	pc := EnsurePlayer(w, e)
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
+		return true, ""
 	}
 	se := settlementEnt(w, e)
 	if se == nil {
@@ -165,6 +173,7 @@ func Trade(w *core.World, e *core.Entity, good, side string, qty int) (bool, str
 	default:
 		return false, "купить или продать?"
 	}
+	pc.markDone(reqid)
 	return true, ""
 }
 
@@ -209,12 +218,20 @@ func Settlements(w *core.World) []map[string]any {
 		}
 		out = append(out, map[string]any{"id": se.ID, "name": s.Name, "tier": s.Tier,
 			"x": round1x(s.X), "y": round1x(s.Y),
-			"outer": s.Region != homeRegion}) // внешний мир — только телепортом (вокруг горы)
+			"outer": isOuter(w, s)}) // внешний мир — за горами демо-зоны
 	})
 	return out
 }
 
 func round1x(v float64) float64 { return math.Round(v*10) / 10 }
+
+// isOuter — относится ли поселение к внешнему миру (регион помечен Outer). Без глобального состояния.
+func isOuter(w *core.World, s *core.SettlementC) bool {
+	if r := core.Region(w.Get(s.Region)); r != nil {
+		return r.Outer
+	}
+	return false
+}
 
 // --- Занятия: стройка, охота, стычка ---
 
@@ -375,4 +392,51 @@ func Desire(e *core.Entity) string {
 		}
 	}
 	return "в порядке"
+}
+
+// PublicGear — ПУБЛИЧНЫЙ видимый subset экипировки сущности для соседей (#48): предмет в руке и
+// надетая одежда. Личную суму (items/количества) НЕ раскрываем. Пусто, если инвентаря нет.
+func PublicGear(e *core.Entity) map[string]any {
+	i := Inv(e)
+	if i == nil {
+		return map[string]any{"hand": "", "worn": map[string]string{}}
+	}
+	worn := map[string]string{}
+	for k, v := range i.Worn {
+		worn[k] = v
+	}
+	return map[string]any{"hand": i.Hand, "worn": worn}
+}
+
+// OpeningTask — минимальная вводная задача (#80) из РЕАЛЬНОГО состояния (не по клику/goal): познакомься
+// с жителем → поработай (сруби/налови/построй/добудь) → загляни в корчму и выпей. Сервер-истина.
+func OpeningTask(e *core.Entity) map[string]any {
+	met := false
+	if a := Acquaint(e); a != nil && len(a.Known) > 0 {
+		met = true
+	}
+	worked := false
+	if sk := core.Skills(e); sk != nil {
+		for _, s := range []string{"woodcutter", "fisher", "builder", "hunter"} {
+			if sk.Level(s) > 0 {
+				worked = true
+			}
+		}
+	}
+	drank := false
+	if p := Player(e); p != nil && p.DrankBeer {
+		drank = true
+	}
+	stage, text := 1, "Познакомься с кем-нибудь из жителей (💬)."
+	if met {
+		stage, text = 2, "Поработай: сруби дрова, налови рыбы или помоги на стройке."
+	}
+	if met && worked {
+		stage, text = 3, "Загляни в корчму и выпей кружку пива."
+	}
+	done := met && worked && drank
+	if done {
+		text = "Освоился! Деревня твоя — живи и промышляй."
+	}
+	return map[string]any{"stage": stage, "met": met, "worked": worked, "drank": drank, "done": done, "text": text}
 }
