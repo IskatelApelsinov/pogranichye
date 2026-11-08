@@ -180,8 +180,21 @@ namespace Pogranichye.Client.Presentation
             // Stone plinth lifts the timber frame clear of the damp ground.
             CreatePrimitive("Stone foundation", PrimitiveType.Cube, house, new Vector3(0, 0.20f, 0),
                 new Vector3(3.55f, 0.40f, 2.95f), _stoneMaterial);
-            CreatePrimitive("Timber walls", PrimitiveType.Cube, house, new Vector3(0, 1.15f, 0),
-                new Vector3(3.4f, 2.3f, 2.8f), _woodMaterial);
+            // Split the shell around a real doorway. The room remains a presentation
+            // cutaway until server-side indoor navigation/POIs are introduced.
+            CreatePrimitive("Rear timber wall", PrimitiveType.Cube, house, new Vector3(0, 1.15f, 1.34f),
+                new Vector3(3.4f, 2.3f, 0.16f), _woodMaterial);
+            CreatePrimitive("Left timber wall", PrimitiveType.Cube, house, new Vector3(-1.62f, 1.15f, 0),
+                new Vector3(0.16f, 2.3f, 2.8f), _woodMaterial);
+            CreatePrimitive("Right timber wall", PrimitiveType.Cube, house, new Vector3(1.62f, 1.15f, 0),
+                new Vector3(0.16f, 2.3f, 2.8f), _woodMaterial);
+            CreatePrimitive("Front wall left of doorway", PrimitiveType.Cube, house, new Vector3(-1.05f, 1.15f, -1.34f),
+                new Vector3(1.30f, 2.3f, 0.16f), _woodMaterial);
+            CreatePrimitive("Front wall right of doorway", PrimitiveType.Cube, house, new Vector3(1.05f, 1.15f, -1.34f),
+                new Vector3(1.30f, 2.3f, 0.16f), _woodMaterial);
+            CreatePrimitive("Doorway lintel", PrimitiveType.Cube, house, new Vector3(0, 2.08f, -1.34f),
+                new Vector3(0.80f, 0.44f, 0.18f), _woodMaterial);
+            BuildCottageInterior(house, name);
             // Exposed framing, corner posts and a lower wall rail break up the large flat wall planes.
             for (var x = -1; x <= 1; x += 2)
             {
@@ -200,8 +213,11 @@ namespace Pogranichye.Client.Presentation
             var rightRoof = CreatePrimitive("Thatched roof right", PrimitiveType.Cube, house,
                 new Vector3(0.92f, 2.55f, 0), new Vector3(2.25f, 0.24f, 3.25f), _roofMaterial);
             rightRoof.transform.localRotation = Quaternion.Euler(0, 0, -25f);
-            CreatePrimitive("Door", PrimitiveType.Cube, house, new Vector3(0, 0.72f, -1.415f),
-                new Vector3(0.75f, 1.45f, 0.08f), _roofMaterial);
+            var door = CreatePrimitive("Door • open", PrimitiveType.Cube, house,
+                new Vector3(-0.92f, 0.72f, -1.34f), new Vector3(0.62f, 1.45f, 0.08f), _roofMaterial);
+            door.transform.localRotation = Quaternion.Euler(0f, -62f, 0f);
+            CreatePrimitive("Door handle", PrimitiveType.Sphere, house,
+                new Vector3(-1.14f, 0.72f, -1.52f), new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
             BuildYardApron(house, name);
             for (var x = -1; x <= 1; x += 2)
             {
@@ -237,8 +253,64 @@ namespace Pogranichye.Client.Presentation
             BuildCottageGables(house);
             CreatePrimitive("Front timber beam", PrimitiveType.Cube, house, new Vector3(0, 2.05f, -1.44f),
                 new Vector3(3.35f, 0.13f, 0.12f), _roofMaterial);
-            CreatePrimitive("Door handle", PrimitiveType.Sphere, house, new Vector3(0.23f, 0.72f, -1.48f),
-                new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
+
+        }
+
+        private static void BuildCottageInterior(Transform house, string houseName)
+        {
+            // Readable furnished cutaway: the open front doorway exposes a warm, lived-in room.
+            // These props are presentation-only; server navigation must explicitly add indoor POIs
+            // before the player or NPCs can enter and use the room authoritatively.
+            CreatePrimitive("Interior plank floor", PrimitiveType.Cube, house,
+                new Vector3(0f, 0.43f, 0f), new Vector3(3.05f, 0.12f, 2.48f), _woodMaterial);
+            CreatePrimitive("Interior rear wainscot", PrimitiveType.Cube, house,
+                new Vector3(0f, 0.82f, 1.22f), new Vector3(3.0f, 0.68f, 0.06f), _roofMaterial);
+
+            // Bed, folded blanket and pillow.
+            CreatePrimitive("Bed frame", PrimitiveType.Cube, house,
+                new Vector3(-0.88f, 0.72f, 0.58f), new Vector3(1.05f, 0.34f, 1.45f), _roofMaterial);
+            CreatePrimitive("Bed straw mattress", PrimitiveType.Cube, house,
+                new Vector3(-0.88f, 0.92f, 0.58f), new Vector3(0.98f, 0.12f, 1.36f), _clothMaterial);
+            CreatePrimitive("Bed linen", PrimitiveType.Cube, house,
+                new Vector3(-0.88f, 1.00f, 0.22f), new Vector3(0.98f, 0.08f, 0.62f), _foamMaterial);
+            CreatePrimitive("Bed pillow", PrimitiveType.Cube, house,
+                new Vector3(-0.88f, 1.04f, 1.02f), new Vector3(0.55f, 0.12f, 0.28f), _foamMaterial);
+
+            // A small household table, two stools and a storage chest.
+            CreatePrimitive("Household table top", PrimitiveType.Cube, house,
+                new Vector3(0.78f, 1.05f, -0.22f), new Vector3(1.0f, 0.12f, 0.72f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Table leg", PrimitiveType.Cube, house,
+                    new Vector3(0.78f + x * 0.38f, 0.75f, -0.22f + z * 0.25f),
+                    new Vector3(0.09f, 0.56f, 0.09f), _roofMaterial);
+            foreach (var stoolX in new[] { 0.35f, 1.18f })
+            {
+                CreatePrimitive("Wooden stool seat", PrimitiveType.Cylinder, house,
+                    new Vector3(stoolX, 0.73f, -0.92f), new Vector3(0.30f, 0.10f, 0.30f), _roofMaterial);
+                CreatePrimitive("Wooden stool leg", PrimitiveType.Cube, house,
+                    new Vector3(stoolX, 0.55f, -0.92f), new Vector3(0.08f, 0.36f, 0.08f), _woodMaterial);
+            }
+            CreatePrimitive("Storage chest", PrimitiveType.Cube, house,
+                new Vector3(1.18f, 0.70f, 0.78f), new Vector3(0.62f, 0.48f, 0.54f), _roofMaterial);
+            CreatePrimitive("Chest lid", PrimitiveType.Cube, house,
+                new Vector3(1.18f, 0.96f, 0.78f), new Vector3(0.66f, 0.08f, 0.58f), _woodMaterial);
+            CreatePrimitive("Chest iron latch", PrimitiveType.Cube, house,
+                new Vector3(1.18f, 0.78f, 0.49f), new Vector3(0.12f, 0.18f, 0.035f), _metalMaterial);
+
+            // Hearth and hanging pot make the interior silhouette legible from outside.
+            CreatePrimitive("Hearth stone base", PrimitiveType.Cube, house,
+                new Vector3(1.05f, 0.62f, 1.02f), new Vector3(0.72f, 0.32f, 0.48f), _stoneMaterial);
+            CreatePrimitive("Hearth ember bed", PrimitiveType.Cube, house,
+                new Vector3(1.05f, 0.81f, 0.94f), new Vector3(0.46f, 0.06f, 0.25f), _fireMaterial);
+            CreatePrimitive("Hanging cooking pot", PrimitiveType.Sphere, house,
+                new Vector3(1.05f, 1.08f, 0.82f), new Vector3(0.28f, 0.28f, 0.28f), _metalMaterial);
+            CreatePrimitive("Wall shelf", PrimitiveType.Cube, house,
+                new Vector3(0.28f, 1.70f, 1.22f), new Vector3(1.0f, 0.10f, 0.30f), _woodMaterial);
+            CreatePrimitive("Shelf pottery", PrimitiveType.Cylinder, house,
+                new Vector3(0.02f, 1.88f, 1.18f), new Vector3(0.16f, 0.20f, 0.16f), _produceMaterial);
+            CreatePrimitive("Shelf jar", PrimitiveType.Cylinder, house,
+                new Vector3(0.46f, 1.88f, 1.18f), new Vector3(0.14f, 0.18f, 0.14f), _bottleMaterial);
         }
 
         private static void BuildCottageGables(Transform house)
