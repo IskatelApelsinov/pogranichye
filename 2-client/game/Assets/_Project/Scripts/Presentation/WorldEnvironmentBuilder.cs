@@ -818,7 +818,7 @@ namespace Pogranichye.Client.Presentation
 
         private static Light FindSun()
         {
-            var lights = UnityEngine.Object.FindObjectsOfType<Light>();
+            var lights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
             foreach (var light in lights)
                 if (light.type == LightType.Directional) return light;
             return null;
