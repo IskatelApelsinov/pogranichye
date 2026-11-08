@@ -797,10 +797,10 @@ namespace Pogranichye.Client.Presentation
             renderer.alignment = ParticleSystemRenderSpace.View;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            particles.Play();
         }
 
-        private static Material CreateTransparentMaterial
-            particles.Play();(Shader shader, string name, Color color)
+        private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
         {
             if (shader == null) return null;
             var material = new Material(shader) { name = name, color = color };
