@@ -944,19 +944,18 @@ namespace Pogranichye.Client
             var player = _views != null ? _views.PlayerTransform : null;
             if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
 
-            // Prefer explicit keyboard state over legacy axes. Some devices/drivers
-            // report a small non-zero axis while no key is pressed, which can make the
-            // character creep continuously (often backwards). Keep a dead-zoned axis
-            // fallback for gamepads and expose both sources in the F3 diagnostic panel.
+            // Movement is driven only by discrete keyboard keys. Legacy Input Manager
+            // axes remain visible in F3 for diagnosis, but are intentionally never used
+            // as a fallback: a drifting gamepad/stick/driver axis must not move the player
+            // when no key is pressed. Add an explicit Input System gamepad path separately.
             var keyboardInput = new Vector2(
-                (Input.GetKey(KeyCode.D) ? 1f : 0f) - (Input.GetKey(KeyCode.A) ? 1f : 0f),
-                (Input.GetKey(KeyCode.W) ? 1f : 0f) - (Input.GetKey(KeyCode.S) ? 1f : 0f));
+                ((Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1f : 0f)
+                    - ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1f : 0f),
+                ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1f : 0f)
+                    - ((Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1f : 0f));
             var rawAxes = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             _movementRawAxesDebug = rawAxes;
-            var input = keyboardInput.sqrMagnitude > 0.001f
-                ? keyboardInput
-                : rawAxes.sqrMagnitude >= 0.0625f ? rawAxes : Vector2.zero;
-            input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(input, 1f);
+            var input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(keyboardInput, 1f);
             _movementKeyboardDebug = keyboardInput;
             _pressedKeysDebug = BuildPressedKeysDebug();
 
