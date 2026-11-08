@@ -93,6 +93,9 @@ namespace Pogranichye.Client.Networking
             var payload = new System.Collections.Generic.Dictionary<string, object> { ["v"] = 1, ["op"] = op };
             if (!string.IsNullOrEmpty(target)) payload["target"] = target;
             if (!string.IsNullOrEmpty(line)) payload["line"] = line;
+            // v1.8: say:drink mutates server state and requires a stable request ID.
+            if (op == "say" && string.Equals(line, "drink", StringComparison.Ordinal))
+                payload["reqid"] = Guid.NewGuid().ToString("N");
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
             await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try { await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false); }
