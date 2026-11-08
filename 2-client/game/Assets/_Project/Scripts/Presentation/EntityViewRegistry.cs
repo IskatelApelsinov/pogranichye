@@ -197,7 +197,7 @@ namespace Pogranichye.Client.Presentation
             var body = GetWornItem(worn, "body");
             var feet = GetWornItem(worn, "feet");
             var carriedSignature = GetCarriedItemsSignature(inventory, handItem, head, body, feet);
-            var signature = player.GetInstanceID() + "|" + handItem + "|" + head + "|" + body + "|" + feet +
+            var signature = player.GetEntityId() + "|" + handItem + "|" + head + "|" + body + "|" + feet +
                 "|" + carriedSignature + "|" + (tankardHeld ? "mug" : "free");
             var motion = player.GetComponent<EntityMotion>();
             if (motion != null) motion.SetEquippedHandItem(handItem, tankardHeld);

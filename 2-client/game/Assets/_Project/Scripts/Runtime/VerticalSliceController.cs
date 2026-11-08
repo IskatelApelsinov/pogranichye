@@ -850,7 +850,7 @@ namespace Pogranichye.Client
             _movementDirectionDebug = worldMove;
             _movementCameraYawDebug = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
             _movementPlayerYawDebug = player.eulerAngles.y;
-            _movementServerFacingDebug = _frame.Me.Position.Facing;
+            _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
             var runRequested = moving && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
@@ -1135,7 +1135,7 @@ namespace Pogranichye.Client
             }
             _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
 
-            if (FindObjectOfType<Light>() == null)
+            if (FindAnyObjectByType<Light>() == null)
             {
                 var lightObject = new GameObject("Directional Light");
                 lightObject.transform.SetParent(transform, false);
