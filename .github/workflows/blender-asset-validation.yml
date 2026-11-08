@@ -54,11 +54,11 @@ jobs:
 
       - name: Generate original tavern props
         working-directory: 2-client/art-source/blender
-        run: blender --background --factory-startup --python generate_tavern_props.py
+        run: blender --background --factory-startup --python-exit-code 1 --python generate_tavern_props.py
 
       - name: Validate generated scene, meshes, textures and exports
         working-directory: 2-client/art-source/blender
-        run: blender --background --python validate_tavern_props.py
+        run: blender --background --python-exit-code 1 --python validate_tavern_props.py
 
       - name: Upload generated Blender assets
         if: always()
