@@ -1,0 +1,61 @@
+name: Blender asset generation and validation
+
+on:
+  pull_request:
+    paths:
+      - "2-client/art-source/blender/**"
+      - ".github/workflows/blender-asset-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blender-assets:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Cache Blender 4.2.0
+        id: blender-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/blender-4.2.0
+          key: blender-4.2.0-linux-x64
+
+      - name: Install Blender 4.2.0
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 \
+            https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz \
+            --output /tmp/blender-4.2.0-linux-x64.tar.xz
+          mkdir -p /opt/blender-4.2.0
+          tar -xJf /tmp/blender-4.2.0-linux-x64.tar.xz \
+            --directory /opt/blender-4.2.0 --strip-components=1
+          rm /tmp/blender-4.2.0-linux-x64.tar.xz
+
+      - name: Add Blender to PATH
+        run: echo "/opt/blender-4.2.0" >> "$GITHUB_PATH"
+
+      - name: Verify Blender version
+        run: blender --background --factory-startup --python-expr "import bpy; assert bpy.app.version >= (4, 2, 0); print(bpy.app.version_string)"
+
+      - name: Generate original tavern props
+        working-directory: 2-client/art-source/blender
+        run: blender --background --factory-startup --python generate_tavern_props.py
+
+      - name: Validate generated scene, meshes, textures and exports
+        working-directory: 2-client/art-source/blender
+        run: blender --background --python validate_tavern_props.py
+
+      - name: Upload generated Blender assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pogranichye-tavern-props-blender-4.2.0
+          path: 2-client/art-source/blender/generated/
+          if-no-files-found: warn
+          retention-days: 14
