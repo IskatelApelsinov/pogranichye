@@ -202,6 +202,10 @@ namespace Pogranichye.Client
                 GUILayout.Space(4);
                 GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
                 GUILayout.Label(TutorialHint(), GUILayout.Height(58));
+                if (_frame.Me.Result != null && !string.IsNullOrEmpty(_frame.Me.Result.RequestId))
+                    GUILayout.Label(_frame.Me.Result.Ok
+                        ? "Подтверждено сервером: " + _frame.Me.Result.RequestId
+                        : "Сервер отказал: " + (_frame.Me.Result.Reason ?? "причина не указана"));
                 GUILayout.Label(_tutorialStep == 0
                     ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
                     : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
@@ -544,9 +548,12 @@ namespace Pogranichye.Client
         {
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
+            var task = _frame.Me.Task;
+            if (task != null && !string.IsNullOrWhiteSpace(task.Text))
+                return task.Done ? "Вводная задача завершена. " + task.Text : task.Text;
             if (_tutorialStep == 0)
-                return "Шаг 1/1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
-            return "Вы познакомились с жителем. Отдельного поручения пока нет; можно освоиться и попробовать занятия.";
+                return "Шаг 1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
+            return "Знакомство подтверждено. Ожидаю серверное состояние следующего этапа.";
         }
 
         private void SetCameraMode(bool firstPerson)
