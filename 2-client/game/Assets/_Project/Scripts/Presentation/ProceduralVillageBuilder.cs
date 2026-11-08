@@ -1987,6 +1987,12 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
+            // The axle joins both wheel hubs beneath the bed; it is presentation-only
+            // and deliberately carries no collider or server movement authority.
+            var axle = CreatePrimitive("Cart wooden axle", PrimitiveType.Cylinder, cart,
+                new Vector3(0f, wheelCenterY, 0f), new Vector3(0.10f, 0.66f, 0.10f), _woodMaterial);
+            axle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+
             CreatePrimitive("Cart handle", PrimitiveType.Cube, cart, new Vector3(0, 0.52f, -0.78f),
                 new Vector3(0.10f, 0.10f, 1.0f), _woodMaterial);
         }
