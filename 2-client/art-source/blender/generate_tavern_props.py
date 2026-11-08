@@ -310,8 +310,8 @@ def build_basket(materials):
               [(0.105, 0.012), (0.112, 0.035), (0.165, 0.175), (0.178, 0.205)],
               12, materials["wicker"])
     add_cylinder(root, "Basket • woven bottom", (0.0, 0.0, 0.015), 0.106, 0.018, materials["wicker"], 12)
-    for side in range(10):
-        angle = TAU * side / 10.0
+    for side in range(8):
+        angle = TAU * side / 8.0
         points = []
         for height in (0.025, 0.09, 0.15, 0.205):
             radius = 0.108 + (height / 0.205) * 0.069
@@ -321,9 +321,9 @@ def build_basket(materials):
     for course, height in enumerate((0.055, 0.105, 0.155)):
         radius = 0.112 + (height / 0.205) * 0.066
         add_ring_curve(root, "Basket • woven course %02d" % course,
-                       radius, height, 0.0055, materials["wicker_light"], points=24,
+                       radius, height, 0.0055, materials["wicker_light"], points=16,
                        wave=0.006, phase=course * 0.9)
-    add_ring_curve(root, "Basket • reinforced rim", 0.179, 0.205, 0.009, materials["wicker"], points=24)
+    add_ring_curve(root, "Basket • reinforced rim", 0.179, 0.205, 0.009, materials["wicker"], points=16)
     add_sphere(root, "Basket • country loaf", (0.0, -0.012, 0.247),
                (0.105, 0.062, 0.052), materials["bread"], 12, 8)
     add_curve(root, "Bread • scoring one", [(-0.052, -0.018, 0.285), (0.0, -0.018, 0.291), (0.052, -0.018, 0.285)],
