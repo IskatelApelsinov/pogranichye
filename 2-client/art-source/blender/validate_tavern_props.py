@@ -6,6 +6,8 @@ Run from this directory:
 """
 import json
 import math
+import sys
+import traceback
 from pathlib import Path
 
 import bpy
@@ -120,4 +122,8 @@ def validate():
 
 
 if __name__ == "__main__":
-    validate()
+    try:
+        validate()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
