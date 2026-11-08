@@ -52,7 +52,8 @@ The validator opens the generated scene, checks the four root objects and ground
 - FBX export uses Unity-friendly Y-up / -Z-forward axis settings and applies unit scale.
 - Import the FBX into Unity with Model Scale 1.0. Check the tankard against the existing held-item mug once before replacing any current procedural view.
 - The main-branch Blender workflow copies validated FBX exports into `Assets/_Project/Resources/Generated/Tavern/`, plus the source PNGs and manifest. Unity loads the tankard and barrel through `Resources.Load`; if those imported assets are absent, the existing procedural meshes remain as a fallback.
-- FBX embeds its material textures where supported; the separate PNGs are retained under `Textures/` for explicit URP material authoring or repair. Do not rely on Blender Principled BSDF shader conversion as a guarantee of final URP appearance.
+- The Unity loader remaps the authored FBX material slots by their stable Blender material names onto the initialized URP-compatible runtime palette. This deliberately avoids depending on automatic Principled BSDF shader conversion; the separate PNGs remain available under `Textures/` for future authored URP material assets.
+- The authored barrel is non-uniformly scaled to match the former procedural prop's approximate 0.69 m diameter and 0.80 m height while preserving its ground-centred pivot.
 - Keep colliders separate from the render mesh. The tankard must remain non-static while attached to a character hand; placed tavern props may be marked static.
 - These are presentation assets only. They do not define server collision, POI coordinates, interaction range or authoritative item state.
 
