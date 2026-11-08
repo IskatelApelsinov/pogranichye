@@ -53,6 +53,9 @@ The validator opens the generated scene, checks the four root objects and ground
 - Import the FBX into Unity with Model Scale 1.0. Check the tankard against the existing held-item mug once before replacing any current procedural view.
 - Extract or create URP/Lit materials in Unity. Use the exported PNGs as Base Map textures; do not rely on Blender Principled BSDF shader conversion.
 - Keep colliders separate from the render mesh. The tankard must remain non-static while attached to a character hand; placed tavern props may be marked static.
+- On pushes to `main`, the Blender validation workflow copies the validated FBX files and source PNG textures into `2-client/game/Assets/Resources/TavernProps`. Unity imports these as Resources so the client can load them without scene/prefab GUID references.
+- `ProceduralVillageBuilder` uses the authored tankard, barrel, market basket and tavern bench when the Resources assets are present; its existing procedural meshes remain as a safe fallback for fresh clones or before Unity has imported the files.
+- Imported material slots are remapped to the client's initialized URP-compatible runtime materials by their Blender material names. This keeps the client from relying on Blender shader conversion; the original PNGs remain available for future authored material assets.
 - These are presentation assets only. They do not define server collision, POI coordinates, interaction range or authoritative item state.
 
 ## Validation status
