@@ -735,10 +735,10 @@ namespace Pogranichye.Client.Presentation
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            particles.Play();
         }
 
-        /// <summary>Thin lowland mist
-            particles.Play(); drifting near the meadow floor; kept subtle so it never obscures play.</summary>
+        /// <summary>Thin lowland mist drifting near the meadow floor; kept subtle so it never obscures play.</summary>
         private static void BuildLowlandMist(Transform root)
         {
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
