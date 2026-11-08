@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   blender-assets:
@@ -59,6 +59,24 @@ jobs:
       - name: Validate generated scene, meshes, textures and exports
         working-directory: 2-client/art-source/blender
         run: blender --background --python-exit-code 1 --python validate_tavern_props.py
+
+      - name: Sync validated FBX and textures into Unity Resources
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          destination="2-client/game/Assets/Resources/TavernProps"
+          mkdir -p "$destination/Textures"
+          cp 2-client/art-source/blender/generated/*.fbx "$destination/"
+          cp 2-client/art-source/blender/generated/textures/*.png "$destination/Textures/"
+          git add "$destination"
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "art: sync validated tavern props into Unity Resources"
+            git push
+          else
+            echo "Unity tavern props are already up to date."
+          fi
 
       - name: Upload generated Blender assets
         if: always()
