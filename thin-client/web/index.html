@@ -21,6 +21,9 @@
  button:active{filter:brightness(1.2)} button:disabled{opacity:.45;cursor:default}
  .row{display:flex;gap:8px;flex-wrap:wrap} .between{justify-content:space-between;align-items:center}
  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+ .village-scene{margin:10px 0 12px;border:1px solid #786143;border-radius:8px;overflow:hidden;background:#71834b;box-shadow:inset 0 0 0 2px #211f1a}
+ .village-scene img{display:block;width:100%;height:auto;image-rendering:pixelated}
+ .village-caption{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:#29271f;color:#d9c49b;font-size:12px}
  .locgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
  .loc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;line-height:1.2}
  .loc .ico{font-size:22px} .loc.here{background:linear-gradient(#b77b4e,#865334);border-color:#d3a06a;color:#fff4dc}
@@ -62,7 +65,11 @@
  <div class="card" id="taskcard" style="border-color:#c9a86a"></div>
 
  <div class="card">
-  <div class="row between"><b class="sub">Мир</b><span class="sub" id="daytime"></span></div>
+  <div class="row between"><b class="sub">Деревня</b><span class="sub" id="daytime"></span></div>
+  <figure class="village-scene" aria-label="Иллюстрированная карта деревни">
+   <img src="/village-scene.svg" alt="Деревня: корчма, кузница, рынок, огород, река, мост и жители" width="960" height="520" decoding="async">
+   <figcaption class="village-caption"><span>Первая деревня</span><span>Выбери место ниже, чтобы перейти к его делам</span></figcaption>
+  </figure>
   <div class="locgrid" id="locgrid"></div>
  </div>
 
