@@ -70,7 +70,7 @@ func TestKnowledgeVisitedVsKnown(t *testing.T) {
 	}
 	npc := villagerAt(w, "smith", tx+1, ty, se.ID)
 	StartTalk(w, p, npc.ID)
-	Say(w, p, "greet") // познакомился → known
+	Say(w, p, "greet", "r90454") // познакомился → known
 	f = Knowledge(p).Places[se.ID]
 	if !f.Known || !f.Visited {
 		t.Fatalf("после знакомства: known (и visited): %+v", f)

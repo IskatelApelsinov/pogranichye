@@ -45,7 +45,7 @@ func TestAcquaintReveal(t *testing.T) {
 	if ok, why := StartTalk(w, p, npc.ID); !ok {
 		t.Fatalf("заговорить рядом должно получиться: %s", why)
 	}
-	if ok, _ := Say(w, p, "greet"); !ok {
+	if ok, _ := Say(w, p, "greet", "r90454"); !ok {
 		t.Fatal("реплика знакомства должна пройти")
 	}
 	if !Knows(p, npc.ID) {
@@ -71,10 +71,10 @@ func TestTreatNPC(t *testing.T) {
 	p := playerAt(w, tx, ty, 10, se.ID)
 	npc := villagerAt(w, "fisher", tx+1, ty, se.ID)
 	StartTalk(w, p, npc.ID)
-	Say(w, p, "greet")
+	Say(w, p, "greet", "r90454")
 	before := core.Vitals(npc).Morale
 	coinsBefore := core.Purse(p).Coins
-	if ok, why := Say(w, p, "drink"); !ok {
+	if ok, why := Say(w, p, "drink", "r13445"); !ok {
 		t.Fatalf("угостить знакомого в корчме должно получиться: %s", why)
 	}
 	if core.Vitals(npc).Morale <= before {
@@ -96,7 +96,7 @@ func TestTreatRequiresAcquaint(t *testing.T) {
 	p := playerAt(w, tx, ty, 10, se.ID)
 	npc := villagerAt(w, "fisher", tx+1, ty, se.ID)
 	StartTalk(w, p, npc.ID)
-	if ok, _ := Say(w, p, "drink"); ok {
+	if ok, _ := Say(w, p, "drink", "r13445"); ok {
 		t.Fatal("незнакомого угощать нельзя")
 	}
 }

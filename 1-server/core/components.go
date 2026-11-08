@@ -142,6 +142,7 @@ type RegionC struct {
 	X     float64 `json:"x"`     // центр края на карте мира
 	Y     float64 `json:"y"`
 	Mana  float64 `json:"mana"` // базовая плотность маны края (места силы/мёртвые зоны); поселения наследуют её с разбросом
+	Outer bool    `json:"outer"` // край внешнего мира (за горами стартовой демо-зоны) — не home region
 }
 
 func (c *RegionC) Kind() string { return "region" }

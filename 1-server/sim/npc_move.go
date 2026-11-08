@@ -63,11 +63,15 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 			tx, ty = bx, by
 		}
 
-		dx, dy := tx-p.X, ty-p.Y
+		// арбитраж: если дошли до POI — стоим; иначе идём к цели по ДОРОГАМ (через узел графа)
+		if math.Hypot(tx-p.X, ty-p.Y) <= npcArrive {
+			p.Facing = facingDeg(tx-p.X, ty-p.Y, p.Facing)
+			return
+		}
+		wx, wy := nextWaypoint(w, e, p.X, p.Y, tx, ty) // следующая точка маршрута по дорогам (#39)
+		dx, dy := wx-p.X, wy-p.Y
 		dist := math.Hypot(dx, dy)
-		if dist <= npcArrive {
-			// дошёл — стоит лицом к точке, не дёргается
-			p.Facing = facingDeg(dx, dy, p.Facing)
+		if dist < 1e-6 {
 			return
 		}
 		step := npcWalk * dt

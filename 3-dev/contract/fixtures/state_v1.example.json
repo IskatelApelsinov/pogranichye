@@ -67,9 +67,12 @@
         "name": "Починок",
         "tier": "village",
         "x": 500,
-        "y": 500
+        "y": 500,
+        "outer": false
       }
-    ]
+    ],
+    "result": null,
+    "task": { "stage": 1, "met": false, "worked": false, "drank": false, "done": false, "text": "Познакомься с кем-нибудь из жителей (💬)." }
   },
   "place": {
     "name": "Белогорье",
@@ -90,6 +93,7 @@
         "trait": "тихий",
         "act": "отдыхает",
         "want": "при деле",
+        "gear": { "hand": "", "worn": {} },
         "act_code": "rest_idle",
         "player": false,
         "pos": {

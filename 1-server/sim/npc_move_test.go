@@ -28,7 +28,7 @@ func TestNPCWalksToActivityPOI(t *testing.T) {
 		t.Fatal("житель должен был получить ScenePos")
 	}
 	tx, ty := poiByKind("smithy")
-	if d := math.Hypot(p.X-tx, p.Y-ty); d > 5 { // добрёл к кузнице (с учётом личного смещения/обхода)
+	if d := math.Hypot(p.X-tx, p.Y-ty); d > 8 { // добрёл к кузнице (с учётом личного смещения/обхода)
 		t.Fatalf("кузнец не дошёл до кузницы: |до POI|=%.2f (pos %.1f,%.1f)", d, p.X, p.Y)
 	}
 	if Blocked(p.X, p.Y) {

@@ -164,15 +164,28 @@ func TalkOptionsFor(e, tgt *core.Entity) []DialogOption {
 }
 
 // StartTalk — заговорить с жителем рядом. Возвращает (ок, причина).
-func StartTalk(w *core.World, e *core.Entity, target core.ID) (bool, string) {
-	p := ScenePos(e)
-	tgt := w.Get(target)
-	if p == nil || tgt == nil || core.Mind(tgt) == nil {
+// canInteract — единый валидатор собеседника (#40): оба существуют, в ОДНОМ ненулевом поселении, у
+// обоих есть позиция в сцене, цель в пределах круга общения. Локальные координаты разных поселений
+// совпадать не должны — поэтому сверяем settlement, а не только расстояние.
+func canInteract(w *core.World, e, tgt *core.Entity) (bool, string) {
+	if e == nil || tgt == nil || core.Mind(tgt) == nil {
 		return false, "не с кем говорить"
 	}
-	tp := ScenePos(tgt)
-	if tp == nil || math.Hypot(p.X-tp.X, p.Y-tp.Y) > reachFor(p) {
+	pe, pt := core.Place(e), core.Place(tgt)
+	if pe == nil || pt == nil || pe.Settlement == 0 || pe.Settlement != pt.Settlement {
+		return false, "собеседника нет рядом"
+	}
+	p, tp := ScenePos(e), ScenePos(tgt)
+	if p == nil || tp == nil || math.Hypot(p.X-tp.X, p.Y-tp.Y) > reachFor(p) {
 		return false, "слишком далеко — подойди"
+	}
+	return true, ""
+}
+
+func StartTalk(w *core.World, e *core.Entity, target core.ID) (bool, string) {
+	tgt := w.Get(target)
+	if ok, why := canInteract(w, e, tgt); !ok {
+		return false, why
 	}
 	t := ensureTalk(w, e)
 	t.With = target
@@ -186,22 +199,24 @@ func StartTalk(w *core.World, e *core.Entity, target core.ID) (bool, string) {
 	return true, ""
 }
 
-// Say — игрок выбрал реплику. Двигает разговор; "greet" знакомит (открывает имя), "drink" угощает.
-func Say(w *core.World, e *core.Entity, line string) (bool, string) {
+// Say — игрок выбрал реплику. Перед каждым содержательным действием заново валидирует собеседника
+// (#40): ушёл/сменил поселение/отошёл → разговор закрывается без побочного эффекта. reqid нужен для
+// идемпотентности платных реплик (drink).
+func Say(w *core.World, e *core.Entity, line, reqid string) (bool, string) {
 	t := Talk(e)
 	if t == nil || t.Stage == "" {
 		return false, "ты ни с кем не говоришь"
 	}
 	tgt := w.Get(t.With)
-	if tgt == nil {
-		t.Stage = ""
-		return false, "собеседник ушёл"
+	if ok, why := canInteract(w, e, tgt); !ok { // собеседник должен быть рядом в том же поселении
+		EndTalk(e)
+		return false, why
 	}
 	id := core.Ident(tgt)
 	switch line {
 	case "greet":
 		ensureAcquaint(w, e).Known[t.With] = true // познакомились — имя открыто
-		if pl := core.Place(tgt); pl != nil { // познакомился с местным → осмысленное знание о поселении
+		if pl := core.Place(tgt); pl != nil {
 			LearnKnown(w, e, pl.Settlement)
 		}
 		t.Stage = "known"
@@ -211,7 +226,7 @@ func Say(w *core.World, e *core.Entity, line string) (bool, string) {
 	case "news":
 		t.Line = newsLine(tgt)
 	case "drink":
-		return treatNPC(w, e, tgt)
+		return treatNPC(w, e, tgt, reqid)
 	case "bye":
 		t.Stage = ""
 		t.Line = ""
@@ -248,7 +263,14 @@ func newsLine(tgt *core.Entity) string {
 
 // treatNPC — угостить знакомого жителя кружкой в корчме: игрок платит, оба веселеют. Требует знакомства,
 // корчмы рядом, пива в запасе и монет. Атомарно; отказ не меняет состояние.
-func treatNPC(w *core.World, e, tgt *core.Entity) (bool, string) {
+func treatNPC(w *core.World, e, tgt *core.Entity, reqid string) (bool, string) {
+	pc := EnsurePlayer(w, e) // идемпотентность платной реплики (#40): повтор того же reqid не спишет дважды
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
 	if !Knows(e, tgt.ID) {
 		return false, "сперва познакомься"
 	}
@@ -283,6 +305,7 @@ func treatNPC(w *core.World, e, tgt *core.Entity) (bool, string) {
 		t.Line = "За твоё здоровье! — " + name + " поднимает кружку."
 	}
 	fireSocial(w, e, "treat", tgt.ID) // подтверждённый момент тоста для клиента
+	pc.markDone(reqid)
 	return true, ""
 }
 
@@ -330,6 +353,9 @@ func InviteCoDrink(w *core.World, e *core.Entity, target core.ID, controlled fun
 	if tgt == nil || controlled == nil || !controlled(target) {
 		return false, "позвать можно только игрока рядом"
 	}
+	if pe, pt := core.Place(e), core.Place(tgt); pe == nil || pt == nil || pe.Settlement == 0 || pe.Settlement != pt.Settlement {
+		return false, "вы в разных поселениях" // #40/co-drink: сверяем settlement, не только локальные координаты
+	}
 	if !atTavern(e) || !atTavern(tgt) {
 		return false, "оба должны быть у стойки корчмы"
 	}
@@ -362,8 +388,9 @@ func AcceptCoDrink(w *core.World, e *core.Entity) (bool, string) {
 		return false, "оба должны быть у стойки"
 	}
 	pl := core.Place(e)
-	if pl == nil || pl.Settlement == 0 {
-		return false, "не в поселении"
+	pla := core.Place(a)
+	if pl == nil || pl.Settlement == 0 || pla == nil || pla.Settlement != pl.Settlement {
+		return false, "вы в разных поселениях" // оба в одном поселении (co-drink settlement check)
 	}
 	s := core.Settle(w.Get(pl.Settlement))
 	if s == nil || s.Store == nil || s.Store[BeerGood] < 2 {

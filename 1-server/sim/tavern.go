@@ -154,5 +154,6 @@ func DrinkBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pc.markDone(reqid)
 	v.Morale = math.Min(100, v.Morale+beerMorale)
 	v.Hunger = math.Max(0, v.Hunger-beerHunger)
+	pc.DrankBeer = true
 	return true, ""
 }
