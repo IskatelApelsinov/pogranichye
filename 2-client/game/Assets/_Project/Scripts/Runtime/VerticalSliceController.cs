@@ -52,6 +52,9 @@ namespace Pogranichye.Client
         private bool _hudCollapsed;
         private bool _movementDebugVisible;
         private Vector2 _movementInputDebug;
+        private Vector2 _movementKeyboardDebug;
+        private Vector2 _movementRawAxesDebug;
+        private string _pressedKeysDebug = "none";
         private Vector3 _movementDirectionDebug;
         private float _movementCameraYawDebug;
         private float _movementPlayerYawDebug;
@@ -253,8 +256,8 @@ namespace Pogranichye.Client
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 326f, 12f, 314f, 142f);
-            GUI.Box(rect, "ДВИЖЕНИЕ / КАМЕРА [F3]");
+            var rect = new Rect(Screen.width - 390f, 12f, 378f, 210f);
+            GUI.Box(rect, "ДИАГНОСТИКА ВВОДА / КАМЕРА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
             GUI.Label(new Rect(rect.x + 10f, rect.y + 48f, rect.width - 20f, 20f),
@@ -265,6 +268,27 @@ namespace Pogranichye.Client
                 $"Yaw камеры {_movementCameraYawDebug:0.0}° | yaw игрока {_movementPlayerYawDebug:0.0}°");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 108f, rect.width - 20f, 20f),
                 $"Facing сервера {_movementServerFacingDebug:0.0}°");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 128f, rect.width - 20f, 20f),
+                $"Клавиатура {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | оси {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
+                "Нажато: " + _pressedKeysDebug);
+        }
+
+        private static string BuildPressedKeysDebug()
+        {
+            var keys = new[]
+            {
+                KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D,
+                KeyCode.UpArrow, KeyCode.LeftArrow, KeyCode.DownArrow, KeyCode.RightArrow,
+                KeyCode.LeftShift, KeyCode.RightShift, KeyCode.Space,
+                KeyCode.E, KeyCode.F, KeyCode.I, KeyCode.J, KeyCode.M, KeyCode.Tab,
+                KeyCode.Escape, KeyCode.F1, KeyCode.F3, KeyCode.F11,
+                KeyCode.Mouse0, KeyCode.Mouse1, KeyCode.Mouse2
+            };
+            var pressed = new List<string>();
+            foreach (var key in keys)
+                if (Input.GetKey(key)) pressed.Add(key.ToString());
+            return pressed.Count == 0 ? "нет" : string.Join(", ", pressed);
         }
 
         private void DrawInventorySummary()
@@ -827,8 +851,21 @@ namespace Pogranichye.Client
             var player = _views != null ? _views.PlayerTransform : null;
             if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
 
-            var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            // Prefer explicit keyboard state over legacy axes. Some devices/drivers
+            // report a small non-zero axis while no key is pressed, which can make the
+            // character creep continuously (often backwards). Keep a dead-zoned axis
+            // fallback for gamepads and expose both sources in the F3 diagnostic panel.
+            var keyboardInput = new Vector2(
+                (Input.GetKey(KeyCode.D) ? 1f : 0f) - (Input.GetKey(KeyCode.A) ? 1f : 0f),
+                (Input.GetKey(KeyCode.W) ? 1f : 0f) - (Input.GetKey(KeyCode.S) ? 1f : 0f));
+            var rawAxes = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            _movementRawAxesDebug = rawAxes;
+            var input = keyboardInput.sqrMagnitude > 0.001f
+                ? keyboardInput
+                : rawAxes.sqrMagnitude >= 0.0625f ? rawAxes : Vector2.zero;
             input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(input, 1f);
+            _movementKeyboardDebug = keyboardInput;
+            _pressedKeysDebug = BuildPressedKeysDebug();
 
             // Derive movement from the camera's actual planar view basis. Projecting the
             // basis onto the ground avoids Euler-angle decomposition surprises when the
