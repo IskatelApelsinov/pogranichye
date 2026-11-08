@@ -70,6 +70,36 @@ namespace Pogranichye.Client.Networking
         public Task SendInviteDrinkAsync(string target, CancellationToken cancellationToken) =>
             SendIntentAsync("invite", target, null, cancellationToken);
 
+        public async Task SendItemIntentAsync(string op, string item, CancellationToken cancellationToken)
+        {
+            if (op != "equip" && op != "wear" && op != "take")
+                throw new ArgumentException("Неподдерживаемое действие с предметом.", nameof(op));
+            if (string.IsNullOrWhiteSpace(item))
+                throw new ArgumentException("Не задан предмет.", nameof(item));
+            if (!IsConnected)
+                throw new InvalidOperationException("WebSocket не подключён.");
+
+            var payload = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["v"] = 1,
+                ["op"] = op,
+                ["item"] = item
+            };
+            // take mutates inventory and therefore requires the server's bounded reqid dedup.
+            // equip/wear are state-setting intents and are naturally idempotent.
+            if (op == "take")
+                payload["reqid"] = Guid.NewGuid().ToString("N");
+
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally { _sendGate.Release(); }
+        }
+
         public async Task SendActAsync(string action, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(action)) throw new ArgumentException("Не задано действие.", nameof(action));
