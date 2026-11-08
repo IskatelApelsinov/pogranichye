@@ -46,6 +46,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
+        [JsonProperty("result")] public ActionResultFrame Result { get; set; }
+        [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -122,6 +124,33 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        [JsonProperty("gear")] public NeighborGearFrame Gear { get; set; }
+    }
+
+    [Serializable]
+    public sealed class NeighborGearFrame
+    {
+        [JsonProperty("hand")] public string Hand { get; set; }
+        [JsonProperty("worn")] public Dictionary<string, string> Worn { get; set; }
+    }
+
+    [Serializable]
+    public sealed class ActionResultFrame
+    {
+        [JsonProperty("reqid")] public string RequestId { get; set; }
+        [JsonProperty("ok")] public bool Ok { get; set; }
+        [JsonProperty("reason")] public string Reason { get; set; }
+    }
+
+    [Serializable]
+    public sealed class OpeningTaskFrame
+    {
+        [JsonProperty("stage")] public int Stage { get; set; }
+        [JsonProperty("met")] public bool Met { get; set; }
+        [JsonProperty("worked")] public bool Worked { get; set; }
+        [JsonProperty("drank")] public bool Drank { get; set; }
+        [JsonProperty("done")] public bool Done { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
     }
 
     [Serializable]
