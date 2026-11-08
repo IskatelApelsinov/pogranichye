@@ -9,8 +9,6 @@ import math
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "generated"
@@ -41,6 +39,7 @@ def validate():
     require(manifest_path.is_file(), "asset_manifest.json is missing")
     require(blend_path.is_file(), "Pogranichye_Tavern_Props.blend is missing")
     require(preview_path.is_file(), "tavern_props_preview.png is missing")
+    bpy.ops.wm.open_mainfile(filepath=str(blend_path))
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assets = manifest.get("assets", [])
