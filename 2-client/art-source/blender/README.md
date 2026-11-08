@@ -57,4 +57,4 @@ The validator opens the generated scene, checks the four root objects and ground
 
 ## Validation status
 
-The GitHub Actions workflow runs `python3 -m py_compile` on the source. This validates Python syntax only; the repository's current execution environment did not contain Blender, so Blender operators, generated `.blend`/FBX/GLB files, triangle counts, texture packing, preview render and Unity import scale remain unverified. The first Blender run must validate those before the assets are used in the playable scene.
+The GitHub Actions workflow installs Blender 4.2.0, generates the four props, runs the Blender-side structural validator, and uploads the generated scene, FBX/GLB exports, textures, manifest and preview as a short-lived workflow artifact. The validator checks mesh integrity, ground contact, triangle budgets, UVs, packed textures and exported files. Blender is invoked with `--python-exit-code 1`, so Python exceptions fail the workflow rather than silently leaving a green job. A successful CI run still does not replace importing the models into Unity 6 / URP and checking their scale, materials and appearance in the actual tavern scene.
