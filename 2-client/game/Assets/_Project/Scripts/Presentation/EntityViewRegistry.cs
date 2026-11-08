@@ -636,12 +636,14 @@ namespace Pogranichye.Client.Presentation
                 // while the networked player root remains at its canonical world position.
                 _leftPlayerArm.SetParent(cameraTransform, false);
                 _rightPlayerArm.SetParent(cameraTransform, false);
-                _leftPlayerArm.localPosition = new Vector3(-0.31f, -0.34f, 0.52f);
-                _rightPlayerArm.localPosition = new Vector3(0.31f, -0.34f, 0.52f);
+                // Keep the viewmodel low and near the screen edges. The character's
+                // stylized capsule hands otherwise dominate the first-person view.
+                _leftPlayerArm.localPosition = new Vector3(-0.34f, -0.43f, 0.66f);
+                _rightPlayerArm.localPosition = new Vector3(0.34f, -0.43f, 0.66f);
                 _leftPlayerArm.localRotation = Quaternion.identity;
                 _rightPlayerArm.localRotation = Quaternion.identity;
-                _leftPlayerArm.localScale = new Vector3(0.19f, 0.44f, 0.19f);
-                _rightPlayerArm.localScale = new Vector3(0.19f, 0.44f, 0.19f);
+                _leftPlayerArm.localScale = new Vector3(0.12f, 0.29f, 0.12f);
+                _rightPlayerArm.localScale = new Vector3(0.12f, 0.29f, 0.12f);
                 _firstPersonArmsAttached = true;
             }
             else if (!enabled && _firstPersonArmsAttached)
