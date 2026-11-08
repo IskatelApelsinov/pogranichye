@@ -708,7 +708,11 @@ namespace Pogranichye.Client.Presentation
             holder.transform.SetParent(root, false);
             holder.transform.localPosition = new Vector3(0f, 2.2f, 0f);
             var particles = holder.AddComponent<ParticleSystem>();
+            // AddComponent may auto-start the default system. Stop and clear it before
+            // changing duration or other main-module settings during procedural setup.
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = particles.main;
+            main.playOnAwake = false;
             main.loop = true;
             main.duration = 18f;
             main.maxParticles = 90;
@@ -733,7 +737,8 @@ namespace Pogranichye.Client.Presentation
             renderer.receiveShadows = false;
         }
 
-        /// <summary>Thin lowland mist drifting near the meadow floor; kept subtle so it never obscures play.</summary>
+        /// <summary>Thin lowland mist
+            particles.Play(); drifting near the meadow floor; kept subtle so it never obscures play.</summary>
         private static void BuildLowlandMist(Transform root)
         {
             var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
@@ -750,7 +755,11 @@ namespace Pogranichye.Client.Presentation
             holder.transform.SetParent(root, false);
             holder.transform.localPosition = new Vector3(0f, 0.42f, 0f);
             var particles = holder.AddComponent<ParticleSystem>();
+            // AddComponent may auto-start the default system. Stop and clear it before
+            // changing duration or other main-module settings during procedural setup.
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = particles.main;
+            main.playOnAwake = false;
             main.loop = true;
             main.duration = 32f;
             main.maxParticles = 24;
@@ -790,7 +799,8 @@ namespace Pogranichye.Client.Presentation
             renderer.receiveShadows = false;
         }
 
-        private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
+        private static Material CreateTransparentMaterial
+            particles.Play();(Shader shader, string name, Color color)
         {
             if (shader == null) return null;
             var material = new Material(shader) { name = name, color = color };
