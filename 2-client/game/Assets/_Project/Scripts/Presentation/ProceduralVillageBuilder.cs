@@ -1226,6 +1226,63 @@ namespace Pogranichye.Client.Presentation
         }
 
         /// <summary>
+        /// Loads an authored tavern FBX from Resources and maps its Blender material slots
+        /// onto the initialized URP-compatible runtime palette. Returns null when unavailable.
+        /// </summary>
+        private static GameObject CreateAuthoredTavernProp(Transform parent, string resourceName,
+            Vector3 localPosition, Vector3 localScale, string objectName)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(resourceName)) return null;
+            var prefab = Resources.Load<GameObject>("Generated/Tavern/" + resourceName);
+            if (prefab == null) return null;
+
+            var instance = UnityEngine.Object.Instantiate(prefab, parent, false);
+            instance.name = string.IsNullOrEmpty(objectName) ? prefab.name : objectName;
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = localScale;
+            ApplyAuthoredTavernPropMaterials(instance);
+            return instance;
+        }
+
+        private static void ApplyAuthoredTavernPropMaterials(GameObject instance)
+        {
+            if (instance == null) return;
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                var renderer = renderers[rendererIndex];
+                var materials = renderer.sharedMaterials;
+                var changed = false;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var source = materials[materialIndex];
+                    if (source == null) continue;
+                    var materialName = source.name.ToLowerInvariant();
+                    Material replacement = null;
+                    if (materialName.Contains("amber") || materialName.Contains("ale"))
+                        replacement = _beerMaterial;
+                    else if (materialName.Contains("foam"))
+                        replacement = _foamMaterial;
+                    else if (materialName.Contains("iron"))
+                        replacement = _metalMaterial;
+                    else if (materialName.Contains("apple") || materialName.Contains("bread"))
+                        replacement = _produceMaterial;
+                    else if (materialName.Contains("dark seam"))
+                        replacement = _roofMaterial;
+                    else if (materialName.Contains("oak") || materialName.Contains("timber"))
+                        replacement = _woodMaterial;
+
+                    if (replacement == null) continue;
+                    materials[materialIndex] = replacement;
+                    changed = true;
+                }
+
+                if (changed) renderer.sharedMaterials = materials;
+            }
+        }
+
+        /// <summary>
         /// Creates the same detailed tankard mesh used by tavern props for a held-item view.
         /// Returns null until the village presentation materials have been initialized.
         /// </summary>
@@ -1233,18 +1290,10 @@ namespace Pogranichye.Client.Presentation
         {
             if (parent == null) return null;
 
-            // The authored FBX is loaded from Resources so the same model is used on tables and in-hand.
-            // The existing procedural mesh remains a safe fallback until the generated asset is imported.
-            var authoredTankardPrefab = Resources.Load<GameObject>("Generated/Tavern/tankard_oakbeer");
-            if (authoredTankardPrefab != null)
-            {
-                var authoredTankard = UnityEngine.Object.Instantiate(authoredTankardPrefab, parent, false);
-                authoredTankard.name = string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName;
-                authoredTankard.transform.localPosition = Vector3.zero;
-                authoredTankard.transform.localRotation = Quaternion.identity;
-                authoredTankard.transform.localScale = Vector3.one;
-                return authoredTankard;
-            }
+            // Prefer the authored metre-scale FBX, but keep the procedural mesh as a safe fallback.
+            var authoredTankard = CreateAuthoredTavernProp(parent, "tankard_oakbeer",
+                Vector3.zero, Vector3.one, objectName);
+            if (authoredTankard != null) return authoredTankard;
 
             if (_mugWoodMaterial == null || _mugBandMaterial == null ||
                 _beerMaterial == null || _foamMaterial == null) return null;
@@ -1804,17 +1853,13 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildBarrel(Transform root, Vector3 position, float scale)
         {
-            // Prefer the authored Blender prop when the generated Resources asset is present.
-            // Keep the procedural fallback so the village remains buildable before the asset pipeline runs.
-            var authoredBarrelPrefab = Resources.Load<GameObject>("Generated/Tavern/barrel_oak");
-            if (authoredBarrelPrefab != null)
-            {
-                var authoredBarrel = UnityEngine.Object.Instantiate(authoredBarrelPrefab, root, false);
-                authoredBarrel.name = "Oak barrel • authored";
-                authoredBarrel.transform.position = position;
-                authoredBarrel.transform.localScale = Vector3.one * (scale * 2.3f);
-                return;
-            }
+            // Match the authored 0.438 m diameter / 0.36 m height to the former
+            // procedural barrel's 0.81 m diameter / 0.94 m height independently.
+            // Non-uniform scale preserves the intended village prop footprint and silhouette.
+            var authoredBarrel = CreateAuthoredTavernProp(root, "barrel_oak", position,
+                new Vector3(scale * 1.85f, scale * 2.61f, scale * 1.85f),
+                "Oak barrel • authored low-poly");
+            if (authoredBarrel != null) return;
 
             var barrel = new GameObject("Oak barrel").transform;
             barrel.SetParent(root, false);
