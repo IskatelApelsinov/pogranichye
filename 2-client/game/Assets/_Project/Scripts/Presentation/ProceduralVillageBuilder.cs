@@ -1298,6 +1298,12 @@ namespace Pogranichye.Client.Presentation
             if (parent == null || _mugWoodMaterial == null || _mugBandMaterial == null ||
                 _beerMaterial == null || _foamMaterial == null) return null;
 
+            // Use the same authored prop for the tavern table and the held-item view.
+            // CreateImportedProp remaps Blender material slots to the initialized URP materials.
+            var authored = CreateImportedProp(parent, "tankard_oakbeer", Vector3.zero, Vector3.one,
+                string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName);
+            if (authored != null) return authored;
+
             var mug = new GameObject(string.IsNullOrEmpty(objectName) ? "Oak beer tankard" : objectName).transform;
             mug.SetParent(parent, false);
             mug.localPosition = Vector3.zero;
