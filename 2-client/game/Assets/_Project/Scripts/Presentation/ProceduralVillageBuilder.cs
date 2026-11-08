@@ -423,8 +423,10 @@ namespace Pogranichye.Client.Presentation
 
             BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
             BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
-            CreateImportedProp(tavern, "bench_rustic", new Vector3(0.55f, 0f, -2.72f),
-                Vector3.one, "Tavern entrance bench • authored low-poly");
+            // The server blocks the whole tavern footprint; keep the bench fully outside
+            // its south edge so the POI approach remains physically reachable.
+            CreateImportedProp(tavern, "bench_rustic", new Vector3(0.55f, 0f, -6.65f),
+                Vector3.one, "Tavern courtyard bench • authored low-poly");
             // Keep the fire outside the server-blocked building footprint: the current
             // Layout v2 treats the tavern as a solid obstruction, so this courtyard fire
             // remains visible and reachable from the authoritative tavern POI.
@@ -1859,8 +1861,11 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildBarrel(Transform root, Vector3 position, float scale)
         {
+            // Match the authored 0.438 m diameter / 0.36 m height to the former
+            // procedural barrel's 0.81 m diameter / 0.94 m height independently.
             var authored = CreateImportedProp(root, "barrel_oak", position,
-                Vector3.one * (scale * 1.17f), "Oak barrel • authored low-poly");
+                new Vector3(scale * 1.85f, scale * 2.61f, scale * 1.85f),
+                "Oak barrel • authored low-poly");
             if (authored != null) return;
 
             var barrel = new GameObject("Oak barrel • procedural fallback").transform;
