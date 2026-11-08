@@ -21,8 +21,14 @@
  button:active{filter:brightness(1.2)} button:disabled{opacity:.45;cursor:default}
  .row{display:flex;gap:8px;flex-wrap:wrap} .between{justify-content:space-between;align-items:center}
  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
- .village-scene{margin:10px 0 12px;border:1px solid #786143;border-radius:8px;overflow:hidden;background:#71834b;box-shadow:inset 0 0 0 2px #211f1a}
+ .village-scene{position:relative;margin:10px 0 12px;border:1px solid #786143;border-radius:8px;overflow:hidden;background:#71834b;box-shadow:inset 0 0 0 2px #211f1a}
  .village-scene img{display:block;width:100%;height:auto;image-rendering:pixelated}
+ .map-hotspot{position:absolute;z-index:2;transform:translate(-50%,-50%);min-height:0;padding:4px 7px;border-radius:999px;
+   border:1px solid #e4c58e;background:#30271ddd;color:#fff0cf;font:12px/1.2 Georgia,serif;white-space:nowrap;
+   box-shadow:0 2px 5px #17130f99}
+ .map-hotspot:active,.map-hotspot.here{background:#bd7c43;border-color:#ffe0a4;color:#fff}
+ .map-hotspot:focus-visible{outline:3px solid #ffe0a4;outline-offset:2px}
+ @media(max-width:420px){.map-hotspot{font-size:10px;padding:3px 5px}.map-hotspot .full{display:none}}
  .village-caption{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:#29271f;color:#d9c49b;font-size:12px}
  .locgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
  .loc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;line-height:1.2}
@@ -66,9 +72,16 @@
 
  <div class="card">
   <div class="row between"><b class="sub">Деревня</b><span class="sub" id="daytime"></span></div>
-  <figure class="village-scene" aria-label="Иллюстрированная карта деревни">
+  <figure class="village-scene" aria-label="Интерактивная карта деревни">
    <img src="/village-scene.svg" alt="Деревня: корчма, кузница, рынок, огород, река, мост и жители" width="960" height="520" decoding="async">
-   <figcaption class="village-caption"><span>Первая деревня</span><span>Выбери место ниже, чтобы перейти к его делам</span></figcaption>
+   <button class="map-hotspot" style="left:48%;top:34%" data-location="tavern" aria-label="Перейти в корчму">🍺 Корчма</button>
+   <button class="map-hotspot" style="left:72%;top:30%" data-location="smithy" aria-label="Перейти в кузницу">⚒ Кузница</button>
+   <button class="map-hotspot" style="left:21%;top:76%" data-location="garden" aria-label="Перейти в огород">🥕 Огород</button>
+   <button class="map-hotspot" style="left:21%;top:58%" data-location="granary" aria-label="Перейти на рынок и в амбар">🌾 Рынок</button>
+   <button class="map-hotspot" style="left:51%;top:77%" data-location="well" aria-label="Перейти на площадь">⛲ Площадь</button>
+   <button class="map-hotspot" style="left:88%;top:49%" data-location="river" aria-label="Перейти к реке">🎣 Река</button>
+   <button class="map-hotspot" style="left:8%;top:39%" data-location="woods" aria-label="Перейти в лес">🪓 Лес</button>
+   <figcaption class="village-caption"><span>Первая деревня</span><span>Нажми на место прямо на карте</span></figcaption>
   </figure>
   <div class="locgrid" id="locgrid"></div>
  </div>
@@ -145,7 +158,14 @@ const LOCS=[
  {key:'mine',   name:'Рудник',   ico:'⛏', desc:'Рудокопы добывают руду.'},
 ];
 let curLoc='well', last=null;
-function goTo(key){ curLoc=key; stopMinigames(); send({op:'goto',location:key}); if(last) drawLoc(last); toast(''); }
+function goTo(key){
+ curLoc=key; stopMinigames(); send({op:'goto',location:key});
+ document.querySelectorAll('.map-hotspot').forEach(b=>b.classList.toggle('here',b.dataset.location===key));
+ if(last) drawLoc(last); toast('');
+}
+document.querySelectorAll('.map-hotspot').forEach(button=>{
+ button.addEventListener('click',()=>goTo(button.dataset.location));
+});
 function toast(t){ $('toast').textContent=t; }
 
 let lastResult='';
