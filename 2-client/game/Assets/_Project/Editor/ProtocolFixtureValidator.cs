@@ -46,7 +46,8 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
 
                 ValidateNegativeCases();
-                Debug.Log($"v1.8 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
+                ValidateJournalCases();
+                Debug.Log($"v1 fixture valid (optional journal support). Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict compatibility cases passed.");
             }
             catch (Exception ex)
             {
@@ -75,6 +76,25 @@ namespace Pogranichye.Client.Editor
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)
                 throw new FormatException("alive:false terminal frame must not require me.");
+        }
+
+        private static void ValidateJournalCases()
+        {
+            var withJournal = WorldFrameParser.Parse(
+                "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journal\\":[{\\"seq\\":1,\\"day\\":40,\\"kind\\":\\"met\\",\\"text\\":\\"Познакомился с жителем деревни.\\"}]}}");
+            if (withJournal.Me.Journal == null || withJournal.Me.Journal.Count != 1 ||
+                withJournal.Me.Journal[0].Sequence != 1 || withJournal.Me.Journal[0].Day != 40 ||
+                withJournal.Me.Journal[0].Kind != "met")
+                throw new FormatException("Optional me.journal entry was not deserialized correctly.");
+
+            var nullJournal = WorldFrameParser.Parse(
+                "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journal\\":null}}");
+            if (nullJournal.Me.Journal != null)
+                throw new FormatException("A null optional me.journal must remain compatible.");
+
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journal\\":{}}}", "non-array journal");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journal\\":[{\\"seq\\":1,\\"day\\":40,\\"kind\\":\\"met\\",\\"text\\":\\"A\\"},{\\"seq\\":1,\\"day\\":41,\\"kind\\":\\"worked\\",\\"text\\":\\"B\\"}]}}", "non-monotonic journal sequence");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journal\\":[{\\"seq\\":1,\\"day\\":40,\\"kind\\":\\"met\\",\\"text\\":\\" \\"}]}}", "empty journal text");
         }
 
         private static void ExpectRejected(string json, string caseName)
