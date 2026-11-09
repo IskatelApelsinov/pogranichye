@@ -124,7 +124,7 @@ namespace Pogranichye.Client.Networking
 
                 var day = entry["day"];
                 if (day == null || day.Type != JTokenType.Integer ||
-                    !long.TryParse(day.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var dayValue))
+                    !long.TryParse(day.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var dayValue) || dayValue < 0)
                     throw new FormatException(fieldName + "[" + i + "].day должен быть неотрицательным целым числом int64.");
 
                 var kind = entry["kind"];
