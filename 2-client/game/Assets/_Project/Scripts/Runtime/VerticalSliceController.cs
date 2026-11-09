@@ -450,6 +450,14 @@ namespace Pogranichye.Client
             }
         }
 
+        private void ResetSessionJournal()
+        {
+            _sessionJournal.Clear();
+            _lastJournalAction = null;
+            _lastJournalTaskSignature = null;
+            _lastJournalResultId = null;
+        }
+
         private void AddSessionJournalEntry(string entry)
         {
             _sessionJournal.Insert(0, entry);
@@ -898,6 +906,7 @@ namespace Pogranichye.Client
             if (_connectionState != WorldConnectionState.Closed || _busy || string.IsNullOrEmpty(_token))
                 return;
 
+            ResetSessionJournal();
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
