@@ -72,7 +72,10 @@
       }
     ],
     "result": null,
-    "task": { "stage": 1, "met": false, "worked": false, "drank": false, "done": false, "text": "Познакомься с кем-нибудь из жителей (💬)." }
+    "task": { "stage": 1, "met": false, "worked": false, "drank": false, "done": false, "text": "Познакомься с кем-нибудь из жителей (💬)." },
+    "journal": [
+      { "seq": 1, "day": 40, "kind": "met", "text": "Познакомился с жителем деревни." }
+    ]
   },
   "place": {
     "name": "Белогорье",

@@ -474,6 +474,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"world":        sim.Settlements(s.world), // карта поселений для путешествий (v1.7)
 			"result":       meResult(e),              // ack последнего действия (reqid/ok/reason) — #40
 			"task":         sim.OpeningTask(e),       // минимальная вводная задача (#80)
+			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()), // личная летопись вех (#54)
 		},
 	}
 	if pl != nil && pl.Settlement != 0 {
