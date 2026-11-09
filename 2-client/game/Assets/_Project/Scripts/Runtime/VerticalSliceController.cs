@@ -520,12 +520,16 @@ namespace Pogranichye.Client
             }
 
             GUI.color = previousColor;
-            GUI.Box(mapRect, GUIContent.none);
+            var borderColor = new Color(0.10f, 0.13f, 0.10f, 1f);
+            DrawMapFill(new Rect(mapRect.x, mapRect.y, mapRect.width, 2f), borderColor);
+            DrawMapFill(new Rect(mapRect.x, mapRect.yMax - 2f, mapRect.width, 2f), borderColor);
+            DrawMapFill(new Rect(mapRect.x, mapRect.y, 2f, mapRect.height), borderColor);
+            DrawMapFill(new Rect(mapRect.xMax - 2f, mapRect.y, 2f, mapRect.height), borderColor);
             if (playerPosition != null)
                 GUILayout.Label($"Ваше положение: X {playerPosition.X:0.0} м · Y {playerPosition.Y:0.0} м");
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
-            GUILayout.Label("Места: К — корчма · Кз — кузница · А — амбар · Р — рынок · Кл — площадь · С — староста · О — огород · Рк — река · Л — лес · Ш — шахта");
+            GUILayout.Label("Места: К — корчма · Кз — кузница · А — амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
         }
 
         private static void DrawMapFill(Rect rect, Color color)
