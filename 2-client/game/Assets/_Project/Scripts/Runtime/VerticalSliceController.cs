@@ -360,27 +360,62 @@ namespace Pogranichye.Client
             GUILayout.Label("ЖУРНАЛ ПЕРСОНАЖА");
             GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
             GUILayout.Space(5f);
+
             GUILayout.Label("Текущее поручение");
-            GUILayout.Label(me.Task?.Text ?? "Пока нет активной записи о поручении.", GUILayout.Height(58f));
+            GUILayout.Label(me.Task?.Text ?? "Пока нет активной записи о поручении.", GUILayout.MinHeight(36f));
             if (me.Task != null)
             {
                 GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Работа: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
                 GUILayout.Label(me.Task.Done ? "Вводное дело завершено." : "Дело ещё продолжается.");
             }
-            GUILayout.Space(5f);
-            GUILayout.Label("Последнее действие");
-            GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Записей пока нет." : me.Last, GUILayout.Height(48f));
-            if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
-                GUILayout.Label((me.Result.Ok ? "Успех: " : "Отказ: ") + (me.Result.Reason ?? me.Result.RequestId), GUILayout.Height(42f));
 
             GUILayout.Space(8f);
-            GUILayout.Label("ЗАПИСИ ЭТОГО СЕАНСА");
+            GUILayout.Label("ЛЕТОПИСЬ ПЕРСОНАЖА");
+            if (me.Journal == null)
+            {
+                GUILayout.Label("Сервер пока не передаёт сохранённые вехи. Старые кадры v1 остаются совместимыми.", GUILayout.MinHeight(36f));
+            }
+            else if (me.Journal.Count == 0)
+            {
+                GUILayout.Label("Пока нет сохранённых вех. Они появятся после знакомства, первого труда и кружки в корчме.", GUILayout.MinHeight(42f));
+            }
+            else
+            {
+                foreach (var entry in me.Journal)
+                {
+                    if (entry == null) continue;
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label($"День {entry.Day} · {JournalKindLabel(entry.Kind)}");
+                    GUILayout.Label(entry.Text, GUILayout.MinHeight(24f));
+                    GUILayout.EndVertical();
+                }
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("ТЕКУЩЕЕ СОСТОЯНИЕ");
+            GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Последнее действие пока не сообщено." : me.Last, GUILayout.MinHeight(24f));
+            if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
+                GUILayout.Label((me.Result.Ok ? "Подтверждено сервером: " : "Отказ сервера: ") + (me.Result.Reason ?? me.Result.RequestId), GUILayout.MinHeight(32f));
+
+            GUILayout.Space(8f);
+            GUILayout.Label("НАБЛЮДЕНИЯ ЭТОГО ПОДКЛЮЧЕНИЯ");
             if (_sessionJournal.Count == 0)
                 GUILayout.Label("Пока нет новых наблюдаемых событий.");
             else
                 foreach (var entry in _sessionJournal)
-                    GUILayout.Label("• " + entry, GUILayout.Height(36f));
-            GUILayout.Label("Локальная история наблюдений с момента входа. Полная летопись персонажа появится после серверной поддержки.");
+                    GUILayout.Label("• " + entry, GUILayout.MinHeight(24f));
+            GUILayout.Label("Наблюдения собираются клиентом с момента входа и не заменяют сохранённую серверную летопись.", GUILayout.MinHeight(36f));
+        }
+
+        private static string JournalKindLabel(string kind)
+        {
+            switch (kind)
+            {
+                case "met": return "Знакомство";
+                case "worked": return "Первый труд";
+                case "drank": return "Кружка в корчме";
+                default: return string.IsNullOrWhiteSpace(kind) ? "Событие" : "Событие: " + kind;
+            }
         }
 
         private void CaptureSessionJournal(WorldFrame frame)
