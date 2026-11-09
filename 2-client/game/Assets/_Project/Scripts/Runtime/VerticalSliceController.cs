@@ -504,8 +504,13 @@ namespace Pogranichye.Client
                     if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null) continue;
                     var position = WorldMapProjection.ToMapPoint(point.X, point.Y, half, mapRect);
                     var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
-                    GUI.color = new Color(0.70f, 0.53f, 0.31f, 1f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = new Color(0.70f, 0.53f, 0.31f, 1f);
+                    GUI.contentColor = Color.white;
                     GUI.Box(marker, MapPoiGlyph(poiId), _mapPoiStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
                 }
             }
 
@@ -515,8 +520,13 @@ namespace Pogranichye.Client
                 var position = WorldMapProjection.ToMapPoint(
                     playerPosition.X, playerPosition.Y, half, mapRect);
                 var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
-                GUI.color = new Color(0.65f, 0.20f, 0.15f, 1f);
+                var previousBackground = GUI.backgroundColor;
+                var previousContent = GUI.contentColor;
+                GUI.backgroundColor = new Color(0.65f, 0.20f, 0.15f, 1f);
+                GUI.contentColor = Color.white;
                 GUI.Box(marker, "★", _mapPlayerStyle);
+                GUI.backgroundColor = previousBackground;
+                GUI.contentColor = previousContent;
             }
 
             GUI.color = previousColor;
