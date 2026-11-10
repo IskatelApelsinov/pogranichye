@@ -1424,7 +1424,10 @@ namespace Pogranichye.Client.Presentation
         {
             if (hand == null || _woodMaterial == null || _metalMaterial == null) return null;
             if (activity != "chop" && activity != "mine" && activity != "forge" &&
-                activity != "farm" && activity != "fish" && activity != "hunt")
+                activity != "farm" && activity != "fish" && activity != "hunt" &&
+                activity != "weave" && activity != "study" && activity != "cook" &&
+                activity != "brew" && activity != "forage" && activity != "herd" &&
+                activity != "tavern")
                 return null;
 
             var tool = new GameObject("Held activity tool • " + activity).transform;
@@ -1479,6 +1482,61 @@ namespace Pogranichye.Client.Presentation
                     var spearTip = CreatePrimitive("Tool • hunting spear tip", PrimitiveType.Cube, tool,
                         new Vector3(0f, 0.45f, 0f), new Vector3(0.075f, 0.17f, 0.045f), _metalMaterial);
                     spearTip.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                    break;
+                }
+                case "weave":
+                {
+                    CreatePrimitive("Tool • wooden weaving shuttle", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.39f, 0f), new Vector3(0.20f, 0.045f, 0.07f), _woodMaterial);
+                    var thread = CreatePrimitive("Tool • dyed yarn spool", PrimitiveType.Cylinder, tool,
+                        new Vector3(0.08f, 0.55f, 0f), new Vector3(0.055f, 0.055f, 0.055f), _clothMaterial);
+                    thread.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                    break;
+                }
+                case "study":
+                {
+                    var scroll = CreatePrimitive("Tool • folded parchment", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.38f, 0.025f), new Vector3(0.19f, 0.24f, 0.025f), _clothMaterial);
+                    scroll.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                    CreatePrimitive("Tool • scroll spindle", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.51f, 0.025f), new Vector3(0.025f, 0.13f, 0.025f), _woodMaterial);
+                    break;
+                }
+                case "cook":
+                case "brew":
+                {
+                    CreatePrimitive("Tool • wooden ladle handle", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.36f, 0f), new Vector3(0.018f, 0.19f, 0.018f), _woodMaterial);
+                    CreatePrimitive("Tool • ladle bowl", PrimitiveType.Sphere, tool,
+                        new Vector3(0f, 0.55f, 0f), new Vector3(0.075f, 0.045f, 0.075f), _metalMaterial);
+                    if (activity == "brew")
+                        CreatePrimitive("Tool • herb bundle", PrimitiveType.Sphere, tool,
+                            new Vector3(0.07f, 0.59f, 0.015f), new Vector3(0.055f, 0.045f, 0.055f), _clothMaterial);
+                    break;
+                }
+                case "forage":
+                {
+                    var pouch = CreatePrimitive("Tool • herb gathering pouch", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.34f, 0f), new Vector3(0.18f, 0.18f, 0.12f), _clothMaterial);
+                    pouch.transform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+                    CreatePrimitive("Tool • gathered herbs", PrimitiveType.Sphere, tool,
+                        new Vector3(0f, 0.48f, 0f), new Vector3(0.12f, 0.08f, 0.09f), _leafMaterial);
+                    break;
+                }
+                case "herd":
+                {
+                    var crook = CreatePrimitive("Tool • shepherd crook", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.34f, 0f), new Vector3(0.018f, 0.23f, 0.018f), _woodMaterial);
+                    crook.transform.localRotation = Quaternion.Euler(0f, 0f, -5f);
+                    CreatePrimitive("Tool • crook handle", PrimitiveType.Sphere, tool,
+                        new Vector3(0.035f, 0.56f, 0f), new Vector3(0.045f, 0.035f, 0.035f), _woodMaterial);
+                    break;
+                }
+                case "tavern":
+                {
+                    var towel = CreatePrimitive("Tool • tavern cloth", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.38f, 0f), new Vector3(0.20f, 0.13f, 0.025f), _clothMaterial);
+                    towel.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
                     break;
                 }
             }
