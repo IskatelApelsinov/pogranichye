@@ -232,8 +232,19 @@ function drawQuests(s){
 
 // ---------- ремесло ----------
 const AT = {smithy:'⚒ Кузница', hearth:'🔥 Очаг', granary:'🌾 Мастерская у амбара'};
+const craftFeedback = new PogranichyeCraftFeedback();
+function craftRecipe(recipeId){
+  const reqid = rid();
+  if(!craftFeedback.begin(reqid, recipeId)) return;
+  if(!send({op:'craft',item:recipeId,reqid})){
+    craftFeedback.cancel(reqid);
+    return;
+  }
+  drawCraft(last||{});
+}
 function drawCraft(s){
   const me = s.me||{}, rec = me.recipes||[];
+  craftFeedback.resolve(me.result);
   const here = rec.filter(r => r.here);
   let h = '<b>🔨 Ремесло</b> ';
   if(typeof curLoc!=='undefined' && curLoc==='mine') h += '<div class="acts">' + sbtn('⛏ Добыть руду', `send({op:'act',action:'mine'})`) + '</div>';
@@ -241,10 +252,13 @@ function drawCraft(s){
   if(!here.length) h += '<span class="sub">Мастерят у кузни, очага и амбара. Сырьё: руда — на руднике, травы — у огородов, шкуры и мясо — с охоты.</span>';
   else h += `<span class="sub">${AT[here[0].at]||''}</span>`;
   here.forEach(r => {
-    const needs = Object.entries(r.needs).map(([g,n]) => `${ru(g)} ×${n}`).join(', ');
-    h += `<div class="nb"><span>${esc(r.name)} <span class="sub">· нужно: ${needs} → ${ru(r.gives)}${r.qty>1?' ×'+r.qty:''}</span></span>` +
-         sbtn('сделать', `send({op:'craft',item:'${r.id}'})`, !r.can, r.can?'primary':'') + '</div>';
+    const needs = Object.entries(r.needs||{}).map(([g,n]) => `${ru(g)} ×${n}`).join(', ');
+    const pending = craftFeedback.isPending(r.id);
+    h += `<div class="nb"><span>${esc(r.name)} <span class="sub">· нужно: ${needs} → ${ru(r.gives)}${r.qty>1?' ×'+r.qty:''}${pending?' · ожидаем ответ мира':''}</span></span>` +
+         sbtn(pending?'⏳ ожидаем…':'сделать', `craftRecipe('${r.id}')`, !r.can || pending, r.can?'primary':'') + '</div>';
   });
+  const notice = craftFeedback.notice;
+  if(notice) h += `<div class="sub" style="margin-top:8px;color:${notice.ok?'#b7d69a':'#e5a18a'}">${notice.ok?'✓ Ремесло подтверждено сервером.':'⚠ '+esc(notice.reason||'Сервер отказал в изготовлении.')}</div>`;
   setHTML('craftcard', h);
 }
 
