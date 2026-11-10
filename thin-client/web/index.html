@@ -151,7 +151,7 @@ $('go').onclick=async()=>{
  if(!lr.ok){$('err').textContent=lr.msg||'неверный вход';return;}
  token=lr.token; connect();
 };
-async let reconnectTimer=null, reconnectDelay=1000, connectionGeneration=0;
+let reconnectTimer=null, reconnectDelay=1000, connectionGeneration=0;
 function connect(){
  if(!token) return;
  if(ws && (ws.readyState===WebSocket.CONNECTING || ws.readyState===WebSocket.OPEN)) return;
