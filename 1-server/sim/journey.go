@@ -332,6 +332,11 @@ func arrive(w *core.World, e *core.Entity, j *JourneyC) {
 	}
 	LearnVisited(w, e, j.To)
 	GoTo(w, e, "well")
+	if x, y, ok := arriveSpot(w, j.To, j.From); ok { // входишь с той стороны, откуда пришёл
+		p := EnsureScenePos(w, e)
+		p.X, p.Y = x, y
+		p.Facing = facingDeg(-x, -y, p.Facing)
+	}
 	if v := core.Vitals(e); v != nil {
 		v.Energy = math.Max(0, v.Energy-8)
 		TrainStat(w, e, "endurance", 0.3)

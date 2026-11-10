@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"pogranichye/dice"
 	"pogranichye/memory"
 	"sort"
 	"strconv"
@@ -240,6 +241,7 @@ func (s *Server) fastStep(dt float64) {
 	// тела под управлением игроков пропускаем (их ведёт сам игрок)
 	sim.StepNPCMovement(s.world, dt, ctl)
 	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
+	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
 	sim.SoberUp(s.world, dt)
@@ -816,10 +818,11 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer":        round0(st.Store[sim.BeerGood]), // запас пива в корчме (v1.2)
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
-				"foes":        sim.FoesView(s.world, pl.Settlement), // звери/лихие люди сцены (v1.10)
-				"site":        sim.SiteView(s.world, se),            // место на планете и характер села (v1.14)
-				"stable":      sim.StableView(se),                   // конюшня: лошади на продажу и цена (v1.13)
-				"market":      sim.MarketView(se, e),                // прилавок: запас и цены (v1.10)
+				"foes":        sim.FoesView(s.world, pl.Settlement),     // звери/лихие люди сцены (v1.10)
+				"exits":       sim.ExitsView(s.world, e, pl.Settlement), // выезды: тракты к соседям и перевал (v1.15)
+				"site":        sim.SiteView(s.world, se),                // место на планете и характер села (v1.14)
+				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
+				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
 			}
 		}
 	}
