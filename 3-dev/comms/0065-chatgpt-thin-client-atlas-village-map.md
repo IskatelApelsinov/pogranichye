@@ -35,12 +35,12 @@
 
 - Ветка: `chatgpt/thin-client-atlas-village-map-20261110`.
 - Основной implementation commit: `c0363ebf4b4fd6870c627bc60ce1a3380277c62e`.
-- Последующие hardening/CI commits: `453fc1561e40830aa2626d10884c011f7f6c2419`, `dbe7789efeb103320644c4e43aece7a1bd0744dd`.
+- Последующие hardening/CI commits: `453fc1561e40830aa2626d10884c011f7f6c2419`, `dbe7789efeb103320644c4e43aece7a1bd0744dd`, `94a011f93cfb55483589126072b3fd1925d2eb87`, `67b7b0e6316525e467bcf91738170aca95a28368`.
 - PR #231: https://github.com/IskatelApelsinov/pogranichye/pull/231 — открыт, draft, не слит.
-- GitHub Actions run #42884477403: SUCCESS.
+- GitHub Actions run #42884918378: SUCCESS (final head); prior run #42884477403 also SUCCESS.
 - `node --check thin-client/web/core.js`: passed.
 - `node --check thin-client/web/village-map.js`: passed.
-- `node --test thin-client/web/tests/*.test.cjs`: 15/15 passed, 0 failed. Покрыты RequestGate, craft feedback, map projection, deterministic props, server-only entity positions/privacy, optional state и renderer.
+- `node --test thin-client/web/tests/*.test.cjs`: 16/16 passed, 0 failed. Покрыты RequestGate, craft feedback, map projection, deterministic props, server-only entity positions/privacy, optional state и renderer.
 - Ручной браузерный/телефонный запуск не выполнялся. Unity Editor/PlayMode не запускались и для этой thin-client правки не требовались.
 
 ## Риски и следующая конкретная задача
