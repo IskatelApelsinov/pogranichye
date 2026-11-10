@@ -123,6 +123,9 @@ func addStash(w *core.World, e *core.Entity, good string, n float64) {
 
 // ChopWood — срубить дерево у леса: нужны силы и близость к опушке; даёт бревно в закрома.
 func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	if why := siteLacks(w, e, "woods"); why != "" {
+		return false, why
+	}
 	pc := EnsurePlayer(w, e)
 	if reqid == "" {
 		return false, "нужен reqid"
@@ -151,6 +154,9 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 
 // FishCatch — закинуть снасть у реки: нужны силы и берег; даёт рыбу в закрома.
 func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	if why := siteLacks(w, e, "river"); why != "" {
+		return false, why
+	}
 	pc := EnsurePlayer(w, e)
 	if reqid == "" {
 		return false, "нужен reqid"

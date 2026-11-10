@@ -184,6 +184,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/ws", s.handleWS)
 	mux.HandleFunc("/api/layout", s.handleLayout)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/planet", func(w http.ResponseWriter, r *http.Request) { // служебная сводка планеты
+		s.mu.Lock()
+		out := sim.PlanetView(s.world)
+		s.mu.Unlock()
+		writeJSON(w, out)
+	})
 	mux.HandleFunc("/", s.handleIndex)
 	return mux
 }
@@ -811,6 +817,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
 				"foes":        sim.FoesView(s.world, pl.Settlement), // звери/лихие люди сцены (v1.10)
+				"site":        sim.SiteView(s.world, se),            // место на планете и характер села (v1.14)
 				"stable":      sim.StableView(se),                   // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                // прилавок: запас и цены (v1.10)
 			}
