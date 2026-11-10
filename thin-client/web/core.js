@@ -308,10 +308,77 @@ function drawParty(s){
 let LAY = null, layAsked = false;
 const MAPLOC = ['well','tavern','river','woods','garden','smithy','granary','mine','hearth','market'];
 let villageAtlas = null;
+const villageMapView = {zoom:1,panX:0,panY:0};
+let villageMapPointer = null, villageMapSuppressClick = false;
 if(typeof Image !== 'undefined'){
   villageAtlas = new Image();
   villageAtlas.onload = () => { if(last) drawLiveMap(last); };
   villageAtlas.src = '/village-atlas.svg';
+}
+function clampVillageMapView(){
+  villageMapView.zoom = Math.max(1,Math.min(4,villageMapView.zoom));
+  const limit = 320 * (villageMapView.zoom - 1);
+  villageMapView.panX = Math.max(-limit,Math.min(limit,villageMapView.panX));
+  villageMapView.panY = Math.max(-limit,Math.min(limit,villageMapView.panY));
+}
+function bindVillageMap(cv){
+  if(cv.dataset.mapControlsBound) return;
+  cv.dataset.mapControlsBound='1';
+  cv.addEventListener('wheel',ev=>{
+    ev.preventDefault();
+    const rect=cv.getBoundingClientRect(),sx=(ev.clientX-rect.left)*cv.width/rect.width,sy=(ev.clientY-rect.top)*cv.height/rect.height;
+    const old=villageMapView.zoom,next=Math.max(1,Math.min(4,old*(ev.deltaY<0?1.2:1/1.2)));
+    const anchorX=(sx-cv.width/2-villageMapView.panX)/old,anchorY=(sy-cv.height/2-villageMapView.panY)/old;
+    villageMapView.zoom=next;villageMapView.panX=sx-cv.width/2-anchorX*next;villageMapView.panY=sy-cv.height/2-anchorY*next;
+    clampVillageMapView();if(last)drawLiveMap(last);
+  },{passive:false});
+  cv.addEventListener('pointerdown',ev=>{
+    if(ev.button!==0)return;
+    villageMapPointer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,panX:villageMapView.panX,panY:villageMapView.panY,moved:false};
+    if(cv.setPointerCapture)cv.setPointerCapture(ev.pointerId);
+  });
+  cv.addEventListener('pointermove',ev=>{
+    if(!villageMapPointer||villageMapPointer.id!==ev.pointerId)return;
+    const dx=(ev.clientX-villageMapPointer.x)*cv.width/cv.getBoundingClientRect().width;
+    const dy=(ev.clientY-villageMapPointer.y)*cv.height/cv.getBoundingClientRect().height;
+    if(Math.abs(dx)+Math.abs(dy)>5)villageMapPointer.moved=true;
+    if(villageMapPointer.moved){villageMapView.panX=villageMapPointer.panX+dx;villageMapView.panY=villageMapPointer.panY+dy;clampVillageMapView();if(last)drawLiveMap(last);}
+  });
+  const finish=ev=>{
+    if(!villageMapPointer||villageMapPointer.id!==ev.pointerId)return;
+    villageMapSuppressClick=villageMapPointer.moved;villageMapPointer=null;
+  };
+  cv.addEventListener('pointerup',finish);cv.addEventListener('pointercancel',finish);
+}
+function villageMapZoom(delta){
+  villageMapView.zoom=Math.max(1,Math.min(4,villageMapView.zoom+delta));
+  if(villageMapView.zoom===1){villageMapView.panX=0;villageMapView.panY=0;}
+  clampVillageMapView();if(last)drawLiveMap(last);
+}
+function villageMapReset(){villageMapView.zoom=1;villageMapView.panX=0;villageMapView.panY=0;if(last)drawLiveMap(last);}
+function drawLiveMap(s){
+  const cv = document.getElementById('livemap'); if(!cv) return;
+  bindVillageMap(cv);
+  if(!LAY && !layAsked){ layAsked = true; fetch('/api/layout').then(r => r.json()).then(j => { LAY = j; if(last) drawLiveMap(last); }).catch(() => { layAsked = false; }); }
+  if(!LAY || !s.place || !(Number(LAY.world_half)>0)) return;
+  if(window.PogranichyeVillageMap) window.PogranichyeVillageMap.draw(cv,LAY,s,villageAtlas,selFoe,villageMapView);
+  const zoomLabel=document.getElementById('mapzoomlevel');if(zoomLabel)zoomLabel.textContent=villageMapView.zoom.toFixed(1).replace('.0','')+'×';
+  const W=cv.width,H=cv.height,half=Number(LAY.world_half);
+  if(!cv.onclick) cv.onclick = ev => {
+    if(villageMapSuppressClick){villageMapSuppressClick=false;return;}
+    const rc=cv.getBoundingClientRect(),mx=(ev.clientX-rc.left)*W/rc.width,my=(ev.clientY-rc.top)*H/rc.height;
+    const world=window.PogranichyeVillageMap
+      ? window.PogranichyeVillageMap.viewUnproject(mx,my,half,W,H,villageMapView)
+      : {x:mx/(W/(2*half))-half,y:half-my/(H/(2*half))};
+    if(!world)return;
+    const wx=world.x,wy=world.y,st=last||{};
+    let best=null,bd=12/villageMapView.zoom;
+    ((st.place||{}).foes||[]).forEach(f=>{const d=Math.hypot(f.x-wx,f.y-wy);if(f.state!=='dead'&&d<bd){bd=d;best=f;}});
+    if(best){pickFoe(best.id);return;}
+    let loc=null;bd=30/villageMapView.zoom;
+    MAPLOC.forEach(n=>{const q=LAY.pois[n];if(!q)return;const d=Math.hypot(q.x-wx,q.y-wy);if(d<bd){bd=d;loc=n;}});
+    if(loc)goTo(loc);
+  };
 }
 function drawLiveMap(s){
   const cv = document.getElementById('livemap'); if(!cv) return;

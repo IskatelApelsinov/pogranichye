@@ -49,10 +49,25 @@ test('missing optional state is safe',()=>{
 });
 test('renderer draws atlas sprites and server entities without browser globals',()=>{
   const calls={drawImage:0,fillRect:0,fillText:0,arc:0,strokeRect:0},ctx={};
-  for(const name of ['drawImage','fillRect','fillText','strokeText','strokeRect','beginPath','arc','fill','stroke','moveTo','lineTo','closePath','save','restore','translate','rotate'])
+  for(const name of ['drawImage','fillRect','fillText','strokeText','strokeRect','beginPath','arc','fill','stroke','moveTo','lineTo','closePath','save','restore','translate','rotate','scale'])
     ctx[name]=()=>{if(calls[name]!==undefined)calls[name]++;};
   const canvas={width:640,height:640,getContext:()=>ctx},atlas={complete:true,naturalWidth:384};
   const snapshot={me:{pos:{x:0,y:0,facing:0}},place:{neighbors:[{role:'farmer',pos:{x:8,y:4}}],foes:[{id:'boar-1',kind:'boar',x:-18,y:10,aware:true}]}};
   assert.equal(VillageMap.draw(canvas,layout,snapshot,atlas,'boar-1'),true);
   assert.ok(calls.drawImage>20);assert.ok(calls.fillText>0);assert.ok(calls.arc>0);assert.ok(calls.strokeRect>0);
+});
+
+
+test('zoom and pan projection round-trips world coordinates',()=>{
+  const view={zoom:2.5,panX:73,panY:-41};
+  const screen=VillageMap.viewProject(-42,27,150,640,640,view);
+  const world=VillageMap.viewUnproject(screen.x,screen.y,150,640,640,view);
+  assert.ok(Math.abs(world.x+42)<1e-9);
+  assert.ok(Math.abs(world.y-27)<1e-9);
+});
+
+test('zoom viewport keeps map centre fixed at one-to-one scale',()=>{
+  const view={zoom:1,panX:0,panY:0};
+  const p=VillageMap.viewProject(0,0,150,640,640,view);
+  assert.deepEqual(p,{x:320,y:320});
 });
