@@ -208,6 +208,7 @@ func Travel(w *core.World, e *core.Entity, settlement core.ID) (bool, string) {
 	pl.Settlement = settlement
 	LearnVisited(w, e, settlement)
 	GoTo(w, e, "well")
+	OpenFrontier(w, e, settlement) // врата во внешний мир: за краем, куда пришёл игрок, открывается следующий
 	return true, ""
 }
 

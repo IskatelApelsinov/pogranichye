@@ -507,3 +507,112 @@ func TestNeedsLoDMatchesFullRate(t *testing.T) {
 		t.Fatalf("голод за сутки должен совпасть: полный %.2f, холодный %.2f", full, cold)
 	}
 }
+
+// Бесконечный мир: приход игрока во внешний край открывает следующий край дальше от центра; повторно
+// тот же край не открывается; потолок числа поселений соблюдается; стартовые земли не растут.
+func TestFrontierGrowsWherePlayersGo(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	count := func() int { n := 0; w.Each("settlement", func(*core.Entity) { n++ }); return n }
+	var outer *core.Entity
+	w.Each("settlement", func(o *core.Entity) {
+		if outer == nil && isOuter(w, core.Settle(o)) {
+			outer = o
+		}
+	})
+	if outer == nil {
+		t.Skip("нет внешнего мира")
+	}
+	base := count()
+	if OpenFrontier(w, e, se.ID) != "" || count() != base {
+		t.Fatal("стартовые земли расти не должны")
+	}
+	ConfigureFrontier(w, FrontierCfgC{Enabled: true, Max: base + 5, Villages: 4, Folk: 5})
+	if ok, why := Travel(w, e, outer.ID); !ok {
+		t.Fatalf("врата: %s", why)
+	}
+	if count() != base+4 {
+		t.Fatalf("за краем должны открыться 4 деревни: было %d, стало %d", base, count())
+	}
+	r0 := core.Region(w.Get(core.Settle(outer).Region))
+	far := false
+	w.Each("region", func(re *core.Entity) {
+		r := core.Region(re)
+		if f, _ := re.Get("frontier").(*FrontierC); f != nil && f.Ring == 1 {
+			far = math.Hypot(r.X-500, r.Y-500) > math.Hypot(r0.X-500, r0.Y-500)
+		}
+	})
+	if !far {
+		t.Fatal("новый край должен лежать дальше от центра")
+	}
+	n := count()
+	OpenFrontier(w, e, outer.ID)
+	if count() != n {
+		t.Fatal("один край открывается один раз")
+	}
+	// потолок: в новом краю следующий уже не откроется (base+5 < n+4)
+	var fresh core.ID
+	w.Each("settlement", func(o *core.Entity) {
+		if re := w.Get(core.Settle(o).Region); re != nil {
+			if f, _ := re.Get("frontier").(*FrontierC); f != nil && f.Ring == 1 {
+				fresh = o.ID
+			}
+		}
+	})
+	if OpenFrontier(w, e, fresh) != "" || count() != n {
+		t.Fatal("потолок мира должен останавливать рост")
+	}
+	// у новых деревень есть жители и староста — в них можно жить и брать просьбы
+	if len(residentsOf(w, fresh)) < 3 || core.Settle(w.Get(fresh)).Keeper == 0 {
+		t.Fatal("новая деревня должна быть населена")
+	}
+}
+
+// #40 (0057 ChatGPT, п.3): разговор начат успешно, затем собеседник ушёл за радиус или в другое
+// поселение — Say закрывает разговор и НЕ даёт эффекта (ни знакомства, ни оплаты).
+func TestSayAfterPartnerLeftHasNoEffect(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	var npc *core.Entity
+	for _, r := range residentsOf(w, se.ID) {
+		if v := core.Vitals(r); npc == nil && r.ID != e.ID && v != nil && v.Age >= 18 {
+			npc = r
+		}
+	}
+	p := ScenePos(e)
+	place := func(dx float64) {
+		np := EnsureScenePos(w, npc)
+		np.X, np.Y = p.X+dx, p.Y
+	}
+	coins := core.Purse(e).Coins
+	closed := func() bool { tk := Talk(e); return tk == nil || tk.Stage == "" }
+
+	// 1) ушёл за радиус
+	place(1)
+	if ok, why := StartTalk(w, e, npc.ID); !ok {
+		t.Fatalf("разговор рядом должен начаться: %s", why)
+	}
+	place(60)
+	if ok, _ := Say(w, e, "greet", "leave-1"); ok {
+		t.Fatal("реплика ушедшему не должна приниматься")
+	}
+	if !closed() || Knows(e, npc.ID) || core.Purse(e).Coins != coins {
+		t.Fatal("разговор должен закрыться без знакомства и без оплаты")
+	}
+	// 2) оказался в другом поселении (те же локальные координаты)
+	place(1)
+	if ok, why := StartTalk(w, e, npc.ID); !ok {
+		t.Fatalf("разговор рядом должен начаться снова: %s", why)
+	}
+	var other core.ID
+	w.Each("settlement", func(o *core.Entity) {
+		if other == 0 && o.ID != se.ID {
+			other = o.ID
+		}
+	})
+	core.Place(npc).Settlement = other
+	if ok, _ := Say(w, e, "greet", "leave-2"); ok {
+		t.Fatal("реплика жителю другого поселения не должна приниматься")
+	}
+	if !closed() || Knows(e, npc.ID) {
+		t.Fatal("разговор должен закрыться без знакомства")
+	}
+}

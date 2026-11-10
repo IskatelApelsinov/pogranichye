@@ -33,6 +33,8 @@ func main() {
 		starter  = flag.Bool("starter", false, "ОДНА стартовая деревня (для тонкого клиента/тестов)")
 		tickMs   = flag.Int("tick", 0, "мс реального времени на игровой час (0 = по умолчанию 400; для демо, напр. 1500 — время суток читается)")
 	)
+	frontierMax := flag.Int("frontier-max", 300, "бесконечный мир: потолок числа поселений (0 — мир не растёт)")
+	frontierVillages := flag.Int("frontier-villages", 4, "бесконечный мир: деревень в каждом новом краю")
 	flag.Parse()
 
 	if *demo {
@@ -49,6 +51,7 @@ func main() {
 		log.Printf("Приграничье: сервер на %s, мир «%s» (%d поселений). Открой http://localhost%s/",
 			*addr, *seed, *villages, *addr)
 	}
+	srv.SetFrontier(*frontierMax, *frontierVillages)
 	if *tickMs > 0 {
 		srv.SetTick(time.Duration(*tickMs) * time.Millisecond)
 		log.Printf("Демо-темп: %d мс на игровой час", *tickMs)

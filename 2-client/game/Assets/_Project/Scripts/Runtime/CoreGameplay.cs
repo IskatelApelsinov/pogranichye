@@ -33,6 +33,15 @@ namespace Pogranichye.Client
             public float Max;
             public bool Aware;
             public string State;
+            public float Punch; // seconds of the "got hit" squash
+        }
+
+        private sealed class Floater
+        {
+            public Vector3 World;
+            public string Text;
+            public float At;
+            public bool Hurt;
         }
 
         private sealed class FeedLine
@@ -97,6 +106,13 @@ namespace Pogranichye.Client
         private MaterialPropertyBlock _block;
 
         private readonly List<FeedLine> _feed = new List<FeedLine>();
+        private readonly List<Floater> _floaters = new List<Floater>();
+        private int _chopSwings;
+        private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
+        private float _fishAt;
+        private string _toast;
+        private float _toastUntil;
+        private bool _showHints = true;
         private long _feedSeq;
         private float _hurtFlash;
         private float _hitMarker;
@@ -173,6 +189,9 @@ namespace Pogranichye.Client
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
             _foes.Clear();
             _feed.Clear();
+            _floaters.Clear();
+            _fishPhase = 0;
+            _chopSwings = 0;
             _feedSeq = 0;
             _me = null;
             _place = null;
@@ -313,6 +332,13 @@ namespace Pogranichye.Client
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
                 Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.7f, 0f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
                 Part(root.transform, PrimitiveType.Cube, new Vector3(0.36f, 1.05f, 0.3f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
+                // hood, arms, belt and eyes: a readable silhouette from a distance
+                Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.76f, -0.04f), new Vector3(0.48f, 0.42f, 0.48f), new Color(0.16f, 0.12f, 0.1f));
+                Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.86f, 0f), new Vector3(0.6f, 0.04f, 0.6f), new Color(0.12f, 0.09f, 0.07f));
+                Part(root.transform, PrimitiveType.Sphere, new Vector3(-0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
+                Part(root.transform, PrimitiveType.Sphere, new Vector3(0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
             }
             else
             {
@@ -336,6 +362,24 @@ namespace Pogranichye.Client
                 for (var sx = -1; sx <= 1; sx += 2)
                     for (var sz = -1; sz <= 1; sz += 2)
                         Part(root.transform, PrimitiveType.Cube, new Vector3(sx * width * 0.36f, leg * 0.5f, sz * len * 0.36f), new Vector3(width * 0.22f, leg, width * 0.22f), dark);
+                // species details: snout, ears, tail, eyes, tusks, hump — enough to tell them apart at a glance
+                var headY = leg + height * 0.5f;
+                var headZ = len * 0.62f;
+                Part(root.transform, PrimitiveType.Cube, new Vector3(0f, headY - height * 0.08f, headZ + len * 0.2f), new Vector3(width * 0.4f, height * 0.22f, len * 0.16f), dark);
+                var earHeight = kind == "hare" ? height * 0.9f : height * 0.25f;
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    Part(root.transform, PrimitiveType.Cube, new Vector3(side * width * 0.24f, headY + height * 0.22f + earHeight * 0.5f, headZ - len * 0.06f), new Vector3(width * 0.14f, earHeight, width * 0.1f), color);
+                    Part(root.transform, PrimitiveType.Sphere, new Vector3(side * width * 0.2f, headY + height * 0.08f, headZ + len * 0.15f), new Vector3(0.05f, 0.05f, 0.05f), kind == "wolf" ? new Color(0.95f, 0.8f, 0.2f) : Color.black);
+                }
+                if (kind == "boar")
+                    for (var side = -1; side <= 1; side += 2)
+                        Part(root.transform, PrimitiveType.Cube, new Vector3(side * width * 0.2f, headY - height * 0.12f, headZ + len * 0.24f), new Vector3(0.04f, 0.14f, 0.04f), new Color(0.92f, 0.9f, 0.82f));
+                if (kind == "bear")
+                    Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, leg + height * 0.62f, len * 0.18f), new Vector3(width * 0.9f, height * 0.5f, len * 0.5f), color);
+                var tailLength = kind == "fox" || kind == "wolf" ? len * 0.45f : len * 0.12f;
+                var tailColor = kind == "hare" ? Color.white : color;
+                Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.42f, -len * 0.5f - tailLength * 0.5f), new Vector3(width * 0.2f, width * 0.2f, tailLength), tailColor);
             }
 
             return new FoeRec { Root = root, View = view };
@@ -373,6 +417,16 @@ namespace Pogranichye.Client
                 _feed.Add(new FeedLine { Kind = kind, Text = text, At = Time.unscaledTime });
                 if (kind == "hurt" || kind == "backfire" || kind == "ko") _hurtFlash = kind == "ko" ? 1.6f : 0.35f;
                 if (kind == "hit" || kind == "kill") _hitMarker = 0.18f;
+                FoeRec struck;
+                var foeId = Str(token, "foe");
+                if (damage > 0f && !string.IsNullOrEmpty(foeId) && _foes.TryGetValue(foeId, out struck) && struck.Root != null)
+                {
+                    var hurtsMe = kind == "hurt";
+                    var anchor = hurtsMe && _player != null ? _player.position + Vector3.up * 1.4f
+                        : struck.Root.transform.position + Vector3.up * (struck.View.Height + 0.2f);
+                    _floaters.Add(new Floater { World = anchor, Text = (hurtsMe ? "-" : "") + Mathf.RoundToInt(damage), At = Time.unscaledTime, Hurt = hurtsMe });
+                    if (!hurtsMe) struck.Punch = 0.2f;
+                }
             }
             while (_feed.Count > 7) _feed.RemoveAt(0);
         }
@@ -397,6 +451,21 @@ namespace Pogranichye.Client
                     ? Quaternion.Euler(0f, rec.Yaw, 90f)
                     : Quaternion.Euler(0f, rec.Yaw, 0f);
                 t.rotation = Quaternion.Slerp(t.rotation, target, blend);
+                rec.Punch = Mathf.Max(0f, rec.Punch - Time.deltaTime);
+                var squash = 1f - Mathf.Sin(Mathf.Clamp01(rec.Punch / 0.2f) * Mathf.PI) * 0.18f;
+                t.localScale = new Vector3(1f / squash, squash, 1f / squash);
+            }
+            while (_floaters.Count > 0 && Time.unscaledTime - _floaters[0].At > 1.1f) _floaters.RemoveAt(0);
+            if (_fishPhase == 1 && Time.unscaledTime >= _fishAt)
+            {
+                _fishPhase = 2;
+                _fishAt = Time.unscaledTime + 1.2f;
+                Toast("КЛЮЁТ — ЛКМ!", 1.2f);
+            }
+            else if (_fishPhase == 2 && Time.unscaledTime >= _fishAt)
+            {
+                _fishPhase = 0;
+                Toast("Ушла…", 1.2f);
             }
 
             _hurtFlash = Mathf.Max(0f, _hurtFlash - Time.unscaledDeltaTime);
@@ -499,6 +568,7 @@ namespace Pogranichye.Client
             }
             if (Input.GetMouseButtonUp(1)) ReleaseGuard();
 
+            if (Input.GetKeyDown(KeyCode.H)) _showHints = !_showHints;
             if (Input.GetKeyDown(KeyCode.Q)) Send("dodge");
             if (Input.GetKeyDown(KeyCode.F)) Attack(0f, true);
             if (Input.GetKeyDown(KeyCode.Z)) Send("trick", "trick", "sand");
@@ -574,6 +644,42 @@ namespace Pogranichye.Client
             string part;
             float accuracy, distance;
             var aimed = AimFoe(out foe, out part, out accuracy, out distance);
+            var weapon = Str(combat, "weapon");
+            var pos = Obj(_me, "pos");
+            if (!aimed && weapon == "axe" && pos != null && (Num(pos, "x") <= -70f || Near("woods", 8f)))
+            {
+                // Three swings fell a log; the server still checks place and strength for the real outcome.
+                _chopSwings++;
+                if (_chopSwings >= 3)
+                {
+                    _chopSwings = 0;
+                    Send("act", "action", "chop");
+                    Toast("Бревно!", 1.2f);
+                }
+                else Toast("Тюк… (" + _chopSwings + "/3)", 0.8f);
+                return;
+            }
+            if (!aimed && weapon == "rod" && pos != null && Num(pos, "y") >= -84f && Num(pos, "y") <= -72f)
+            {
+                if (_fishPhase == 0)
+                {
+                    _fishPhase = 1;
+                    _fishAt = Time.unscaledTime + UnityEngine.Random.Range(1.8f, 5f);
+                    Toast("Заброс… жди поклёвки", 1.6f);
+                }
+                else if (_fishPhase == 2)
+                {
+                    _fishPhase = 0;
+                    Send("act", "action", "fish");
+                    Toast("Подсёк!", 1.2f);
+                }
+                else
+                {
+                    _fishPhase = 0;
+                    Toast("Рано дёрнул — сорвалось", 1.2f);
+                }
+                return;
+            }
             var style = ranged ? (held < 0.35f ? "snap" : "drawn") : thrust ? "thrust" : held > 0.55f ? "heavy" : "slash";
             var reach = ranged ? 50f : 3.0f;
 
@@ -595,6 +701,12 @@ namespace Pogranichye.Client
             {
                 Send("attack", "aim", "torso", "style", style);
             }
+        }
+
+        private void Toast(string text, float seconds)
+        {
+            _toast = text;
+            _toastUntil = Time.unscaledTime + seconds;
         }
 
         private void UpdateHandLight()
@@ -796,6 +908,9 @@ namespace Pogranichye.Client
             DrawQuestTracker();
             if (_hitMarker > 0f)
                 GUI.Label(new Rect(Screen.width * 0.5f - 10f, Screen.height * 0.5f - 34f, 40f, 24f), "x");
+            DrawFloaters();
+            if (!string.IsNullOrEmpty(_toast) && Time.unscaledTime < _toastUntil)
+                GUI.Box(new Rect(Screen.width * 0.5f - 150f, Screen.height * 0.62f, 300f, 28f), _toast);
             if (_weaveOpen) DrawWeave();
             if (_menuOpen) DrawMenu();
         }
@@ -818,6 +933,24 @@ namespace Pogranichye.Client
                 GUI.DrawTexture(new Rect(rect.x, rect.y + 20f, 100f, 6f), Texture2D.whiteTexture);
                 GUI.color = new Color(0.79f, 0.42f, 0.35f);
                 GUI.DrawTexture(new Rect(rect.x + 1f, rect.y + 21f, 98f * Mathf.Clamp01(rec.Hp / rec.Max), 4f), Texture2D.whiteTexture);
+                GUI.color = previous;
+            }
+        }
+
+        private void DrawFloaters()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            foreach (var floater in _floaters)
+            {
+                var age = Time.unscaledTime - floater.At;
+                var screen = cam.WorldToScreenPoint(floater.World + Vector3.up * (age * 0.9f));
+                if (screen.z <= 0f) continue;
+                var previous = GUI.color;
+                var color = floater.Hurt ? new Color(1f, 0.45f, 0.4f) : new Color(1f, 0.88f, 0.5f);
+                color.a = Mathf.Clamp01(1.2f - age);
+                GUI.color = color;
+                GUI.Label(new Rect(screen.x - 20f, Screen.height - screen.y - 10f, 60f, 22f), floater.Text);
                 GUI.color = previous;
             }
         }
@@ -849,8 +982,9 @@ namespace Pogranichye.Client
                 + (Flag(combat, "feint") ? " · финт готов" : "")
                 + (Num(combat, "shield") > 0f ? " · щит " + (int)Num(combat, "shield") : "");
             GUI.Label(new Rect(x, y + 34f, 520f, 22f), line);
-            GUI.Label(new Rect(x, y + 52f, 760f, 22f),
-                "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка");
+            if (_showHints)
+                GUI.Label(new Rect(x - 120f, y + 52f, 900f, 22f),
+                    "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка · H скрыть подсказки");
         }
 
         private void DrawFeed()
