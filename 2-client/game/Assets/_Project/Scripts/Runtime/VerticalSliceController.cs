@@ -244,13 +244,6 @@ namespace Pogranichye.Client
             GUILayout.EndArea();
             }
 
-            if (_firstPerson && _connectionState == WorldConnectionState.Active)
-            {
-                var previousColor = GUI.color;
-                GUI.color = Color.white;
-                GUI.Label(new Rect(Screen.width * 0.5f - 8f, Screen.height * 0.5f - 12f, 16f, 24f), "·");
-                GUI.color = previousColor;
-            }
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
         }
