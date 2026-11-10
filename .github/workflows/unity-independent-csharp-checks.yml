@@ -1,0 +1,31 @@
+name: Unity-independent C# checks
+
+on:
+  pull_request:
+    paths:
+      - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
+      - '2-client/game/Tests/RequestGateCheck.cs'
+      - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
+      - '.github/workflows/unity-independent-csharp-checks.yml'
+
+jobs:
+  pure-csharp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mono compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mono-mcs
+      - name: RequestGate regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/request-gate.exe Tests/RequestGateCheck.cs Assets/_Project/Scripts/Runtime/RequestGate.cs
+          mono /tmp/request-gate.exe
+      - name: Movement queue regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/movement-queue.exe Tests/MovementIntentQueuePolicyCheck.cs Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs
+          mono /tmp/movement-queue.exe
