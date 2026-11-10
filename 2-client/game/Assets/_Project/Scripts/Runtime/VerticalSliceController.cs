@@ -32,6 +32,7 @@ namespace Pogranichye.Client
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private WorldSocketClient _socket;
+        private CoreGameplay _core; // protocol v1.10 gameplay: combat, weaves, requests, crafting, journeys, party
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
         private WorldInteractionProbe _interactionProbe;
@@ -113,11 +114,16 @@ namespace Pogranichye.Client
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
+            _core = gameObject.AddComponent<CoreGameplay>();
+            _core.Bind(SendCorePayload);
         }
 
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            if (_core != null)
+                _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
+                    _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
             if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
             if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
@@ -435,6 +441,7 @@ namespace Pogranichye.Client
             GUILayout.Space(6f);
             GUILayout.Label("Управление");
             GUILayout.Label("WASD — движение · Shift — бег · Space — прыжок\nМышь — обзор · E — взаимодействие\nF1 — скрыть интерфейс · F3 — диагностика · F11 — экран");
+            GUILayout.Label("Бой и ремесло (v1.10)\nЛКМ — удар/выстрел (зажать — тяжёлый удар/натяг лука) · ПКМ — блок\nQ — уворот · F — укол · R (держать) — плетение мышью\nZ песок · X толчок · V финт · B приманка · C красться · T стойка\nTab — дела: ремесло, просьбы, рынок, дороги, отряд\nВ первом лице сверни панель [F1] — мышь захватится для прицела.");
             GUILayout.Label("Диагностика ввода: " + (_movementDebugVisible ? "включена" : "выключена"));
             if (GUILayout.Button(_movementDebugVisible ? "Скрыть диагностику [F3]" : "Показать диагностику [F3]"))
                 _movementDebugVisible = !_movementDebugVisible;
@@ -605,6 +612,30 @@ namespace Pogranichye.Client
                 Enqueue(() => _status = "Действие отправлено: " + action + ". Результат подтвердит сервер.");
             }
             catch (Exception ex) { Enqueue(() => _status = "Не удалось выполнить действие: " + ex.Message); }
+        }
+
+        private void SendCorePayload(Dictionary<string, object> payload)
+        {
+            _ = SendCorePayloadAsync(payload);
+        }
+
+        private async Task SendCorePayloadAsync(Dictionary<string, object> payload)
+        {
+            var socket = _socket;
+            try
+            {
+                if (_connectionState != WorldConnectionState.Active || socket == null)
+                    throw new InvalidOperationException("Мир ещё не подключён.");
+                await socket.SendPayloadAsync(payload, _lifetime.Token);
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось отправить действие: " + ex.Message;
+                });
+            }
         }
 
         private async Task SendTalkAsync(string target, int requestSerial)
@@ -947,6 +978,18 @@ namespace Pogranichye.Client
 
         private void OnSocketMessage(WorldSocketClient socket, string json)
         {
+            // Light "fast" frames (requested with ?fast=N) are not full snapshots: they bypass the strict
+            // v1 snapshot parser and only refresh the combat layer.
+            if (CoreGameplay.IsFastFrame(json))
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket) && _connectionState == WorldConnectionState.Active && _core != null)
+                        _core.ApplyFastFrame(json);
+                });
+                return;
+            }
+
             try
             {
                 var frame = WorldFrameParser.Parse(json);
@@ -983,6 +1026,7 @@ namespace Pogranichye.Client
                     {
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
+                        if (_core != null) _core.ApplyFrame(json);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
                         if (_cameraRig != null)
                         {
