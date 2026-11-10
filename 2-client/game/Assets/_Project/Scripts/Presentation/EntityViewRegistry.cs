@@ -228,7 +228,7 @@ namespace Pogranichye.Client.Presentation
             if (oldCarried != null) Object.Destroy(oldCarried.gameObject);
             var carriedRoot = new GameObject("Carried equipment").transform;
             carriedRoot.SetParent(_playerVisualRoot, false);
-            BuildCarriedEquipment(carriedRoot, inventory, handItem, head, body, feet);
+            BuildCarriedEquipment(carriedRoot, inventory, handItem, head, body, feet, armor, offhand);
 
             // In first person, body clothing stays on the hidden world model. Hand-held
             // equipment remains attached to the camera-following arm and stays visible.
@@ -260,7 +260,7 @@ namespace Pogranichye.Client.Presentation
         }
 
         private void BuildCarriedEquipment(Transform root, InventoryFrame inventory,
-            string handItem, string head, string body, string feet)
+            string handItem, string head, string body, string feet, string armor, string offhand)
         {
             if (inventory?.Items == null) return;
             foreach (var item in new[] { "axe", "sword", "bow", "rod", "torch", "lantern" })
