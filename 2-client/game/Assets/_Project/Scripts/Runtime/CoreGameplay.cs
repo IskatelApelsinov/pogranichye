@@ -1437,15 +1437,38 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(8f);
-            GUILayout.Label("СУМА И ЗАКРОМА");
-            var bag = string.Empty;
+            GUILayout.Label("СНАРЯЖЕНИЕ И ПОКЛАЖА");
+            GUILayout.Label("В РУКАХ: " + (string.IsNullOrEmpty(hand) ? "пусто" : Name(hand)));
+            var wornLine = string.Empty;
+            if (worn != null)
+                foreach (var slot in worn.Properties())
+                    if (!string.IsNullOrEmpty(slot.Value.ToString()))
+                        wornLine += slot.Name + ": " + Name(slot.Value.ToString()) + "   ";
+            GUILayout.Label("НАДЕТО: " + (string.IsNullOrEmpty(wornLine) ? "ничего" : wornLine));
+
+            var carriedLine = string.Empty;
             if (items != null)
                 foreach (var item in items.Properties())
-                    if (Num(items, item.Name) > 0f) bag += Name(item.Name) + " ×" + (int)Num(items, item.Name) + "   ";
+                    if (Num(items, item.Name) > 0f)
+                        carriedLine += Name(item.Name) + " ×" + (int)Num(items, item.Name) + "   ";
+            GUILayout.Label("ПРИ СЕБЕ: " + (string.IsNullOrEmpty(carriedLine) ? "пусто" : carriedLine));
+
+            var bagLine = string.Empty;
             if (stash != null)
                 foreach (var good in stash.Properties())
-                    if (Num(stash, good.Name) >= 1f) bag += Name(good.Name) + " ×" + (int)Num(stash, good.Name) + "   ";
-            GUILayout.Label(string.IsNullOrEmpty(bag) ? "пусто" : bag);
+                    if (Num(stash, good.Name) >= 1f)
+                        bagLine += Name(good.Name) + " ×" + (int)Num(stash, good.Name) + "   ";
+            var bagCapacity = Obj(_me, "bag");
+            GUILayout.Label("СУМА: " + (string.IsNullOrEmpty(bagLine) ? "пусто" : bagLine)
+                + (bagCapacity != null ? "   ·   " + (int)Num(bagCapacity, "load") + "/" + (int)Num(bagCapacity, "cap") : ""));
+
+            var saddleContents = Obj(Obj(_me, "horse"), "bag");
+            var saddleLine = string.Empty;
+            if (saddleContents != null)
+                foreach (var good in saddleContents.Properties())
+                    if (Num(saddleContents, good.Name) >= 1f)
+                        saddleLine += Name(good.Name) + " ×" + (int)Num(saddleContents, good.Name) + "   ";
+            GUILayout.Label("СЕДЕЛЬНАЯ СУМКА: " + (string.IsNullOrEmpty(saddleLine) ? "пусто" : saddleLine));
             GUILayout.BeginHorizontal();
             foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
                 if (Count(items, item) > 0f && hand != item && GUILayout.Button("в руку: " + Name(item))) Send("equip", "item", item);
