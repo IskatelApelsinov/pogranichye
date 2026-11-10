@@ -12,6 +12,7 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float interactRange = 3.2f;
         [SerializeField] private KeyCode interactKey = KeyCode.E;
         private Camera _camera;
+        private PresentationCameraRig _cameraRig;
         private WorldPoi _poi;
         private WorldNpc _npc;
         private static GUIStyle _promptStyle;
@@ -19,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private void Awake()
         {
             _camera = GetComponent<Camera>();
+            _cameraRig = GetComponent<PresentationCameraRig>();
         }
 
         private void Update()
@@ -68,8 +70,7 @@ namespace Pogranichye.Client.Presentation
 
         private void OnGUI()
         {
-            var rig = GetComponent<PresentationCameraRig>();
-            var firstPerson = rig != null && rig.IsFirstPerson;
+            var firstPerson = _cameraRig != null && _cameraRig.IsFirstPerson;
             var hasTarget = _poi != null || _npc != null;
 
             if (firstPerson)
