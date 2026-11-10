@@ -470,7 +470,7 @@ namespace Pogranichye.Client
             CreateExitPart(root.transform, new Vector3(0f, 0.045f, -2.4f), new Vector3(2.3f, 0.08f, 4.8f), new Color(0.34f, 0.28f, 0.19f));
             var marker = CreateExitPart(root.transform, new Vector3(0f, 3.05f, 0f), new Vector3(0.34f, 0.55f, 0.34f), pale);
             marker.name = "Pass marker";
-            marker.SetActive(false);
+            marker.gameObject.SetActive(false);
 
             var labelObject = new GameObject("Exit label");
             labelObject.transform.SetParent(root.transform, false);
