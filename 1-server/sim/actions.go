@@ -13,16 +13,16 @@ import (
 // (товар в закрома, убыль зверя). Повтор того же reqid идемпотентен.
 
 const (
-	chopEnergy = 8.0  // сил на одну рубку
-	fishEnergy = 7.0  // сил на один заброс
-	chopYield  = 1.0  // брёвен за рубку
-	fishYield  = 1.0  // рыбин за удачный лов
-	actReach   = 6.0  // м — насколько близко к POI/зоне надо стоять для действия
+	chopEnergy = 8.0 // сил на одну рубку
+	fishEnergy = 7.0 // сил на один заброс
+	chopYield  = 1.0 // брёвен за рубку
+	fishYield  = 1.0 // рыбин за удачный лов
+	actReach   = 6.0 // м — насколько близко к POI/зоне надо стоять для действия
 
-	sparkCost  = 25.0 // маны на разряд
+	sparkCost    = 25.0 // маны на разряд
 	sparkManaMax = 100.0
-	sparkRegen = 6.0 // маны в секунду восстановления (реальное время)
-	sparkWard  = 1.5 // на сколько разряд отпугивает/прореживает опасного зверя
+	sparkRegen   = 6.0 // маны в секунду восстановления (реальное время)
+	sparkWard    = 1.5 // на сколько разряд отпугивает/прореживает опасного зверя
 )
 
 func init() {
@@ -38,10 +38,11 @@ type PlayerC struct {
 	Mana float64  `json:"mana"`
 	Done []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
 	// коррелируемый результат последнего действия (#40 ack): клиент сверяет по reqid
-	RReqid  string `json:"-"`
-	ROk     bool   `json:"-"`
-	RReason string `json:"-"`
-	DrankBeer bool `json:"-"` // пил ли пиво (для вводной задачи #80)
+	RReqid    string `json:"-"`
+	ROk       bool   `json:"-"`
+	RReason   string `json:"-"`
+	DrankBeer bool
+	exitN     int // счётчик выходов на тракт ногами (для уникальных reqid) `json:"-"` // пил ли пиво (для вводной задачи #80)
 }
 
 // SetResult записывает результат последнего действия игрока (для ack в кадре me.result).
@@ -148,7 +149,7 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	v.Energy -= chopEnergy
 	addStash(w, e, econ.GoodWood, chopYield)
 	trainSkill(w, e, "woodcutter", 0.6) // прокачка дровосека
-	pc.markDone(reqid) // запись только при успехе
+	pc.markDone(reqid)                  // запись только при успехе
 	return true, ""
 }
 

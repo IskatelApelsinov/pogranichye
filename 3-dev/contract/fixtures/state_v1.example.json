@@ -304,7 +304,16 @@
       "lat": 48.2,
       "lon": 12.5,
       "cauldron": true
-    }
+    },
+    "exits": [
+      {
+        "to": "9",
+        "name": "",
+        "x": 144,
+        "y": 20.5,
+        "kind": "road"
+      }
+    ]
   },
   "hour": 14
 }
