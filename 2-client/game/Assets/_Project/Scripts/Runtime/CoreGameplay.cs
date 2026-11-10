@@ -1209,6 +1209,7 @@ namespace Pogranichye.Client
             }
             if (Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
             if (Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
+            if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
             if (Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
             if (Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
             foreach (var pair in TakeAt)
@@ -1316,8 +1317,21 @@ namespace Pogranichye.Client
             if (world != null)
                 foreach (var place in world)
                     if (Str(place, "id") == hereId) hereOuter = Flag(place, "outer");
-            GUILayout.Label("ДОРОГИ (пешком по тракту — путь занимает время)");
-            DrawPlaces(world, hereId, hereOuter, true);
+            GUILayout.Label("КАРТА КРАЯ (только то, где был и о чём слышал; путь идёт по трактам)");
+            DrawRegion(hereId);
+
+            var stats = Obj(_me, "stats");
+            if (stats != null)
+            {
+                GUILayout.Space(8f);
+                GUILayout.Label("КАКОВ ТЫ САМ (растёт от дела)");
+                GUILayout.Label("сила " + Num(stats, "strength") + "   ловкость " + Num(stats, "agility") + "   выносливость " + Num(stats, "endurance")
+                    + "   ум " + Num(stats, "intellect") + "   восприятие " + Num(stats, "perception") + "   воля " + Num(stats, "will"));
+                GUILayout.Label(Flag(Obj(_me, "weave"), "gift")
+                    ? "В тебе есть дар: ум удержит и сложный узор."
+                    : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
+                if (Num(_me, "drunk") > 0f) GUILayout.Label("Хмель: " + (int)Num(_me, "drunk"));
+            }
 
             var party = Obj(_me, "party");
             var members = Arr(party, "members");
@@ -1344,6 +1358,33 @@ namespace Pogranichye.Client
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        // Regional map as a list: server-known nodes only (me.region). Unknown road ends carry no name.
+        private void DrawRegion(string hereId)
+        {
+            var region = Obj(_me, "region");
+            var nodes = Arr(region, "nodes");
+            var roads = Arr(region, "roads");
+            if (nodes == null) return;
+            foreach (var node in nodes)
+            {
+                var id = Str(node, "id");
+                var state = Str(node, "state");
+                if (state == "here") continue;
+                var title = state == "unknown" ? "куда-то ведёт тракт" : Str(node, "name");
+                var mark = state == "visited" ? "бывал" : state == "known" ? "слышал" : "неведомо";
+                var length = string.Empty;
+                if (roads != null)
+                    foreach (var road in roads)
+                        if ((Str(road, "a") == id && Str(road, "b") == hereId) || (Str(road, "b") == id && Str(road, "a") == hereId))
+                            length = " · " + (int)Num(road, "len") + " вёрст";
+                if (GUILayout.Button(title + "  (" + mark + length + ")"))
+                {
+                    Ask("Дорога", "journey", "target", id);
+                    _menuOpen = false;
+                }
+            }
         }
 
         private void DrawPlaces(JArray world, string hereId, bool hereOuter, bool sameSide)
