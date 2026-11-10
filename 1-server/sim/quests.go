@@ -282,7 +282,9 @@ func QuestTurnIn(w *core.World, e *core.Entity, id string) (bool, string) {
 		switch q.Kind {
 		case "deliver":
 			st.Goods[q.Good] -= float64(q.Qty)
-			if s := core.Settle(se); s != nil {
+			if q.Via == "npc" && giver != nil {
+				addStash(w, giver, q.Good, float64(q.Qty)) // личная просьба: добро ложится в закрома просившего
+			} else if s := core.Settle(se); s != nil {
 				if s.Store == nil {
 					s.Store = map[string]float64{}
 				}

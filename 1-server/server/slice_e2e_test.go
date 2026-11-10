@@ -166,6 +166,36 @@ search:
 			t.Fatal("после приветствия житель должен стать знакомым (сервер)")
 		}
 	})
+	// --- 1б. первое поручение от этого жителя: из его настоящей нужды, в разговоре ---
+	var errandGood string
+	var npcHad, npcCoins float64
+	c.world(func(e *core.Entity) {
+		n := s.world.Get(parseID(npc))
+		if st := econ.Stash(n); st != nil && st.Goods != nil {
+			st.Goods[econ.GoodWood] = 0 // стенд: у жителя нет дров — это и есть его нужда
+		}
+		npcHad = stashOf(n, econ.GoodWood)
+		core.Purse(n).Coins = 6
+		npcCoins = 6
+	})
+	if ok, reason, _ := c.result(`"op":"say","line":"work"`); !ok {
+		t.Fatalf("житель должен дать поручение: %s", reason)
+	}
+	errandID := "errand:" + npc
+	c.world(func(e *core.Entity) {
+		for _, q := range sim.QuestsView(s.world, e, 0)["active"].([]map[string]any) {
+			if q["id"] == errandID {
+				errandGood, _ = q["good"].(string)
+			}
+		}
+	})
+	if errandGood != econ.GoodWood {
+		t.Fatalf("поручение должно быть про дрова (их у жителя нет): %q", errandGood)
+	}
+	// сдать, ничего не принеся, нельзя
+	if ok, _, _ := c.result(fmt.Sprintf(`"op":"quest","action":"turnin","quest":"%s"`, errandID)); ok {
+		t.Fatal("поручение нельзя сдать, не принеся дров")
+	}
 	c.send(`{"v":1,"op":"endtalk"}`)
 
 	// --- 2. отказ: работа вне места ---
@@ -207,6 +237,42 @@ search:
 			t.Fatal("повтор reqid не должен рубить второй раз")
 		}
 	})
+
+	// --- 3б. добрать дров и сдать поручение: дрова уходят жителю, плата — из его кошеля ---
+	for i := 0; i < 4; i++ {
+		var have float64
+		c.world(func(e *core.Entity) { have = stashOf(e, econ.GoodWood) })
+		if have >= 2 {
+			break
+		}
+		if ok, reason, _ := c.result(`"op":"act","action":"chop"`); !ok {
+			t.Fatalf("рубка: %s", reason)
+		}
+	}
+	var woodBefore, coinsBefore float64
+	c.world(func(e *core.Entity) { woodBefore, coinsBefore = stashOf(e, econ.GoodWood), core.Purse(e).Coins })
+	ok, reason, turnReq := c.result(fmt.Sprintf(`"op":"quest","action":"turnin","quest":"%s"`, errandID))
+	if !ok {
+		t.Fatalf("сдать поручение: %s", reason)
+	}
+	check := func(when string) {
+		c.world(func(e *core.Entity) {
+			n := s.world.Get(parseID(npc))
+			if got := stashOf(e, econ.GoodWood); got != woodBefore-2 {
+				t.Fatalf("%s: у игрока должно убыть 2 охапки: %.0f → %.0f", when, woodBefore, got)
+			}
+			if got := stashOf(n, econ.GoodWood); got != npcHad+2 {
+				t.Fatalf("%s: дрова должны лечь в закрома жителя: %.0f", when, got)
+			}
+			if core.Purse(e).Coins != coinsBefore+2 || core.Purse(n).Coins != npcCoins-2 {
+				t.Fatalf("%s: 2 монеты должны перейти от жителя игроку", when)
+			}
+		})
+	}
+	check("после сдачи")
+	// повтор сдачи — второй раз ничего не переносит и не платит
+	c.resultWith(fmt.Sprintf(`"op":"quest","action":"turnin","quest":"%s"`, errandID), turnReq)
+	check("после повтора")
 
 	// --- 4. корчма: купить пиво, повторить платный запрос, выпить ---
 	// отказ: купить вне корчмы

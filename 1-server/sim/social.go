@@ -160,7 +160,16 @@ func talkOptions(known, atTavern bool) []DialogOption {
 
 // TalkOptionsFor — доступные реплики игрока к этому собеседнику сейчас (по знакомству и месту).
 func TalkOptionsFor(e, tgt *core.Entity) []DialogOption {
-	return talkOptions(Knows(e, tgt.ID), atTavern(e))
+	opts := talkOptions(Knows(e, tgt.ID), atTavern(e))
+	if text := errandOption(e, tgt); text != "" { // поручение: только знакомому и только если есть настоящая нужда
+		work := DialogOption{ID: "work", Text: text}
+		if n := len(opts); n > 0 { // перед прощанием
+			opts = append(opts[:n-1], work, opts[n-1])
+		} else {
+			opts = append(opts, work)
+		}
+	}
+	return opts
 }
 
 // StartTalk — заговорить с жителем рядом. Возвращает (ок, причина).
@@ -227,6 +236,12 @@ func Say(w *core.World, e *core.Entity, line, reqid string) (bool, string) {
 		t.Line = newsLine(tgt)
 	case "drink":
 		return treatNPC(w, e, tgt, reqid)
+	case "work":
+		ok, line := Errand(w, e, tgt)
+		if !ok {
+			return false, line
+		}
+		t.Line = line
 	case "bye":
 		t.Stage = ""
 		t.Line = ""
