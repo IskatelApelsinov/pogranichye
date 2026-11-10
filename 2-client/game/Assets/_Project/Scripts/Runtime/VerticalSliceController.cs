@@ -57,7 +57,9 @@ namespace Pogranichye.Client
         private float _pendingTalkDeadline;
         private string _talkFeedback;
         private bool _talkConfirmationTimedOut;
-        private const float TalkConfirmationTimeoutSeconds = 4f;
+        private const float TalkConfirmationTimeoutSeconds = 48f;
+        private const string DialogueRequestLabel = "Реплика NPC";
+        private const string TalkRequestLabelPrefix = "Разговор NPC:";
         private bool _firstPerson;
         private bool _hudCollapsed;
         private HudTab _hudTab = HudTab.Character;
@@ -119,6 +121,7 @@ namespace Pogranichye.Client
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _core = gameObject.AddComponent<CoreGameplay>();
             _core.Bind(SendCorePayload);
+            _core.RequestResolved += OnCoreRequestResolved;
         }
 
         private void Update()
@@ -743,7 +746,7 @@ namespace Pogranichye.Client
                     foreach (var option in talk.Options)
                     {
                         if (option != null && GUILayout.Button(option.Text ?? option.Id, GUILayout.Height(28f)))
-                            _ = SendSayAsync(option.Id);
+                            QueueSay(option.Id);
                     }
                 }
                 if (GUILayout.Button("Закончить разговор")) _ = SendEndTalkAsync();
@@ -838,31 +841,53 @@ namespace Pogranichye.Client
             }
         }
 
-        private async Task SendTalkAsync(string target, int requestSerial)
+        private void QueueTalk(string target, int requestSerial)
         {
-            var socket = _socket;
-            try
+            var label = TalkRequestLabelPrefix + target;
+            if (_connectionState == WorldConnectionState.Active && _core != null &&
+                _core.QueueRequest(label, "talk", "target", target))
+                return;
+
+            if (_pendingTalkRequestSerial == requestSerial &&
+                string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
             {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendTalkAsync(target, _lifetime.Token);
+                _pendingTalkTargetId = null;
+                _pendingTalkRequestSerial = 0;
+                _confirmedTalkTargetId = null;
+                _talkConfirmationTimedOut = false;
+                _talkFeedback = "Очередь действий занята или соединение недоступно. Повтори разговор.";
             }
-            catch (Exception ex)
+        }
+
+        private void OnCoreRequestResolved(string label, RequestGate.Outcome outcome, string reason)
+        {
+            if (label != null && label.StartsWith(TalkRequestLabelPrefix, StringComparison.Ordinal))
             {
-                Enqueue(() =>
+                var target = label.Substring(TalkRequestLabelPrefix.Length);
+                if (!string.Equals(target, _pendingTalkTargetId, StringComparison.Ordinal))
+                    return; // a superseded click on another NPC must not alter the current dialog UI
+
+                if (outcome == RequestGate.Outcome.Rejected || outcome == RequestGate.Outcome.TimedOut)
                 {
-                    if (_pendingTalkRequestSerial == requestSerial &&
-                        string.Equals(_pendingTalkTargetId, target, StringComparison.Ordinal))
-                    {
-                        _pendingTalkTargetId = null;
-                        _pendingTalkRequestSerial = 0;
-                        _confirmedTalkTargetId = null;
-                        _talkConfirmationTimedOut = false;
-                        _talkFeedback = "Не удалось отправить запрос разговора: " + ex.Message;
-                    }
-                    _status = "Не удалось начать разговор: " + ex.Message;
-                });
+                    _pendingTalkTargetId = null;
+                    _pendingTalkRequestSerial = 0;
+                    _confirmedTalkTargetId = null;
+                    _talkConfirmationTimedOut = outcome == RequestGate.Outcome.TimedOut;
+                    _talkFeedback = outcome == RequestGate.Outcome.Rejected
+                        ? "Житель не ответил на обращение: " + reason
+                        : "Не удалось начать разговор: " + reason;
+                }
+                else
+                {
+                    _talkFeedback = "Сервер подтвердил обращение к жителю.";
+                }
+                return;
             }
+
+            if (label == DialogueRequestLabel)
+                _talkFeedback = outcome == RequestGate.Outcome.Accepted
+                    ? "Реплика принята сервером."
+                    : "Ответ жителя не принят: " + reason;
         }
 
         private void UpdateTalkConfirmationTimeout()
@@ -902,16 +927,12 @@ namespace Pogranichye.Client
             _talkFeedback = "В кадре сервера подтверждён активный разговор с выбранным жителем.";
         }
 
-        private async Task SendSayAsync(string line)
+        private void QueueSay(string line)
         {
-            var socket = _socket;
-            try
-            {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendSayAsync(line, _lifetime.Token);
-            }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось отправить реплику: " + ex.Message); }
+            if (_connectionState == WorldConnectionState.Active && _core != null &&
+                _core.QueueRequest(DialogueRequestLabel, "say", "line", line))
+                return;
+            _talkFeedback = "Не удалось поставить реплику в очередь: соединение недоступно или очередь заполнена.";
         }
 
         private async Task SendEndTalkAsync()
@@ -1051,7 +1072,7 @@ namespace Pogranichye.Client
             _pendingTalkDeadline = Time.unscaledTime + TalkConfirmationTimeoutSeconds;
             _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
-            _ = SendTalkAsync(targetId, requestSerial);
+            QueueTalk(targetId, requestSerial);
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 

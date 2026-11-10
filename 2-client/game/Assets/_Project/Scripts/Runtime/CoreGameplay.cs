@@ -133,6 +133,9 @@ namespace Pogranichye.Client
         /// <summary>True while the "Дела" window or the weave wheel owns the mouse.</summary>
         public bool CapturesInput { get { return _menuOpen || _weaveOpen; } }
 
+        /// <summary>Raised on the Unity main thread when a queued result-bearing request resolves.</summary>
+        public event Action<string, RequestGate.Outcome, string> RequestResolved;
+
         public void Bind(Action<Dictionary<string, object>> sender)
         {
             _send = sender;
@@ -290,14 +293,23 @@ namespace Pogranichye.Client
         /// Result-bearing intent. Nothing is shown as done here. Requests go through the gate one at a time:
         /// the next is sent only after me.result with the matching reqid arrived or the wait timed out.
         /// </summary>
-        private void Ask(string label, string op, params object[] pairs)
+        /// <summary>
+        /// Public entry point for other client layers (notably NPC talk): every action that expects
+        /// me.result must share this one gate. Returns false when disconnected or the bounded queue is full.
+        /// </summary>
+        public bool QueueRequest(string label, string op, params object[] pairs)
         {
-            if (_send == null) return;
+            if (_send == null) return false;
             if (_gate == null) _gate = new RequestGate(_send, PendingTimeout, 6);
             var payload = Payload(op, pairs);
             var reqid = Guid.NewGuid().ToString("N");
             payload["reqid"] = reqid;
-            if (!_gate.Enqueue(label, reqid, payload, Time.unscaledTime))
+            return _gate.Enqueue(label, reqid, payload, Time.unscaledTime);
+        }
+
+        private void Ask(string label, string op, params object[] pairs)
+        {
+            if (!QueueRequest(label, op, pairs))
                 Toast("Не всё сразу: дождись ответа на прошлые действия", 1.6f);
         }
 
@@ -306,13 +318,17 @@ namespace Pogranichye.Client
             var result = Obj(_me, "result");
             if (result == null || _gate == null) return;
             RequestGate.Item item;
-            switch (_gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item))
+            var reason = Str(result, "reason");
+            var outcome = _gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item);
+            if (outcome == RequestGate.Outcome.Accepted || outcome == RequestGate.Outcome.Rejected)
+                RequestResolved?.Invoke(item.Label, outcome, reason);
+            switch (outcome)
             {
                 case RequestGate.Outcome.Accepted:
                     Toast(item.Label + ": сделано", 1.4f);
                     break;
                 case RequestGate.Outcome.Rejected:
-                    Toast(item.Label + " — отказ: " + Str(result, "reason"), 2.6f);
+                    Toast(item.Label + " — отказ: " + reason, 2.6f);
                     break;
             }
         }
@@ -322,7 +338,10 @@ namespace Pogranichye.Client
             if (_gate == null) return;
             RequestGate.Item item;
             if (_gate.Tick(Time.unscaledTime, out item) == RequestGate.Outcome.TimedOut)
+            {
+                RequestResolved?.Invoke(item.Label, RequestGate.Outcome.TimedOut, "сервер не ответил");
                 Toast(item.Label + ": сервер не ответил", 2.2f);
+            }
         }
 
         // ------------------------------------------------------------------ foes
