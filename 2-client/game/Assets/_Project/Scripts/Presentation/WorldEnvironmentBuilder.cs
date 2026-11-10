@@ -695,14 +695,13 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildAmbientMotes(Transform root)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
-                         Shader.Find("Universal Render Pipeline/Unlit");
+            var shader = FindParticleShader();
             if (shader == null) return;
-            _moteMaterial = new Material(shader) { name = "Ambient pollen • soft glow" };
-            var material = _moteMaterial;
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", new Color(0.88f, 0.82f, 0.56f, 0.42f));
-            if (material.HasProperty("_Color")) material.SetColor("_Color", new Color(0.88f, 0.82f, 0.56f, 0.42f));
-            material.renderQueue = (int)RenderQueue.Transparent;
+            var moteColor = new Color(0.88f, 0.82f, 0.56f, 0.42f);
+            _moteMaterial = CreateTransparentMaterial(shader, "Ambient pollen • soft glow", moteColor);
+            if (_moteMaterial == null) return;
+            if (_moteMaterial.HasProperty("_BaseColor")) _moteMaterial.SetColor("_BaseColor", moteColor);
+            if (_moteMaterial.HasProperty("_Color")) _moteMaterial.SetColor("_Color", moteColor);
 
             var holder = new GameObject("Ambient pollen • drifting in sunlight");
             holder.transform.SetParent(root, false);
@@ -741,15 +740,14 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Thin lowland mist drifting near the meadow floor; kept subtle so it never obscures play.</summary>
         private static void BuildLowlandMist(Transform root)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
-                         Shader.Find("Universal Render Pipeline/Unlit");
+            var shader = FindParticleShader();
             if (shader == null) return;
 
-            _mistMaterial = new Material(shader) { name = "Lowland mist • translucent" };
             var mistColor = new Color(0.72f, 0.79f, 0.82f, 0.075f);
+            _mistMaterial = CreateTransparentMaterial(shader, "Lowland mist • translucent", mistColor);
+            if (_mistMaterial == null) return;
             if (_mistMaterial.HasProperty("_BaseColor")) _mistMaterial.SetColor("_BaseColor", mistColor);
             if (_mistMaterial.HasProperty("_Color")) _mistMaterial.SetColor("_Color", mistColor);
-            _mistMaterial.renderQueue = (int)RenderQueue.Transparent;
 
             var holder = new GameObject("Lowland mist • drifting ribbons");
             holder.transform.SetParent(root, false);
@@ -798,6 +796,16 @@ namespace Pogranichye.Client.Presentation
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             particles.Play();
+        }
+
+        private static Shader FindParticleShader()
+        {
+            // URP's particle shader is preferred. Transparent fallbacks keep procedural
+            // ambience visible when shader stripping or package setup omits the URP particle shader.
+            return Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+                   Shader.Find("Particles/Standard Unlit") ??
+                   Shader.Find("Legacy Shaders/Particles/Alpha Blended") ??
+                   Shader.Find("Universal Render Pipeline/Unlit");
         }
 
         private static Material CreateTransparentMaterial(Shader shader, string name, Color color)
