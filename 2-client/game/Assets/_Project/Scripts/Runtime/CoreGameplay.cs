@@ -178,6 +178,7 @@ namespace Pogranichye.Client
             if (root["hour"] != null) _hour = (int)Num(root, "hour");
             SyncFoes(Arr(_place, "foes"));
             SyncExits(Arr(_place, "exits"));
+            ApplySitePresentation();
             ReadFeed(Arr(_me, "feed"));
             ReadResult();
         }
@@ -197,8 +198,10 @@ namespace Pogranichye.Client
             var place = Obj(root, "place");
             if (place != null)
             {
+                _place = place;
                 SyncFoes(Arr(place, "foes"));
                 SyncExits(Arr(place, "exits"));
+                ApplySitePresentation();
             }
             ReadFeed(Arr(_me, "feed"));
             ReadResult();
@@ -927,11 +930,14 @@ namespace Pogranichye.Client
         }
 
         private GameObject _mount;
+        private string _lastSiteSignature;
 
-        // The mount is shown only while the server says the player is in the saddle (me.horse.mounted).
+        // Procedural low-poly horse: anatomical silhouette, articulated legs, mane, tack and saddle.
+        // It remains presentation-only; ownership, stamina, inventory and mounting are server-owned.
         private void UpdateMount()
         {
-            var riding = Flag(Obj(_me, "horse"), "mounted") && _player != null;
+            var horse = Obj(_me, "horse");
+            var riding = Flag(horse, "mounted") && _player != null;
             if (!riding)
             {
                 if (_mount != null) _mount.SetActive(false);
@@ -939,29 +945,117 @@ namespace Pogranichye.Client
             }
             if (_mount == null)
             {
-                _mount = new GameObject("Player mount");
+                _mount = new GameObject("Player mount • procedural horse");
+                _mount.transform.SetParent(transform, true);
                 _surface = "fur";
-                var coat = new Color(0.42f, 0.27f, 0.16f);
-                var dark = new Color(0.16f, 0.11f, 0.08f);
-                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, 0f), new Vector3(0.55f, 0.6f, 1.7f), coat);
-                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.55f, 0.95f), new Vector3(0.3f, 0.7f, 0.35f), coat);
-                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.85f, 1.25f), new Vector3(0.26f, 0.3f, 0.6f), coat);
-                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, -0.95f), new Vector3(0.1f, 0.6f, 0.1f), dark);
-                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.4f, 0f), new Vector3(0.6f, 0.08f, 0.6f), dark);
-                var mountGait = _mount.AddComponent<ProceduralGait>();
-                mountGait.LegLength = 0.76f;
-                mountGait.StrideDegrees = 24f;
-                mountGait.Body = _mount.transform.GetChild(0);
-                mountGait.Head = _mount.transform.GetChild(2);
-                mountGait.Tail = _mount.transform.GetChild(3);
+                var coat = new Color(0.43f, 0.25f, 0.14f);
+                var highlight = new Color(0.57f, 0.35f, 0.21f);
+                var mane = new Color(0.12f, 0.085f, 0.065f);
+                var leather = new Color(0.19f, 0.12f, 0.075f);
+                var blanket = new Color(0.48f, 0.23f, 0.15f);
+                var hoof = new Color(0.12f, 0.105f, 0.09f);
+
+                var body = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 1.15f, -0.05f), new Vector3(0.58f, 0.91f, 1.75f), coat);
+                body.localRotation = new Quaternion(0f, 0f, 90f, 1f);
+                var chest = Part(_mount.transform, PrimitiveType.Sphere, new Vector3(0f, 1.18f, 0.68f), new Vector3(0.62f, 0.88f, 0.62f), highlight);
+                var rump = Part(_mount.transform, PrimitiveType.Sphere, new Vector3(0f, 1.18f, -0.68f), new Vector3(0.64f, 0.82f, 0.68f), coat);
+                var neck = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 1.72f, 0.72f), new Vector3(0.34f, 0.72f, 0.38f), coat);
+                neck.localRotation = Quaternion.Euler(-27f, 0f, 0f);
+                var head = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 2.08f, 1.14f), new Vector3(0.24f, 0.42f, 0.27f), highlight);
+                head.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+                Part(_mount.transform, PrimitiveType.Sphere, new Vector3(0f, 1.95f, 1.37f), new Vector3(0.22f, 0.2f, 0.32f), coat);
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    Part(_mount.transform, PrimitiveType.Cube, new Vector3(side * 0.13f, 2.31f, 1.08f), new Vector3(0.075f, 0.3f, 0.09f), mane);
+                    Part(_mount.transform, PrimitiveType.Sphere, new Vector3(side * 0.125f, 2.12f, 1.29f), new Vector3(0.045f, 0.05f, 0.035f), Color.black);
+                    Part(_mount.transform, PrimitiveType.Sphere, new Vector3(side * 0.19f, 2.02f, 1.45f), new Vector3(0.07f, 0.05f, 0.08f), mane);
+                }
+                // Mane follows the crest; tail hangs behind the rump.
+                for (var i = 0; i < 5; i++)
+                    Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 2.12f - i * 0.11f, 1.0f - i * 0.1f), new Vector3(0.08f, 0.16f, 0.08f), mane);
+                var tail = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 1.12f, -1.25f), new Vector3(0.11f, 0.42f, 0.13f), mane);
+                tail.localRotation = Quaternion.Euler(18f, 0f, 0f);
+
+                // Blanket, saddle, girth, reins and bridle make the animal read as a mount.
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.58f, -0.05f), new Vector3(0.72f, 0.12f, 0.82f), blanket);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.68f, -0.02f), new Vector3(0.46f, 0.13f, 0.52f), leather);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.49f, 0.05f), new Vector3(0.66f, 0.055f, 0.12f), leather);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.83f, 0.92f), new Vector3(0.05f, 0.055f, 0.58f), leather);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.96f, 1.08f), new Vector3(0.36f, 0.055f, 0.07f), leather);
+
+                var gait = _mount.AddComponent<ProceduralGait>();
+                gait.LegLength = 0.82f;
+                gait.StrideDegrees = 28f;
+                gait.Body = body;
+                gait.Head = head;
+                gait.Tail = tail;
                 for (var sz = 1; sz >= -1; sz -= 2)
-                    for (var sx = -1; sx <= 1; sx += 2)
-                        mountGait.Legs.Add(Part(_mount.transform, PrimitiveType.Cube, new Vector3(sx * 0.2f, 0.38f, sz * 0.65f), new Vector3(0.14f, 0.76f, 0.14f), dark));
-                foreach (var collider in _mount.GetComponentsInChildren<Collider>()) Destroy(collider); // presentation only
+                for (var sx = -1; sx <= 1; sx += 2)
+                {
+                    var hip = new Vector3(sx * 0.22f, 0.83f, sz * 0.62f);
+                    var leg = Part(_mount.transform, PrimitiveType.Capsule, hip + Vector3.down * 0.39f,
+                        new Vector3(0.13f, 0.43f, 0.13f), coat);
+                    gait.Legs.Add(leg);
+                    Part(_mount.transform, PrimitiveType.Cube, hip + Vector3.down * 0.79f + Vector3.forward * 0.035f,
+                        new Vector3(0.16f, 0.13f, 0.22f), hoof);
+                }
+                foreach (var collider in _mount.GetComponentsInChildren<Collider>()) Destroy(collider);
             }
             _mount.SetActive(true);
-            _mount.transform.position = _player.position;
-            _mount.transform.rotation = Quaternion.Euler(0f, _player.eulerAngles.y, 0f);
+            var facing = Quaternion.Euler(0f, _player.eulerAngles.y, 0f);
+            _mount.transform.SetPositionAndRotation(_player.position, facing);
+            var stamina = Num(horse, "stam");
+            var breath = 1f + Mathf.Sin(Time.time * 2.1f) * 0.008f * (1f - stamina / 100f);
+            _mount.transform.localScale = new Vector3(1f, breath, 1f);
+        }
+
+        private bool SiteHas(string feature)
+        {
+            var site = Obj(_place, "site");
+            var features = Arr(site, "features");
+            if (features == null) return true; // compatibility with older frames
+            foreach (var featureToken in features)
+                if (string.Equals(featureToken.ToString(), feature, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        private void ApplySitePresentation()
+        {
+            var site = Obj(_place, "site");
+            if (site == null) return;
+            var terrain = Str(site, "terrain");
+            var climate = Str(site, "climate");
+            var signature = terrain + "|" + climate + "|" + SiteHas("river") + "|" + SiteHas("garden");
+            if (signature == _lastSiteSignature) return;
+            _lastSiteSignature = signature;
+
+            var all = transform.root.GetComponentsInChildren<Transform>(true);
+            foreach (var item in all)
+            {
+                if (item.name == "Village garden") item.gameObject.SetActive(SiteHas("garden"));
+                else if (item.name == "Fishing dock" || item.name == "Narrow village creek" ||
+                         item.name == "Old plank footbridge" || item.name == "Creek east bank" ||
+                         item.name == "Creek west bank")
+                    item.gameObject.SetActive(SiteHas("river"));
+                else if (item.name == "Meadow")
+                {
+                    var renderer = item.GetComponent<Renderer>();
+                    if (renderer == null) continue;
+                    var color = terrain == "marsh" ? new Color(0.48f, 0.49f, 0.36f)
+                        : terrain == "coast" ? new Color(0.68f, 0.62f, 0.46f)
+                        : terrain == "hills" ? new Color(0.43f, 0.49f, 0.34f)
+                        : terrain == "forest" ? new Color(0.34f, 0.43f, 0.29f)
+                        : new Color(0.49f, 0.55f, 0.36f);
+                    if (climate == "cold" || climate == "subarctic") color = Color.Lerp(color, new Color(0.66f, 0.69f, 0.62f), 0.35f);
+                    else if (climate == "dry" || climate == "arid") color = Color.Lerp(color, new Color(0.76f, 0.65f, 0.39f), 0.42f);
+                    else if (climate == "wet" || climate == "humid") color = Color.Lerp(color, new Color(0.27f, 0.4f, 0.3f), 0.32f);
+                    var block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block);
+                    block.SetColor(BaseColorId, color);
+                    block.SetColor(ColorId, color);
+                    renderer.SetPropertyBlock(block);
+                }
+            }
         }
 
         private void UpdateHandLight()
