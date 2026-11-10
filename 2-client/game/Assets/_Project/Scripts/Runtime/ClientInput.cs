@@ -59,8 +59,8 @@ namespace Pogranichye.Client
             _move.AddCompositeBinding("2DVector")
                 .With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow")
                 .With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
-            _look = _actions.AddAction("Look", InputActionType.Value, "<Mouse>/delta", expectedControlType: "Vector2");
-            _zoom = _actions.AddAction("Zoom", InputActionType.Value, "<Mouse>/scroll/y", expectedControlType: "Axis");
+            _look = _actions.AddAction("Look", InputActionType.Value, "<Mouse>/delta");
+            _zoom = _actions.AddAction("Zoom", InputActionType.Value, "<Mouse>/scroll/y");
             _jump = Button("Jump", "<Keyboard>/space");
             _sprint = Button("Sprint", "<Keyboard>/leftShift");
             _sprint.AddBinding("<Keyboard>/rightShift");
