@@ -12,12 +12,15 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float interactRange = 3.2f;
         [SerializeField] private KeyCode interactKey = KeyCode.E;
         private Camera _camera;
+        private PresentationCameraRig _cameraRig;
         private WorldPoi _poi;
         private WorldNpc _npc;
+        private static GUIStyle _promptStyle;
 
         private void Awake()
         {
             _camera = GetComponent<Camera>();
+            _cameraRig = GetComponent<PresentationCameraRig>();
         }
 
         private void Update()
@@ -67,14 +70,59 @@ namespace Pogranichye.Client.Presentation
 
         private void OnGUI()
         {
-            if (_poi == null && _npc == null) return;
+            var firstPerson = _cameraRig != null && _cameraRig.IsFirstPerson;
+            var hasTarget = _poi != null || _npc != null;
+
+            if (firstPerson)
+                DrawReticle(hasTarget);
+
+            if (!hasTarget) return;
 
             var label = _poi != null
-                ? _poi.Title + "  [E]"
-                : "Поговорить с " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "жителем" : _npc.DisplayName) + "  [E]";
-            var width = Mathf.Min(420f, Screen.width - 32f);
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.72f, width, 34f);
-            GUI.Box(rect, label);
+                ? _poi.Title + "   [E]"
+                : "Поговорить: " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "житель" : _npc.DisplayName) + "   [E]";
+            var width = Mathf.Min(440f, Screen.width - 32f);
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.70f, width, 38f);
+            EnsurePromptStyle();
+
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.88f);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = new Color(0.96f, 0.88f, 0.70f, 1f);
+            GUI.Label(rect, label, _promptStyle);
+            GUI.color = previousColor;
+        }
+
+        private static void EnsurePromptStyle()
+        {
+            if (_promptStyle != null) return;
+            _promptStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 15,
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip
+            };
+            _promptStyle.normal.textColor = new Color(0.96f, 0.88f, 0.70f, 1f);
+        }
+
+        private static void DrawReticle(bool focused)
+        {
+            var previousColor = GUI.color;
+            var centerX = Screen.width * 0.5f;
+            var centerY = Screen.height * 0.5f;
+            var color = focused
+                ? new Color(1f, 0.78f, 0.38f, 0.95f)
+                : new Color(0.92f, 0.91f, 0.84f, 0.72f);
+            GUI.color = color;
+
+            // A restrained four-part reticle remains visible against both bright sky
+            // and dark interiors without covering the object being examined.
+            GUI.DrawTexture(new Rect(centerX - 1f, centerY - 7f, 2f, 4f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(centerX - 1f, centerY + 3f, 2f, 4f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(centerX - 7f, centerY - 1f, 4f, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(centerX + 3f, centerY - 1f, 4f, 2f), Texture2D.whiteTexture);
+            GUI.color = previousColor;
         }
     }
 }
