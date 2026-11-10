@@ -797,6 +797,10 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(rightThumb.GetComponent<Renderer>(), skin);
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
+            ApplyBodyVariation(id, body.transform, head.transform, leftArm.transform, rightArm.transform,
+                leftLeg.transform, rightLeg.transform);
+            if (isPlayer)
+                visualRoot.localScale = new Vector3(1f, 0.97f + (float)(id % 5UL) * 0.015f, 1f);
             AddBaseClothingDetails(visualRoot, id);
             if (!isPlayer) AddRoleWorkwear(visualRoot, role, id);
             AddFaceDetails(visualRoot, id, isPlayer);
@@ -837,6 +841,26 @@ namespace Pogranichye.Client.Presentation
         // Appearance is derived from the stable server entity ID, never from frame order
         // or Unity's global random state. The same resident therefore keeps their look
         // across reconnects and clients without adding protocol fields.
+        // Five restrained body builds keep the settlement from looking like cloned mannequins.
+        // Every proportion is keyed by the stable server entity ID, so reconnects and clients agree.
+        private static void ApplyBodyVariation(ulong id, Transform body, Transform head,
+            Transform leftArm, Transform rightArm, Transform leftLeg, Transform rightLeg)
+        {
+            var build = (int)(id % 5UL);
+            var torsoWidth = new[] { 0.91f, 0.97f, 1.00f, 1.08f, 1.14f }[build];
+            var torsoDepth = new[] { 0.94f, 1.02f, 0.96f, 1.08f, 1.12f }[build];
+            var armWidth = new[] { 0.92f, 0.96f, 1.00f, 1.08f, 1.13f }[build];
+            var legWidth = new[] { 0.94f, 1.02f, 0.98f, 1.08f, 1.12f }[build];
+            var headWidth = new[] { 1.04f, 0.96f, 1.00f, 0.98f, 1.03f }[build];
+
+            body.localScale = Vector3.Scale(body.localScale, new Vector3(torsoWidth, 1f, torsoDepth));
+            head.localScale = Vector3.Scale(head.localScale, new Vector3(headWidth, 1f, headWidth));
+            leftArm.localScale = Vector3.Scale(leftArm.localScale, new Vector3(armWidth, 1f, armWidth));
+            rightArm.localScale = Vector3.Scale(rightArm.localScale, new Vector3(armWidth, 1f, armWidth));
+            leftLeg.localScale = Vector3.Scale(leftLeg.localScale, new Vector3(legWidth, 1f, legWidth));
+            rightLeg.localScale = Vector3.Scale(rightLeg.localScale, new Vector3(legWidth, 1f, legWidth));
+        }
+
         private static Color SkinColor(ulong id, bool isPlayer)
         {
             if (isPlayer) return new Color(0.72f, 0.55f, 0.40f);
