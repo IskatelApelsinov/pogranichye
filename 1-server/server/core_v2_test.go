@@ -1,8 +1,8 @@
 package server
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"pogranichye/core"
@@ -74,7 +74,6 @@ func TestCoreIntentsFastFrameAndHeat(t *testing.T) {
 		t.Fatal("без игроков горячих поселений быть не должно")
 	}
 }
-
 
 // #40: the WebSocket intent dispatcher must expose both accepted and rejected talk
 // requests through the existing correlated me.result, without adding wire fields.
