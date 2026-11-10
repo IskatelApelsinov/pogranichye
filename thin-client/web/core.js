@@ -309,7 +309,7 @@ let LAY = null, layAsked = false;
 const MAPLOC = ['well','tavern','river','woods','garden','smithy','granary','mine','hearth','market'];
 let villageAtlas = null;
 const villageMapView = {zoom:1,panX:0,panY:0};
-let villageMapPointer = null, villageMapDragged = false, villageMapSuppressClick = false;
+let villageMapPointer = null, villageMapSuppressClick = false;
 if(typeof Image !== 'undefined'){
   villageAtlas = new Image();
   villageAtlas.onload = () => { if(last) drawLiveMap(last); };
@@ -342,7 +342,7 @@ function bindVillageMap(cv){
     const dx=(ev.clientX-villageMapPointer.x)*cv.width/cv.getBoundingClientRect().width;
     const dy=(ev.clientY-villageMapPointer.y)*cv.height/cv.getBoundingClientRect().height;
     if(Math.abs(dx)+Math.abs(dy)>5)villageMapPointer.moved=true;
-    if(villageMapPointer.moved){villageMapView.panX=villageMapPointer.panX+dx;villageMapView.panY=villageMapPointer.panY+dy;clampVillageMapView();villageMapDragged=true;if(last)drawLiveMap(last);}
+    if(villageMapPointer.moved){villageMapView.panX=villageMapPointer.panX+dx;villageMapView.panY=villageMapPointer.panY+dy;clampVillageMapView();if(last)drawLiveMap(last);}
   });
   const finish=ev=>{
     if(!villageMapPointer||villageMapPointer.id!==ev.pointerId)return;
@@ -362,6 +362,7 @@ function drawLiveMap(s){
   if(!LAY && !layAsked){ layAsked = true; fetch('/api/layout').then(r => r.json()).then(j => { LAY = j; if(last) drawLiveMap(last); }).catch(() => { layAsked = false; }); }
   if(!LAY || !s.place || !(Number(LAY.world_half)>0)) return;
   if(window.PogranichyeVillageMap) window.PogranichyeVillageMap.draw(cv,LAY,s,villageAtlas,selFoe,villageMapView);
+  const zoomLabel=document.getElementById('mapzoomlevel');if(zoomLabel)zoomLabel.textContent=villageMapView.zoom.toFixed(1).replace('.0','')+'×';
   const W=cv.width,H=cv.height,half=Number(LAY.world_half);
   if(!cv.onclick) cv.onclick = ev => {
     if(villageMapSuppressClick){villageMapSuppressClick=false;return;}
