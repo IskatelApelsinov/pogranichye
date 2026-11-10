@@ -219,6 +219,10 @@ func JourneyStart(w *core.World, e *core.Entity, to core.ID, reqid string, s *di
 		return false, "ты не знаешь туда дороги — расспроси людей"
 	}
 	total := math.Max(24, math.Min(110, 18+dist*0.35))
+	if _, h := horseOf(w, e); h != nil && Mounted(e) { // верхом по тракту быстрее, лошадь устаёт
+		total *= 0.6
+		h.Stam = math.Max(0, h.Stam-25)
+	}
 	via := []string{}
 	for _, id := range route[1 : len(route)-1] {
 		via = append(via, core.Settle(w.Get(id)).Name)
@@ -323,6 +327,9 @@ func arrive(w *core.World, e *core.Entity, j *JourneyC) {
 		return
 	}
 	pl.Settlement = j.To
+	if _, h := horseOf(w, e); h != nil && Mounted(e) {
+		h.Settlement = j.To // лошадь приходит вместе со всадником; оставленная — ждёт, где оставили
+	}
 	LearnVisited(w, e, j.To)
 	GoTo(w, e, "well")
 	if v := core.Vitals(e); v != nil {

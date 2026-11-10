@@ -38,6 +38,8 @@ type ScenePosC struct {
 	// Серверно-внутреннее (json:"-"): кадр/контракт не трогает, используется для measured
 	// stuck-recovery в StepNPCMovement.
 	Stuck float64 `json:"-"`
+	// Mult — множитель скорости (v1.13): верхом быстрее, с перегруженной сумой медленнее. Ставит сервер.
+	Mult float64 `json:"-"`
 }
 
 func (c *ScenePosC) Kind() string { return "scenepos" }
@@ -77,8 +79,17 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 	if l := math.Hypot(mx, my); l > 1e-6 {
 		mx, my = mx/l, my/l
 		speed := walkSpeed
+		if p.Mult > 0 {
+			speed *= p.Mult
+		}
+		if p.Mult > 0 && p.Mult < 1 {
+			run = false // с тяжёлой ношей не бегают
+		}
 		if run && p.Stam > 0 {
 			speed = runSpeed
+			if p.Mult > 1 {
+				speed *= p.Mult
+			}
 			p.Stam -= stamDrain * dt
 			if p.Stam < 0 {
 				p.Stam = 0

@@ -218,6 +218,12 @@
           "len": 120
         }
       ]
+    },
+    "horse": null,
+    "bag": {
+      "load": 5,
+      "cap": 40,
+      "over": false
     }
   },
   "place": {
@@ -279,7 +285,11 @@
         "price": 0.4,
         "sell": 0.4
       }
-    ]
+    ],
+    "stable": {
+      "horses": 2,
+      "price": 40
+    }
   },
   "hour": 14
 }
