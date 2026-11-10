@@ -33,14 +33,16 @@ test('reconnect replays the exact same reqid and does not release the queue',()=
   assert.deepEqual(sent,['stable-id','stable-id','next-id']);
 });
 
-test('matching ACK in first reconnect frame avoids unnecessary replay',()=>{
+test('ACK received in the first reconnect frame is not replayed',()=>{
   const sent=[];
   const gate=new RequestGate(p=>{sent.push(p.reqid);return true;},6,100);
   gate.setConnection(1,0);
   gate.enqueue('one',{reqid:'one'},1);
-  gate.setConnection(2,50,'one');
-  assert.deepEqual(sent,['one']);
-  assert.equal(gate.accept({reqid:'one',ok:true},51).reqid,'one');
+  gate.enqueue('two',{reqid:'two'},2);
+  gate.disconnect();
+  assert.equal(gate.accept({reqid:'one',ok:true},50).reqid,'one');
+  gate.setConnection(2,51,'one');
+  assert.deepEqual(sent,['one','two']);
 });
 
 test('timeout retries the same request id and keeps later actions blocked',()=>{
@@ -78,3 +80,4 @@ test('does not discard an action while disconnected before its first send',()=>{
   gate.setConnection(7,10);
   assert.deepEqual(sent,['offline']);
 });
+
