@@ -10,7 +10,6 @@ namespace Pogranichye.Client.Presentation
     public sealed class WorldInteractionProbe : MonoBehaviour
     {
         [SerializeField] private float interactRange = 3.2f;
-        [SerializeField] private KeyCode interactKey = KeyCode.E;
         private Camera _camera;
         private PresentationCameraRig _cameraRig;
         private Pogranichye.Client.ClientInput _input;
