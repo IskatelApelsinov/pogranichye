@@ -132,6 +132,7 @@
  <button id="leave" style="width:100%;margin-bottom:24px">Выйти (тело вернётся под управление мира)</button>
 </div>
 
+<script src="/request-gate.js"></script>
 <script>
 let token=null, ws=null, mode='login';
 const $=id=>document.getElementById(id);
@@ -161,7 +162,8 @@ function connect(){
  socket.onmessage=e=>{ if(ws===socket) render(JSON.parse(e.data)); };
  socket.onclose=()=>{
    if(ws!==socket || !token) return;
-   $('err').textContent='Связь прервалась. Переподключаюсь; незавершённое действие сохранено.';
+   resultGate.disconnect();
+   $('err').textContent='Связь прервалась. Переподключаюсь; незавершённые действия сохранены.';
    scheduleReconnect();
  };
  socket.onerror=()=>{ try{ socket.close(); }catch(_){} };
@@ -180,14 +182,40 @@ function scheduleReconnect(){
  reconnectDelay=Math.min(reconnectDelay*2,10000);
  reconnectTimer=setTimeout(()=>{ reconnectTimer=null; connect(); },delay);
 }
-// reqid обязателен для платных/расходных намерений (идемпотентность) — подставляем, если не задан
-function send(o){ if(o.op!=='move'&&!o.reqid) o.reqid=rid(); if(ws&&ws.readyState===1){ ws.send(JSON.stringify(Object.assign({v:1},o))); return true; } return false; }
+// Только действия с me.result получают reqid и проходят через общий FIFO gate.
+// State-setting/fire-and-forget intents не трогают single-slot ACK.
+function sendRaw(o){
+ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify(Object.assign({v:1},o))); return true; }
+ return false;
+}
+function expectsResult(o){
+ if(o.reqid) return true;
+ if(['buy','consume','trade','take','craft','use','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
+ return o.op==='goto' && !!o.target;
+}
+function actionLabel(o){
+ const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',
+   weave:'Плетение',attack:'Удар',dodge:'Уворот',stance:'Стойка',trick:'Хитрость',quest:'Просьба',journey:'Путешествие',
+   party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти'};
+ if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд'})[o.action]||'Действие';
+ return labels[o.op]||'Действие';
+}
+const resultGate=new PogranichyeRequestGate(sendRaw,6,15000);
+function send(o){
+ const payload=Object.assign({},o);
+ if(!expectsResult(payload)) return sendRaw(payload);
+ if(!payload.reqid) payload.reqid=rid();
+ if(!ws||ws.readyState!==WebSocket.OPEN){ toast('⚠ Нет соединения с миром. Действие не отправлено.'); return false; }
+ const queued=resultGate.enqueue(actionLabel(payload),payload,Date.now());
+ if(!queued) toast('⚠ Очередь действий занята. Дождись ответа на предыдущие действия.');
+ return queued;
+}
 let pendingMinigameAction=null;
 function sendMinigameAction(action,buttonId,successText){
  if(pendingMinigameAction) return false;
  const reqid=rid(), button=$(buttonId);
- if(!button || !send({op:'act',action,reqid})){ toast('⚠ Нет соединения с миром. Действие не отправлено.'); return false; }
- pendingMinigameAction={reqid,action,buttonId,successText,startedAt:Date.now(),lastSentConnection:connectionGeneration,timedOut:false};
+ if(!button || !send({op:'act',action,reqid})) return false;
+ pendingMinigameAction={reqid,action,buttonId,successText,startedAt:null};
  button.disabled=true; button.textContent='⏳ Жду ответа мира…';
  toast('Действие отправлено. Жду подтверждения сервера…');
  return true;
@@ -223,25 +251,33 @@ let lastResult='';
 let journalSeen=false, journalEntries=[];
 function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
   const r=(s.me||{}).result;
-  if(pendingMinigameAction && r && r.reqid===pendingMinigameAction.reqid){
-    const pending=pendingMinigameAction; pendingMinigameAction=null;
-    const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
-    toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
-  } else if(pendingMinigameAction){
-    // После reconnect повторяем ТОТ ЖЕ reqid. Серверный bounded dedup возвращает тот же
-    // результат, не начисляя ресурс повторно; это безопаснее, чем оставить действие навсегда зависшим.
-    if(pendingMinigameAction.lastSentConnection!==connectionGeneration && ws && ws.readyState===WebSocket.OPEN){
-      pendingMinigameAction.lastSentConnection=connectionGeneration;
-      send({op:'act',action:pendingMinigameAction.action,reqid:pendingMinigameAction.reqid});
-      toast('Связь восстановлена. Проверяю незавершённое действие у мира…');
-    }
-    if(!pendingMinigameAction.timedOut && Date.now()-pendingMinigameAction.startedAt>15000){
-      // Не разблокируем действие: сервер мог выполнить его, а ACK мог потеряться.
-      pendingMinigameAction.timedOut=true;
-      toast('⚠ Ответ сервера не получен. Действие остаётся в ожидании; повтор отправлен с тем же ID после восстановления связи.');
+  // Обновляем gate по ACK и соединению. Если кадр уже содержит наш ACK, не делаем лишний replay.
+  const resolved=resultGate.accept(r,Date.now());
+  resultGate.setConnection(connectionGeneration,Date.now(),r&&r.reqid);
+  if(resolved){
+    if(pendingMinigameAction && resolved.reqid===pendingMinigameAction.reqid){
+      const pending=pendingMinigameAction; pendingMinigameAction=null;
+      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
+      toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
+    } else {
+      toast(r.ok ? resolved.label+': подтверждено' : resolved.label+' — отказ: '+(r.reason||'сервер отказал'));
     }
   }
-  if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason && (!pendingMinigameAction || r.reqid!==pendingMinigameAction.reqid)) toast('⚠ '+r.reason); }
+  const activeRequest=resultGate.activeItem;
+  if(pendingMinigameAction && activeRequest && activeRequest.reqid===pendingMinigameAction.reqid && pendingMinigameAction.startedAt===null)
+    pendingMinigameAction.startedAt=activeRequest.sentAt;
+  const gateTimeout=resultGate.tick(Date.now());
+  if(gateTimeout){
+    if(pendingMinigameAction && gateTimeout.item.reqid===pendingMinigameAction.reqid)
+      toast(gateTimeout.retried?'Ответ задерживается. Безопасно повторяю то же действие…':'⚠ Нет подтверждения. Действие удерживается в очереди до ответа или переподключения.');
+    else
+      toast(gateTimeout.retried?'Ответ задерживается. Повторяю запрос с прежним ID…':'⚠ Сервер пока не подтвердил действие. Следующие действия удерживаются.');
+  }
+  if(r){
+    const resultKey=r.reqid+String(r.ok);
+    if(!resolved && !resultGate.activeItem && resultKey!==lastResult && !r.ok && r.reason) toast('⚠ '+r.reason);
+    lastResult=resultKey;
+  }
 }
 function drawTask(s){ const t=(s.me||{}).task||{};
   const steps=['познакомиться','поработать','выпить в корчме'];
