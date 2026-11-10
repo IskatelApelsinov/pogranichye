@@ -14,7 +14,7 @@
 ## Изменено в этой ветке
 
 - MovementIntentQueuePolicy.cs: общий чистый C# helper для ограничения очереди и удаления unsent prediction intents.
-- VerticalSliceController.cs: максимум 8 ожидающих move-intent; при нулевом вводе очередь unsent очищается, но единственный in-flight пакет сохраняется; F3 теперь показывает down/up событий клавиатуры/мыши, mouse delta/scroll, позицию/захват курсора, pending/queue и число отброшенных intents.
+- VerticalSliceController.cs: максимум 8 ожидающих move-intent; при нулевом вводе старые move-intent удаляются, но последний zero-vector stop intent сохраняется за единственным in-flight пакетом; F3 теперь показывает down/up событий клавиатуры/мыши, mouse delta/scroll, позицию/захват курсора, pending/queue и число отброшенных intents.
 - PresentationCameraRig.cs: mouse look и scroll не читают ввод, когда окно потеряло фокус.
 - CoreGameplay.cs: Alt-Tab отпускает guard, сбрасывает удерживаемую атаку/плетение и освобождает курсор; захват курсора разрешён только при фокусе окна.
 - WorldInteractionProbe.cs: E не запускает взаимодействие вне фокуса приложения.

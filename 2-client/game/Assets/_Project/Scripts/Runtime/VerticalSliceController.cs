@@ -90,6 +90,8 @@ namespace Pogranichye.Client
         private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
         private const int MaxQueuedMoveIntents = 8;
         private static readonly Func<PendingMoveIntent, long> MoveIntentSequence = intent => intent.Sequence;
+        private static readonly Func<PendingMoveIntent, bool> MoveIntentHasMovement =
+            intent => intent.Mx * intent.Mx + intent.My * intent.My > 0.000001f;
         private int _discardedMoveIntentCount;
         private Vector2 _movementMouseDeltaDebug;
         private Vector2 _movementMousePositionDebug;
@@ -1440,16 +1442,18 @@ namespace Pogranichye.Client
             // axes remain visible in F3 for diagnosis, but are intentionally never used
             // as a fallback: a drifting gamepad/stick/driver axis must not move the player
             // when no key is pressed. Add an explicit Input System gamepad path separately.
-            var keyboardInput = new Vector2(
-                ((Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1f : 0f)
-                    - ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1f : 0f),
-                ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1f : 0f)
-                    - ((Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1f : 0f));
+            var keyboardInput = Application.isFocused
+                ? new Vector2(
+                    ((Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1f : 0f)
+                        - ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1f : 0f),
+                    ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1f : 0f)
+                        - ((Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1f : 0f))
+                : Vector2.zero;
             var rawAxes = Application.isFocused
                 ? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"))
                 : Vector2.zero;
             _movementRawAxesDebug = rawAxes;
-            var input = !Application.isFocused || Time.timeScale <= 0f
+            var input = Time.timeScale <= 0f
                 ? Vector2.zero
                 : Vector2.ClampMagnitude(keyboardInput, 1f);
             _movementKeyboardDebug = keyboardInput;
@@ -1481,8 +1485,8 @@ namespace Pogranichye.Client
             {
                 // A released key must not leave a delayed tail of unsent movement packets.
                 // Keep the single in-flight packet; the next zero-vector intent will follow it.
-                _discardedMoveIntentCount += MovementIntentQueuePolicy.DiscardQueuedOnStop(
-                    _moveSendQueue, _pendingMoveIntents, MoveIntentSequence);
+                _discardedMoveIntentCount += MovementIntentQueuePolicy.DiscardMovingOnStop(
+                    _moveSendQueue, _pendingMoveIntents, MoveIntentSequence, MoveIntentHasMovement);
             }
             var runRequested = moving && Application.isFocused &&
                 (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));

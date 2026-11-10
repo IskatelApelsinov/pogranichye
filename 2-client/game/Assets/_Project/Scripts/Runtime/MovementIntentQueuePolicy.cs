@@ -25,15 +25,35 @@ namespace Pogranichye.Client
             return discarded.Count;
         }
 
-        public static int DiscardQueuedOnStop<T>(Queue<T> queued, List<T> pending,
-            Func<T, long> getSequence)
+        public static int DiscardMovingOnStop<T>(Queue<T> queued, List<T> pending,
+            Func<T, long> getSequence, Func<T, bool> hasMovement)
         {
-            if (queued == null || pending == null || getSequence == null)
+            if (queued == null || pending == null || getSequence == null || hasMovement == null)
                 return 0;
 
             var discarded = new HashSet<long>();
+            var latestStop = default(T);
+            var hasLatestStop = false;
             while (queued.Count > 0)
-                discarded.Add(getSequence(queued.Dequeue()));
+            {
+                var intent = queued.Dequeue();
+                if (hasMovement(intent))
+                {
+                    discarded.Add(getSequence(intent));
+                    hasLatestStop = false;
+                }
+                else
+                {
+                    if (hasLatestStop)
+                        discarded.Add(getSequence(latestStop));
+                    latestStop = intent;
+                    hasLatestStop = true;
+                }
+            }
+
+            // Keep only the newest zero-vector packet after the last movement packet.
+            // It is the stop signal that must survive while an older send is in flight.
+            if (hasLatestStop) queued.Enqueue(latestStop);
 
             RemovePending(pending, discarded, getSequence);
             return discarded.Count;

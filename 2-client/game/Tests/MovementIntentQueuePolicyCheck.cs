@@ -7,7 +7,8 @@ public static class MovementIntentQueuePolicyCheck
     private struct Intent
     {
         public long Sequence;
-        public Intent(long sequence) { Sequence = sequence; }
+        public bool Moving;
+        public Intent(long sequence, bool moving) { Sequence = sequence; Moving = moving; }
     }
 
     private static int _failed;
@@ -27,14 +28,14 @@ public static class MovementIntentQueuePolicyCheck
     public static int Main()
     {
         var queued = new Queue<Intent>();
-        queued.Enqueue(new Intent(2));
-        queued.Enqueue(new Intent(3));
-        queued.Enqueue(new Intent(4));
-        queued.Enqueue(new Intent(5));
+        queued.Enqueue(new Intent(2, true));
+        queued.Enqueue(new Intent(3, true));
+        queued.Enqueue(new Intent(4, true));
+        queued.Enqueue(new Intent(5, true));
         var pending = new List<Intent>
         {
-            new Intent(1), // the one packet already in flight
-            new Intent(2), new Intent(3), new Intent(4), new Intent(5)
+            new Intent(1, true), // the one packet already in flight
+            new Intent(2, true), new Intent(3, true), new Intent(4, true), new Intent(5, true)
         };
 
         var trimmed = MovementIntentQueuePolicy.TrimOldest(
@@ -46,17 +47,30 @@ public static class MovementIntentQueuePolicyCheck
             HasSequence(pending, 4) && HasSequence(pending, 5),
             "prediction drops discarded packets but preserves the in-flight packet");
 
-        var stopped = MovementIntentQueuePolicy.DiscardQueuedOnStop(
-            queued, pending, intent => intent.Sequence);
-        Check(stopped == 2 && queued.Count == 0,
-            "releasing movement clears every unsent packet");
-        Check(pending.Count == 1 && pending[0].Sequence == 1,
-            "stop keeps only the packet that cannot be cancelled");
+        queued.Enqueue(new Intent(6, false));
+        pending.Add(new Intent(6, false));
+        queued.Enqueue(new Intent(7, false));
+        pending.Add(new Intent(7, false));
+        var stopped = MovementIntentQueuePolicy.DiscardMovingOnStop(
+            queued, pending, intent => intent.Sequence, intent => intent.Moving);
+        Check(stopped == 3 && queued.Count == 1 && queued.Peek().Sequence == 7,
+            "stop discards queued movement and keeps the newest zero-vector intent");
+        Check(pending.Count == 2 && HasSequence(pending, 1) && HasSequence(pending, 7),
+            "prediction preserves the in-flight packet and the stop signal");
 
-        var empty = MovementIntentQueuePolicy.DiscardQueuedOnStop(
-            queued, pending, intent => intent.Sequence);
-        Check(empty == 0 && pending.Count == 1,
-            "repeated stop is idempotent");
+        var repeatedStop = MovementIntentQueuePolicy.DiscardMovingOnStop(
+            queued, pending, intent => intent.Sequence, intent => intent.Moving);
+        Check(repeatedStop == 0 && queued.Count == 1 && pending.Count == 2,
+            "repeated stop keeps the zero-vector packet queued for the in-flight send");
+
+        queued.Enqueue(new Intent(8, true));
+        pending.Add(new Intent(8, true));
+        var resumedThenStopped = MovementIntentQueuePolicy.DiscardMovingOnStop(
+            queued, pending, intent => intent.Sequence, intent => intent.Moving);
+        Check(resumedThenStopped == 2 && queued.Count == 0,
+            "a newer movement packet invalidates an older queued stop signal");
+        Check(pending.Count == 1 && pending[0].Sequence == 1,
+            "prediction removes superseded stop and movement packets");
 
         Console.WriteLine(_failed == 0
             ? "MovementIntentQueuePolicy: ALL CHECKS PASSED"
