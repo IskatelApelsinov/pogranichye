@@ -741,7 +741,7 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             AddBaseClothingDetails(visualRoot, id);
-            AddFaceDetails(visualRoot);
+            AddFaceDetails(visualRoot, id, isPlayer);
             AddRoleAccessories(visualRoot, role);
 
             var motion = go.AddComponent<EntityMotion>();
@@ -860,18 +860,54 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(hem.GetComponent<Renderer>(), seam);
         }
 
-        private void AddFaceDetails(Transform root)
+        private void AddFaceDetails(Transform root, ulong id, bool isPlayer)
         {
+            // Small, deterministic face variations make residents recognizable at a glance
+            // without adding random state or changing their server identity.
+            var variation = (int)(id % 5UL);
+            var eyeWidth = variation == 2 ? 0.029f : variation == 4 ? 0.039f : 0.035f;
+            var eyeHeight = variation == 1 ? 0.052f : variation == 3 ? 0.038f : 0.045f;
             var leftEye = CreatePart("Left eye", PrimitiveType.Sphere, root,
-                new Vector3(-0.075f, 1.66f, 0.165f), new Vector3(0.035f, 0.045f, 0.02f));
+                new Vector3(-0.075f, 1.66f, 0.165f), new Vector3(eyeWidth, eyeHeight, 0.02f));
             var rightEye = CreatePart("Right eye", PrimitiveType.Sphere, root,
-                new Vector3(0.075f, 1.66f, 0.165f), new Vector3(0.035f, 0.045f, 0.02f));
+                new Vector3(0.075f, 1.66f, 0.165f), new Vector3(eyeWidth, eyeHeight, 0.02f));
+
+            var hairColor = (id % 3UL) == 0UL
+                ? new Color(0.18f, 0.12f, 0.09f)
+                : (id % 3UL) == 1UL
+                    ? new Color(0.34f, 0.22f, 0.14f)
+                    : new Color(0.48f, 0.40f, 0.28f);
+            var browScale = variation == 3 ? 0.82f : 1f;
+            var leftBrow = CreatePart("Left eyebrow", PrimitiveType.Cube, root,
+                new Vector3(-0.075f, 1.715f, 0.169f), new Vector3(0.075f * browScale, 0.018f, 0.018f));
+            var rightBrow = CreatePart("Right eyebrow", PrimitiveType.Cube, root,
+                new Vector3(0.075f, 1.715f, 0.169f), new Vector3(0.075f * browScale, 0.018f, 0.018f));
+            leftBrow.transform.localRotation = Quaternion.Euler(0f, 0f, variation == 1 ? 7f : -3f);
+            rightBrow.transform.localRotation = Quaternion.Euler(0f, 0f, variation == 1 ? -7f : 3f);
+
+            var skin = SkinColor(id, isPlayer);
+            var nose = CreatePart("Nose", PrimitiveType.Sphere, root,
+                new Vector3(0f, 1.605f, 0.183f),
+                new Vector3(variation == 4 ? 0.052f : 0.044f, variation == 2 ? 0.048f : 0.058f, 0.042f));
             var mouth = CreatePart("Mouth", PrimitiveType.Sphere, root,
                 new Vector3(0f, 1.54f, 0.175f), new Vector3(0.06f, 0.02f, 0.015f));
+
             var features = new Color(0.12f, 0.09f, 0.07f);
             ApplyColor(leftEye.GetComponent<Renderer>(), features);
             ApplyColor(rightEye.GetComponent<Renderer>(), features);
+            ApplyColor(leftBrow.GetComponent<Renderer>(), hairColor);
+            ApplyColor(rightBrow.GetComponent<Renderer>(), hairColor);
+            ApplyColor(nose.GetComponent<Renderer>(), Color.Lerp(skin, new Color(0.42f, 0.25f, 0.18f), 0.12f));
             ApplyColor(mouth.GetComponent<Renderer>(), new Color(0.35f, 0.13f, 0.12f));
+
+            // A restrained old scar is a rare identity cue, not a universal decoration.
+            if (id % 11UL == 0UL)
+            {
+                var scar = CreatePart("Old cheek scar", PrimitiveType.Cube, root,
+                    new Vector3(0.105f, 1.59f, 0.171f), new Vector3(0.009f, 0.065f, 0.012f));
+                scar.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+                ApplyColor(scar.GetComponent<Renderer>(), Color.Lerp(skin, new Color(0.34f, 0.17f, 0.13f), 0.42f));
+            }
         }
 
         private void AddRoleAccessories(Transform root, string role)
