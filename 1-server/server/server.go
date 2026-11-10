@@ -39,6 +39,26 @@ type Server struct {
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
 	lastStepMs      float64
+
+	stop     chan struct{} // закрывается в Close: останавливает тик-петлю
+	stopOnce sync.Once
+}
+
+// quit — канал остановки тик-петли (создаётся при первом обращении).
+func (s *Server) quit() chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stop == nil {
+		s.stop = make(chan struct{})
+	}
+	return s.stop
+}
+
+// Close останавливает тик-петлю мира (тикеры освобождаются, горутина завершается). Повторный вызов
+// безопасен. HTTP-сервер и соединения закрывает владелец (http.Server / httptest).
+func (s *Server) Close() {
+	ch := s.quit()
+	s.stopOnce.Do(func() { close(ch) })
 }
 
 // fastEach — шаг РЕАЛЬНОГО времени (бой, ходьба НПС, дорога, мана): чаще игрового часа, чтобы бой от
@@ -124,8 +144,11 @@ func (s *Server) tickLoop() {
 	f := time.NewTicker(fastEach)
 	defer t.Stop()
 	defer f.Stop()
+	stop := s.quit()
 	for {
 		select {
+		case <-stop:
+			return
 		case <-t.C:
 			s.mu.Lock()
 			t0 := time.Now()
