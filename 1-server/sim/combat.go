@@ -933,3 +933,37 @@ func CombatView(w *core.World, e *core.Entity) map[string]any {
 		"arrows": inv.Items["arrow"], "weapon": inv.Hand, "kills": c.Kills, "ko": c.KO,
 	}
 }
+
+// Approach — ДИСКРЕТНЫЙ подход к врагу для менеджмент-клиента (тонкий web/mobile, ADR 0002): тап по
+// зверю ставит тело игрока на дистанцию dist от него со стороны, откуда игрок шёл. Толстый клиент
+// подходит ногами и этим не пользуется. Зверь при этом может заметить (если игрок не крадётся).
+func Approach(w *core.World, e *core.Entity, foe core.ID, dist float64) (bool, string) {
+	fe := w.Get(foe)
+	pl := core.Place(e)
+	if fe == nil || Foe(fe) == nil || pl == nil || Foe(fe).Settlement != pl.Settlement || OnRoad(e) {
+		return false, "зверя не видно"
+	}
+	f := Foe(fe)
+	if f.State == "dead" {
+		return false, "он уже мёртв"
+	}
+	p := EnsureScenePos(w, e)
+	if dist < 1.5 {
+		dist = 1.5
+	}
+	if dist > 30 {
+		dist = 30
+	}
+	dx, dy := p.X-f.X, p.Y-f.Y
+	d := math.Hypot(dx, dy)
+	if d < 0.1 {
+		dx, dy, d = 1, 0, 1
+	}
+	x, y := f.X+dx/d*dist, f.Y+dy/d*dist
+	if Blocked(x, y) {
+		x, y = f.X, f.Y
+	}
+	p.X, p.Y = x, y
+	p.Facing = facingDeg(f.X-x, f.Y-y, p.Facing)
+	return true, ""
+}

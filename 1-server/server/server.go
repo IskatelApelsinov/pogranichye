@@ -466,7 +466,10 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "goto": // дискретная навигация менеджмент-клиента: встать в локацию (v1.6)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			if !sim.OnRoad(e) {
+			if in.Target != "" { // подойти к зверю (тонкий клиент): qty — дистанция в метрах
+				rok, rwhy := sim.Approach(s.world, e, parseID(in.Target), float64(in.Qty))
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			} else if !sim.OnRoad(e) {
 				sim.GoTo(s.world, e, in.Location)
 			}
 		}
@@ -680,6 +683,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				}
 			}
 			out["place"] = map[string]any{
+				"id":   eid(se.ID), // id поселения (сверка с me.world/known_places) — v1.10
 				"name": st.Name, "tier": st.Tier,
 				"food":        round0(econ.FoodOnHand(se)),
 				"bread":       round0(st.Store[econ.GoodBread]),
