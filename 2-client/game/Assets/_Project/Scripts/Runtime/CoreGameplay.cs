@@ -1594,6 +1594,7 @@ namespace Pogranichye.Client
             var nodes = Arr(region, "nodes");
             var roads = Arr(region, "roads");
             if (nodes == null) return;
+            DrawRegionMap(nodes, roads);
             foreach (var node in nodes)
             {
                 var id = Str(node, "id");
@@ -1611,6 +1612,76 @@ namespace Pogranichye.Client
                     Ask("Дорога", "journey", "target", id);
                     _menuOpen = false;
                 }
+            }
+        }
+
+        // The regional map is a projection of me.region only. Coordinates and edges are
+        // server supplied; absent settlements stay in the fog and unknown nodes are nameless.
+        private void DrawRegionMap(JArray nodes, JArray roads)
+        {
+            var rect = GUILayoutUtility.GetRect(420f, 190f, GUILayout.ExpandWidth(true));
+            GUI.Box(rect, GUIContent.none);
+            var points = new Dictionary<string, Vector2>();
+            var minX = float.MaxValue;
+            var maxX = float.MinValue;
+            var minY = float.MaxValue;
+            var maxY = float.MinValue;
+            foreach (var node in nodes)
+            {
+                var id = Str(node, "id");
+                var x = Num(node, "x");
+                var y = Num(node, "y");
+                points[id] = new Vector2(x, y);
+                minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
+                minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
+            }
+            if (points.Count == 0) return;
+            var inner = new Rect(rect.x + 18f, rect.y + 24f, rect.width - 36f, rect.height - 42f);
+            const float pad = 18f;
+            var spanX = Mathf.Max(1f, maxX - minX);
+            var spanY = Mathf.Max(1f, maxY - minY);
+            Vector2 Project(JToken node)
+            {
+                var x = Num(node, "x");
+                var y = Num(node, "y");
+                return new Vector2(inner.x + pad + (x - minX) / spanX * Mathf.Max(1f, inner.width - pad * 2f),
+                    inner.yMax - pad - (y - minY) / spanY * Mathf.Max(1f, inner.height - pad * 2f));
+            }
+
+            if (roads != null)
+            {
+                foreach (var road in roads)
+                {
+                    Vector2 a, b;
+                    if (!points.TryGetValue(Str(road, "a"), out a) || !points.TryGetValue(Str(road, "b"), out b)) continue;
+                    var delta = b - a;
+                    var length = delta.magnitude;
+                    if (length < 1f) continue;
+                    var previous = GUI.color;
+                    GUI.color = new Color(0.58f, 0.48f, 0.32f, 0.9f);
+                    var matrix = GUI.matrix;
+                    GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, a);
+                    GUI.DrawTexture(new Rect(a.x, a.y - 1.5f, length, 3f), Texture2D.whiteTexture);
+                    GUI.matrix = matrix;
+                    GUI.color = previous;
+                }
+            }
+
+            foreach (var node in nodes)
+            {
+                var state = Str(node, "state");
+                var point = Project(node);
+                var previous = GUI.color;
+                GUI.color = state == "here" ? new Color(0.95f, 0.78f, 0.35f)
+                    : state == "visited" ? new Color(0.65f, 0.78f, 0.55f)
+                    : state == "known" ? new Color(0.58f, 0.7f, 0.83f)
+                    : new Color(0.55f, 0.53f, 0.48f);
+                GUI.DrawTexture(new Rect(point.x - 5f, point.y - 5f, 10f, 10f), Texture2D.whiteTexture);
+                GUI.color = previous;
+                var label = state == "unknown" ? "?" : Str(node, "name");
+                if (state == "here") label = "Ты";
+                if (!string.IsNullOrEmpty(label))
+                    GUI.Label(new Rect(point.x + 7f, point.y - 10f, 130f, 20f), label);
             }
         }
 
