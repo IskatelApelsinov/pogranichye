@@ -88,6 +88,15 @@ namespace Pogranichye.Client
         private bool _moveSendInFlight;
         private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
         private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
+        private const int MaxQueuedMoveIntents = 8;
+        private static readonly Func<PendingMoveIntent, long> MoveIntentSequence = intent => intent.Sequence;
+        private int _discardedMoveIntentCount;
+        private Vector2 _movementMouseDeltaDebug;
+        private Vector2 _movementMousePositionDebug;
+        private float _movementScrollDebug;
+        private string _cursorStateDebug = "видим";
+        private readonly Queue<string> _recentInputEvents = new Queue<string>();
+        private const int RecentInputEventLimit = 8;
         private Vector3 _movementCorrection;
         private float _movementCorrectionRemaining;
         private float _serverStamina = 1f;
@@ -131,9 +140,10 @@ namespace Pogranichye.Client
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
-            if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
-            if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
-            if (Input.GetKeyDown(KeyCode.F11)) ToggleFullscreen();
+            CaptureInputDiagnostics();
+            if (Application.isFocused && Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
+            if (Application.isFocused && Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
+            if (Application.isFocused && Input.GetKeyDown(KeyCode.F11)) ToggleFullscreen();
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
@@ -255,11 +265,82 @@ namespace Pogranichye.Client
             Screen.fullScreen = enable;
         }
 
+        private void CaptureInputDiagnostics()
+        {
+            if (Application.isFocused)
+            {
+                _pressedKeysDebug = BuildPressedKeysDebug();
+                _movementMouseDeltaDebug = new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"));
+                _movementScrollDebug = Input.GetAxisRaw("Mouse ScrollWheel");
+                _movementMousePositionDebug = Input.mousePosition;
+
+                TrackInputKey(KeyCode.W, "W");
+                TrackInputKey(KeyCode.A, "A");
+                TrackInputKey(KeyCode.S, "S");
+                TrackInputKey(KeyCode.D, "D");
+                TrackInputKey(KeyCode.UpArrow, "↑");
+                TrackInputKey(KeyCode.LeftArrow, "←");
+                TrackInputKey(KeyCode.DownArrow, "↓");
+                TrackInputKey(KeyCode.RightArrow, "→");
+                TrackInputKey(KeyCode.LeftShift, "Shift");
+                TrackInputKey(KeyCode.RightShift, "RShift");
+                TrackInputKey(KeyCode.Space, "Space");
+                TrackInputKey(KeyCode.E, "E");
+                TrackInputKey(KeyCode.F, "F");
+                TrackInputKey(KeyCode.Q, "Q");
+                TrackInputKey(KeyCode.R, "R");
+                TrackInputKey(KeyCode.Z, "Z");
+                TrackInputKey(KeyCode.X, "X");
+                TrackInputKey(KeyCode.V, "V");
+                TrackInputKey(KeyCode.B, "B");
+                TrackInputKey(KeyCode.C, "C");
+                TrackInputKey(KeyCode.T, "T");
+                TrackInputKey(KeyCode.H, "H");
+                TrackInputKey(KeyCode.Tab, "Tab");
+                TrackInputKey(KeyCode.Escape, "Esc");
+                TrackInputKey(KeyCode.F1, "F1");
+                TrackInputKey(KeyCode.F3, "F3");
+                TrackInputKey(KeyCode.F11, "F11");
+                TrackMouseButton(0, "ЛКМ");
+                TrackMouseButton(1, "ПКМ");
+                TrackMouseButton(2, "СКМ");
+            }
+            else
+            {
+                _pressedKeysDebug = "окно без фокуса";
+                _movementMouseDeltaDebug = Vector2.zero;
+                _movementMousePositionDebug = Vector2.zero;
+                _movementScrollDebug = 0f;
+            }
+
+            _cursorStateDebug = Cursor.lockState + " / " + (Cursor.visible ? "видим" : "скрыт");
+        }
+
+        private void TrackInputKey(KeyCode key, string label)
+        {
+            if (Input.GetKeyDown(key)) RecordInputEvent(label + "↓");
+            if (Input.GetKeyUp(key)) RecordInputEvent(label + "↑");
+        }
+
+        private void TrackMouseButton(int button, string label)
+        {
+            if (Input.GetMouseButtonDown(button)) RecordInputEvent(label + "↓");
+            if (Input.GetMouseButtonUp(button)) RecordInputEvent(label + "↑");
+        }
+
+        private void RecordInputEvent(string label)
+        {
+            while (_recentInputEvents.Count >= RecentInputEventLimit)
+                _recentInputEvents.Dequeue();
+            var stamp = Time.unscaledTime.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+            _recentInputEvents.Enqueue(stamp + "s " + label);
+        }
+
         private void DrawMovementDebugOverlay()
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 390f, 12f, 378f, 210f);
+            var rect = new Rect(Screen.width - 422f, 12f, 410f, 296f);
             GUI.Box(rect, "ДИАГНОСТИКА ВВОДА / КАМЕРА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
@@ -271,10 +352,19 @@ namespace Pogranichye.Client
                 $"Yaw камеры {_movementCameraYawDebug:0.0}° | yaw игрока {_movementPlayerYawDebug:0.0}°");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 108f, rect.width - 20f, 20f),
                 $"Facing сервера {_movementServerFacingDebug:0.0}°");
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 128f, rect.width - 20f, 20f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 128f, rect.width - 20f, 36f),
                 $"Клавиатура {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | оси {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 164f, rect.width - 20f, 38f),
                 "Нажато: " + _pressedKeysDebug);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 202f, rect.width - 20f, 20f),
+                $"Мышь ΔX {_movementMouseDeltaDebug.x:0.00} / ΔY {_movementMouseDeltaDebug.y:0.00} | колесо {_movementScrollDebug:0.00}");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 222f, rect.width - 20f, 20f),
+                $"Указатель {_movementMousePositionDebug.x:0}/{_movementMousePositionDebug.y:0} | курсор {_cursorStateDebug}");
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 242f, rect.width - 20f, 20f),
+                $"Сеть: очередь {_moveSendQueue.Count} / pending {_pendingMoveIntents.Count} / in-flight {(_moveSendInFlight ? "да" : "нет")} / отброшено {_discardedMoveIntentCount}");
+            var events = _recentInputEvents.Count == 0 ? "нет" : string.Join(" → ", _recentInputEvents.ToArray());
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 262f, rect.width - 20f, 30f),
+                "Последние нажатия/отпускания: " + events);
         }
 
         private static string BuildPressedKeysDebug()
@@ -284,8 +374,9 @@ namespace Pogranichye.Client
                 KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D,
                 KeyCode.UpArrow, KeyCode.LeftArrow, KeyCode.DownArrow, KeyCode.RightArrow,
                 KeyCode.LeftShift, KeyCode.RightShift, KeyCode.Space,
-                KeyCode.E, KeyCode.F, KeyCode.I, KeyCode.J, KeyCode.M, KeyCode.Tab,
-                KeyCode.Escape, KeyCode.F1, KeyCode.F3, KeyCode.F11,
+                KeyCode.E, KeyCode.F, KeyCode.Q, KeyCode.R, KeyCode.Z, KeyCode.X, KeyCode.V,
+                KeyCode.B, KeyCode.C, KeyCode.T, KeyCode.H, KeyCode.I, KeyCode.J, KeyCode.M,
+                KeyCode.Tab, KeyCode.Escape, KeyCode.F1, KeyCode.F3, KeyCode.F11,
                 KeyCode.Mouse0, KeyCode.Mouse1, KeyCode.Mouse2
             };
             var pressed = new List<string>();
@@ -1321,7 +1412,7 @@ namespace Pogranichye.Client
         {
             // This only offsets the rendered player and camera. The authoritative root,
             // ScenePos, collision resolution and server move packets remain on the ground.
-            if (Input.GetKeyDown(KeyCode.Space) && _jumpOffset <= 0.001f)
+            if (Application.isFocused && Input.GetKeyDown(KeyCode.Space) && _jumpOffset <= 0.001f)
                 _jumpVelocity = JumpImpulse;
 
             var deltaTime = Mathf.Clamp(Time.deltaTime, 0f, 0.05f);
@@ -1354,11 +1445,14 @@ namespace Pogranichye.Client
                     - ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1f : 0f),
                 ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1f : 0f)
                     - ((Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1f : 0f));
-            var rawAxes = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            var rawAxes = Application.isFocused
+                ? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"))
+                : Vector2.zero;
             _movementRawAxesDebug = rawAxes;
-            var input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(keyboardInput, 1f);
+            var input = !Application.isFocused || Time.timeScale <= 0f
+                ? Vector2.zero
+                : Vector2.ClampMagnitude(keyboardInput, 1f);
             _movementKeyboardDebug = keyboardInput;
-            _pressedKeysDebug = BuildPressedKeysDebug();
 
             // Derive movement from the camera's actual planar view basis. Projecting the
             // basis onto the ground avoids Euler-angle decomposition surprises when the
@@ -1383,7 +1477,15 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            var runRequested = moving && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+            if (!moving)
+            {
+                // A released key must not leave a delayed tail of unsent movement packets.
+                // Keep the single in-flight packet; the next zero-vector intent will follow it.
+                _discardedMoveIntentCount += MovementIntentQueuePolicy.DiscardQueuedOnStop(
+                    _moveSendQueue, _pendingMoveIntents, MoveIntentSequence);
+            }
+            var runRequested = moving && Application.isFocused &&
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
             var canRun = runRequested && GetPredictedStamina() > 0f;
             var speed = canRun ? 3.2f : 1.4f;
 
@@ -1434,6 +1536,8 @@ namespace Pogranichye.Client
             };
             _pendingMoveIntents.Add(intent);
             _moveSendQueue.Enqueue(intent);
+            _discardedMoveIntentCount += MovementIntentQueuePolicy.TrimOldest(
+                _moveSendQueue, _pendingMoveIntents, MoveIntentSequence, MaxQueuedMoveIntents);
             StartNextMoveSend();
         }
 

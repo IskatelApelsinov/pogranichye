@@ -53,7 +53,7 @@ namespace Pogranichye.Client.Presentation
                 if (_npc != null) _npc.SetFocused(true);
             }
 
-            if (Input.GetKeyDown(interactKey))
+            if (Application.isFocused && Input.GetKeyDown(interactKey))
             {
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();

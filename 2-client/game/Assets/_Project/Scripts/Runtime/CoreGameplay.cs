@@ -214,6 +214,19 @@ namespace Pogranichye.Client
             Cursor.visible = true;
         }
 
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) return;
+
+            // Do not leave a held attack, guard or mouse-drawn weave active after Alt-Tab.
+            _holding = false;
+            _holdStart = 0f;
+            ReleaseGuard();
+            if (_weaveOpen) CloseWeave(false);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
         private void OnDestroy()
         {
             Cursor.lockState = CursorLockMode.None;
@@ -552,6 +565,16 @@ namespace Pogranichye.Client
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
 
+            if (!Application.isFocused)
+            {
+                _holding = false;
+                _holdStart = 0f;
+                ReleaseGuard();
+                if (_weaveOpen) CloseWeave(false);
+                UpdateCursor(true);
+                return;
+            }
+
             if (journey != null)
             {
                 _menuOpen = false;
@@ -607,7 +630,7 @@ namespace Pogranichye.Client
         {
             // First person with the HUD folded away is the "immersive" state: the pointer is captured
             // and the crosshair aims. Any window that needs clicking releases it.
-            var capture = _firstPerson && _hudCollapsed && !needsPointer;
+            var capture = Application.isFocused && _firstPerson && _hudCollapsed && !needsPointer;
             Cursor.lockState = capture ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !capture;
         }

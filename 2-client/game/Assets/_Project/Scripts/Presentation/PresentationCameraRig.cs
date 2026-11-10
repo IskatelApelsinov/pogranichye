@@ -91,7 +91,7 @@ namespace Pogranichye.Client.Presentation
             if (_firstPerson)
             {
                 // Mouse always controls view unless an active tool explicitly captures it for a gesture.
-                if (!_captureMouseForGesture)
+                if (Application.isFocused && !_captureMouseForGesture)
                 {
                     _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity, -75f, 75f);
@@ -108,14 +108,14 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            var scroll = Input.GetAxisRaw("Mouse ScrollWheel");
+            var scroll = Application.isFocused ? Input.GetAxisRaw("Mouse ScrollWheel") : 0f;
             if (Mathf.Abs(scroll) > 0.001f)
                 _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
                     minZoomDistance, maxZoomDistance);
 
             // Mouse always orbits the camera. RMB alone does not freeze look: a contextual mode
             // must explicitly request gesture capture (e.g. tracing a spell or casting a fishing line).
-            if (!_captureMouseForGesture)
+            if (Application.isFocused && !_captureMouseForGesture)
             {
                 _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
