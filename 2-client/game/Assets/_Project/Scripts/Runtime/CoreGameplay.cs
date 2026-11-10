@@ -558,6 +558,18 @@ namespace Pogranichye.Client
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
 
+            if (!Application.isFocused)
+            {
+                // Focus loss cancels held input locally; never leave guard/attack/weave latched.
+                _holding = false;
+                _holdStart = 0f;
+                _fishPhase = 0;
+                ReleaseGuard();
+                if (_weaveOpen) CloseWeave(false);
+                UpdateCursor(true);
+                return;
+            }
+
             if (journey != null)
             {
                 _menuOpen = false;
