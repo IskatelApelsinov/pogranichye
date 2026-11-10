@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using Pogranichye.Client.Networking;
+using Pogranichye.Client.Presentation;
 using UnityEditor;
 using UnityEngine;
 
@@ -46,7 +47,8 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
 
                 ValidateNegativeCases();
-                Debug.Log($"v1.8 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict negative cases passed.");
+                ValidateMapProjection();
+                Debug.Log($"v1.8 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}. Strict parser and map projection checks passed.");
             }
             catch (Exception ex)
             {
@@ -75,6 +77,38 @@ namespace Pogranichye.Client.Editor
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)
                 throw new FormatException("alive:false terminal frame must not require me.");
+        }
+
+        private static void ValidateMapProjection()
+        {
+            var map = new Rect(10f, 20f, 300f, 300f);
+            AssertMapPoint(WorldMapProjection.ToMapPoint(-150d, -150d, 150d, map),
+                new Vector2(10f, 320f), "south-west map corner");
+            AssertMapPoint(WorldMapProjection.ToMapPoint(150d, 150d, 150d, map),
+                new Vector2(310f, 20f), "north-east map corner");
+            AssertMapPoint(WorldMapProjection.ToMapPoint(0d, 0d, 150d, map),
+                new Vector2(160f, 170f), "map centre");
+
+            var footprint = WorldMapProjection.ToMapRect(-10d, -20d, 10d, 20d, 150d, map);
+            if (Mathf.Abs(footprint.x - 150f) > 0.01f ||
+                Mathf.Abs(footprint.y - 150f) > 0.01f ||
+                Mathf.Abs(footprint.width - 20f) > 0.01f ||
+                Mathf.Abs(footprint.height - 40f) > 0.01f)
+                throw new FormatException("Map footprint projection must preserve dimensions and north-up orientation.");
+
+            try
+            {
+                WorldMapProjection.ToMapPoint(0d, 0d, 0d, map);
+            }
+            catch (ArgumentOutOfRangeException) { return; }
+
+            throw new FormatException("Map projection must reject a non-positive world extent.");
+        }
+
+        private static void AssertMapPoint(Vector2 actual, Vector2 expected, string caseName)
+        {
+            if (Mathf.Abs(actual.x - expected.x) > 0.01f || Mathf.Abs(actual.y - expected.y) > 0.01f)
+                throw new FormatException("Map projection failed " + caseName + ": expected " + expected + ", got " + actual + ".");
         }
 
         private static void ExpectRejected(string json, string caseName)
