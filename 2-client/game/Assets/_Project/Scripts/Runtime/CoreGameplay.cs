@@ -956,7 +956,7 @@ namespace Pogranichye.Client
                 var hoof = new Color(0.12f, 0.105f, 0.09f);
 
                 var body = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 1.15f, -0.05f), new Vector3(0.58f, 0.91f, 1.75f), coat);
-                body.localRotation = new Quaternion(0f, 0f, 90f, 1f);
+                body.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 var chest = Part(_mount.transform, PrimitiveType.Sphere, new Vector3(0f, 1.18f, 0.68f), new Vector3(0.62f, 0.88f, 0.62f), highlight);
                 var rump = Part(_mount.transform, PrimitiveType.Sphere, new Vector3(0f, 1.18f, -0.68f), new Vector3(0.64f, 0.82f, 0.68f), coat);
                 var neck = Part(_mount.transform, PrimitiveType.Capsule, new Vector3(0f, 1.72f, 0.72f), new Vector3(0.34f, 0.72f, 0.38f), coat);
@@ -1034,8 +1034,8 @@ namespace Pogranichye.Client
             {
                 if (item.name == "Village garden") item.gameObject.SetActive(SiteHas("garden"));
                 else if (item.name == "Fishing dock" || item.name == "Narrow village creek" ||
-                         item.name == "Old plank footbridge" || item.name == "Creek east bank" ||
-                         item.name == "Creek west bank")
+                         item.name == "Old plank footbridge" || item.name == "Creek east sloped bank" ||
+                         item.name == "Creek west sloped bank" || item.name == "Creek waterline stone")
                     item.gameObject.SetActive(SiteHas("river"));
                 else if (item.name == "Meadow")
                 {
