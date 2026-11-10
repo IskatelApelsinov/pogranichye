@@ -249,7 +249,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (inventory?.Items == null) return string.Empty;
             var signature = string.Empty;
-            var visualItems = new[] { "axe", "sword", "bow", "rod", "torch", "lantern", "cloak", "boots", "hat", "jerkin", "shield" };
+            var visualItems = new[] { "axe", "sword", "bow", "rod", "torch", "lantern", "knife", "arrow", "bandage", "potion", "cloak", "boots", "hat", "jerkin", "shield" };
             foreach (var item in visualItems)
             {
                 if (item == handItem || item == head || item == body || item == feet || item == armor || item == offhand) continue;
@@ -290,6 +290,15 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
+            if (handItem != "knife" && inventory.Items.TryGetValue("knife", out var knifeCount) && knifeCount > 0)
+                BuildCarriedKnifeSheath(root);
+            if (inventory.Items.TryGetValue("arrow", out var arrowCount) && arrowCount > 0)
+                BuildCarriedQuiver(root, arrowCount);
+            var hasBandages = inventory.Items.TryGetValue("bandage", out var bandageCount) && bandageCount > 0;
+            var hasPotion = inventory.Items.TryGetValue("potion", out var potionCount) && potionCount > 0;
+            if (hasBandages || hasPotion)
+                BuildBeltPouches(root, hasBandages, hasPotion);
+
             // Clothing not currently worn is represented as a compact folded bundle,
             // rather than being rendered on the body as if it were equipped.
             var hasPackedClothing =
@@ -308,6 +317,63 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0f, 1.03f, -0.17f), new Vector3(0.40f, 0.045f, 0.035f));
                 strap.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
                 ApplyColor(strap.GetComponent<Renderer>(), new Color(0.22f, 0.13f, 0.075f));
+            }
+        }
+
+        private void BuildCarriedKnifeSheath(Transform root)
+        {
+            var sheath = CreatePart("Carried knife • belt sheath", PrimitiveType.Cube, root,
+                new Vector3(-0.27f, 0.76f, 0.12f), new Vector3(0.055f, 0.19f, 0.045f));
+            sheath.transform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+            ApplyColor(sheath.GetComponent<Renderer>(), new Color(0.18f, 0.11f, 0.065f));
+            var grip = CreatePart("Carried knife • handle", PrimitiveType.Cylinder, root,
+                new Vector3(-0.32f, 0.88f, 0.13f), new Vector3(0.018f, 0.075f, 0.018f));
+            grip.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            ApplyColor(grip.GetComponent<Renderer>(), new Color(0.43f, 0.29f, 0.16f));
+        }
+
+        private void BuildCarriedQuiver(Transform root, int arrowCount)
+        {
+            var quiver = CreatePart("Carried arrows • leather quiver", PrimitiveType.Cylinder, root,
+                new Vector3(-0.22f, 1.08f, -0.27f), new Vector3(0.085f, 0.27f, 0.085f));
+            quiver.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+            ApplyColor(quiver.GetComponent<Renderer>(), new Color(0.24f, 0.15f, 0.085f));
+            var visible = Mathf.Clamp(arrowCount, 1, 5);
+            for (var i = 0; i < visible; i++)
+            {
+                var x = -0.27f + i * 0.025f;
+                var shaft = CreatePart("Carried arrows • shaft " + i, PrimitiveType.Cylinder, root,
+                    new Vector3(x, 1.37f, -0.25f), new Vector3(0.008f, 0.13f, 0.008f));
+                shaft.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                ApplyColor(shaft.GetComponent<Renderer>(), new Color(0.55f, 0.39f, 0.20f));
+                var tip = CreatePart("Carried arrows • iron tip " + i, PrimitiveType.Cone, root,
+                    new Vector3(x, 1.51f, -0.23f), new Vector3(0.018f, 0.045f, 0.018f));
+                ApplyColor(tip.GetComponent<Renderer>(), new Color(0.38f, 0.40f, 0.41f));
+            }
+        }
+
+        private void BuildBeltPouches(Transform root, bool bandages, bool potion)
+        {
+            if (bandages)
+            {
+                var pouch = CreatePart("Belt pouch • bandages", PrimitiveType.Cube, root,
+                    new Vector3(0.24f, 0.70f, 0.12f), new Vector3(0.12f, 0.15f, 0.08f));
+                ApplyColor(pouch.GetComponent<Renderer>(), new Color(0.56f, 0.48f, 0.34f));
+                var flap = CreatePart("Belt pouch • bandage flap", PrimitiveType.Cube, root,
+                    new Vector3(0.24f, 0.78f, 0.17f), new Vector3(0.13f, 0.045f, 0.025f));
+                ApplyColor(flap.GetComponent<Renderer>(), new Color(0.70f, 0.63f, 0.48f));
+            }
+            if (potion)
+            {
+                var pouch = CreatePart("Belt pouch • potion", PrimitiveType.Cube, root,
+                    new Vector3(-0.12f, 0.70f, 0.13f), new Vector3(0.10f, 0.13f, 0.075f));
+                ApplyColor(pouch.GetComponent<Renderer>(), new Color(0.29f, 0.20f, 0.13f));
+                var vial = CreatePart("Belt pouch • glass vial", PrimitiveType.Cylinder, root,
+                    new Vector3(-0.12f, 0.74f, 0.19f), new Vector3(0.035f, 0.065f, 0.025f));
+                ApplyColor(vial.GetComponent<Renderer>(), new Color(0.52f, 0.35f, 0.24f));
+                var cork = CreatePart("Belt pouch • cork", PrimitiveType.Cylinder, root,
+                    new Vector3(-0.12f, 0.82f, 0.19f), new Vector3(0.025f, 0.018f, 0.025f));
+                ApplyColor(cork.GetComponent<Renderer>(), new Color(0.48f, 0.32f, 0.17f));
             }
         }
 
