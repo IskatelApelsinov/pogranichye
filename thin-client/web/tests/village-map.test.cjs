@@ -49,7 +49,7 @@ test('missing optional state is safe',()=>{
 });
 test('renderer draws atlas sprites and server entities without browser globals',()=>{
   const calls={drawImage:0,fillRect:0,fillText:0,arc:0,strokeRect:0},ctx={};
-  for(const name of ['drawImage','fillRect','fillText','strokeText','strokeRect','beginPath','arc','fill','stroke','moveTo','lineTo','closePath','save','restore','translate','rotate'])
+  for(const name of ['drawImage','fillRect','fillText','strokeText','strokeRect','beginPath','arc','fill','stroke','moveTo','lineTo','closePath','save','restore','translate','rotate','scale'])
     ctx[name]=()=>{if(calls[name]!==undefined)calls[name]++;};
   const canvas={width:640,height:640,getContext:()=>ctx},atlas={complete:true,naturalWidth:384};
   const snapshot={me:{pos:{x:0,y:0,facing:0}},place:{neighbors:[{role:'farmer',pos:{x:8,y:4}}],foes:[{id:'boar-1',kind:'boar',x:-18,y:10,aware:true}]}};
