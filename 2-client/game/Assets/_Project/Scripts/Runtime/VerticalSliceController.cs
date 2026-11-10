@@ -1646,6 +1646,8 @@ namespace Pogranichye.Client
                 _cameraRig = camera.gameObject.AddComponent<PresentationCameraRig>();
                 _createdCameraRig = true;
             }
+            _cameraRig.BindInput(_input);
+            _interactionProbe.BindInput(_input);
             _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
 
             if (FindAnyObjectByType<Light>() == null)
