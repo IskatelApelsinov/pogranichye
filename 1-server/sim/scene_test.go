@@ -39,6 +39,17 @@ func TestMoveNormalized(t *testing.T) {
 }
 
 // Бег тратит запал и быстрее шага; стоя — запал восстанавливается.
+func TestRunStaminaSupportsLongerSprint(t *testing.T) {
+	p := &ScenePosC{Stam: 1}
+	for i := int64(1); i <= 20; i++ {
+		ApplyMove(p, 1, 0, true, 0, moveMaxDt, i)
+	}
+	// Five seconds of uninterrupted running should consume about half the bar.
+	if p.Stam < 0.49 || p.Stam > 0.51 {
+		t.Fatalf("ожидали около половины запала после 5 с бега, получили %.3f", p.Stam)
+	}
+}
+
 func TestRunDrainsStamina(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
 	ApplyMove(p, 1, 0, true, 0, moveMaxDt, 1)
