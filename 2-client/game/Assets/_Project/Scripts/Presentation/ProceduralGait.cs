@@ -112,7 +112,7 @@ namespace Pogranichye.Client.Presentation
 
             if (Tail != null)
             {
-                var wag = Mathf.Sin(Time.time * (Chasing ? 9f : 3f) + GetInstanceID()) * (Chasing ? 8f : 16f);
+                var wag = Mathf.Sin(Time.time * (Chasing ? 9f : 3f) + _motionSeed) * (Chasing ? 8f : 16f);
                 Tail.localRotation = Quaternion.Euler(Chasing ? -20f : 12f, wag, 0f);
             }
         }
