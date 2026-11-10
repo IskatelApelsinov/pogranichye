@@ -87,6 +87,11 @@ namespace Pogranichye.Client
         private long _lastConfirmedMoveSequence;
         private bool _hasMovementBaseline;
         private bool _moveSendInFlight;
+        private const int MaxQueuedMoveIntents = 8;
+        private int _discardedMoveIntentCount;
+        private static readonly Func<PendingMoveIntent, long> MoveIntentSequence = intent => intent.Sequence;
+        private static readonly Func<PendingMoveIntent, bool> MoveIntentHasMovement =
+            intent => intent.Mx * intent.Mx + intent.My * intent.My > 0.000001f;
         private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
         private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
         private Vector3 _movementCorrection;
@@ -303,7 +308,7 @@ namespace Pogranichye.Client
             if (me.Position != null)
             {
                 GUILayout.Label($"Сцена X {me.Position.X:0.00} / Z {me.Position.Y:0.00} | взгляд {me.Position.Facing:0}°");
-                GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")}");
+                GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count}/{MaxQueuedMoveIntents} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")} | отброшено {_discardedMoveIntentCount}");
             }
             else GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
 
@@ -1416,6 +1421,16 @@ namespace Pogranichye.Client
             };
             _pendingMoveIntents.Add(intent);
             _moveSendQueue.Enqueue(intent);
+            if (moving)
+            {
+                _discardedMoveIntentCount += MovementIntentQueuePolicy.TrimOldest(
+                    _moveSendQueue, _pendingMoveIntents, MoveIntentSequence, MaxQueuedMoveIntents);
+            }
+            else
+            {
+                _discardedMoveIntentCount += MovementIntentQueuePolicy.DiscardMovingOnStop(
+                    _moveSendQueue, _pendingMoveIntents, MoveIntentSequence, MoveIntentHasMovement);
+            }
             StartNextMoveSend();
         }
 
