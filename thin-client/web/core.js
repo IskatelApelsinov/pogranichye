@@ -114,6 +114,20 @@ function drawStats(s){
     Object.keys(N).map(k => `<span class="tag">${N[k]} ${st[k]}</span>`).join('') + '</div>';
   if(me.drunk > 0) h += `<div class="sub" style="margin-top:4px">🍺 хмель ${me.drunk}${me.drunk>30?' — руки и мысли неточны':''}</div>`;
   h += `<div class="sub" style="margin-top:4px">${wv.gift ? '✨ В тебе есть дар: ум удержит и сложный узор.' : 'Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.'}</div>`;
+  const bag = me.bag, hz = me.horse, stb = (s.place||{}).stable, stash = me.stash||{};
+  if(bag) h += `<div class="sub" style="margin-top:6px">🎒 сума: ${bag.load} из ${bag.cap}${bag.over?' — <b style="color:#c96b58">перегруз: идёшь медленно, сложи лишнее на лошадь или продай</b>':''}</div>`;
+  if(hz){
+    h += `<div style="margin-top:6px">🐴 <b>${esc(hz.name)}</b> <span class="sub">· силы ${hz.stam}${hz.mounted?' · ты в седле':''}${hz.here?'':' · осталась в другом селе'} · седельная сумка ${hz.bag_load}/${hz.bag_cap}</span></div>`;
+    h += '<div>' + Object.entries(hz.bag||{}).map(([g,v]) => `<span class="tag">${ru(g)} ×${v}</span>`).join('') + '</div><div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
+    if(hz.here){
+      h += sbtn(hz.mounted?'⬇ Слезть':'⬆ В седло', `send({op:'horse',action:'${hz.mounted?'dismount':'mount'}'})`) + sbtn('🌾 Покормить', `send({op:'horse',action:'feed'})`);
+      Object.entries(stash).filter(([g,v]) => v>=1).slice(0,5).forEach(([g]) => { h += sbtn('на лошадь: '+ru(g), `send({op:'horse',action:'stow',good:'${g}',qty:1})`); });
+      Object.keys(hz.bag||{}).slice(0,5).forEach(g => { h += sbtn('с лошади: '+ru(g), `send({op:'horse',action:'unstow',good:'${g}',qty:1})`); });
+    }
+    h += '</div>';
+  } else if(stb && typeof curLoc!=='undefined' && curLoc==='granary'){
+    h += '<div class="acts">' + sbtn(`🐴 Купить лошадь у конюха (${stb.price}⌾, в конюшне ${stb.horses})`, `send({op:'horse',action:'buy'})`, stb.horses<1 || (me.coins||0)<stb.price) + '</div>';
+  }
   if(wv.can_learn) h += '<div class="acts">' + sbtn('🧘 Созерцать ману (учиться)', `send({op:'act',action:'meditate'})`) + '</div>';
   setHTML('statcard', h);
 }

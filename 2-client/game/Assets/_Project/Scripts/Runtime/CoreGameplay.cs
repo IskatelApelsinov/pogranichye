@@ -216,6 +216,7 @@ namespace Pogranichye.Client
             _holding = false;
             _guardSent = false;
             if (_handLight != null) _handLight.intensity = 0f;
+            if (_mount != null) _mount.SetActive(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
@@ -557,6 +558,7 @@ namespace Pogranichye.Client
             var journey = Obj(_me, "journey");
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
+            UpdateMount();
 
             if (!Application.isFocused)
             {
@@ -799,6 +801,37 @@ namespace Pogranichye.Client
         {
             _toast = text;
             _toastUntil = Time.unscaledTime + seconds;
+        }
+
+        private GameObject _mount;
+
+        // The mount is shown only while the server says the player is in the saddle (me.horse.mounted).
+        private void UpdateMount()
+        {
+            var riding = Flag(Obj(_me, "horse"), "mounted") && _player != null;
+            if (!riding)
+            {
+                if (_mount != null) _mount.SetActive(false);
+                return;
+            }
+            if (_mount == null)
+            {
+                _mount = new GameObject("Player mount");
+                var coat = new Color(0.42f, 0.27f, 0.16f);
+                var dark = new Color(0.16f, 0.11f, 0.08f);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, 0f), new Vector3(0.55f, 0.6f, 1.7f), coat);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.55f, 0.95f), new Vector3(0.3f, 0.7f, 0.35f), coat);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.85f, 1.25f), new Vector3(0.26f, 0.3f, 0.6f), coat);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, -0.95f), new Vector3(0.1f, 0.6f, 0.1f), dark);
+                Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.4f, 0f), new Vector3(0.6f, 0.08f, 0.6f), dark);
+                for (var sx = -1; sx <= 1; sx += 2)
+                    for (var sz = -1; sz <= 1; sz += 2)
+                        Part(_mount.transform, PrimitiveType.Cube, new Vector3(sx * 0.2f, 0.38f, sz * 0.65f), new Vector3(0.14f, 0.76f, 0.14f), dark);
+                foreach (var collider in _mount.GetComponentsInChildren<Collider>()) Destroy(collider); // presentation only
+            }
+            _mount.SetActive(true);
+            _mount.transform.position = _player.position;
+            _mount.transform.rotation = Quaternion.Euler(0f, _player.eulerAngles.y, 0f);
         }
 
         private void UpdateHandLight()
@@ -1331,6 +1364,50 @@ namespace Pogranichye.Client
                     ? "В тебе есть дар: ум удержит и сложный узор."
                     : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
                 if (Num(_me, "drunk") > 0f) GUILayout.Label("Хмель: " + (int)Num(_me, "drunk"));
+                var bagInfo = Obj(_me, "bag");
+                if (bagInfo != null)
+                    GUILayout.Label("Сума: " + (int)Num(bagInfo, "load") + " из " + (int)Num(bagInfo, "cap")
+                        + (Flag(bagInfo, "over") ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("ЛОШАДЬ");
+            var horse = Obj(_me, "horse");
+            var stable = Obj(_place, "stable");
+            if (horse == null)
+            {
+                if (stable != null && Near("granary", 10f))
+                {
+                    GUI.enabled = Num(stable, "horses") >= 1f && coins >= Num(stable, "price");
+                    if (GUILayout.Button("Купить лошадь у конюха (" + (int)Num(stable, "price") + " монет, в конюшне " + (int)Num(stable, "horses") + ")"))
+                        Ask("Лошадь", "horse", "action", "buy");
+                    GUI.enabled = true;
+                }
+                else GUILayout.Label("Лошади нет. Их продаёт конюх у амбара.");
+            }
+            else
+            {
+                GUILayout.Label(Str(horse, "name") + " · силы " + (int)Num(horse, "stam") + " · седельная сумка "
+                    + (int)Num(horse, "bag_load") + "/" + (int)Num(horse, "bag_cap") + (Flag(horse, "here") ? "" : " · осталась в другом селе"));
+                if (Flag(horse, "here"))
+                {
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button(Flag(horse, "mounted") ? "Слезть" : "В седло"))
+                        Ask("Лошадь", "horse", "action", Flag(horse, "mounted") ? "dismount" : "mount");
+                    if (GUILayout.Button("Покормить")) Ask("Корм", "horse", "action", "feed");
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    if (stash != null)
+                        foreach (var packed in stash.Properties())
+                            if (Num(stash, packed.Name) >= 1f && GUILayout.Button("на лошадь: " + Name(packed.Name)))
+                                Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
+                    var saddle = Obj(horse, "bag");
+                    if (saddle != null)
+                        foreach (var packed in saddle.Properties())
+                            if (GUILayout.Button("с лошади: " + Name(packed.Name)))
+                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Name, "qty", 1);
+                    GUILayout.EndHorizontal();
+                }
             }
 
             var party = Obj(_me, "party");

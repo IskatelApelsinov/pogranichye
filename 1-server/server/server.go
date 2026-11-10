@@ -237,6 +237,7 @@ func (s *Server) fastStep(dt float64) {
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
 	sim.SoberUp(s.world, dt)
+	sim.UpdateBurden(s.world, dt)
 }
 
 // handleStats — диагностика нагрузки: сколько сущностей, как распределена «температура» областей.
@@ -622,7 +623,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	default:
 		s.applyCore(cid, in.Op, coreIntent{Nodes: in.Nodes, Target: in.Target, ReqID: in.ReqID, Aim: in.Aim,
 			Style: in.Style, Acc: in.Acc, Power: in.Power, Aimed: in.Aimed, On: in.On, Stance: in.Stance,
-			Trick: in.Trick, Choice: in.Choice, Quest: in.Quest, Action: in.Action, Item: in.Item})
+			Trick: in.Trick, Choice: in.Choice, Quest: in.Quest, Action: in.Action, Item: in.Item,
+			Good: in.Good, Qty: in.Qty})
 	}
 }
 
@@ -630,7 +632,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 type coreIntent struct {
 	Nodes                                                   []string
 	Target, ReqID, Aim, Style, Stance, Trick, Choice, Quest string
-	Action, Item                                            string
+	Action, Item, Good                                      string
+	Qty                                                     int
 	Acc, Power                                              float64
 	Aimed, On                                               bool
 }
@@ -672,6 +675,8 @@ func (s *Server) applyCore(cid core.ID, op string, in coreIntent) {
 		case "drop":
 			ok, why = sim.QuestDrop(w, e, in.Quest)
 		}
+	case "horse":
+		ok, why = sim.Horse(w, e, in.Action, in.Good, in.Qty, in.ReqID)
 	case "craft":
 		ok, why = sim.Craft(w, e, in.Item, in.ReqID)
 	case "use":
@@ -760,6 +765,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"quests":  sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
 			"recipes": sim.RecipesView(e),                                                                   // ремесло: рецепты и хватает ли сырья
 			"journey": sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
+			"horse":   sim.HorseView(s.world, e),                                                            // лошадь и седельная сумка (v1.13; null — нет)
+			"bag":     sim.BagView(e),                                                                       // сума: загрузка/вместимость от силы (v1.13)
 			"stats":   sim.StatsView(e),                                                                     // характеристики (v1.12)
 			"drunk":   round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
 			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
@@ -804,6 +811,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
 				"foes":        sim.FoesView(s.world, pl.Settlement), // звери/лихие люди сцены (v1.10)
+				"stable":      sim.StableView(se),                   // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                // прилавок: запас и цены (v1.10)
 			}
 		}
