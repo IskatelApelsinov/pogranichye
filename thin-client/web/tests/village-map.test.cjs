@@ -56,3 +56,18 @@ test('renderer draws atlas sprites and server entities without browser globals',
   assert.equal(VillageMap.draw(canvas,layout,snapshot,atlas,'boar-1'),true);
   assert.ok(calls.drawImage>20);assert.ok(calls.fillText>0);assert.ok(calls.arc>0);assert.ok(calls.strokeRect>0);
 });
+
+
+test('zoom and pan projection round-trips world coordinates',()=>{
+  const view={zoom:2.5,panX:73,panY:-41};
+  const screen=VillageMap.viewProject(-42,27,150,640,640,view);
+  const world=VillageMap.viewUnproject(screen.x,screen.y,150,640,640,view);
+  assert.ok(Math.abs(world.x+42)<1e-9);
+  assert.ok(Math.abs(world.y-27)<1e-9);
+});
+
+test('zoom viewport keeps map centre fixed at one-to-one scale',()=>{
+  const view={zoom:1,panX:0,panY:0};
+  const p=VillageMap.viewProject(0,0,150,640,640,view);
+  assert.deepEqual(p,{x:320,y:320});
+});
