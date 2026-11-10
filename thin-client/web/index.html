@@ -214,7 +214,7 @@ let pendingMinigameAction=null;
 function sendMinigameAction(action,buttonId,successText){
  if(pendingMinigameAction) return false;
  const reqid=rid(), button=$(buttonId);
- if(!button || !send({op:'act',action,reqid})){ toast('⚠ Нет соединения с миром. Действие не отправлено.'); return false; }
+ if(!button || !send({op:'act',action,reqid})) return false;
  pendingMinigameAction={reqid,action,buttonId,successText,startedAt:null};
  button.disabled=true; button.textContent='⏳ Жду ответа мира…';
  toast('Действие отправлено. Жду подтверждения сервера…');
