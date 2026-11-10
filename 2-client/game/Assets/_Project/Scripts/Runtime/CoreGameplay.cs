@@ -36,12 +36,6 @@ namespace Pogranichye.Client
             public float Punch; // seconds of the "got hit" squash
         }
 
-        private sealed class PendingAsk
-        {
-            public string Label;
-            public float At;
-        }
-
         private const float PendingTimeout = 6f;
 
         private sealed class Floater
@@ -115,7 +109,7 @@ namespace Pogranichye.Client
 
         private readonly List<FeedLine> _feed = new List<FeedLine>();
         private readonly List<Floater> _floaters = new List<Floater>();
-        private readonly Dictionary<string, PendingAsk> _pending = new Dictionary<string, PendingAsk>();
+        private RequestGate _gate;
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
         private float _fishAt;
@@ -201,7 +195,7 @@ namespace Pogranichye.Client
             _foes.Clear();
             _feed.Clear();
             _floaters.Clear();
-            _pending.Clear();
+            if (_gate != null) _gate.Clear();
             _toast = null;
             _fishPhase = 0;
             _chopSwings = 0;
@@ -272,52 +266,63 @@ namespace Pogranichye.Client
             return !string.IsNullOrEmpty(key) && Ru.TryGetValue(key, out value) ? value : (key ?? string.Empty);
         }
 
-        private string Send(string op, params object[] pairs)
+        private static Dictionary<string, object> Payload(string op, object[] pairs)
         {
-            if (_send == null) return null;
             var payload = new Dictionary<string, object> { { "v", 1 }, { "op", op } };
             for (var i = 0; i + 1 < pairs.Length; i += 2)
                 payload[(string)pairs[i]] = pairs[i + 1];
-            var reqid = Guid.NewGuid().ToString("N");
-            payload["reqid"] = reqid;
-            _send(payload);
-            return reqid;
+            return payload;
         }
 
         /// <summary>
-        /// Sends an intent whose outcome the player must see. Nothing is shown as done here: the label is
-        /// only remembered until the server answers with me.result for this very reqid (or the wait times out).
+        /// Fire-and-forget intent (attack, guard, dodge, stance, tricks, road choice). It carries NO reqid on
+        /// purpose: the server then leaves the single me.result slot alone, so these frequent inputs cannot
+        /// overwrite the acknowledgement of a request that is waiting in the gate. Their outcome is read from
+        /// confirmed state (me.feed, me.combat, place.foes).
+        /// </summary>
+        private void Send(string op, params object[] pairs)
+        {
+            if (_send == null) return;
+            _send(Payload(op, pairs));
+        }
+
+        /// <summary>
+        /// Result-bearing intent. Nothing is shown as done here. Requests go through the gate one at a time:
+        /// the next is sent only after me.result with the matching reqid arrived or the wait timed out.
         /// </summary>
         private void Ask(string label, string op, params object[] pairs)
         {
-            var reqid = Send(op, pairs);
-            if (reqid == null) return;
-            _pending[reqid] = new PendingAsk { Label = label, At = Time.unscaledTime };
+            if (_send == null) return;
+            if (_gate == null) _gate = new RequestGate(_send, PendingTimeout, 6);
+            var payload = Payload(op, pairs);
+            var reqid = Guid.NewGuid().ToString("N");
+            payload["reqid"] = reqid;
+            if (!_gate.Enqueue(label, reqid, payload, Time.unscaledTime))
+                Toast("Не всё сразу: дождись ответа на прошлые действия", 1.6f);
         }
 
         private void ReadResult()
         {
             var result = Obj(_me, "result");
-            if (result == null) return;
-            var reqid = Str(result, "reqid");
-            PendingAsk ask;
-            if (string.IsNullOrEmpty(reqid) || !_pending.TryGetValue(reqid, out ask)) return;
-            _pending.Remove(reqid);
-            if (Flag(result, "ok")) Toast(ask.Label + ": сделано", 1.4f);
-            else Toast(ask.Label + " — отказ: " + Str(result, "reason"), 2.6f);
+            if (result == null || _gate == null) return;
+            RequestGate.Item item;
+            switch (_gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item))
+            {
+                case RequestGate.Outcome.Accepted:
+                    Toast(item.Label + ": сделано", 1.4f);
+                    break;
+                case RequestGate.Outcome.Rejected:
+                    Toast(item.Label + " — отказ: " + Str(result, "reason"), 2.6f);
+                    break;
+            }
         }
 
         private void ExpirePending()
         {
-            if (_pending.Count == 0) return;
-            _stale.Clear();
-            foreach (var pair in _pending)
-                if (Time.unscaledTime - pair.Value.At > PendingTimeout) _stale.Add(pair.Key);
-            foreach (var reqid in _stale)
-            {
-                Toast(_pending[reqid].Label + ": сервер не ответил", 2.2f);
-                _pending.Remove(reqid);
-            }
+            if (_gate == null) return;
+            RequestGate.Item item;
+            if (_gate.Tick(Time.unscaledTime, out item) == RequestGate.Outcome.TimedOut)
+                Toast(item.Label + ": сервер не ответил", 2.2f);
         }
 
         // ------------------------------------------------------------------ foes

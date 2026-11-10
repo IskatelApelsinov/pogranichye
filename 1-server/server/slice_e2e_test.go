@@ -88,9 +88,20 @@ func (c *sliceClient) world(fn func(e *core.Entity)) {
 
 func TestVerticalSliceTalkWorkBeer(t *testing.T) {
 	s := NewStarter("slice-e2e-seed-1", filepath.Join(t.TempDir(), "accounts.json"), []byte("slice-secret"), "")
-	go s.tickLoop() // реальный шаг мира и реального времени, как на живом сервере
+	// реальный шаг мира и реального времени, как на живом сервере — но управляемый: по выходу из теста
+	// петля останавливается и мы ДОЖИДАЕМСЯ завершения её горутины (никаких вечных тикеров после теста)
+	loopDone := make(chan struct{})
+	go func() { s.tickLoop(); close(loopDone) }()
 	ts := httptest.NewServer(s.Handler())
-	defer ts.Close()
+	defer func() {
+		ts.Close()
+		s.Close()
+		select {
+		case <-loopDone:
+		case <-time.After(3 * time.Second):
+			t.Error("тик-петля не остановилась после Close")
+		}
+	}()
 
 	if r := post(t, ts.URL+"/api/register", `{"login":"slice","pass":"secret1"}`); r["ok"] != true {
 		t.Fatalf("регистрация: %v", r)
