@@ -39,6 +39,8 @@ namespace Pogranichye.Client
                 var intent = queued.Dequeue();
                 if (hasMovement(intent))
                 {
+                    if (hasLatestStop)
+                        discarded.Add(getSequence(latestStop));
                     discarded.Add(getSequence(intent));
                     hasLatestStop = false;
                 }
