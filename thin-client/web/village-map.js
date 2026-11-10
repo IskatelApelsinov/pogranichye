@@ -201,7 +201,7 @@ function draw(canvas,layout,snapshot,atlas,selected,view){
   for(const n of s.neighbors){const p=project(n.x,n.y,s.half,w,h);if(p)drawPerson(ctx,n,p);}
   for(const f of s.foes){const p=project(f.x,f.y,s.half,w,h);if(p)drawFoe(ctx,f,p);}
   if(s.player){const p=project(s.player.x,s.player.y,s.half,w,h);if(p)drawPlayer(ctx,s.player,p);}
-  const k=Math.min(w,h)/(2*s.half*k),ox=(w-2*s.half*k)/2,oy=(h-2*s.half*k)/2;
+  const k=Math.min(w,h)/(2*s.half),ox=(w-2*s.half*k)/2,oy=(h-2*s.half*k)/2;
   ctx.strokeStyle='rgba(241,229,201,.72)';ctx.lineWidth=2;ctx.strokeRect(ox+1,oy+1,s.half*2*k-2,s.half*2*k-2);
   ctx.restore();
   return true;
