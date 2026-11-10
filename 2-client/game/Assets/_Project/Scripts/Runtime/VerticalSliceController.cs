@@ -25,6 +25,7 @@ namespace Pogranichye.Client
             Character,
             Inventory,
             Journal,
+            Map,
             Settings
         }
 
@@ -70,6 +71,8 @@ namespace Pogranichye.Client
         private float _movementPlayerYawDebug;
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
+        private GUIStyle _mapPoiStyle;
+        private GUIStyle _mapPlayerStyle;
         private readonly List<string> _sessionJournal = new List<string>();
         private string _lastJournalAction;
         private string _lastJournalTaskSignature;
@@ -203,6 +206,7 @@ namespace Pogranichye.Client
                 DrawHudTabButton("Персонаж", HudTab.Character);
                 DrawHudTabButton("Инвентарь", HudTab.Inventory);
                 DrawHudTabButton("Журнал", HudTab.Journal);
+                DrawHudTabButton("Карта", HudTab.Map);
                 DrawHudTabButton("Настройки", HudTab.Settings);
                 GUILayout.EndHorizontal();
                 GUILayout.Space(8f);
@@ -217,6 +221,9 @@ namespace Pogranichye.Client
                         break;
                     case HudTab.Journal:
                         DrawJournalTab();
+                        break;
+                    case HudTab.Map:
+                        DrawMapTab();
                         break;
                     case HudTab.Settings:
                         DrawSettingsTab();
@@ -426,6 +433,199 @@ namespace Pogranichye.Client
             _sessionJournal.Insert(0, entry);
             if (_sessionJournal.Count > 40)
                 _sessionJournal.RemoveAt(_sessionJournal.Count - 1);
+        }
+
+        private static readonly string[] MapPoiOrder =
+        {
+            "tavern", "smithy", "granary", "market", "well",
+            "hearth", "garden", "river", "woods", "mine"
+        };
+
+        private void DrawMapTab()
+        {
+            GUILayout.Label("КАРТА ПОСЕЛЕНИЯ");
+            GUILayout.Label("Схема построена по серверному Layout v2. Она показывает местные препятствия и точки интереса, а не придумывает проходимые пути.");
+            if (_layout == null || _layout.Version != 2)
+            {
+                GUILayout.Label("Серверная карта поселения пока недоступна.");
+            }
+            else
+            {
+                DrawLocalMap();
+                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  ★ Вы");
+                GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
+            }
+
+            GUILayout.Space(10f);
+            GUILayout.Label("ИЗВЕСТНЫЕ ПОСЕЛЕНИЯ");
+            DrawKnownSettlements();
+        }
+
+        private void DrawLocalMap()
+        {
+            const float mapSize = 320f;
+            var mapRect = GUILayoutUtility.GetRect(mapSize, mapSize,
+                GUILayout.Width(mapSize), GUILayout.Height(mapSize));
+            var previousColor = GUI.color;
+            DrawMapFill(mapRect, new Color(0.23f, 0.30f, 0.20f));
+
+            const int gridLines = 10;
+            for (var i = 1; i < gridLines; i++)
+            {
+                var x = mapRect.x + mapRect.width * i / gridLines;
+                var y = mapRect.y + mapRect.height * i / gridLines;
+                DrawMapFill(new Rect(x, mapRect.y, 1f, mapRect.height), new Color(0.75f, 0.78f, 0.64f, 0.16f));
+                DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
+            }
+
+            var half = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            if (_layout.River != null)
+            {
+                var riverRect = WorldMapProjection.ToMapRect(
+                    -half, _layout.River.Y0, half, _layout.River.Y1, half, mapRect);
+                DrawMapFill(riverRect, new Color(0.20f, 0.43f, 0.52f, 0.95f));
+
+                var bridgeRect = WorldMapProjection.ToMapRect(
+                    _layout.River.BridgeX0, _layout.River.Y0 - 1.5d,
+                    _layout.River.BridgeX1, _layout.River.Y1 + 1.5d, half, mapRect);
+                DrawMapFill(bridgeRect, new Color(0.55f, 0.37f, 0.22f, 1f));
+            }
+
+            if (_layout.Buildings != null)
+            {
+                foreach (var building in _layout.Buildings)
+                {
+                    if (building == null) continue;
+                    var footprint = WorldMapProjection.ToMapRect(
+                        building.X0, building.Y0, building.X1, building.Y1, half, mapRect);
+                    DrawMapFill(footprint, new Color(0.30f, 0.23f, 0.18f, 0.98f));
+                }
+            }
+
+            EnsureMapStyles();
+            if (_layout.Pois != null)
+            {
+                foreach (var poiId in MapPoiOrder)
+                {
+                    if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null) continue;
+                    var position = WorldMapProjection.ToMapPoint(point.X, point.Y, half, mapRect);
+                    var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = new Color(0.70f, 0.53f, 0.31f, 1f);
+                    GUI.contentColor = Color.white;
+                    GUI.Box(marker, MapPoiGlyph(poiId), _mapPoiStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+                }
+            }
+
+            var playerPosition = _frame?.Me?.Position;
+            if (playerPosition != null)
+            {
+                var position = WorldMapProjection.ToMapPoint(
+                    playerPosition.X, playerPosition.Y, half, mapRect);
+                var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
+                var previousBackground = GUI.backgroundColor;
+                var previousContent = GUI.contentColor;
+                GUI.backgroundColor = new Color(0.65f, 0.20f, 0.15f, 1f);
+                GUI.contentColor = Color.white;
+                GUI.Box(marker, "★", _mapPlayerStyle);
+                GUI.backgroundColor = previousBackground;
+                GUI.contentColor = previousContent;
+            }
+
+            GUI.color = previousColor;
+            var borderColor = new Color(0.10f, 0.13f, 0.10f, 1f);
+            DrawMapFill(new Rect(mapRect.x, mapRect.y, mapRect.width, 2f), borderColor);
+            DrawMapFill(new Rect(mapRect.x, mapRect.yMax - 2f, mapRect.width, 2f), borderColor);
+            DrawMapFill(new Rect(mapRect.x, mapRect.y, 2f, mapRect.height), borderColor);
+            DrawMapFill(new Rect(mapRect.xMax - 2f, mapRect.y, 2f, mapRect.height), borderColor);
+            if (playerPosition != null)
+                GUILayout.Label($"Ваше положение: X {playerPosition.X:0.0} м · Y {playerPosition.Y:0.0} м");
+            else
+                GUILayout.Label("Положение персонажа пока не передано сервером.");
+            GUILayout.Label("Места: К — корчма · Кз — кузница · А — амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private static void DrawMapFill(Rect rect, Color color)
+        {
+            var previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previous;
+        }
+
+        private void EnsureMapStyles()
+        {
+            if (_mapPoiStyle != null && _mapPlayerStyle != null) return;
+            _mapPoiStyle = new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 9,
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+            _mapPoiStyle.normal.textColor = Color.white;
+            _mapPlayerStyle = new GUIStyle(_mapPoiStyle) { fontSize = 11 };
+            _mapPlayerStyle.normal.textColor = Color.white;
+        }
+
+        private static string MapPoiGlyph(string poiId)
+        {
+            switch (poiId)
+            {
+                case "tavern": return "К";
+                case "smithy": return "Кз";
+                case "granary": return "А";
+                case "market": return "Р";
+                case "well": return "Кл";
+                case "hearth": return "С";
+                case "garden": return "О";
+                case "river": return "Рк";
+                case "woods": return "Л";
+                case "mine": return "Ш";
+                default: return "·";
+            }
+        }
+
+        private void DrawKnownSettlements()
+        {
+            var me = _frame?.Me;
+            var knownPlaces = me?.KnownPlaces;
+            if (knownPlaces == null || knownPlaces.Count == 0)
+            {
+                if (_frame?.Place != null)
+                    GUILayout.Label("Текущее поселение: " + _frame.Place.Name + ". Другие места появятся здесь только после того, как персонаж получит о них личное знание.");
+                else
+                    GUILayout.Label("Пока нет поселений, открытых персонажу.");
+                return;
+            }
+
+            foreach (var known in knownPlaces)
+            {
+                if (known == null || string.IsNullOrWhiteSpace(known.Id)) continue;
+                SettlementFrame details = null;
+                if (me.World != null)
+                {
+                    foreach (var settlement in me.World)
+                    {
+                        if (settlement != null && settlement.Id == known.Id)
+                        {
+                            details = settlement;
+                            break;
+                        }
+                    }
+                }
+
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label(string.IsNullOrWhiteSpace(known.Name) ? "Поселение" : known.Name);
+                var status = known.Visited ? "Персонаж здесь бывал" : "Персонаж ещё не посещал";
+                if (known.Known) status += " · есть личное знание";
+                GUILayout.Label(status);
+                if (details != null)
+                    GUILayout.Label($"{details.Tier} · {(details.Outer ? "Внешний край" : "Родной край")} · X {details.X:0}, Y {details.Y:0}");
+                GUILayout.EndVertical();
+            }
         }
 
         private void DrawSettingsTab()
