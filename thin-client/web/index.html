@@ -47,6 +47,9 @@
  .mark{position:absolute;top:0;bottom:0;width:4px;background:#ffe9a8}
  .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#c9924a,#8a5a2b)}
  .toast{color:#ffe1a0;font-size:14px;min-height:20px;margin-top:6px}
+ .journal-entry{padding:8px 0;border-bottom:1px solid var(--line)}
+ .journal-entry:last-child{border:0}
+ .journal-entry .meta{color:var(--sub);font-size:12px}
 </style>
 </head>
 <body>
@@ -71,6 +74,7 @@
  <div class="card" id="taskcard" style="border-color:#c9a86a"></div>
 
  <div class="card hidden" id="feedcard"></div>
+ <div class="card hidden" id="journalcard"></div>
  <div class="card hidden" id="roadcard" style="border-color:#c9a86a"></div>
 
  <div class="card" id="villagecard">
@@ -184,7 +188,8 @@ document.querySelectorAll('.map-hotspot').forEach(button=>{
 function toast(t){ $('toast').textContent=t; }
 
 let lastResult='';
-function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
+let journalSeen=false, journalEntries=[];
+function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
   const r=(s.me||{}).result;
   if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason) toast('⚠ '+r.reason); }
 }
@@ -193,6 +198,41 @@ function drawTask(s){ const t=(s.me||{}).task||{};
   const marks=[t.met,t.worked,t.drank].map(x=>x?'✅':'▫️');
   $('taskcard').innerHTML=`<b class="sub">📜 первые шаги</b> ${t.done?'<span class="gold">— освоился!</span>':''}<div style="margin:4px 0">${t.text||''}</div>`+
     `<div class="sub">${steps.map((s,i)=>marks[i]+' '+s).join(' · ')}</div>`;
+}
+function journalKindLabel(kind){
+  switch(kind){
+    case 'met': return 'Знакомство';
+    case 'worked': return 'Первый труд';
+    case 'drank': return 'Кружка в корчме';
+    default: return kind ? 'Событие: '+kind : 'Событие';
+  }
+}
+function drawJournal(s){
+  const me=s.me||{};
+  // Fast frames may omit journal; keep the latest full-frame copy rather than blanking the card.
+  if(Object.prototype.hasOwnProperty.call(me,'journal')){
+    journalSeen=true;
+    journalEntries=Array.isArray(me.journal)?me.journal:[];
+  }
+  const card=$('journalcard');
+  if(!journalSeen){ card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  card.replaceChildren();
+  const title=document.createElement('b'); title.className='sub'; title.textContent='📖 Летопись персонажа';
+  card.appendChild(title);
+  if(!journalEntries.length){
+    const empty=document.createElement('div'); empty.className='sub';
+    empty.style.marginTop='6px'; empty.textContent='Пока нет сохранённых вех. Они появятся после знакомства, первого труда и кружки в корчме.';
+    card.appendChild(empty); return;
+  }
+  journalEntries.slice().sort((a,b)=>(a.seq||0)-(b.seq||0)).forEach(entry=>{
+    if(!entry) return;
+    const row=document.createElement('div'); row.className='journal-entry';
+    const meta=document.createElement('div'); meta.className='meta';
+    meta.textContent='День '+(entry.day??0)+' · '+journalKindLabel(entry.kind);
+    const body=document.createElement('div'); body.textContent=entry.text||'';
+    row.append(meta,body); card.appendChild(row);
+  });
 }
 
 // drawInv / drawTravel / marketUI — в core.js (сума с закромами, дороги и врата, живой прилавок)
