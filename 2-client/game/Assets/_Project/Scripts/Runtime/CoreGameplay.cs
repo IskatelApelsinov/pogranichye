@@ -1,0 +1,1151 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using Newtonsoft.Json.Linq;
+using Pogranichye.Client.Presentation;
+using UnityEngine;
+
+namespace Pogranichye.Client
+{
+    /// <summary>
+    /// Core gameplay of protocol v1.10 for the thick client: first-person combat (melee, bow, tricks,
+    /// stances), weave magic traced with the mouse, need-driven requests, crafting, road journeys and
+    /// the party. Additive module: it reads the extra frame fields straight from JSON and only sends
+    /// intents; every outcome is decided by the server and shown from confirmed frames (me.feed,
+    /// me.result, place.foes). Nothing here predicts hits, damage, loot or quest progress.
+    ///
+    /// Input is separated from resolution (project canon): in first person the client aims itself and
+    /// reports "this foe, this body part, this accuracy"; the server checks range and view cone and
+    /// resolves the strike. In third person the click only selects a target and the server rolls dice.
+    /// </summary>
+    public sealed class CoreGameplay : MonoBehaviour
+    {
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+        private sealed class FoeRec
+        {
+            public GameObject Root;
+            public CoreFoeView View;
+            public Vector3 Target;
+            public float Yaw;
+            public float Hp;
+            public float Max;
+            public bool Aware;
+            public string State;
+        }
+
+        private sealed class FeedLine
+        {
+            public string Kind;
+            public string Text;
+            public float At;
+        }
+
+        // Mirror of Layout v2 POI anchors (metres, server x/y). Only used to decide which actions the
+        // "Дела" window offers; the server validates the real position for every intent.
+        private static readonly Dictionary<string, Vector2> Poi = new Dictionary<string, Vector2>
+        {
+            { "tavern", new Vector2(-33f, 12f) }, { "smithy", new Vector2(29f, 14f) },
+            { "granary", new Vector2(-2f, 28f) }, { "market", new Vector2(1f, 4f) },
+            { "well", new Vector2(0f, -4f) }, { "hearth", new Vector2(33f, -32f) },
+            { "garden", new Vector2(70f, -20f) }, { "river", new Vector2(0f, -74f) },
+            { "woods", new Vector2(-95f, 10f) }, { "mine", new Vector2(90f, 40f) }
+        };
+
+        private static readonly Dictionary<string, string> TakeAt = new Dictionary<string, string>
+        {
+            { "axe", "woods" }, { "rod", "river" }, { "sword", "smithy" }, { "bow", "smithy" },
+            { "torch", "market" }, { "lantern", "market" }, { "cloak", "granary" }, { "boots", "granary" },
+            { "hat", "granary" }
+        };
+
+        private static readonly Dictionary<string, string> Ru = new Dictionary<string, string>
+        {
+            { "axe", "топор" }, { "sword", "меч" }, { "bow", "лук" }, { "rod", "удочка" }, { "torch", "факел" },
+            { "lantern", "фонарь" }, { "knife", "нож" }, { "cloak", "плащ" }, { "boots", "сапоги" },
+            { "hat", "шапка" }, { "jerkin", "кожаная куртка" }, { "shield", "щит" }, { "arrow", "стрелы" },
+            { "bandage", "повязка" }, { "potion", "снадобье" }, { "stew", "уха" }, { "roast", "жаркое" },
+            { "bread", "хлеб" }, { "fish", "рыба" }, { "wood", "дерево" }, { "meat", "мясо" }, { "hide", "шкура" },
+            { "wheat", "зерно" }, { "veg", "овощи" }, { "ore", "руда" }, { "metal", "железо" },
+            { "leather", "кожа" }, { "herb", "травы" }, { "flour", "мука" }, { "game", "дичь" },
+            { "cheese", "сыр" }, { "egg", "яйца" }, { "milk", "молоко" }, { "wool", "шерсть" },
+            { "cloth", "сукно" }, { "tools", "инструмент" }, { "hay", "сено" }, { "feather", "перо" },
+            { "flax", "лён" }, { "linen", "холст" }, { "remedy", "лекарство" }, { "honey", "мёд" },
+            { "mead", "медовуха" }
+        };
+
+        private static readonly string[] Nodes = { "knot", "thread", "loop", "fork", "barb", "seal" };
+        private static readonly string[] NodeRu = { "узел", "нить", "петля", "развилка", "шип", "печать" };
+        // Short Cyrillic marks instead of symbol glyphs: the default IMGUI font is not guaranteed to have them.
+        private static readonly string[] NodeGlyph = { "Уз", "Нт", "Пт", "Рз", "Шп", "Пч" };
+
+        private Action<Dictionary<string, object>> _send;
+        private bool _active;
+        private bool _firstPerson;
+        private bool _hudCollapsed;
+        private Transform _player;
+        private PresentationCameraRig _rig;
+        private JObject _me;
+        private JObject _place;
+        private int _hour = 12;
+
+        private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
+        private readonly HashSet<string> _seen = new HashSet<string>();
+        private readonly List<string> _stale = new List<string>();
+        private Transform _foeRoot;
+        private MaterialPropertyBlock _block;
+
+        private readonly List<FeedLine> _feed = new List<FeedLine>();
+        private long _feedSeq;
+        private float _hurtFlash;
+        private float _hitMarker;
+
+        private bool _menuOpen;
+        private Vector2 _menuScroll;
+        private bool _weaveOpen;
+        private readonly List<string> _pattern = new List<string>();
+        private int _weaveLastNode = -1;
+        private bool _holding;
+        private float _holdStart;
+        private bool _guardSent;
+        private Light _handLight;
+
+        /// <summary>True while the "Дела" window or the weave wheel owns the mouse.</summary>
+        public bool CapturesInput { get { return _menuOpen || _weaveOpen; } }
+
+        public void Bind(Action<Dictionary<string, object>> sender)
+        {
+            _send = sender;
+        }
+
+        public void SetContext(bool active, bool firstPerson, bool hudCollapsed, Transform player,
+            PresentationCameraRig rig)
+        {
+            if (_active && !active) Clear();
+            _active = active;
+            _firstPerson = firstPerson;
+            _hudCollapsed = hudCollapsed;
+            _player = player;
+            _rig = rig;
+        }
+
+        /// <summary>Fast frames (?fast=N) carry only the body, combat state, feed and foes.</summary>
+        public static bool IsFastFrame(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return false;
+            var head = json.Length > 64 ? json.Substring(0, 64) : json;
+            return head.IndexOf("\"fast\":true", StringComparison.Ordinal) >= 0;
+        }
+
+        public void ApplyFrame(string json)
+        {
+            JObject root;
+            try { root = JObject.Parse(json); }
+            catch (Exception) { return; }
+            _me = Obj(root, "me");
+            _place = Obj(root, "place");
+            if (root["hour"] != null) _hour = (int)Num(root, "hour");
+            SyncFoes(Arr(_place, "foes"));
+            ReadFeed(Arr(_me, "feed"));
+        }
+
+        public void ApplyFastFrame(string json)
+        {
+            if (_me == null) return;
+            JObject root;
+            try { root = JObject.Parse(json); }
+            catch (Exception) { return; }
+            var me = Obj(root, "me");
+            if (me != null)
+            {
+                foreach (var property in me.Properties())
+                    _me[property.Name] = property.Value;
+            }
+            var place = Obj(root, "place");
+            if (place != null) SyncFoes(Arr(place, "foes"));
+            ReadFeed(Arr(_me, "feed"));
+        }
+
+        public void Clear()
+        {
+            foreach (var pair in _foes)
+                if (pair.Value.Root != null) Destroy(pair.Value.Root);
+            _foes.Clear();
+            _feed.Clear();
+            _feedSeq = 0;
+            _me = null;
+            _place = null;
+            _menuOpen = false;
+            CloseWeave(false);
+            _holding = false;
+            _guardSent = false;
+            if (_handLight != null) _handLight.intensity = 0f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
+        private void OnDestroy()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
+        // ------------------------------------------------------------------ JSON helpers
+
+        private static JToken Tok(JToken token, string key)
+        {
+            var obj = token as JObject;
+            if (obj == null) return null;
+            JToken value;
+            if (!obj.TryGetValue(key, out value) || value == null || value.Type == JTokenType.Null) return null;
+            return value;
+        }
+
+        private static string Str(JToken token, string key)
+        {
+            var value = Tok(token, key);
+            return value == null ? string.Empty : value.ToString();
+        }
+
+        private static float Num(JToken token, string key)
+        {
+            var value = Tok(token, key);
+            if (value == null) return 0f;
+            if (value.Type == JTokenType.Integer || value.Type == JTokenType.Float) return value.Value<float>();
+            float parsed;
+            return float.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out parsed)
+                ? parsed : 0f;
+        }
+
+        private static bool Flag(JToken token, string key)
+        {
+            var value = Tok(token, key);
+            return value != null && value.Type == JTokenType.Boolean && value.Value<bool>();
+        }
+
+        private static JObject Obj(JToken token, string key)
+        {
+            return Tok(token, key) as JObject;
+        }
+
+        private static JArray Arr(JToken token, string key)
+        {
+            return Tok(token, key) as JArray;
+        }
+
+        private static string Name(string key)
+        {
+            string value;
+            return !string.IsNullOrEmpty(key) && Ru.TryGetValue(key, out value) ? value : (key ?? string.Empty);
+        }
+
+        private void Send(string op, params object[] pairs)
+        {
+            if (_send == null) return;
+            var payload = new Dictionary<string, object> { { "v", 1 }, { "op", op } };
+            for (var i = 0; i + 1 < pairs.Length; i += 2)
+                payload[(string)pairs[i]] = pairs[i + 1];
+            if (!payload.ContainsKey("reqid")) payload["reqid"] = Guid.NewGuid().ToString("N");
+            _send(payload);
+        }
+
+        // ------------------------------------------------------------------ foes
+
+        private void SyncFoes(JArray foes)
+        {
+            _seen.Clear();
+            if (foes != null)
+            {
+                foreach (var token in foes)
+                {
+                    var id = Str(token, "id");
+                    if (string.IsNullOrEmpty(id)) continue;
+                    _seen.Add(id);
+                    FoeRec rec;
+                    if (!_foes.TryGetValue(id, out rec))
+                    {
+                        rec = CreateFoe(id, Str(token, "kind"), Str(token, "name"));
+                        rec.Root.transform.position = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
+                        _foes[id] = rec;
+                    }
+                    rec.Target = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
+                    rec.Yaw = EntityViewRegistry.FacingToUnityYaw(Num(token, "facing"));
+                    rec.Hp = Num(token, "hp");
+                    rec.Max = Mathf.Max(1f, Num(token, "max"));
+                    rec.Aware = Flag(token, "aware");
+                    rec.State = Str(token, "state");
+                    rec.View.Dead = rec.State == "dead";
+                }
+            }
+
+            _stale.Clear();
+            foreach (var pair in _foes)
+                if (!_seen.Contains(pair.Key)) _stale.Add(pair.Key);
+            foreach (var id in _stale)
+            {
+                if (_foes[id].Root != null) Destroy(_foes[id].Root);
+                _foes.Remove(id);
+            }
+        }
+
+        private FoeRec CreateFoe(string id, string kind, string displayName)
+        {
+            if (_foeRoot == null)
+            {
+                _foeRoot = new GameObject("CoreFoes").transform;
+                _foeRoot.SetParent(transform, false);
+            }
+
+            var root = new GameObject("Foe " + kind + " " + id);
+            root.transform.SetParent(_foeRoot, false);
+            var view = root.AddComponent<CoreFoeView>();
+            view.FoeId = id;
+            view.Kind = kind;
+            view.DisplayName = string.IsNullOrEmpty(displayName) ? kind : displayName;
+
+            if (kind == "bandit")
+            {
+                view.Humanoid = true;
+                view.Height = 1.9f;
+                var cloth = new Color(0.35f, 0.12f, 0.10f);
+                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.4f, 0f), new Vector3(0.42f, 0.4f, 0.42f), new Color(0.2f, 0.17f, 0.14f));
+                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
+                Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.7f, 0f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
+                Part(root.transform, PrimitiveType.Cube, new Vector3(0.36f, 1.05f, 0.3f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
+            }
+            else
+            {
+                float len, height, width;
+                Color color;
+                switch (kind)
+                {
+                    case "hare": len = 0.45f; height = 0.28f; width = 0.22f; color = new Color(0.79f, 0.72f, 0.6f); break;
+                    case "fox": len = 0.8f; height = 0.4f; width = 0.26f; color = new Color(0.78f, 0.4f, 0.16f); break;
+                    case "boar": len = 1.3f; height = 0.75f; width = 0.55f; color = new Color(0.29f, 0.23f, 0.17f); break;
+                    case "bear": len = 2.0f; height = 1.25f; width = 0.95f; color = new Color(0.23f, 0.16f, 0.12f); break;
+                    default: len = 1.3f; height = 0.7f; width = 0.4f; color = new Color(0.49f, 0.5f, 0.53f); break;
+                }
+                var leg = height * 0.45f;
+                view.Length = len;
+                view.LegHeight = leg;
+                view.Height = leg + height * 0.8f;
+                Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.3f, 0f), new Vector3(width, height * 0.6f, len), color);
+                Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.5f, len * 0.62f), new Vector3(width * 0.75f, height * 0.45f, len * 0.32f), color);
+                var dark = new Color(0.17f, 0.14f, 0.11f);
+                for (var sx = -1; sx <= 1; sx += 2)
+                    for (var sz = -1; sz <= 1; sz += 2)
+                        Part(root.transform, PrimitiveType.Cube, new Vector3(sx * width * 0.36f, leg * 0.5f, sz * len * 0.36f), new Vector3(width * 0.22f, leg, width * 0.22f), dark);
+            }
+
+            return new FoeRec { Root = root, View = view };
+        }
+
+        private void Part(Transform parent, PrimitiveType type, Vector3 position, Vector3 scale, Color color)
+        {
+            var part = GameObject.CreatePrimitive(type); // keeps its collider: the aim ray needs it
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = position;
+            part.transform.localScale = scale;
+            var renderer = part.GetComponent<Renderer>();
+            if (renderer == null) return;
+            if (_block == null) _block = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(_block);
+            _block.SetColor(BaseColorId, color);
+            _block.SetColor(ColorId, color);
+            renderer.SetPropertyBlock(_block);
+        }
+
+        // ------------------------------------------------------------------ feed
+
+        private void ReadFeed(JArray feed)
+        {
+            if (feed == null) return;
+            foreach (var token in feed)
+            {
+                var seq = (long)Num(token, "seq");
+                if (seq <= _feedSeq) continue;
+                _feedSeq = seq;
+                var kind = Str(token, "kind");
+                var text = Str(token, "text");
+                var damage = Num(token, "dmg");
+                if (damage > 0f) text += " (" + Mathf.RoundToInt(damage) + ")";
+                _feed.Add(new FeedLine { Kind = kind, Text = text, At = Time.unscaledTime });
+                if (kind == "hurt" || kind == "backfire" || kind == "ko") _hurtFlash = kind == "ko" ? 1.6f : 0.35f;
+                if (kind == "hit" || kind == "kill") _hitMarker = 0.18f;
+            }
+            while (_feed.Count > 7) _feed.RemoveAt(0);
+        }
+
+        // ------------------------------------------------------------------ update / input
+
+        private void Update()
+        {
+            if (!_active || _me == null)
+            {
+                return;
+            }
+
+            var blend = 1f - Mathf.Exp(-9f * Time.deltaTime);
+            foreach (var pair in _foes)
+            {
+                var rec = pair.Value;
+                if (rec.Root == null) continue;
+                var t = rec.Root.transform;
+                t.position = Vector3.Lerp(t.position, rec.Target, blend);
+                var target = rec.View.Dead
+                    ? Quaternion.Euler(0f, rec.Yaw, 90f)
+                    : Quaternion.Euler(0f, rec.Yaw, 0f);
+                t.rotation = Quaternion.Slerp(t.rotation, target, blend);
+            }
+
+            _hurtFlash = Mathf.Max(0f, _hurtFlash - Time.unscaledDeltaTime);
+            _hitMarker = Mathf.Max(0f, _hitMarker - Time.unscaledDeltaTime);
+            while (_feed.Count > 0 && Time.unscaledTime - _feed[0].At > 10f) _feed.RemoveAt(0);
+
+            var journey = Obj(_me, "journey");
+            var talking = Obj(_me, "talk") != null;
+            UpdateHandLight();
+
+            if (journey != null)
+            {
+                _menuOpen = false;
+                CloseWeave(false);
+                ReleaseGuard();
+                var roadEvent = Obj(journey, "event");
+                if (roadEvent != null && !Flag(journey, "follow"))
+                {
+                    var options = Arr(roadEvent, "options");
+                    for (var i = 0; options != null && i < options.Count && i < 9; i++)
+                        if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                            Send("journey", "action", "choose", "choice", options[i].ToString());
+                }
+                UpdateCursor(true);
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                _menuOpen = !_menuOpen;
+                if (_menuOpen) CloseWeave(false);
+            }
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                _menuOpen = false;
+                CloseWeave(false);
+            }
+
+            if (!_menuOpen && !talking)
+            {
+                if (Input.GetKeyDown(KeyCode.R)) OpenWeave();
+                if (Input.GetKeyUp(KeyCode.R) && _weaveOpen) CloseWeave(true);
+            }
+
+            if (_weaveOpen)
+            {
+                UpdateWeave();
+            }
+            else if (!_menuOpen && !talking)
+            {
+                UpdateCombatInput();
+            }
+            else
+            {
+                _holding = false;
+                ReleaseGuard();
+            }
+
+            UpdateCursor(_menuOpen || _weaveOpen || talking);
+        }
+
+        private void UpdateCursor(bool needsPointer)
+        {
+            // First person with the HUD folded away is the "immersive" state: the pointer is captured
+            // and the crosshair aims. Any window that needs clicking releases it.
+            var capture = _firstPerson && _hudCollapsed && !needsPointer;
+            Cursor.lockState = capture ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !capture;
+        }
+
+        private bool PointerOverHud()
+        {
+            if (GUIUtility.hotControl != 0) return true;
+            if (Cursor.lockState == CursorLockMode.Locked) return false;
+            var mouse = Input.mousePosition;
+            var guiY = Screen.height - mouse.y;
+            if (!_hudCollapsed && mouse.x < 450f && guiY < 530f) return true;   // main panel
+            if (_hudCollapsed && mouse.x < 170f && guiY < 46f) return true;      // "show menu" button
+            if (mouse.x > Screen.width - 440f && guiY > Screen.height - 270f) return true; // talk overlay
+            return false;
+        }
+
+        private void UpdateCombatInput()
+        {
+            if (Input.GetMouseButtonDown(0) && !PointerOverHud())
+            {
+                _holding = true;
+                _holdStart = Time.unscaledTime;
+            }
+            if (Input.GetMouseButtonUp(0) && _holding)
+            {
+                _holding = false;
+                Attack(Time.unscaledTime - _holdStart, false);
+            }
+
+            if (Input.GetMouseButtonDown(1) && !PointerOverHud())
+            {
+                Send("guard", "on", true);
+                _guardSent = true;
+            }
+            if (Input.GetMouseButtonUp(1)) ReleaseGuard();
+
+            if (Input.GetKeyDown(KeyCode.Q)) Send("dodge");
+            if (Input.GetKeyDown(KeyCode.F)) Attack(0f, true);
+            if (Input.GetKeyDown(KeyCode.Z)) Send("trick", "trick", "sand");
+            if (Input.GetKeyDown(KeyCode.X)) Send("trick", "trick", "shove");
+            if (Input.GetKeyDown(KeyCode.V)) Send("trick", "trick", "feint");
+            if (Input.GetKeyDown(KeyCode.B)) Send("trick", "trick", "bait");
+            if (Input.GetKeyDown(KeyCode.C)) Send("trick", "trick", "sneak");
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                var stance = Str(Obj(_me, "combat"), "stance");
+                var next = stance == "balanced" ? "aggressive" : stance == "aggressive" ? "defensive" : "balanced";
+                Send("stance", "stance", next);
+            }
+        }
+
+        private void ReleaseGuard()
+        {
+            if (!_guardSent) return;
+            _guardSent = false;
+            Send("guard", "on", false);
+        }
+
+        private bool AimFoe(out CoreFoeView view, out string part, out float accuracy, out float distance)
+        {
+            view = null;
+            part = "torso";
+            accuracy = 0f;
+            distance = 0f;
+            var cam = Camera.main;
+            if (cam == null) return false;
+            var ray = _firstPerson || Cursor.lockState == CursorLockMode.Locked
+                ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f))
+                : cam.ScreenPointToRay(Input.mousePosition);
+            var hits = Physics.RaycastAll(ray, 140f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0) return false;
+            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var hit in hits)
+            {
+                if (_player != null && hit.collider.transform.IsChildOf(_player)) continue; // own body
+                var foe = hit.collider.GetComponentInParent<CoreFoeView>();
+                if (foe == null) return false; // a wall or a villager is in the way
+                if (foe.Dead) continue;
+                var local = foe.transform.InverseTransformPoint(hit.point);
+                var half = 0.3f;
+                if (foe.Humanoid)
+                {
+                    if (local.y > 1.48f) part = "head";
+                    else if (local.y < 0.8f) part = "leg";
+                    else if (Mathf.Abs(local.x) > 0.22f) part = "arm";
+                }
+                else
+                {
+                    half = Mathf.Max(0.1f, foe.Length * 0.3f);
+                    if (local.z > foe.Length * 0.42f) part = "head";
+                    else if (local.y < foe.LegHeight) part = "leg";
+                }
+                accuracy = Mathf.Clamp(1f - 0.4f * Mathf.Abs(local.x) / half, 0.55f, 1f);
+                var origin = _player != null ? _player.position : cam.transform.position;
+                var flat = foe.transform.position - origin;
+                flat.y = 0f;
+                distance = flat.magnitude;
+                view = foe;
+                return true;
+            }
+            return false;
+        }
+
+        private void Attack(float held, bool thrust)
+        {
+            var combat = Obj(_me, "combat");
+            var ranged = Str(combat, "weapon") == "bow";
+            CoreFoeView foe;
+            string part;
+            float accuracy, distance;
+            var aimed = AimFoe(out foe, out part, out accuracy, out distance);
+            var style = ranged ? (held < 0.35f ? "snap" : "drawn") : thrust ? "thrust" : held > 0.55f ? "heavy" : "slash";
+            var reach = ranged ? 50f : 3.0f;
+
+            if (_firstPerson)
+            {
+                // The player aimed: report target, body part and accuracy; the server verifies range and cone.
+                if (aimed && distance <= reach)
+                    Send("attack", "aimed", true, "target", foe.FoeId, "aim", part, "acc", accuracy, "style", style,
+                        "power", ranged ? Mathf.Clamp(held / 1.1f, 0.2f, 1f) : 0f);
+                else
+                    Send("attack", "aimed", true, "aim", "torso", "acc", 0f, "style", style);
+            }
+            else if (aimed)
+            {
+                // Third person: the click only picks the target; the server faces it and rolls dice.
+                Send("attack", "target", foe.FoeId, "aim", part, "style", style);
+            }
+            else
+            {
+                Send("attack", "aim", "torso", "style", style);
+            }
+        }
+
+        private void UpdateHandLight()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            if (_handLight == null)
+            {
+                var go = new GameObject("Hand light");
+                go.transform.SetParent(cam.transform, false);
+                go.transform.localPosition = new Vector3(0.3f, -0.1f, 0.4f);
+                _handLight = go.AddComponent<Light>();
+                _handLight.type = LightType.Point;
+                _handLight.range = 22f;
+                _handLight.intensity = 0f;
+            }
+            var combat = Obj(_me, "combat");
+            var weapon = Str(combat, "weapon");
+            var weaveLight = Num(combat, "light") > 0f;
+            var lit = weaveLight || weapon == "torch" || weapon == "lantern";
+            var night = _hour >= 20 || _hour < 6 ? 1f : _hour >= 18 || _hour < 8 ? 0.55f : 0.15f;
+            _handLight.color = weaveLight ? new Color(0.75f, 0.85f, 1f) : new Color(1f, 0.76f, 0.48f);
+            _handLight.intensity = Mathf.Lerp(_handLight.intensity, lit ? 2.2f * night : 0f, 1f - Mathf.Exp(-6f * Time.deltaTime));
+        }
+
+        // ------------------------------------------------------------------ weave (mouse-traced pattern)
+
+        private void OpenWeave()
+        {
+            _weaveOpen = true;
+            _pattern.Clear();
+            _weaveLastNode = -1;
+            if (_rig != null) _rig.SetMouseGestureCapture(true); // mouse draws the pattern, not the view
+        }
+
+        private void CloseWeave(bool cast)
+        {
+            if (!_weaveOpen) return;
+            _weaveOpen = false;
+            if (_rig != null) _rig.SetMouseGestureCapture(false);
+            if (!cast || _pattern.Count == 0) return;
+            CoreFoeView foe;
+            string part;
+            float accuracy, distance;
+            var target = AimFoe(out foe, out part, out accuracy, out distance) ? foe.FoeId : string.Empty;
+            Send("weave", "nodes", _pattern.ToArray(), "target", target);
+        }
+
+        private static Vector2 NodeCenter(int index)
+        {
+            var angle = -Mathf.PI / 2f + index * Mathf.PI / 3f;
+            return new Vector2(Screen.width * 0.5f + Mathf.Cos(angle) * 150f, Screen.height * 0.5f + Mathf.Sin(angle) * 150f);
+        }
+
+        private int MaxPattern()
+        {
+            var max = (int)Num(Obj(_me, "weave"), "max_len");
+            return max > 0 ? max : 12;
+        }
+
+        private void UpdateWeave()
+        {
+            for (var i = 0; i < Nodes.Length; i++)
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i) && _pattern.Count < MaxPattern()) _pattern.Add(Nodes[i]);
+            if (Input.GetKeyDown(KeyCode.Backspace) && _pattern.Count > 0) _pattern.RemoveAt(_pattern.Count - 1);
+            if (Input.GetMouseButtonDown(1)) { _pattern.Clear(); _weaveLastNode = -1; }
+
+            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            var over = -1;
+            for (var i = 0; i < Nodes.Length; i++)
+                if (Vector2.Distance(mouse, NodeCenter(i)) < 36f) over = i;
+            if (over >= 0 && over != _weaveLastNode)
+            {
+                if (_pattern.Count < MaxPattern()) _pattern.Add(Nodes[over]);
+                _weaveLastNode = over;
+            }
+            else if (over < 0 && _weaveLastNode >= 0 && Vector2.Distance(mouse, NodeCenter(_weaveLastNode)) > 52f)
+            {
+                _weaveLastNode = -1; // left the node: the same node may be woven again
+            }
+        }
+
+        private string ReadPattern(out int complexity, out int cost, out bool closed)
+        {
+            int knot = 0, thread = 0, loop = 0, fork = 0, barb = 0, seal = 0;
+            foreach (var node in _pattern)
+            {
+                switch (node)
+                {
+                    case "knot": knot++; break;
+                    case "thread": thread++; break;
+                    case "loop": loop++; break;
+                    case "fork": fork++; break;
+                    case "barb": barb++; break;
+                    case "seal": seal++; break;
+                }
+            }
+            closed = _pattern.Count > 0 && _pattern[0] == "knot" && _pattern[_pattern.Count - 1] == "seal" && seal == 1;
+            complexity = _pattern.Count + fork + (closed ? 0 : 3);
+            cost = 4 * _pattern.Count + 4 * knot;
+            if (barb > 0)
+                return "ранит" + (thread > 0 ? " издали" : " вблизи") + (fork > 0 ? ", целей: " + (1 + fork) : "") + (loop > 0 ? ", потом жжёт" : "");
+            if (loop > 0 && thread > 0) return "заживляет раны";
+            if (loop > 0) return fork > 0 ? "щит на отряд" : "щит";
+            if (thread > 0) return "отбрасывает и оглушает";
+            return "свет над ладонью";
+        }
+
+        private static void DrawLine(Vector2 a, Vector2 b, Color color, float width)
+        {
+            var delta = b - a;
+            if (delta.sqrMagnitude < 0.01f) return;
+            var matrix = GUI.matrix;
+            var previous = GUI.color;
+            GUI.color = color;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, delta.magnitude, width), Texture2D.whiteTexture);
+            GUI.matrix = matrix;
+            GUI.color = previous;
+        }
+
+        private void DrawWeave()
+        {
+            var center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            var line = new Color(0.62f, 0.82f, 1f, 0.95f);
+            for (var i = 1; i < _pattern.Count; i++)
+                DrawLine(NodeCenter(Array.IndexOf(Nodes, _pattern[i - 1])), NodeCenter(Array.IndexOf(Nodes, _pattern[i])), line, 3f);
+            if (_pattern.Count > 0)
+                DrawLine(NodeCenter(Array.IndexOf(Nodes, _pattern[_pattern.Count - 1])), mouse, new Color(0.62f, 0.82f, 1f, 0.5f), 2f);
+
+            for (var i = 0; i < Nodes.Length; i++)
+            {
+                var c = NodeCenter(i);
+                GUI.Box(new Rect(c.x - 44f, c.y - 30f, 88f, 60f), NodeGlyph[i] + "\n" + (i + 1) + " " + NodeRu[i]);
+            }
+
+            var weave = Obj(_me, "weave");
+            var capacity = Num(weave, "capacity");
+            var glyphs = string.Empty;
+            foreach (var node in _pattern) glyphs += NodeGlyph[Array.IndexOf(Nodes, node)] + " ";
+            var text = _pattern.Count == 0 ? "Веди мышью по узлам (или 1–6). Начни узлом, закончи печатью." : glyphs;
+            if (_pattern.Count > 0)
+            {
+                int complexity, cost;
+                bool closed;
+                var what = ReadPattern(out complexity, out cost, out closed);
+                var over = complexity - capacity;
+                var risk = over <= -1f ? "удержишь" : over <= 1f ? "на пределе" : "надорвёшься";
+                text += "\nСделает: " + what + " · сложность " + complexity + " из " + capacity.ToString("0.#", CultureInfo.InvariantCulture)
+                    + " (" + risk + ") · маны " + cost + (closed ? "" : " · узор НЕ замкнут");
+            }
+            var known = Arr(weave, "known");
+            if (known != null)
+            {
+                text += "\nЗнаю: ";
+                foreach (var schema in known)
+                {
+                    text += Str(schema, "name") + " (";
+                    var nodes = Arr(schema, "nodes");
+                    if (nodes != null)
+                        foreach (var node in nodes)
+                        {
+                            var index = Array.IndexOf(Nodes, node.ToString());
+                            if (index >= 0) text += NodeGlyph[index] + " ";
+                        }
+                    text += ")   ";
+                }
+            }
+            text += "\nОтпусти R — сплести · ПКМ — сброс · Esc — бросить";
+            GUI.Box(new Rect(center.x - 380f, center.y + 205f, 760f, 104f), text);
+        }
+
+        // ------------------------------------------------------------------ GUI
+
+        private void OnGUI()
+        {
+            if (!_active || _me == null) return;
+
+            if (_hurtFlash > 0f)
+            {
+                var previous = GUI.color;
+                GUI.color = new Color(0.6f, 0.05f, 0.03f, Mathf.Clamp01(_hurtFlash) * 0.45f);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = previous;
+            }
+
+            var journey = Obj(_me, "journey");
+            if (journey != null)
+            {
+                DrawRoad(journey);
+                DrawFeed();
+                return;
+            }
+
+            DrawFoeLabels();
+            DrawStatus();
+            DrawFeed();
+            DrawQuestTracker();
+            if (_hitMarker > 0f)
+                GUI.Label(new Rect(Screen.width * 0.5f - 10f, Screen.height * 0.5f - 34f, 40f, 24f), "x");
+            if (_weaveOpen) DrawWeave();
+            if (_menuOpen) DrawMenu();
+        }
+
+        private void DrawFoeLabels()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            foreach (var pair in _foes)
+            {
+                var rec = pair.Value;
+                if (rec.Root == null || rec.View.Dead) continue;
+                if (!rec.Aware && rec.Hp >= rec.Max) continue;
+                var screen = cam.WorldToScreenPoint(rec.Root.transform.position + Vector3.up * (rec.View.Height + 0.35f));
+                if (screen.z <= 0f || screen.z > 60f) continue;
+                var rect = new Rect(screen.x - 50f, Screen.height - screen.y - 22f, 100f, 20f);
+                GUI.Label(rect, rec.View.DisplayName);
+                var previous = GUI.color;
+                GUI.color = Color.black;
+                GUI.DrawTexture(new Rect(rect.x, rect.y + 20f, 100f, 6f), Texture2D.whiteTexture);
+                GUI.color = new Color(0.79f, 0.42f, 0.35f);
+                GUI.DrawTexture(new Rect(rect.x + 1f, rect.y + 21f, 98f * Mathf.Clamp01(rec.Hp / rec.Max), 4f), Texture2D.whiteTexture);
+                GUI.color = previous;
+            }
+        }
+
+        private static void Bar(Rect rect, float value01, Color color)
+        {
+            var previous = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = color;
+            GUI.DrawTexture(new Rect(rect.x + 1f, rect.y + 1f, (rect.width - 2f) * Mathf.Clamp01(value01), rect.height - 2f), Texture2D.whiteTexture);
+            GUI.color = previous;
+        }
+
+        private void DrawStatus()
+        {
+            var combat = Obj(_me, "combat");
+            var x = Screen.width * 0.5f - 170f;
+            var y = Screen.height - 74f;
+            Bar(new Rect(x, y, 340f, 10f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
+            Bar(new Rect(x, y + 13f, 340f, 8f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
+            Bar(new Rect(x, y + 24f, 340f, 8f), Num(_me, "mana") / 100f, new Color(0.5f, 0.65f, 0.88f));
+            var weapon = Str(combat, "weapon");
+            var stance = Str(combat, "stance");
+            var line = (string.IsNullOrEmpty(weapon) ? "кулаки" : Name(weapon))
+                + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
+                + " · стойка: " + (stance == "aggressive" ? "яростная" : stance == "defensive" ? "осторожная" : "ровная")
+                + (Flag(combat, "guard") ? " · БЛОК" : "") + (Flag(combat, "sneak") ? " · крадёшься" : "")
+                + (Flag(combat, "feint") ? " · финт готов" : "")
+                + (Num(combat, "shield") > 0f ? " · щит " + (int)Num(combat, "shield") : "");
+            GUI.Label(new Rect(x, y + 34f, 520f, 22f), line);
+            GUI.Label(new Rect(x, y + 52f, 760f, 22f),
+                "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка");
+        }
+
+        private void DrawFeed()
+        {
+            var y = Screen.height - 120f - _feed.Count * 20f;
+            foreach (var line in _feed)
+            {
+                var previous = GUI.color;
+                GUI.color = line.Kind == "hurt" || line.Kind == "backfire" || line.Kind == "ko"
+                    ? new Color(0.95f, 0.63f, 0.56f)
+                    : line.Kind == "kill" || line.Kind == "learn" || line.Kind == "quest" ? new Color(0.91f, 0.74f, 0.4f) : Color.white;
+                GUI.Label(new Rect(Screen.width * 0.5f - 300f, y, 600f, 22f), line.Text);
+                GUI.color = previous;
+                y += 20f;
+            }
+        }
+
+        private void DrawQuestTracker()
+        {
+            var active = Arr(Obj(_me, "quests"), "active");
+            if (active == null || active.Count == 0 || _menuOpen) return;
+            var y = 14f;
+            foreach (var quest in active)
+            {
+                var kind = Str(quest, "kind");
+                var progress = kind == "deliver" || kind == "cull"
+                    ? " (" + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) + "/" + (int)Num(quest, "qty") + ")"
+                    : string.Empty;
+                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 40f), (Flag(quest, "ready") ? "[готово] " : "- ") + Str(quest, "text") + progress);
+                y += 40f;
+            }
+        }
+
+        private static string OptionRu(string option)
+        {
+            switch (option)
+            {
+                case "fight": return "Драться";
+                case "pay": return "Откупиться";
+                case "flee": return "Бежать";
+                case "scare": return "Отпугнуть";
+                case "talk": return "Поговорить";
+                case "trade": return "Купить хлеба";
+                case "pass": return "Пройти мимо";
+                case "rest": return "Отдохнуть у огня";
+                case "gather": return "Набрать трав";
+                default: return option;
+            }
+        }
+
+        private void DrawRoad(JObject journey)
+        {
+            var width = Mathf.Min(680f, Screen.width - 40f);
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.5f - 170f, width, 340f);
+            GUI.Box(rect, "Дорога в " + Str(journey, "to_name"));
+            GUILayout.BeginArea(new Rect(rect.x + 16f, rect.y + 30f, rect.width - 32f, rect.height - 40f));
+            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), Num(journey, "progress"), new Color(0.79f, 0.64f, 0.29f));
+            GUILayout.Space(8f);
+            GUILayout.Label(Str(journey, "scene"));
+            var note = Str(journey, "note");
+            if (!string.IsNullOrEmpty(note)) GUILayout.Label(note);
+            var roadEvent = Obj(journey, "event");
+            if (roadEvent != null)
+            {
+                GUILayout.Space(8f);
+                GUILayout.Label(Str(roadEvent, "text"));
+                if (Flag(journey, "follow"))
+                {
+                    GUILayout.Label("Решает вожак отряда…");
+                }
+                else
+                {
+                    var options = Arr(roadEvent, "options");
+                    for (var i = 0; options != null && i < options.Count; i++)
+                    {
+                        var option = options[i].ToString();
+                        if (GUILayout.Button("[" + (i + 1) + "] " + OptionRu(option), GUILayout.Height(30f)))
+                            Send("journey", "action", "choose", "choice", option);
+                    }
+                }
+            }
+            else
+            {
+                GUILayout.Label("Ещё примерно " + (int)Num(journey, "eta") + " с пути.");
+            }
+            GUILayout.EndArea();
+        }
+
+        private bool Near(string poi, float radius)
+        {
+            Vector2 anchor;
+            if (!Poi.TryGetValue(poi, out anchor)) return false;
+            var pos = Obj(_me, "pos");
+            return pos != null && Vector2.Distance(new Vector2(Num(pos, "x"), Num(pos, "y")), anchor) <= radius;
+        }
+
+        private static float Count(JObject bag, string key)
+        {
+            return bag == null ? 0f : Num(bag, key);
+        }
+
+        private void DrawMenu()
+        {
+            var width = Mathf.Min(900f, Screen.width - 40f);
+            var height = Mathf.Min(680f, Screen.height - 40f);
+            var rect = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
+            GUI.Box(rect, "Дела  [Tab — закрыть]");
+            GUILayout.BeginArea(new Rect(rect.x + 14f, rect.y + 28f, rect.width - 28f, rect.height - 38f));
+            _menuScroll = GUILayout.BeginScrollView(_menuScroll);
+
+            var inv = Obj(_me, "inv");
+            var items = Obj(inv, "items");
+            var worn = Obj(inv, "worn");
+            var hand = Str(inv, "hand");
+            var stash = Obj(_me, "stash");
+            var coins = Num(_me, "coins");
+
+            GUILayout.Label("ЗДЕСЬ");
+            if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
+            {
+                GUILayout.BeginHorizontal();
+                GUI.enabled = !Flag(_me, "mug") && Num(_place, "beer") >= 1f;
+                if (GUILayout.Button("Заказать пива (" + Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Send("buy", "item", "beer");
+                GUI.enabled = Flag(_me, "mug");
+                if (GUILayout.Button("Выпить")) Send("consume", "item", "beer");
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+            }
+            if (Near("mine", 10f) && GUILayout.Button("Добыть руду")) Send("act", "action", "mine");
+            if (Near("garden", 10f) && GUILayout.Button("Собрать травы")) Send("act", "action", "gather");
+            if (Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Send("act", "action", "chop");
+            if (Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Send("act", "action", "fish");
+            foreach (var pair in TakeAt)
+                if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
+                    Send("take", "item", pair.Key);
+
+            var recipes = Arr(_me, "recipes");
+            if (recipes != null)
+            {
+                foreach (var recipe in recipes)
+                {
+                    if (!Flag(recipe, "here")) continue;
+                    var needs = string.Empty;
+                    var needObj = Obj(recipe, "needs");
+                    if (needObj != null)
+                        foreach (var need in needObj.Properties())
+                            needs += Name(need.Name) + " ×" + need.Value + "  ";
+                    GUI.enabled = Flag(recipe, "can");
+                    if (GUILayout.Button(Str(recipe, "name") + "  —  нужно: " + needs)) Send("craft", "item", Str(recipe, "id"));
+                    GUI.enabled = true;
+                }
+            }
+
+            var market = Arr(_place, "market");
+            if (market != null && (Near("market", 12f) || Near("granary", 12f)))
+            {
+                GUILayout.Label("ПРИЛАВОК  (монет: " + coins.ToString("0.#", CultureInfo.InvariantCulture) + ")");
+                var shown = 0;
+                foreach (var row in market)
+                {
+                    if (shown++ >= 14) break;
+                    var good = Str(row, "good");
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(good) + " · склад " + (int)Num(row, "stock") + " · у тебя " + (int)Count(stash, good), GUILayout.Width(360f));
+                    GUI.enabled = Num(row, "stock") >= 1f;
+                    if (GUILayout.Button("купить " + Num(row, "price").ToString("0.#", CultureInfo.InvariantCulture))) Send("trade", "good", good, "side", "buy", "qty", 1);
+                    GUI.enabled = Count(stash, good) >= 1f;
+                    if (GUILayout.Button("продать " + Num(row, "sell").ToString("0.#", CultureInfo.InvariantCulture))) Send("trade", "good", good, "side", "sell", "qty", 1);
+                    GUI.enabled = true;
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("СУМА И ЗАКРОМА");
+            var bag = string.Empty;
+            if (items != null)
+                foreach (var item in items.Properties())
+                    if (Num(items, item.Name) > 0f) bag += Name(item.Name) + " ×" + (int)Num(items, item.Name) + "   ";
+            if (stash != null)
+                foreach (var good in stash.Properties())
+                    if (Num(stash, good.Name) >= 1f) bag += Name(good.Name) + " ×" + (int)Num(stash, good.Name) + "   ";
+            GUILayout.Label(string.IsNullOrEmpty(bag) ? "пусто" : bag);
+            GUILayout.BeginHorizontal();
+            foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
+                if (Count(items, item) > 0f && hand != item && GUILayout.Button("в руку: " + Name(item))) Send("equip", "item", item);
+            if (!string.IsNullOrEmpty(hand) && GUILayout.Button("убрать из руки")) Send("equip", "item", string.Empty);
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield" })
+            {
+                var already = false;
+                if (worn != null)
+                    foreach (var slot in worn.Properties())
+                        if (slot.Value.ToString() == item) already = true;
+                if (Count(items, item) > 0f && !already && GUILayout.Button("надеть: " + Name(item))) Send("wear", "item", item);
+            }
+            foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
+                if (Count(items, item) > 0f && GUILayout.Button("употребить: " + Name(item))) Send("use", "item", item);
+            foreach (var good in new[] { "bread", "fish", "meat", "cheese", "veg" })
+                if (Count(stash, good) >= 1f && GUILayout.Button("съесть: " + Name(good))) Send("use", "item", good);
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(8f);
+            var quests = Obj(_me, "quests");
+            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (int)Num(quests, "done") + ", слава здесь " + (int)Num(quests, "rep") + ")");
+            var active = Arr(quests, "active");
+            if (active != null)
+                foreach (var quest in active)
+                {
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label((Flag(quest, "ready") ? "[готово] " : "... ") + Str(quest, "text"), GUILayout.Width(rect.width - 260f));
+                    GUI.enabled = Flag(quest, "ready");
+                    if (GUILayout.Button("сдать")) Send("quest", "action", "turnin", "quest", Str(quest, "id"));
+                    GUI.enabled = true;
+                    if (GUILayout.Button("отказаться")) Send("quest", "action", "drop", "quest", Str(quest, "id"));
+                    GUILayout.EndHorizontal();
+                }
+            var offers = Arr(quests, "offers");
+            if (offers != null)
+                foreach (var offer in offers)
+                {
+                    GUILayout.BeginHorizontal();
+                    var who = Str(offer, "via") == "board" ? "доска у колодца" : Str(offer, "giver_name");
+                    var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
+                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 170f));
+                    if (GUILayout.Button("взяться")) Send("quest", "action", "accept", "quest", Str(offer, "id"));
+                    GUILayout.EndHorizontal();
+                }
+
+            GUILayout.Space(8f);
+            var hereId = Str(_place, "id");
+            var hereOuter = false;
+            var world = Arr(_me, "world");
+            if (world != null)
+                foreach (var place in world)
+                    if (Str(place, "id") == hereId) hereOuter = Flag(place, "outer");
+            GUILayout.Label("ДОРОГИ (пешком по тракту — путь занимает время)");
+            DrawPlaces(world, hereId, hereOuter, true);
+            GUILayout.Label("ВРАТА ЧЕРЕЗ ГОРЫ");
+            DrawPlaces(world, hereId, hereOuter, false);
+
+            var party = Obj(_me, "party");
+            var members = Arr(party, "members");
+            var partyInvite = Obj(party, "invite_from");
+            GUILayout.Space(8f);
+            GUILayout.Label("ОТРЯД");
+            if (partyInvite != null && GUILayout.Button(Str(partyInvite, "who") + " зовёт в отряд — вступить")) Send("party", "action", "accept");
+            if (members != null && members.Count > 0)
+            {
+                var list = string.Empty;
+                foreach (var member in members)
+                    list += (Flag(member, "leader") ? "* " : "") + Str(member, "name") + " (" + (int)Num(member, "health") + ")   ";
+                GUILayout.Label(list);
+                if (GUILayout.Button("Выйти из отряда")) Send("party", "action", "leave");
+            }
+            var neighbors = Arr(_place, "neighbors");
+            if (neighbors != null)
+                foreach (var neighbor in neighbors)
+                {
+                    if (!Flag(neighbor, "player")) continue;
+                    var label = Flag(neighbor, "known") ? Str(neighbor, "name") : Str(neighbor, "desc");
+                    if (GUILayout.Button("Позвать в отряд: " + label)) Send("party", "action", "invite", "target", Str(neighbor, "id"));
+                }
+
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
+        private void DrawPlaces(JArray world, string hereId, bool hereOuter, bool sameSide)
+        {
+            if (world == null) return;
+            var column = 0;
+            var shown = 0;
+            GUILayout.BeginHorizontal();
+            foreach (var place in world)
+            {
+                var id = Str(place, "id");
+                if (id == hereId || (Flag(place, "outer") == hereOuter) != sameSide) continue;
+                if (shown++ >= 24) break;
+                if (column == 4)
+                {
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    column = 0;
+                }
+                column++;
+                if (GUILayout.Button((Str(place, "tier") == "city" ? "город " : "") + Str(place, "name")))
+                {
+                    if (sameSide) Send("journey", "target", id);
+                    else Send("travel", "target", id);
+                    _menuOpen = false;
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+    }
+}
