@@ -346,7 +346,7 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(x, 1.37f, -0.25f), new Vector3(0.008f, 0.13f, 0.008f));
                 shaft.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
                 ApplyColor(shaft.GetComponent<Renderer>(), new Color(0.55f, 0.39f, 0.20f));
-                var tip = CreatePart("Carried arrows • iron tip " + i, PrimitiveType.Cone, root,
+                var tip = CreatePart("Carried arrows • iron tip " + i, PrimitiveType.Cube, root,
                     new Vector3(x, 1.51f, -0.23f), new Vector3(0.018f, 0.045f, 0.018f));
                 ApplyColor(tip.GetComponent<Renderer>(), new Color(0.38f, 0.40f, 0.41f));
             }
