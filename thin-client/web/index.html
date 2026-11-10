@@ -159,7 +159,17 @@ async function connect(){
  ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); goTo('well'); };
 }
 // reqid обязателен для платных/расходных намерений (идемпотентность) — подставляем, если не задан
-function send(o){ if(o.op!=='move'&&!o.reqid) o.reqid=rid(); if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({v:1},o))); }
+function send(o){ if(o.op!=='move'&&!o.reqid) o.reqid=rid(); if(ws&&ws.readyState===1){ ws.send(JSON.stringify(Object.assign({v:1},o))); return true; } return false; }
+let pendingMinigameAction=null;
+function sendMinigameAction(action,buttonId,successText){
+ if(pendingMinigameAction) return false;
+ const reqid=rid(), button=$(buttonId);
+ if(!button || !send({op:'act',action,reqid})){ toast('⚠ Нет соединения с миром. Действие не отправлено.'); return false; }
+ pendingMinigameAction={reqid,buttonId,successText,startedAt:Date.now()};
+ button.disabled=true; button.textContent='⏳ Жду ответа мира…';
+ toast('Действие отправлено. Жду подтверждения сервера…');
+ return true;
+}
 function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
@@ -191,7 +201,16 @@ let lastResult='';
 let journalSeen=false, journalEntries=[];
 function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
   const r=(s.me||{}).result;
-  if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason) toast('⚠ '+r.reason); }
+  if(pendingMinigameAction && r && r.reqid===pendingMinigameAction.reqid){
+    const pending=pendingMinigameAction; pendingMinigameAction=null;
+    const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
+    toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
+  } else if(pendingMinigameAction && Date.now()-pendingMinigameAction.startedAt>15000){
+    const pending=pendingMinigameAction; pendingMinigameAction=null;
+    const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
+    toast('⚠ Ответ сервера не получен. Проверь состояние персонажа перед повтором.');
+  }
+  if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason && (!pendingMinigameAction || r.reqid!==pendingMinigameAction.reqid)) toast('⚠ '+r.reason); }
 }
 function drawTask(s){ const t=(s.me||{}).task||{};
   const steps=['познакомиться','поработать','выпить в корчме'];
@@ -349,7 +368,7 @@ function fishingGame(M){
  const loop=()=>{ t+=0.03; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
  loop();
  $('fcast').onclick=()=>{ const p=parseFloat(mark.dataset.p||'0');
-   if(p>=zx&&p<=zx+zw){ send({op:'act',action:'fish',reqid:rid()}); toast('🐟 Подсёк! рыбина в закромах'); }
+   if(p>=zx&&p<=zx+zw){ sendMinigameAction('fish','fcast','Улов подтверждён сервером и внесён в закрома.'); }
    else toast('…сорвалось, лови момент'); };
 }
 // ---------- мини-игра РУБКА: останови шкалу силы на максимуме ----------
@@ -361,7 +380,7 @@ function choppingGame(M){
  const loop=()=>{ t+=0.045; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
  loop();
  $('cchop').onclick=()=>{ const p=parseFloat(fill.dataset.p||'0');
-   if(p>=70){ send({op:'act',action:'chop',reqid:rid()}); toast(p>=92?'🪵 Мощный удар! бревно':'🪵 Срубил, бревно в закромах'); }
+   if(p>=70){ sendMinigameAction('chop','cchop',p>=92?'Сильный удар подтверждён сервером, древесина получена.':'Рубка подтверждена сервером, древесина получена.'); }
    else toast('…слабо, бей в полную силу'); };
 }
 
