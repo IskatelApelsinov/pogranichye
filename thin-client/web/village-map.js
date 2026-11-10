@@ -181,18 +181,30 @@ function drawPlayer(ctx,p){
   ctx.fillStyle='#6ab0ff';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-6,6);ctx.lineTo(-6,-6);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
 }
-function draw(canvas,layout,snapshot,atlas,selected){
+function viewProject(x,y,half,w,h,view){
+  const p=project(x,y,half,w,h);if(!p)return null;
+  const z=Math.max(1,Math.min(4,num(view&&view.zoom)||1)),px=num(view&&view.panX)||0,py=num(view&&view.panY)||0;
+  return {x:w/2+(p.x-w/2)*z+px,y:h/2+(p.y-h/2)*z+py};
+}
+function viewUnproject(px,py,half,w,h,view){
+  const z=Math.max(1,Math.min(4,num(view&&view.zoom)||1)),ox=num(view&&view.panX)||0,oy=num(view&&view.panY)||0;
+  return unproject((px-w/2-ox)/z+w/2,(py-h/2-oy)/z+h/2,half,w,h);
+}
+function draw(canvas,layout,snapshot,atlas,selected,view){
   if(!canvas||typeof canvas.getContext!=='function')return false;
   const s=buildScene(layout,snapshot,selected);if(!s)return false;
   const ctx=canvas.getContext('2d');if(!ctx)return false;
   const w=canvas.width,h=canvas.height;ctx.imageSmoothingEnabled=false;
+  const z=Math.max(1,Math.min(4,num(view&&view.zoom)||1)),px=num(view&&view.panX)||0,py=num(view&&view.panY)||0;
+  ctx.save();ctx.translate(w/2+px,h/2+py);ctx.scale(z,z);ctx.translate(-w/2,-h/2);
   background(ctx,s,atlas,w,h);drawProps(ctx,s,atlas,w,h);drawBuildings(ctx,s,atlas,w,h);drawWell(ctx,s,atlas,w,h);drawLabels(ctx,s,w,h);
   for(const n of s.neighbors){const p=project(n.x,n.y,s.half,w,h);if(p)drawPerson(ctx,n,p);}
   for(const f of s.foes){const p=project(f.x,f.y,s.half,w,h);if(p)drawFoe(ctx,f,p);}
   if(s.player){const p=project(s.player.x,s.player.y,s.half,w,h);if(p)drawPlayer(ctx,s.player,p);}
-  const k=Math.min(w,h)/(2*s.half),ox=(w-2*s.half*k)/2,oy=(h-2*s.half*k)/2;
+  const k=Math.min(w,h)/(2*s.half*k),ox=(w-2*s.half*k)/2,oy=(h-2*s.half*k)/2;
   ctx.strokeStyle='rgba(241,229,201,.72)';ctx.lineWidth=2;ctx.strokeRect(ox+1,oy+1,s.half*2*k-2,s.half*2*k-2);
+  ctx.restore();
   return true;
 }
-return {project,unproject,isBlocked:blocked,buildDecorations:decorations,buildScene,draw};
+return {project,unproject,viewProject,viewUnproject,isBlocked:blocked,buildDecorations:decorations,buildScene,draw};
 });
