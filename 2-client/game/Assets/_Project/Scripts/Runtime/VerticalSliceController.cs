@@ -36,6 +36,7 @@ namespace Pogranichye.Client
         private CoreGameplay _core; // protocol v1.10 gameplay: combat, weaves, requests, crafting, journeys, party
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
+        private ClientInput _input;
         private WorldInteractionProbe _interactionProbe;
         private bool _createdCameraRig;
         private Transform _presentationRoot;
@@ -109,6 +110,8 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
+            _input = GetComponent<ClientInput>();
+            if (_input == null) _input = gameObject.AddComponent<ClientInput>();
             _presentationRoot = new GameObject("PresentationWorld").transform;
             _presentationRoot.SetParent(transform, false);
             var entityRoot = new GameObject("EntityViews").transform;
@@ -121,6 +124,7 @@ namespace Pogranichye.Client
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _core = gameObject.AddComponent<CoreGameplay>();
             _core.Bind(SendCorePayload);
+            _core.BindInput(_input);
             _core.RequestResolved += OnCoreRequestResolved;
         }
 
@@ -131,9 +135,9 @@ namespace Pogranichye.Client
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
-            if (Input.GetKeyDown(KeyCode.F1)) _hudCollapsed = !_hudCollapsed;
-            if (Input.GetKeyDown(KeyCode.F3)) _movementDebugVisible = !_movementDebugVisible;
-            if (Input.GetKeyDown(KeyCode.F11)) ToggleFullscreen();
+            if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
+            if (_input != null && _input.ToggleDiagnosticsPressed) _movementDebugVisible = !_movementDebugVisible;
+            if (_input != null && _input.ToggleFullscreenPressed) ToggleFullscreen();
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
@@ -275,23 +279,6 @@ namespace Pogranichye.Client
                 $"Клавиатура {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | оси {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
                 "Нажато: " + _pressedKeysDebug);
-        }
-
-        private static string BuildPressedKeysDebug()
-        {
-            var keys = new[]
-            {
-                KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D,
-                KeyCode.UpArrow, KeyCode.LeftArrow, KeyCode.DownArrow, KeyCode.RightArrow,
-                KeyCode.LeftShift, KeyCode.RightShift, KeyCode.Space,
-                KeyCode.E, KeyCode.F, KeyCode.I, KeyCode.J, KeyCode.M, KeyCode.Tab,
-                KeyCode.Escape, KeyCode.F1, KeyCode.F3, KeyCode.F11,
-                KeyCode.Mouse0, KeyCode.Mouse1, KeyCode.Mouse2
-            };
-            var pressed = new List<string>();
-            foreach (var key in keys)
-                if (Input.GetKey(key)) pressed.Add(key.ToString());
-            return pressed.Count == 0 ? "нет" : string.Join(", ", pressed);
         }
 
         private void DrawHudTabButton(string label, HudTab tab)
@@ -1321,7 +1308,7 @@ namespace Pogranichye.Client
         {
             // This only offsets the rendered player and camera. The authoritative root,
             // ScenePos, collision resolution and server move packets remain on the ground.
-            if (Input.GetKeyDown(KeyCode.Space) && _jumpOffset <= 0.001f)
+            if (_input != null && _input.JumpPressed && _jumpOffset <= 0.001f)
                 _jumpVelocity = JumpImpulse;
 
             var deltaTime = Mathf.Clamp(Time.deltaTime, 0f, 0.05f);
@@ -1349,16 +1336,12 @@ namespace Pogranichye.Client
             // axes remain visible in F3 for diagnosis, but are intentionally never used
             // as a fallback: a drifting gamepad/stick/driver axis must not move the player
             // when no key is pressed. Add an explicit Input System gamepad path separately.
-            var keyboardInput = new Vector2(
-                ((Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1f : 0f)
-                    - ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1f : 0f),
-                ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1f : 0f)
-                    - ((Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1f : 0f));
-            var rawAxes = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            var keyboardInput = _input != null ? _input.Move : Vector2.zero;
+            var rawAxes = keyboardInput;
             _movementRawAxesDebug = rawAxes;
             var input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(keyboardInput, 1f);
             _movementKeyboardDebug = keyboardInput;
-            _pressedKeysDebug = BuildPressedKeysDebug();
+            _pressedKeysDebug = _input != null ? _input.BuildPressedKeysDebug() : "нет";
 
             // Derive movement from the camera's actual planar view basis. Projecting the
             // basis onto the ground avoids Euler-angle decomposition surprises when the
@@ -1383,7 +1366,7 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            var runRequested = moving && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+            var runRequested = moving && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
             var speed = canRun ? 3.2f : 1.4f;
 
