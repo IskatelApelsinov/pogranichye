@@ -76,7 +76,34 @@ func GoTo(w *core.World, e *core.Entity, location string) (bool, string) {
 	return true, ""
 }
 
+// Параметры парковочных слотов у POI (см. parkingSlot).
+const (
+	slotsPerRing = 12  // слотов на кольцо
+	slotRing0    = 2.0 // радиус первого кольца, м
+	slotRingStep = 1.5 // прирост радиуса на каждое следующее кольцо, м
+)
+
+// parkingSlot — детерминированное НЕПЕРЕСЕКАЮЩЕЕСЯ место (слот) вокруг POI по РАНГУ жителя в очереди к
+// этой точке. В отличие от idOffset (смещение по хэшу id, где два жителя могли попасть почти в одну
+// точку), слоты разложены по концентрическим кольцам, по slotsPerRing на кольцо, с фазовым сдвигом
+// нечётных колец — жители у одного POI занимают РАЗНЫЕ места и не слипаются (P0-навигация).
+func parkingSlot(rank int) (dx, dy float64) {
+	if rank < 0 {
+		rank = 0
+	}
+	ring := rank / slotsPerRing
+	idx := rank % slotsPerRing
+	rad := slotRing0 + float64(ring)*slotRingStep
+	phase := 0.0
+	if ring%2 == 1 { // смещаем нечётные кольца на полслота, чтобы слоты не ложились на один луч
+		phase = math.Pi / slotsPerRing
+	}
+	ang := float64(idx)*(2*math.Pi/slotsPerRing) + phase
+	return rad * math.Cos(ang), rad * math.Sin(ang)
+}
+
 // idOffset — устойчивое личное смещение жителя вокруг целевой точки (чтобы НПС не слипались в POI).
+// Оставлено как резерв; штатное распределение у POI теперь делает parkingSlot по рангу.
 func idOffset(id uint64) (dx, dy float64) {
 	h := id*2654435761 + 1013904223
 	ang := float64(h%360) * math.Pi / 180

@@ -34,6 +34,10 @@ type ScenePosC struct {
 	Facing float64 `json:"facing"`
 	Stam   float64 `json:"stam"`
 	Seq    int64   `json:"seq"`
+	// Stuck — накопленное РЕАЛЬНОЕ время (с), которое житель простоял без прогресса у преграды.
+	// Серверно-внутреннее (json:"-"): кадр/контракт не трогает, используется для measured
+	// stuck-recovery в StepNPCMovement.
+	Stuck float64 `json:"-"`
 }
 
 func (c *ScenePosC) Kind() string { return "scenepos" }
@@ -101,4 +105,3 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 	}
 	p.Seq = seq
 }
-
