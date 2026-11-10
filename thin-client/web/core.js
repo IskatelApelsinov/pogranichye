@@ -242,6 +242,17 @@ function craftRecipe(recipeId){
   }
   drawCraft(last||{});
 }
+function craftQty(value){
+  const amount=Number(value);
+  if(!Number.isFinite(amount)) return '0';
+  return Number.isInteger(amount)?String(amount):amount.toFixed(1);
+}
+function craftOutputStock(stock){
+  const counts=[];
+  if(stock.output.inventory!==null) counts.push('сума '+craftQty(stock.output.inventory));
+  if(stock.output.stash!==null) counts.push('закрома '+craftQty(stock.output.stash));
+  return counts.length?' · сейчас: '+counts.join(' / '):'';
+}
 function drawCraft(s){
   const me = s.me||{}, rec = me.recipes||[];
   craftFeedback.resolve(me.result);
@@ -252,13 +263,24 @@ function drawCraft(s){
   if(!here.length) h += '<span class="sub">Мастерят у кузни, очага и амбара. Сырьё: руда — на руднике, травы — у огородов, шкуры и мясо — с охоты.</span>';
   else h += `<span class="sub">${AT[here[0].at]||''}</span>`;
   here.forEach(r => {
-    const needs = Object.entries(r.needs||{}).map(([g,n]) => `${ru(g)} ×${n}`).join(', ');
+    const stock = craftFeedback.stockFor(r, me);
+    const needs = stock.needs.map(n =>
+      `${ru(n.good)}: ${n.available===null?'?':craftQty(n.available)} / ${craftQty(n.required)}`).join(', ');
     const pending = craftFeedback.isPending(r.id);
-    h += `<div class="nb"><span>${esc(r.name)} <span class="sub">· нужно: ${needs} → ${ru(r.gives)}${r.qty>1?' ×'+r.qty:''}${pending?' · ожидаем ответ мира':''}</span></span>` +
+    h += `<div class="nb"><span>${esc(r.name)} <span class="sub">· закрома / нужно: ${needs} → ${ru(r.gives)}${r.qty>1?' ×'+r.qty:''}${craftOutputStock(stock)}${pending?' · ожидаем ответ мира':''}</span></span>` +
          sbtn(pending?'⏳ ожидаем…':'сделать', `craftRecipe('${r.id}')`, !r.can || pending, r.can?'primary':'') + '</div>';
   });
   const notice = craftFeedback.notice;
-  if(notice) h += `<div class="sub" style="margin-top:8px;color:${notice.ok?'#b7d69a':'#e5a18a'}">${notice.ok?'✓ Ремесло подтверждено сервером.':'⚠ '+esc(notice.reason||'Сервер отказал в изготовлении.')}</div>`;
+  if(notice){
+    if(notice.ok){
+      const recipe = rec.find(r => r.id===notice.recipeId);
+      const stock = recipe ? craftFeedback.stockFor(recipe, me) : null;
+      const current = stock ? craftOutputStock(stock).replace(' · сейчас: ','; теперь ') : '';
+      h += `<div class="sub" style="margin-top:8px;color:#b7d69a">✓ ${esc(recipe?recipe.name:ru(notice.recipeId))}: сервер подтвердил изготовление${esc(current)}.</div>`;
+    } else {
+      h += `<div class="sub" style="margin-top:8px;color:#e5a18a">⚠ ${esc(notice.reason||'Сервер отказал в изготовлении.')}</div>`;
+    }
+  }
   setHTML('craftcard', h);
 }
 
