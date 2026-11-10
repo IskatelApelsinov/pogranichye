@@ -111,7 +111,8 @@
 
  <div class="card" id="mapcard">
   <div class="row between"><b class="sub">🗺 Окрестности</b><span class="sub">ты — синяя стрелка · тап по зверю — цель · тап по месту — идти</span></div>
-  <canvas id="livemap" width="640" height="640" style="width:100%;height:auto;border-radius:6px;border:1px solid #5c4a35;margin-top:6px;touch-action:manipulation"></canvas>
+  <canvas id="livemap" width="640" height="640" aria-label="Спрайтовая карта стартовой деревни: здания, поля, лес, река, жители и звери" style="width:100%;height:auto;border-radius:6px;border:1px solid #5c4a35;margin-top:6px;touch-action:manipulation"></canvas>
+  <div class="sub" style="margin-top:6px">Позиции игрока, жителей и зверей — из серверного кадра. Тропы и фоновые предметы — только оформление, не навигация и не коллизии.</div>
  </div>
  <div class="card" id="fightcard"></div>
  <div class="card hidden" id="weavecard"></div>
@@ -468,6 +469,7 @@ function drawDialog(s){
 }
 </script>
 <script src="/craft-feedback.js"></script>
+<script src="/village-map.js"></script>
 <script src="/core.js"></script>
 </body>
 </html>

@@ -1,0 +1,28 @@
+name: Thin-client web regression checks
+
+on:
+  pull_request:
+    paths:
+      - 'thin-client/web/**'
+      - '.github/workflows/thin-client-web-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'thin-client/web/**'
+      - '.github/workflows/thin-client-web-checks.yml'
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: JavaScript syntax checks
+        run: |
+          node --check thin-client/web/core.js
+          node --check thin-client/web/village-map.js
+      - name: Run thin-client regression tests
+        run: node --test thin-client/web/tests/*.test.cjs
