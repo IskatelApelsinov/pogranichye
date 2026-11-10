@@ -12,7 +12,7 @@ All assets in this folder are local SVGs: no external fonts, image hosts, runtim
 ## Files
 
 - `village-scene.svg` — responsive illustrated village overview used as the current scene banner.
-- `village-atlas.svg` — reusable 4×4 sprite atlas. Each cell is 96×96 px in a 384×384 viewBox.
+- `village-atlas.svg` — reusable 4×4 sprite atlas. Each cell is 96×96 px in a 384×384 viewBox; the live 300×300 m overview uses its terrain, building and prop sprites.
 
 ## Atlas cell map
 
@@ -39,4 +39,4 @@ CSS background coordinates can use 25% steps because the atlas has four columns 
 
 ## Integration boundaries
 
-The art does not create movement, collisions, NPC actions, inventory, minigames, beer purchases or intoxication. Keep those behind server-authoritative intents/results. The existing tavern action remains the supported v1 `socialize` intent until a drink contract is agreed.
+The art does not create movement, collisions, NPC actions, inventory, minigames, beer purchases or intoxication. Live player/NPC/foe markers use server snapshot coordinates; decorative trails and props are presentation-only and must never be treated as navigation or collision data.

@@ -285,40 +285,30 @@ function drawParty(s){
 // выбирает цель, тап по месту ведёт к ближайшей локации. Ходьбы по-прежнему нет (ADR 0002).
 let LAY = null, layAsked = false;
 const MAPLOC = ['well','tavern','river','woods','garden','smithy','granary','mine','hearth','market'];
+let villageAtlas = null;
+if(typeof Image !== 'undefined'){
+  villageAtlas = new Image();
+  villageAtlas.onload = () => { if(last) drawLiveMap(last); };
+  villageAtlas.src = '/village-atlas.svg';
+}
 function drawLiveMap(s){
   const cv = document.getElementById('livemap'); if(!cv) return;
   if(!LAY && !layAsked){ layAsked = true; fetch('/api/layout').then(r => r.json()).then(j => { LAY = j; if(last) drawLiveMap(last); }).catch(() => { layAsked = false; }); }
-  if(!LAY || !s.place){ return; }
-  const W = cv.width, H = cv.height, half = LAY.world_half, k = W / (2 * half);
-  const X = x => (x + half) * k, Y = y => (half - y) * k, g = cv.getContext('2d');
-  g.fillStyle = '#5f7a3c'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#3c5a2e'; g.fillRect(0, 0, X(-70), H);                       // западный лес
-  g.fillRect(0, Y(-94), W, H - Y(-94));                                         // заречье
-  g.fillStyle = '#7d8a4e'; const vh = LAY.village_half; g.fillRect(X(-vh), Y(vh), 2 * vh * k, 2 * vh * k);
-  const r = LAY.river; g.fillStyle = '#3f6f9a'; g.fillRect(0, Y(r.y1), W, (r.y1 - r.y0) * k);
-  g.fillStyle = '#7a5a36'; g.fillRect(X(r.bridge_x0), Y(r.y1) - 2, (r.bridge_x1 - r.bridge_x0) * k, (r.y1 - r.y0) * k + 4);
-  g.fillStyle = '#4a3a2a'; (LAY.buildings || []).forEach(b => g.fillRect(X(b.x0), Y(b.y1), (b.x1 - b.x0) * k, (b.y1 - b.y0) * k));
-  g.font = 'bold 17px Georgia'; g.textAlign = 'center'; g.fillStyle = '#fff3d6';
-  const names = {well:'площадь', tavern:'корчма', river:'река', woods:'лес', garden:'поля', smithy:'кузня', granary:'амбар', mine:'рудник', hearth:'очаг', market:'лавка'};
-  MAPLOC.forEach(n => { const p = LAY.pois[n]; if(p) g.fillText(names[n], X(p.x), Y(p.y) - 8); });
-  (s.place.neighbors || []).forEach(n => { if(!n.pos) return; g.fillStyle = n.player ? '#ffd27a' : '#e8dcc0'; g.beginPath(); g.arc(X(n.pos.x), Y(n.pos.y), n.player ? 6 : 4, 0, 7); g.fill(); });
-  const col = {hare:'#d9c9a8', fox:'#e07a34', boar:'#3a2c20', wolf:'#9a9da4', bear:'#241812', bandit:'#b02a22'};
-  (s.place.foes || []).forEach(f => {
-    if(f.state === 'dead'){ g.strokeStyle = '#0006'; g.strokeRect(X(f.x) - 2, Y(f.y) - 2, 4, 4); return; }
-    g.fillStyle = col[f.kind] || '#c96b58'; g.beginPath(); g.arc(X(f.x), Y(f.y), f.kind === 'bear' ? 9 : 6, 0, 7); g.fill();
-    if(f.aware || f.id === selFoe){ g.strokeStyle = f.id === selFoe ? '#ffe9a8' : '#ff5a44'; g.lineWidth = 2.5; g.beginPath(); g.arc(X(f.x), Y(f.y), 12, 0, 7); g.stroke(); }
-  });
-  const p = (s.me || {}).pos; if(p){ const a = -p.facing * Math.PI / 180;
-    g.save(); g.translate(X(p.x), Y(p.y)); g.rotate(a); g.fillStyle = '#6ab0ff'; g.strokeStyle = '#fff'; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(13, 0); g.lineTo(-8, 8); g.lineTo(-8, -8); g.closePath(); g.fill(); g.stroke(); g.restore(); }
+  if(!LAY || !s.place || !(Number(LAY.world_half)>0)) return;
+  if(window.PogranichyeVillageMap) window.PogranichyeVillageMap.draw(cv,LAY,s,villageAtlas,selFoe);
+  const W=cv.width,H=cv.height,half=Number(LAY.world_half);
   if(!cv.onclick) cv.onclick = ev => {
-    const rc = cv.getBoundingClientRect(), mx = (ev.clientX - rc.left) * W / rc.width, my = (ev.clientY - rc.top) * H / rc.height;
-    const wx = mx / k - half, wy = half - my / k, st = last || {};
-    let best = null, bd = 12;
-    ((st.place || {}).foes || []).forEach(f => { const d = Math.hypot(f.x - wx, f.y - wy); if(f.state !== 'dead' && d < bd){ bd = d; best = f; } });
-    if(best){ pickFoe(best.id); return; }
-    let loc = null; bd = 30;
-    MAPLOC.forEach(n => { const q = LAY.pois[n]; if(!q) return; const d = Math.hypot(q.x - wx, q.y - wy); if(d < bd){ bd = d; loc = n; } });
-    if(loc) goTo(loc);
+    const rc=cv.getBoundingClientRect(),mx=(ev.clientX-rc.left)*W/rc.width,my=(ev.clientY-rc.top)*H/rc.height;
+    const world=window.PogranichyeVillageMap
+      ? window.PogranichyeVillageMap.unproject(mx,my,half,W,H)
+      : {x:mx/(W/(2*half))-half,y:half-my/(H/(2*half))};
+    if(!world)return;
+    const wx=world.x,wy=world.y,st=last||{};
+    let best=null,bd=12;
+    ((st.place||{}).foes||[]).forEach(f=>{const d=Math.hypot(f.x-wx,f.y-wy);if(f.state!=='dead'&&d<bd){bd=d;best=f;}});
+    if(best){pickFoe(best.id);return;}
+    let loc=null;bd=30;
+    MAPLOC.forEach(n=>{const q=LAY.pois[n];if(!q)return;const d=Math.hypot(q.x-wx,q.y-wy);if(d<bd){bd=d;loc=n;}});
+    if(loc)goTo(loc);
   };
 }
