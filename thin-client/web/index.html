@@ -205,10 +205,11 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
     const pending=pendingMinigameAction; pendingMinigameAction=null;
     const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
     toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
-  } else if(pendingMinigameAction && Date.now()-pendingMinigameAction.startedAt>15000){
-    const pending=pendingMinigameAction; pendingMinigameAction=null;
-    const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
-    toast('⚠ Ответ сервера не получен. Проверь состояние персонажа перед повтором.');
+  } else if(pendingMinigameAction && !pendingMinigameAction.timedOut && Date.now()-pendingMinigameAction.startedAt>15000){
+    // Не разблокируем действие: сервер мог выполнить его, а ACK мог потеряться.
+    // Новый reqid способен повторно начислить ресурс; ждём поздний ACK или переподключение.
+    pendingMinigameAction.timedOut=true;
+    toast('⚠ Ответ сервера не получен. Действие заблокировано во избежание двойного начисления; проверь инвентарь или переподключись.');
   }
   if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason && (!pendingMinigameAction || r.reqid!==pendingMinigameAction.reqid)) toast('⚠ '+r.reason); }
 }
