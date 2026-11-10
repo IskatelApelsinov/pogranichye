@@ -21,6 +21,7 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float sprintFieldOfViewBoost = 3f;
         [SerializeField] private float fieldOfViewSharpness = 7f;
         private Camera _camera;
+        private Pogranichye.Client.ClientInput _input;
         private float _defaultFieldOfView = 48f;
         private float _headBobPhase;
         private Transform _target;
@@ -30,6 +31,8 @@ namespace Pogranichye.Client.Presentation
         private float _zoomDistance;
         private float _jumpOffset;
         private bool _captureMouseForGesture;
+
+        public void BindInput(Pogranichye.Client.ClientInput input) { _input = input; }
 
         public bool IsFirstPerson => _firstPerson;
         public bool CaptureMouseForGesture => _captureMouseForGesture;
@@ -93,8 +96,9 @@ namespace Pogranichye.Client.Presentation
                 // Mouse always controls view unless an active tool explicitly captures it for a gesture.
                 if (!_captureMouseForGesture)
                 {
-                    _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
-                    _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity, -75f, 75f);
+                    var look = _input != null ? _input.LookDelta : Vector2.zero;
+                    _yaw += look.x * mouseSensitivity;
+                    _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity, -75f, 75f);
                     _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
 
@@ -108,7 +112,7 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            var scroll = Input.GetAxisRaw("Mouse ScrollWheel");
+            var scroll = _input != null ? _input.Zoom : 0f;
             if (Mathf.Abs(scroll) > 0.001f)
                 _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
                     minZoomDistance, maxZoomDistance);
@@ -117,8 +121,9 @@ namespace Pogranichye.Client.Presentation
             // must explicitly request gesture capture (e.g. tracing a spell or casting a fishing line).
             if (!_captureMouseForGesture)
             {
-                _yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity,
+                var look = _input != null ? _input.LookDelta : Vector2.zero;
+                _yaw += look.x * mouseSensitivity;
+                _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity,
                     thirdPersonMinPitch, thirdPersonMaxPitch);
             }
 
