@@ -35,7 +35,7 @@ function coreRender(s){
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
   show('craftcard', !road); show('roadcard', road); show('mapcard', !road);
-  drawRoad(s); drawFeed(s); drawFight(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s);
+  drawRoad(s); drawFeed(s); drawFight(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
 }
 
 // ---------- лента событий ----------
@@ -70,24 +70,52 @@ function drawRoad(s){
 
 // карта: родной край — пешком по тракту; через горы — только врата
 function drawTravel(s){
-  const me = s.me||{}, world = me.world||[], hereId = (s.place||{}).id;
-  const visited = new Set((me.known_places||[]).filter(p=>p.visited).map(p=>p.id));
-  const known = new Set((me.known_places||[]).map(p=>p.id));
-  const here = world.find(p => String(p.id) === String(hereId)) || {outer:false};
-  const sameSide = world.filter(p => p.outer === here.outer && String(p.id) !== String(hereId));
+  const me = s.me||{}, world = me.world||[], hereId = String((s.place||{}).id), rg = me.region||{nodes:[],roads:[]};
+  const here = world.find(p => String(p.id) === hereId) || {outer:false};
   const other = world.filter(p => p.outer !== here.outer);
-  let h = `<b class="sub">🛤 дороги отсюда</b> <span class="sub">(путь занимает время, в дороге всякое бывает)</span><div class="acts">`;
-  sameSide.slice(0,30).forEach(p => {
-    h += sbtn(`${p.tier==='city'?'🏰':'🏘'} ${esc(p.name)}${visited.has(String(p.id))?' ✓':known.has(String(p.id))?' ·':''}`,
-              `send({op:'journey',target:'${p.id}'})`, !!me.journey);
+  const ST = {here:'ты здесь', visited:'бывал', known:'слышал', unknown:'неведомо'};
+  let h = `<b class="sub">🗺 Карта края</b> <span class="sub">(видно только то, где был и о чём слышал; остальное — туман)</span>`;
+  h += '<canvas id="regionmap" width="640" height="360" style="width:100%;height:auto;border-radius:6px;border:1px solid #5c4a35;margin:6px 0;background:#2b3327"></canvas>';
+  h += '<div class="acts">';
+  (rg.nodes||[]).filter(n => n.state !== 'here').forEach(n => {
+    const road = (rg.roads||[]).find(r => (r.a===n.id&&r.b===hereId)||(r.b===n.id&&r.a===hereId));
+    h += sbtn(`${n.tier==='city'?'🏰':n.state==='unknown'?'❔':'🏘'} ${esc(n.name||'куда ведёт тракт')} <span class="sub">· ${ST[n.state]}${road?' · '+road.len+' вёрст':''}</span>`,
+              `send({op:'journey',target:'${n.id}'})`, !!me.journey);
   });
   h += '</div>';
   if(other.length){
     h += `<div style="margin-top:10px"><b class="sub">🌀 Врата через горы</b> <span class="sub">(${here.outer?'домой, в родной край':'во внешний мир'} — пешком не дойти)</span><div class="acts">`;
-    other.slice(0,40).forEach(p => { h += sbtn(`${p.tier==='city'?'🏰':'🏘'} ${esc(p.name)}`, `send({op:'travel',target:'${p.id}'})`, !!me.journey); });
+    other.slice(0,12).forEach(p => { h += sbtn(`${p.tier==='city'?'🏰':'🏘'} ${esc(p.name)}`, `send({op:'travel',target:'${p.id}'})`, !!me.journey); });
     h += '</div></div>';
   }
   setHTML('travelcard', h);
+  const cv = document.getElementById('regionmap'); if(!cv || !(rg.nodes||[]).length) return;
+  const g = cv.getContext('2d'), xs = rg.nodes.map(n=>n.x), ys = rg.nodes.map(n=>n.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), pad = 60;
+  const k = Math.min((cv.width-2*pad)/Math.max(1,x1-x0), (cv.height-2*pad)/Math.max(1,y1-y0));
+  const X = x => pad + (x-x0)*k, Y = y => cv.height - pad - (y-y0)*k, by = {}; rg.nodes.forEach(n => by[n.id] = n);
+  g.clearRect(0,0,cv.width,cv.height); g.lineWidth = 3;
+  (rg.roads||[]).forEach(r => { const a = by[r.a], b = by[r.b]; if(!a||!b) return;
+    g.strokeStyle = (a.state==='unknown'||b.state==='unknown') ? '#6b6250' : '#b89a6a'; g.setLineDash((a.state==='unknown'||b.state==='unknown')?[6,6]:[]);
+    g.beginPath(); g.moveTo(X(a.x),Y(a.y)); g.lineTo(X(b.x),Y(b.y)); g.stroke(); });
+  g.setLineDash([]); g.textAlign = 'center'; g.font = 'bold 16px Georgia';
+  rg.nodes.forEach(n => { g.fillStyle = n.state==='here'?'#6ab0ff':n.state==='visited'?'#e8dcc0':n.state==='known'?'#b9a57c':'#5a5548';
+    g.beginPath(); g.arc(X(n.x),Y(n.y), n.tier==='city'?11:8, 0, 7); g.fill();
+    g.fillStyle = '#fff3d6'; g.fillText(n.name||'?', X(n.x), Y(n.y)-14); });
+}
+
+// характеристики, хмель, дар
+function drawStats(s){
+  const me = s.me||{}, st = me.stats; if(!st){ show('statcard', false); return; }
+  show('statcard', true);
+  const N = {strength:'сила', agility:'ловкость', endurance:'выносливость', intellect:'ум', perception:'восприятие', will:'воля'};
+  const wv = me.weave||{};
+  let h = '<b class="sub">каков ты сам</b> <span class="sub">(растёт от дела, потолка нет)</span><div style="margin-top:4px">' +
+    Object.keys(N).map(k => `<span class="tag">${N[k]} ${st[k]}</span>`).join('') + '</div>';
+  if(me.drunk > 0) h += `<div class="sub" style="margin-top:4px">🍺 хмель ${me.drunk}${me.drunk>30?' — руки и мысли неточны':''}</div>`;
+  h += `<div class="sub" style="margin-top:4px">${wv.gift ? '✨ В тебе есть дар: ум удержит и сложный узор.' : 'Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.'}</div>`;
+  if(wv.can_learn) h += '<div class="acts">' + sbtn('🧘 Созерцать ману (учиться)', `send({op:'act',action:'meditate'})`) + '</div>';
+  setHTML('statcard', h);
 }
 
 // ---------- сума и закрома ----------

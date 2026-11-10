@@ -106,6 +106,7 @@ func trainSkill(w *core.World, e *core.Entity, name string, amt float64) {
 		w.Attach(e, sk)
 	}
 	sk.Train(name, amt)
+	trainStatsFor(w, e, name, amt) // дело растит и характеристики
 }
 
 func addStash(w *core.World, e *core.Entity, good string, n float64) {

@@ -153,6 +153,7 @@ func DrinkBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	mug.Has = false
 	pc.markDone(reqid)
 	v.Morale = math.Min(100, v.Morale+beerMorale)
+	addDrunk(w, e, 22) // хмель — настоящее серверное состояние
 	v.Hunger = math.Max(0, v.Hunger-beerHunger)
 	pc.DrankBeer = true
 	return true, ""

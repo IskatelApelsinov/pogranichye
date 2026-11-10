@@ -7,10 +7,12 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"pogranichye/memory"
 	"sort"
 	"strconv"
 	"strings"
@@ -113,6 +115,67 @@ func (s *Server) SetFrontier(max, villages int) {
 	s.mu.Unlock()
 }
 
+// --- сохранение мира на диск (v1.12) ---
+
+// SaveTo пишет полный снимок мира (все сущности, часы, кости) в файл атомарно: сначала во временный
+// файл, затем переименование — оборванная запись не портит прошлое сохранение.
+func (s *Server) SaveTo(path string) error {
+	s.mu.Lock()
+	blob, err := memory.Save(s.world, s.runner.Clock, s.runner.Hub)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, blob, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// LoadFrom поднимает мир из файла сохранения, заменяя сгенерированный. Возвращает false, если файла
+// нет (первый запуск). Тела, которыми управляли игроки на момент снимка, освобождаются сами: сессий
+// после перезапуска нет.
+func (s *Server) LoadFrom(path string) (bool, error) {
+	blob, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	w, clock, hub, err := memory.Load(blob)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	s.world = w
+	s.runner = core.NewRunnerWith(hub, clock, sim.Default()...)
+	s.ctl = map[core.ID]uint64{}
+	s.mu.Unlock()
+	return true, nil
+}
+
+// Autosave сохраняет мир каждые every до остановки сервера (Close) и ещё раз при остановке.
+func (s *Server) Autosave(path string, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	stop := s.quit()
+	for {
+		select {
+		case <-stop:
+			if err := s.SaveTo(path); err != nil {
+				log.Printf("сохранение при остановке: %v", err)
+			}
+			return
+		case <-t.C:
+			if err := s.SaveTo(path); err != nil {
+				log.Printf("автосохранение: %v", err)
+			}
+		}
+	}
+}
+
 // Handler собирает маршруты (отдельно от Run — удобно для тестов).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -173,6 +236,7 @@ func (s *Server) fastStep(dt float64) {
 	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
+	sim.SoberUp(s.world, dt)
 }
 
 // handleStats — диагностика нагрузки: сколько сущностей, как распределена «температура» областей.
@@ -298,6 +362,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	if e := s.world.Get(cid); e != nil {
 		sim.EnsureScenePos(s.world, e)
 		sim.EnsurePlayer(s.world, e)
+		sim.RollGift(s.world, e, s.runner.Hub.Stream("gift", eid(e.ID))) // дар — бросок при первом вселении
 		if pl := core.Place(e); pl != nil {
 			sim.LearnVisited(s.world, e, pl.Settlement) // вселился → поселение посещено (#26 visited)
 		}
@@ -458,6 +523,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fight":
 				rok, rwhy := sim.Fight(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "meditate":
+				rok, rwhy := sim.Meditate(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "mine":
 				rok, rwhy := sim.Mine(s.world, e, in.ReqID)
@@ -692,6 +760,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"quests":  sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
 			"recipes": sim.RecipesView(e),                                                                   // ремесло: рецепты и хватает ли сырья
 			"journey": sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
+			"stats":   sim.StatsView(e),                                                                     // характеристики (v1.12)
+			"drunk":   round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
+			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
 			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
 		},
 	}

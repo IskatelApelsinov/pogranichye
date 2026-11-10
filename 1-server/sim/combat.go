@@ -455,6 +455,8 @@ func foeStrike(w *core.World, fe *core.Entity, f *FoeC, pe *core.Entity, s *dice
 	if b := battle.Body(pe); b != nil {
 		b.HurtPart(part, dmg*0.5)
 	}
+	dmg /= statMod(pe, "endurance", 0.1)
+	TrainStat(w, pe, "endurance", 0.04) // битый крепчает
 	v.Health = math.Max(0, v.Health-dmg)
 	Emit(w, pe, FeedItem{Kind: "hurt", Text: name + " ранил тебя: " + partRu(part) + ".", Foe: fid, Part: part, Dmg: math.Round(dmg)})
 	if v.Health <= 5 {
@@ -659,7 +661,7 @@ func Strike(w *core.World, e *core.Entity, in StrikeInput, s *dice.Stream) (bool
 		}
 	} else { // тонкий клиент: кости от навыка
 		p.Facing = facingDeg(f.X-p.X, f.Y-p.Y, p.Facing)
-		chance := 0.58 + skill*0.012
+		chance := 0.58 + skill*0.012 + (Stat(e, "perception")-statBase)*0.006 - drunkPenalty(e)
 		switch aim {
 		case "head":
 			chance -= 0.25
@@ -693,6 +695,11 @@ func Strike(w *core.World, e *core.Entity, in StrikeInput, s *dice.Stream) (bool
 		acc = 1
 	}
 	dmg := ws.dmg * mult * math.Min(1.7, 0.75+skill/40) * (0.6 + 0.6*acc)
+	if ws.ranged {
+		dmg *= statMod(e, "perception", 0.12)
+	} else {
+		dmg *= statMod(e, "strength", 0.15)
+	}
 	if ws.ranged && in.Aimed && in.Power > 0 {
 		dmg *= 0.45 + 0.55*math.Min(1, in.Power)
 	}
@@ -803,8 +810,9 @@ func DodgeRoll(w *core.World, e *core.Entity) (bool, string) {
 	if c.Dodge > 0 {
 		return true, ""
 	}
-	p.Stam -= 0.2
-	c.Dodge = 0.7
+	p.Stam -= 0.2 / statMod(e, "agility", 0.2)
+	c.Dodge = 0.7 * statMod(e, "agility", 0.15)
+	TrainStat(w, e, "agility", 0.05)
 	trainSkill(w, e, "cunning", 0.1)
 	return true, ""
 }
