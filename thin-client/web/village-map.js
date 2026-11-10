@@ -8,7 +8,7 @@ const CELLS={grass:[0,0],path:[1,0],water:[3,0],crops:[0,1],planks:[1,1],tree:[0
 const LABELS={well:'площадь',tavern:'корчма',river:'река',woods:'лес',garden:'поля',smithy:'кузня',granary:'амбар',mine:'рудник',hearth:'очаг',market:'лавка'};
 const ROLES={tavernkeeper:'#704a62',smith:'#59616a',farmer:'#667a42',herbalist:'#477b58',cook:'#9b6940',hunter:'#526044',fisher:'#4c7180'};
 const FOES={hare:'#d9c9a8',fox:'#d77a3f',boar:'#49372a',wolf:'#858d91',bear:'#342820',bandit:'#a94b42'};
-const num=v=>Number.isFinite(Number(v))?Number(v):null;
+const num=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
 function project(x,y,half,w,h){
   half=num(half);x=num(x);y=num(y);w=num(w);h=num(h);
   if(!(half>0)||x===null||y===null||!(w>0)||!(h>0))return null;
