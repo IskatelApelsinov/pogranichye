@@ -36,6 +36,14 @@ namespace Pogranichye.Client
             public float Punch; // seconds of the "got hit" squash
         }
 
+        private sealed class PendingAsk
+        {
+            public string Label;
+            public float At;
+        }
+
+        private const float PendingTimeout = 6f;
+
         private sealed class Floater
         {
             public Vector3 World;
@@ -107,6 +115,7 @@ namespace Pogranichye.Client
 
         private readonly List<FeedLine> _feed = new List<FeedLine>();
         private readonly List<Floater> _floaters = new List<Floater>();
+        private readonly Dictionary<string, PendingAsk> _pending = new Dictionary<string, PendingAsk>();
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
         private float _fishAt;
@@ -164,6 +173,7 @@ namespace Pogranichye.Client
             if (root["hour"] != null) _hour = (int)Num(root, "hour");
             SyncFoes(Arr(_place, "foes"));
             ReadFeed(Arr(_me, "feed"));
+            ReadResult();
         }
 
         public void ApplyFastFrame(string json)
@@ -181,6 +191,7 @@ namespace Pogranichye.Client
             var place = Obj(root, "place");
             if (place != null) SyncFoes(Arr(place, "foes"));
             ReadFeed(Arr(_me, "feed"));
+            ReadResult();
         }
 
         public void Clear()
@@ -190,6 +201,8 @@ namespace Pogranichye.Client
             _foes.Clear();
             _feed.Clear();
             _floaters.Clear();
+            _pending.Clear();
+            _toast = null;
             _fishPhase = 0;
             _chopSwings = 0;
             _feedSeq = 0;
@@ -259,14 +272,52 @@ namespace Pogranichye.Client
             return !string.IsNullOrEmpty(key) && Ru.TryGetValue(key, out value) ? value : (key ?? string.Empty);
         }
 
-        private void Send(string op, params object[] pairs)
+        private string Send(string op, params object[] pairs)
         {
-            if (_send == null) return;
+            if (_send == null) return null;
             var payload = new Dictionary<string, object> { { "v", 1 }, { "op", op } };
             for (var i = 0; i + 1 < pairs.Length; i += 2)
                 payload[(string)pairs[i]] = pairs[i + 1];
-            if (!payload.ContainsKey("reqid")) payload["reqid"] = Guid.NewGuid().ToString("N");
+            var reqid = Guid.NewGuid().ToString("N");
+            payload["reqid"] = reqid;
             _send(payload);
+            return reqid;
+        }
+
+        /// <summary>
+        /// Sends an intent whose outcome the player must see. Nothing is shown as done here: the label is
+        /// only remembered until the server answers with me.result for this very reqid (or the wait times out).
+        /// </summary>
+        private void Ask(string label, string op, params object[] pairs)
+        {
+            var reqid = Send(op, pairs);
+            if (reqid == null) return;
+            _pending[reqid] = new PendingAsk { Label = label, At = Time.unscaledTime };
+        }
+
+        private void ReadResult()
+        {
+            var result = Obj(_me, "result");
+            if (result == null) return;
+            var reqid = Str(result, "reqid");
+            PendingAsk ask;
+            if (string.IsNullOrEmpty(reqid) || !_pending.TryGetValue(reqid, out ask)) return;
+            _pending.Remove(reqid);
+            if (Flag(result, "ok")) Toast(ask.Label + ": сделано", 1.4f);
+            else Toast(ask.Label + " — отказ: " + Str(result, "reason"), 2.6f);
+        }
+
+        private void ExpirePending()
+        {
+            if (_pending.Count == 0) return;
+            _stale.Clear();
+            foreach (var pair in _pending)
+                if (Time.unscaledTime - pair.Value.At > PendingTimeout) _stale.Add(pair.Key);
+            foreach (var reqid in _stale)
+            {
+                Toast(_pending[reqid].Label + ": сервер не ответил", 2.2f);
+                _pending.Remove(reqid);
+            }
         }
 
         // ------------------------------------------------------------------ foes
@@ -456,6 +507,7 @@ namespace Pogranichye.Client
                 t.localScale = new Vector3(1f / squash, squash, 1f / squash);
             }
             while (_floaters.Count > 0 && Time.unscaledTime - _floaters[0].At > 1.1f) _floaters.RemoveAt(0);
+            ExpirePending();
             if (_fishPhase == 1 && Time.unscaledTime >= _fishAt)
             {
                 _fishPhase = 2;
@@ -653,8 +705,7 @@ namespace Pogranichye.Client
                 if (_chopSwings >= 3)
                 {
                     _chopSwings = 0;
-                    Send("act", "action", "chop");
-                    Toast("Бревно!", 1.2f);
+                    Ask("Рубка", "act", "action", "chop");
                 }
                 else Toast("Тюк… (" + _chopSwings + "/3)", 0.8f);
                 return;
@@ -670,8 +721,7 @@ namespace Pogranichye.Client
                 else if (_fishPhase == 2)
                 {
                     _fishPhase = 0;
-                    Send("act", "action", "fish");
-                    Toast("Подсёк!", 1.2f);
+                    Ask("Подсечка", "act", "action", "fish");
                 }
                 else
                 {
@@ -752,7 +802,7 @@ namespace Pogranichye.Client
             string part;
             float accuracy, distance;
             var target = AimFoe(out foe, out part, out accuracy, out distance) ? foe.FoeId : string.Empty;
-            Send("weave", "nodes", _pattern.ToArray(), "target", target);
+            Ask("Плетение", "weave", "nodes", _pattern.ToArray(), "target", target);
         }
 
         private static Vector2 NodeCenter(int index)
@@ -1107,19 +1157,19 @@ namespace Pogranichye.Client
             {
                 GUILayout.BeginHorizontal();
                 GUI.enabled = !Flag(_me, "mug") && Num(_place, "beer") >= 1f;
-                if (GUILayout.Button("Заказать пива (" + Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Send("buy", "item", "beer");
+                if (GUILayout.Button("Заказать пива (" + Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Ask("Пиво", "buy", "item", "beer");
                 GUI.enabled = Flag(_me, "mug");
-                if (GUILayout.Button("Выпить")) Send("consume", "item", "beer");
+                if (GUILayout.Button("Выпить")) Ask("Выпить", "consume", "item", "beer");
                 GUI.enabled = true;
                 GUILayout.EndHorizontal();
             }
-            if (Near("mine", 10f) && GUILayout.Button("Добыть руду")) Send("act", "action", "mine");
-            if (Near("garden", 10f) && GUILayout.Button("Собрать травы")) Send("act", "action", "gather");
-            if (Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Send("act", "action", "chop");
-            if (Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Send("act", "action", "fish");
+            if (Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
+            if (Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
+            if (Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
+            if (Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
             foreach (var pair in TakeAt)
                 if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
-                    Send("take", "item", pair.Key);
+                    Ask("Взять", "take", "item", pair.Key);
 
             var recipes = Arr(_me, "recipes");
             if (recipes != null)
@@ -1133,7 +1183,7 @@ namespace Pogranichye.Client
                         foreach (var need in needObj.Properties())
                             needs += Name(need.Name) + " ×" + need.Value + "  ";
                     GUI.enabled = Flag(recipe, "can");
-                    if (GUILayout.Button(Str(recipe, "name") + "  —  нужно: " + needs)) Send("craft", "item", Str(recipe, "id"));
+                    if (GUILayout.Button(Str(recipe, "name") + "  —  нужно: " + needs)) Ask(Str(recipe, "name"), "craft", "item", Str(recipe, "id"));
                     GUI.enabled = true;
                 }
             }
@@ -1150,9 +1200,9 @@ namespace Pogranichye.Client
                     GUILayout.BeginHorizontal();
                     GUILayout.Label(Name(good) + " · склад " + (int)Num(row, "stock") + " · у тебя " + (int)Count(stash, good), GUILayout.Width(360f));
                     GUI.enabled = Num(row, "stock") >= 1f;
-                    if (GUILayout.Button("купить " + Num(row, "price").ToString("0.#", CultureInfo.InvariantCulture))) Send("trade", "good", good, "side", "buy", "qty", 1);
+                    if (GUILayout.Button("купить " + Num(row, "price").ToString("0.#", CultureInfo.InvariantCulture))) Ask("Покупка", "trade", "good", good, "side", "buy", "qty", 1);
                     GUI.enabled = Count(stash, good) >= 1f;
-                    if (GUILayout.Button("продать " + Num(row, "sell").ToString("0.#", CultureInfo.InvariantCulture))) Send("trade", "good", good, "side", "sell", "qty", 1);
+                    if (GUILayout.Button("продать " + Num(row, "sell").ToString("0.#", CultureInfo.InvariantCulture))) Ask("Продажа", "trade", "good", good, "side", "sell", "qty", 1);
                     GUI.enabled = true;
                     GUILayout.EndHorizontal();
                 }
@@ -1183,9 +1233,9 @@ namespace Pogranichye.Client
                 if (Count(items, item) > 0f && !already && GUILayout.Button("надеть: " + Name(item))) Send("wear", "item", item);
             }
             foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
-                if (Count(items, item) > 0f && GUILayout.Button("употребить: " + Name(item))) Send("use", "item", item);
+                if (Count(items, item) > 0f && GUILayout.Button("употребить: " + Name(item))) Ask("Употребить", "use", "item", item);
             foreach (var good in new[] { "bread", "fish", "meat", "cheese", "veg" })
-                if (Count(stash, good) >= 1f && GUILayout.Button("съесть: " + Name(good))) Send("use", "item", good);
+                if (Count(stash, good) >= 1f && GUILayout.Button("съесть: " + Name(good))) Ask("Еда", "use", "item", good);
             GUILayout.EndHorizontal();
 
             GUILayout.Space(8f);
@@ -1198,7 +1248,7 @@ namespace Pogranichye.Client
                     GUILayout.BeginHorizontal();
                     GUILayout.Label((Flag(quest, "ready") ? "[готово] " : "... ") + Str(quest, "text"), GUILayout.Width(rect.width - 260f));
                     GUI.enabled = Flag(quest, "ready");
-                    if (GUILayout.Button("сдать")) Send("quest", "action", "turnin", "quest", Str(quest, "id"));
+                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", Str(quest, "id"));
                     GUI.enabled = true;
                     if (GUILayout.Button("отказаться")) Send("quest", "action", "drop", "quest", Str(quest, "id"));
                     GUILayout.EndHorizontal();
@@ -1211,7 +1261,7 @@ namespace Pogranichye.Client
                     var who = Str(offer, "via") == "board" ? "доска у колодца" : Str(offer, "giver_name");
                     var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
                     GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 170f));
-                    if (GUILayout.Button("взяться")) Send("quest", "action", "accept", "quest", Str(offer, "id"));
+                    if (GUILayout.Button("взяться")) Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
                     GUILayout.EndHorizontal();
                 }
 
@@ -1224,8 +1274,6 @@ namespace Pogranichye.Client
                     if (Str(place, "id") == hereId) hereOuter = Flag(place, "outer");
             GUILayout.Label("ДОРОГИ (пешком по тракту — путь занимает время)");
             DrawPlaces(world, hereId, hereOuter, true);
-            GUILayout.Label("ВРАТА ЧЕРЕЗ ГОРЫ");
-            DrawPlaces(world, hereId, hereOuter, false);
 
             var party = Obj(_me, "party");
             var members = Arr(party, "members");
@@ -1247,7 +1295,7 @@ namespace Pogranichye.Client
                 {
                     if (!Flag(neighbor, "player")) continue;
                     var label = Flag(neighbor, "known") ? Str(neighbor, "name") : Str(neighbor, "desc");
-                    if (GUILayout.Button("Позвать в отряд: " + label)) Send("party", "action", "invite", "target", Str(neighbor, "id"));
+                    if (GUILayout.Button("Позвать в отряд: " + label)) Ask("Отряд", "party", "action", "invite", "target", Str(neighbor, "id"));
                 }
 
             GUILayout.EndScrollView();
@@ -1274,8 +1322,9 @@ namespace Pogranichye.Client
                 column++;
                 if (GUILayout.Button((Str(place, "tier") == "city" ? "город " : "") + Str(place, "name")))
                 {
-                    if (sameSide) Send("journey", "target", id);
-                    else Send("travel", "target", id);
+                    // Only op:"journey" (a road that takes time). op:"travel" is a thin-client/gateway intent
+                    // and is deliberately not offered by the thick client (ADR 0003).
+                    Ask("Дорога", "journey", "target", id);
                     _menuOpen = false;
                 }
             }

@@ -1,6 +1,25 @@
 # Unity 6 client — v1 vertical slice
 
 
+## Unity 6 verification checklist — status: BLOCKED (no Editor in the authoring environment)
+
+Nothing below has been run. `CoreGameplay` was only syntax-checked with `mcs` against stubs, which is not a
+Unity build. Run with Unity **6000.6.7f1**, URP **17.6.0**, and record the Editor version, command, exit code
+and log for each step.
+
+1. Batch compile: `Unity -batchmode -nographics -quit -projectPath 2-client/game -logFile build.log`; fix every
+   `error CS` (start with `Runtime/CoreGameplay.cs` and the `_core` hooks in `VerticalSliceController`).
+2. Open the scene, enter Play Mode against `go run ./cmd/pogserver -starter` and check the Console for exceptions.
+3. Camera and input: mouse look in first/third person; cursor locks only in first person with the HUD folded
+   (F1) and no window open; no movement without keys; RMB (guard) does not break the camera.
+4. Movement reconciliation at a wall, on the bridge, at the world edge and while running.
+5. Loop: talk to a specific villager → chop in the woods → buy and drink beer in the tavern. Each success must
+   appear only after the server confirms it (`me.result` / state); a refusal must show its reason.
+6. Foes: visible in the wild zones, primitives lit correctly under URP, aim ray picks the right body part.
+7. Feed and journal: no duplicates while full and fast frames arrive together.
+8. HUD: Tab window, F1, H (hints), text readable at the real resolution; nothing permanently covers the view.
+9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
+
 ## Core gameplay v1.10 — added 2026-11-10 (by Claude, with the owner's permission)
 
 - `Scripts/Runtime/CoreGameplay.cs` + `Scripts/Presentation/CoreFoeView.cs` add the v1.10 layer: foes in the

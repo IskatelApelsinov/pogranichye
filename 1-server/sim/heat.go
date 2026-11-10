@@ -79,11 +79,12 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 				warmRegion[s.Region] = true
 			}
 		}
-		if pl := core.Place(e); pl != nil {
-			mark(pl.Settlement)
-		}
 		if j := journeyOf(e); j != nil {
-			mark(j.To) // куда идёт — прогреваем заранее
+			// Путник уже не в сцене исходного поселения: греем только то, КУДА он идёт (там его встретят
+			// жители на местах), а откуда ушёл — остывает, если там больше никого.
+			mark(j.To)
+		} else if pl := core.Place(e); pl != nil {
+			mark(pl.Settlement)
 		}
 	})
 	var heated, cooled []core.ID

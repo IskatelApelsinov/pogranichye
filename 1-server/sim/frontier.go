@@ -69,14 +69,31 @@ func ConfigureFrontier(w *core.World, cfg FrontierCfgC) *FrontierCfgC {
 	return cur
 }
 
-func frontierCfg(w *core.World) *FrontierCfgC {
+// peekFrontierCfg — настройки без побочных эффектов (nil, если ещё не заданы). Для чтения/диагностики.
+func peekFrontierCfg(w *core.World) *FrontierCfgC {
 	var cur *FrontierCfgC
 	w.Each("frontiercfg", func(e *core.Entity) { cur, _ = e.Get("frontiercfg").(*FrontierCfgC) })
+	return cur
+}
+
+func frontierCfg(w *core.World) *FrontierCfgC {
+	cur := peekFrontierCfg(w)
 	if cur == nil {
 		c := DefaultFrontier()
 		cur = ConfigureFrontier(w, c)
 	}
 	return cur
+}
+
+// frontierBatch — сколько поселений добавит СЛЕДУЮЩЕЕ открытие края: деревни и, на каждом
+// CityEvery-м открытии, ещё город. Считается ДО изменения мира, чтобы потолок Max был честным.
+func frontierBatch(cfg *FrontierCfgC) (n int, city bool) {
+	city = cfg.CityEvery > 0 && (cfg.Made+1)%cfg.CityEvery == 0
+	n = cfg.Villages
+	if city {
+		n++
+	}
+	return n, city
 }
 
 var frontierAdj = []string{"Дальний", "Тихий", "Чёрный", "Ветреный", "Старый", "Сизый", "Высокий", "Солёный", "Медовый", "Глухой", "Белый", "Рыжий"}
@@ -106,8 +123,9 @@ func OpenFrontier(w *core.World, e *core.Entity, settlement core.ID) string {
 	}
 	total := 0
 	w.Each("settlement", func(*core.Entity) { total++ })
-	if cfg.Max <= 0 || total+cfg.Villages > cfg.Max {
-		return "" // потолок мира достигнут
+	batch, withCity := frontierBatch(cfg)
+	if cfg.Max <= 0 || total+batch > cfg.Max {
+		return "" // потолок мира: край целиком (деревни + город) не помещается — не открываем ничего
 	}
 	fr.Opened = true
 	cfg.Made++
@@ -154,7 +172,7 @@ func OpenFrontier(w *core.World, e *core.Entity, settlement core.ID) string {
 	for i := 0; i < cfg.Villages; i++ {
 		settle(procToponym(g), cfg.Folk, false)
 	}
-	if cfg.CityEvery > 0 && cfg.Made%cfg.CityEvery == 0 {
+	if withCity {
 		settle(procToponym(g), cfg.Folk*3, true)
 	}
 	if e != nil {
@@ -165,7 +183,11 @@ func OpenFrontier(w *core.World, e *core.Entity, settlement core.ID) string {
 
 // FrontierStats — сколько краёв открыто и каков потолок (для /api/stats).
 func FrontierStats(w *core.World) map[string]any {
-	cfg := frontierCfg(w)
+	cfg := peekFrontierCfg(w) // только чтение: диагностика не создаёт настройки в мире
+	if cfg == nil {
+		d := DefaultFrontier()
+		cfg = &d
+	}
 	n := 0
 	w.Each("settlement", func(*core.Entity) { n++ })
 	return map[string]any{"enabled": cfg.Enabled, "settlements": n, "max": cfg.Max, "opened": cfg.Made, "villages": cfg.Villages}
