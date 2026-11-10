@@ -13,6 +13,7 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private KeyCode interactKey = KeyCode.E;
         private Camera _camera;
         private PresentationCameraRig _cameraRig;
+        private Pogranichye.Client.ClientInput _input;
         private WorldPoi _poi;
         private WorldNpc _npc;
         private static GUIStyle _promptStyle;
@@ -22,6 +23,8 @@ namespace Pogranichye.Client.Presentation
             _camera = GetComponent<Camera>();
             _cameraRig = GetComponent<PresentationCameraRig>();
         }
+
+        public void BindInput(Pogranichye.Client.ClientInput input) { _input = input; }
 
         private void Update()
         {
@@ -53,7 +56,7 @@ namespace Pogranichye.Client.Presentation
                 if (_npc != null) _npc.SetFocused(true);
             }
 
-            if (Input.GetKeyDown(interactKey))
+            if (_input != null && _input.InteractPressed)
             {
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();
