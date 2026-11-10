@@ -32,15 +32,27 @@ func TestChopWood(t *testing.T) {
 	if core.Vitals(e).Energy != 100-chopEnergy {
 		t.Fatal("силы не потрачены")
 	}
-	// повтор того же reqid — без второго бревна
+	// повтор того же reqid — без второго бревна и повторной траты сил.
 	ChopWood(w, e, "c1")
 	if econ.Stash(e).Goods[econ.GoodWood] != chopYield {
 		t.Fatal("повтор reqid не должен давать второе бревно")
 	}
-	// вдали от леса — отказ
-	far := actor(w, 0, 0, 100)
-	if ok, _ := ChopWood(w, far, "x"); ok {
+	if core.Vitals(e).Energy != 100-chopEnergy {
+		t.Fatal("повтор reqid не должен повторно тратить силы")
+	}
+	// Неудачный запрос не фиксируется как выполненный: тот же reqid можно
+	// безопасно повторить после того, как игрок подойдёт к лесу.
+	far := actor(w, 60, 60, 100)
+	if ok, _ := ChopWood(w, far, "retry-chop"); ok {
 		t.Fatal("вдали от леса рубить нельзя")
+	}
+	pos := ScenePos(far)
+	pos.X, pos.Y = wx, wy
+	if ok, why := ChopWood(w, far, "retry-chop"); !ok {
+		t.Fatalf("после подхода тот же reqid должен сработать: %s", why)
+	}
+	if econ.Stash(far).Goods[econ.GoodWood] != chopYield {
+		t.Fatal("повтор после отказа должен дать ровно одно бревно")
 	}
 }
 
@@ -55,9 +67,26 @@ func TestFish(t *testing.T) {
 	if econ.Stash(e).Goods[econ.GoodFish] != fishYield {
 		t.Fatal("рыба не попала в закрома")
 	}
+	// Повтор успешного reqid не добавляет рыбу и не тратит силы второй раз.
+	FishCatch(w, e, "f1")
+	if econ.Stash(e).Goods[econ.GoodFish] != fishYield {
+		t.Fatal("повтор reqid не должен давать вторую рыбу")
+	}
+	if core.Vitals(e).Energy != 100-fishEnergy {
+		t.Fatal("повтор reqid не должен повторно тратить силы")
+	}
+	// Отказ из-за расстояния не блокирует повтор того же reqid после подхода.
 	far := actor(w, 60, 60, 100)
-	if ok, _ := FishCatch(w, far, "x"); ok {
+	if ok, _ := FishCatch(w, far, "retry-fish"); ok {
 		t.Fatal("не у воды ловить нельзя")
+	}
+	pos := ScenePos(far)
+	pos.X, pos.Y = rx, ry
+	if ok, why := FishCatch(w, far, "retry-fish"); !ok {
+		t.Fatalf("после подхода тот же reqid должен сработать: %s", why)
+	}
+	if econ.Stash(far).Goods[econ.GoodFish] != fishYield {
+		t.Fatal("повтор после отказа должен дать ровно одну рыбу")
 	}
 }
 
