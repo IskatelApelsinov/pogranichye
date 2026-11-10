@@ -730,7 +730,7 @@ namespace Pogranichye.Client.Presentation
             noise.strength = 0.12f;
             noise.frequency = 0.18f;
             var renderer = holder.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = material;
+            renderer.sharedMaterial = _moteMaterial;
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
@@ -836,7 +836,7 @@ namespace Pogranichye.Client.Presentation
 
         private static Light FindSun()
         {
-            var lights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            var lights = UnityEngine.Object.FindObjectsByType<Light>();
             foreach (var light in lights)
                 if (light.type == LightType.Directional) return light;
             return null;
