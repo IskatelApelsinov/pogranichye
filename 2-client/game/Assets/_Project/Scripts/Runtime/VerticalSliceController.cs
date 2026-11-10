@@ -276,7 +276,7 @@ namespace Pogranichye.Client
             GUI.Label(new Rect(rect.x + 10f, rect.y + 108f, rect.width - 20f, 20f),
                 $"Facing сервера {_movementServerFacingDebug:0.0}°");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 128f, rect.width - 20f, 20f),
-                $"Клавиатура {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | оси {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
+                $"Input System {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | raw action {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
                 "Нажато: " + _pressedKeysDebug);
         }
@@ -1332,10 +1332,9 @@ namespace Pogranichye.Client
             var player = _views != null ? _views.PlayerTransform : null;
             if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
 
-            // Movement is driven only by discrete keyboard keys. Legacy Input Manager
-            // axes remain visible in F3 for diagnosis, but are intentionally never used
-            // as a fallback: a drifting gamepad/stick/driver axis must not move the player
-            // when no key is pressed. Add an explicit Input System gamepad path separately.
+            // The shared Input System Move action currently binds keyboard layouts only.
+            // Gamepad/stick support will be added as an explicit, tested binding rather than
+            // inheriting arbitrary legacy axes that could drift and move the character.
             var keyboardInput = _input != null ? _input.Move : Vector2.zero;
             var rawAxes = keyboardInput;
             _movementRawAxesDebug = rawAxes;
