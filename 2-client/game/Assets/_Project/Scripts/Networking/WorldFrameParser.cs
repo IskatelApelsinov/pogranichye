@@ -45,6 +45,7 @@ namespace Pogranichye.Client.Networking
                 if (me == null || me.Type != JTokenType.Object)
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
+                ValidateJournal(me["journal"], "me.journal");
                 ValidatePosition(me["pos"], "me.pos", true);
 
                 var place = root["place"];
@@ -99,6 +100,44 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+        private static void ValidateJournal(JToken token, string fieldName)
+        {
+            // Optional additive v1 field: old servers may omit it or send null.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Array)
+                throw new FormatException(fieldName + " должен быть массивом.");
+
+            var entries = (JArray)token;
+            long previousSequence = 0;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry == null || entry.Type != JTokenType.Object)
+                    throw new FormatException(fieldName + "[" + i + "] должен быть объектом.");
+
+                var sequence = entry["seq"];
+                if (sequence == null || sequence.Type != JTokenType.Integer ||
+                    !long.TryParse(sequence.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var sequenceValue) ||
+                    sequenceValue <= previousSequence)
+                    throw new FormatException(fieldName + "[" + i + "].seq должен строго возрастать и быть положительным int64.");
+
+                var day = entry["day"];
+                if (day == null || day.Type != JTokenType.Integer ||
+                    !long.TryParse(day.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var dayValue) || dayValue < 0)
+                    throw new FormatException(fieldName + "[" + i + "].day должен быть неотрицательным целым числом int64.");
+
+                var kind = entry["kind"];
+                if (kind == null || kind.Type != JTokenType.String || string.IsNullOrWhiteSpace(kind.Value<string>()))
+                    throw new FormatException(fieldName + "[" + i + "].kind должен быть непустой строкой.");
+
+                var text = entry["text"];
+                if (text == null || text.Type != JTokenType.String || string.IsNullOrWhiteSpace(text.Value<string>()))
+                    throw new FormatException(fieldName + "[" + i + "].text должен быть непустой строкой.");
+
+                previousSequence = sequenceValue;
+            }
+        }
 
         private static void ValidatePosition(JToken token, string fieldName, bool player)
         {

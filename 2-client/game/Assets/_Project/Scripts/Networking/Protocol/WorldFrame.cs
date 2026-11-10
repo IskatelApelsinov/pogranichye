@@ -48,6 +48,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
         [JsonProperty("result")] public ActionResultFrame Result { get; set; }
         [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
+        [JsonProperty("journal")] public List<JournalEntryFrame> Journal { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
         [JsonProperty("home")] public string Home { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
@@ -150,6 +151,15 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("worked")] public bool Worked { get; set; }
         [JsonProperty("drank")] public bool Drank { get; set; }
         [JsonProperty("done")] public bool Done { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class JournalEntryFrame
+    {
+        [JsonProperty("seq")] public long Sequence { get; set; }
+        [JsonProperty("day")] public long Day { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
         [JsonProperty("text")] public string Text { get; set; }
     }
 
