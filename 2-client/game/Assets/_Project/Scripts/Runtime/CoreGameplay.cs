@@ -97,6 +97,7 @@ namespace Pogranichye.Client
         private bool _hudCollapsed;
         private Transform _player;
         private PresentationCameraRig _rig;
+        private ClientInput _input;
         private JObject _me;
         private JObject _place;
         private int _hour = 12;
@@ -139,6 +140,11 @@ namespace Pogranichye.Client
         public void Bind(Action<Dictionary<string, object>> sender)
         {
             _send = sender;
+        }
+
+        public void BindInput(ClientInput input)
+        {
+            _input = input;
         }
 
         public void SetContext(bool active, bool firstPerson, bool hudCollapsed, Transform player,
@@ -562,19 +568,19 @@ namespace Pogranichye.Client
                 {
                     var options = Arr(roadEvent, "options");
                     for (var i = 0; options != null && i < options.Count && i < 9; i++)
-                        if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                        if (_input != null && _input.JourneyChoicePressed(i))
                             Send("journey", "action", "choose", "choice", options[i].ToString());
                 }
                 UpdateCursor(true);
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (_input != null && _input.MenuPressed)
             {
                 _menuOpen = !_menuOpen;
                 if (_menuOpen) CloseWeave(false);
             }
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (_input != null && _input.CancelPressed)
             {
                 _menuOpen = false;
                 CloseWeave(false);
@@ -582,8 +588,8 @@ namespace Pogranichye.Client
 
             if (!_menuOpen && !talking)
             {
-                if (Input.GetKeyDown(KeyCode.R)) OpenWeave();
-                if (Input.GetKeyUp(KeyCode.R) && _weaveOpen) CloseWeave(true);
+                if (_input != null && _input.WeavePressed) OpenWeave();
+                if (_input != null && _input.WeaveReleased && _weaveOpen) CloseWeave(true);
             }
 
             if (_weaveOpen)
@@ -616,7 +622,7 @@ namespace Pogranichye.Client
         {
             if (GUIUtility.hotControl != 0) return true;
             if (Cursor.lockState == CursorLockMode.Locked) return false;
-            var mouse = Input.mousePosition;
+            var mouse = _input != null ? _input.PointerPosition : Vector2.zero;
             var guiY = Screen.height - mouse.y;
             if (!_hudCollapsed && mouse.x < 450f && guiY < 530f) return true;   // main panel
             if (_hudCollapsed && mouse.x < 170f && guiY < 46f) return true;      // "show menu" button
@@ -626,33 +632,33 @@ namespace Pogranichye.Client
 
         private void UpdateCombatInput()
         {
-            if (Input.GetMouseButtonDown(0) && !PointerOverHud())
+            if (_input != null && _input.PrimaryPressed && !PointerOverHud())
             {
                 _holding = true;
                 _holdStart = Time.unscaledTime;
             }
-            if (Input.GetMouseButtonUp(0) && _holding)
+            if (_input != null && _input.PrimaryReleased && _holding)
             {
                 _holding = false;
                 Attack(Time.unscaledTime - _holdStart, false);
             }
 
-            if (Input.GetMouseButtonDown(1) && !PointerOverHud())
+            if (_input != null && _input.SecondaryPressed && !PointerOverHud())
             {
                 Send("guard", "on", true);
                 _guardSent = true;
             }
-            if (Input.GetMouseButtonUp(1)) ReleaseGuard();
+            if (_input != null && _input.SecondaryReleased) ReleaseGuard();
 
-            if (Input.GetKeyDown(KeyCode.H)) _showHints = !_showHints;
-            if (Input.GetKeyDown(KeyCode.Q)) Send("dodge");
-            if (Input.GetKeyDown(KeyCode.F)) Attack(0f, true);
-            if (Input.GetKeyDown(KeyCode.Z)) Send("trick", "trick", "sand");
-            if (Input.GetKeyDown(KeyCode.X)) Send("trick", "trick", "shove");
-            if (Input.GetKeyDown(KeyCode.V)) Send("trick", "trick", "feint");
-            if (Input.GetKeyDown(KeyCode.B)) Send("trick", "trick", "bait");
-            if (Input.GetKeyDown(KeyCode.C)) Send("trick", "trick", "sneak");
-            if (Input.GetKeyDown(KeyCode.T))
+            if (_input != null && _input.ToggleHintsPressed) _showHints = !_showHints;
+            if (_input != null && _input.DodgePressed) Send("dodge");
+            if (_input != null && _input.QuickAttackPressed) Attack(0f, true);
+            if (_input != null && _input.TrickSandPressed) Send("trick", "trick", "sand");
+            if (_input != null && _input.TrickShovePressed) Send("trick", "trick", "shove");
+            if (_input != null && _input.TrickFeintPressed) Send("trick", "trick", "feint");
+            if (_input != null && _input.TrickBaitPressed) Send("trick", "trick", "bait");
+            if (_input != null && _input.TrickSneakPressed) Send("trick", "trick", "sneak");
+            if (_input != null && _input.CycleStancePressed)
             {
                 var stance = Str(Obj(_me, "combat"), "stance");
                 var next = stance == "balanced" ? "aggressive" : stance == "aggressive" ? "defensive" : "balanced";
@@ -677,7 +683,7 @@ namespace Pogranichye.Client
             if (cam == null) return false;
             var ray = _firstPerson || Cursor.lockState == CursorLockMode.Locked
                 ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f))
-                : cam.ScreenPointToRay(Input.mousePosition);
+                : cam.ScreenPointToRay(_input != null ? _input.PointerPosition : Vector2.zero);
             var hits = Physics.RaycastAll(ray, 140f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
             if (hits == null || hits.Length == 0) return false;
             Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
@@ -844,11 +850,12 @@ namespace Pogranichye.Client
         private void UpdateWeave()
         {
             for (var i = 0; i < Nodes.Length; i++)
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i) && _pattern.Count < MaxPattern()) _pattern.Add(Nodes[i]);
-            if (Input.GetKeyDown(KeyCode.Backspace) && _pattern.Count > 0) _pattern.RemoveAt(_pattern.Count - 1);
-            if (Input.GetMouseButtonDown(1)) { _pattern.Clear(); _weaveLastNode = -1; }
+                if (_input != null && _input.WeaveNodePressed(i) && _pattern.Count < MaxPattern()) _pattern.Add(Nodes[i]);
+            if (_input != null && _input.WeaveRemovePressed && _pattern.Count > 0) _pattern.RemoveAt(_pattern.Count - 1);
+            if (_input != null && _input.SecondaryPressed) { _pattern.Clear(); _weaveLastNode = -1; }
 
-            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            var pointer = _input != null ? _input.PointerPosition : Vector2.zero;
+            var mouse = new Vector2(pointer.x, Screen.height - pointer.y);
             var over = -1;
             for (var i = 0; i < Nodes.Length; i++)
                 if (Vector2.Distance(mouse, NodeCenter(i)) < 36f) over = i;
@@ -905,7 +912,8 @@ namespace Pogranichye.Client
         private void DrawWeave()
         {
             var center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            var pointer = _input != null ? _input.PointerPosition : Vector2.zero;
+            var mouse = new Vector2(pointer.x, Screen.height - pointer.y);
             var line = new Color(0.62f, 0.82f, 1f, 0.95f);
             for (var i = 1; i < _pattern.Count; i++)
                 DrawLine(NodeCenter(Array.IndexOf(Nodes, _pattern[i - 1])), NodeCenter(Array.IndexOf(Nodes, _pattern[i])), line, 3f);
