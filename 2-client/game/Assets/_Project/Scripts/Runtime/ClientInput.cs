@@ -52,7 +52,7 @@ namespace Pogranichye.Client
         private void Awake()
         {
             _actions = new InputActionMap("PogranichyeGameplay");
-            _move = _actions.AddAction("Move", InputActionType.Value, expectedControlType: "Vector2");
+            _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
             _move.AddCompositeBinding("2DVector")
                 .With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
                 .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
