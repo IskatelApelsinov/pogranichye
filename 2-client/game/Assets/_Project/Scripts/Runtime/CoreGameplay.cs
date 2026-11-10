@@ -34,6 +34,7 @@ namespace Pogranichye.Client
             public bool Aware;
             public string State;
             public float Punch; // seconds of the "got hit" squash
+            public ProceduralGait Gait;
         }
 
         private const float PendingTimeout = 6f;
@@ -376,6 +377,12 @@ namespace Pogranichye.Client
                     rec.Max = Mathf.Max(1f, Num(token, "max"));
                     rec.Aware = Flag(token, "aware");
                     rec.State = Str(token, "state");
+                    if (rec.Gait != null)
+                    {
+                        rec.Gait.Dead = rec.State == "dead";
+                        rec.Gait.Chasing = rec.State == "chase";
+                        rec.Gait.Eating = rec.State == "eat";
+                    }
                     rec.View.Dead = rec.State == "dead";
                 }
             }
@@ -405,6 +412,7 @@ namespace Pogranichye.Client
             view.Kind = kind;
             view.DisplayName = string.IsNullOrEmpty(displayName) ? kind : displayName;
 
+            _surface = kind == "bandit" ? "cloth" : "fur";
             if (kind == "bandit")
             {
                 view.Humanoid = true;
@@ -441,9 +449,14 @@ namespace Pogranichye.Client
                 Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.3f, 0f), new Vector3(width, height * 0.6f, len), color);
                 Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.5f, len * 0.62f), new Vector3(width * 0.75f, height * 0.45f, len * 0.32f), color);
                 var dark = new Color(0.17f, 0.14f, 0.11f);
-                for (var sx = -1; sx <= 1; sx += 2)
-                    for (var sz = -1; sz <= 1; sz += 2)
-                        Part(root.transform, PrimitiveType.Cube, new Vector3(sx * width * 0.36f, leg * 0.5f, sz * len * 0.36f), new Vector3(width * 0.22f, leg, width * 0.22f), dark);
+                var gait = root.AddComponent<ProceduralGait>();
+                gait.LegLength = leg;
+                gait.StrideDegrees = kind == "hare" ? 40f : kind == "bear" ? 20f : 28f;
+                for (var sz = 1; sz >= -1; sz -= 2)
+                    for (var sx = -1; sx <= 1; sx += 2)
+                        gait.Legs.Add(Part(root.transform, PrimitiveType.Cube, new Vector3(sx * width * 0.36f, leg * 0.5f, sz * len * 0.36f), new Vector3(width * 0.22f, leg, width * 0.22f), dark));
+                gait.Body = root.transform.GetChild(0);
+                gait.Head = root.transform.GetChild(1);
                 // species details: snout, ears, tail, eyes, tusks, hump — enough to tell them apart at a glance
                 var headY = leg + height * 0.5f;
                 var headZ = len * 0.62f;
@@ -461,25 +474,33 @@ namespace Pogranichye.Client
                     Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, leg + height * 0.62f, len * 0.18f), new Vector3(width * 0.9f, height * 0.5f, len * 0.5f), color);
                 var tailLength = kind == "fox" || kind == "wolf" ? len * 0.45f : len * 0.12f;
                 var tailColor = kind == "hare" ? Color.white : color;
-                Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.42f, -len * 0.5f - tailLength * 0.5f), new Vector3(width * 0.2f, width * 0.2f, tailLength), tailColor);
+                gait.Tail = Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.42f, -len * 0.5f - tailLength * 0.5f), new Vector3(width * 0.2f, width * 0.2f, tailLength), tailColor);
             }
 
-            return new FoeRec { Root = root, View = view };
+            return new FoeRec { Root = root, View = view, Gait = root.GetComponent<ProceduralGait>() };
         }
 
-        private void Part(Transform parent, PrimitiveType type, Vector3 position, Vector3 scale, Color color)
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+        private string _surface = "hide"; // which procedural detail texture the next parts get
+
+        private Transform Part(Transform parent, PrimitiveType type, Vector3 position, Vector3 scale, Color color)
         {
             var part = GameObject.CreatePrimitive(type); // keeps its collider: the aim ray needs it
             part.transform.SetParent(parent, false);
             part.transform.localPosition = position;
             part.transform.localScale = scale;
             var renderer = part.GetComponent<Renderer>();
-            if (renderer == null) return;
+            if (renderer == null) return part.transform;
             if (_block == null) _block = new MaterialPropertyBlock();
             renderer.GetPropertyBlock(_block);
             _block.SetColor(BaseColorId, color);
             _block.SetColor(ColorId, color);
+            var detail = ProceduralTextures.Get(_surface); // grain multiplied by the base colour
+            _block.SetTexture(BaseMapId, detail);
+            _block.SetTexture(MainTexId, detail);
             renderer.SetPropertyBlock(_block);
+            return part.transform;
         }
 
         // ------------------------------------------------------------------ feed
@@ -508,6 +529,7 @@ namespace Pogranichye.Client
                         : struck.Root.transform.position + Vector3.up * (struck.View.Height + 0.2f);
                     _floaters.Add(new Floater { World = anchor, Text = (hurtsMe ? "-" : "") + Mathf.RoundToInt(damage), At = Time.unscaledTime, Hurt = hurtsMe });
                     if (!hurtsMe) struck.Punch = 0.2f;
+                    else if (struck.Gait != null) struck.Gait.Lunge(); // the server confirmed this foe's hit
                 }
             }
             while (_feed.Count > 7) _feed.RemoveAt(0);
@@ -817,6 +839,7 @@ namespace Pogranichye.Client
             if (_mount == null)
             {
                 _mount = new GameObject("Player mount");
+                _surface = "fur";
                 var coat = new Color(0.42f, 0.27f, 0.16f);
                 var dark = new Color(0.16f, 0.11f, 0.08f);
                 Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, 0f), new Vector3(0.55f, 0.6f, 1.7f), coat);
@@ -824,9 +847,15 @@ namespace Pogranichye.Client
                 Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.85f, 1.25f), new Vector3(0.26f, 0.3f, 0.6f), coat);
                 Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.05f, -0.95f), new Vector3(0.1f, 0.6f, 0.1f), dark);
                 Part(_mount.transform, PrimitiveType.Cube, new Vector3(0f, 1.4f, 0f), new Vector3(0.6f, 0.08f, 0.6f), dark);
-                for (var sx = -1; sx <= 1; sx += 2)
-                    for (var sz = -1; sz <= 1; sz += 2)
-                        Part(_mount.transform, PrimitiveType.Cube, new Vector3(sx * 0.2f, 0.38f, sz * 0.65f), new Vector3(0.14f, 0.76f, 0.14f), dark);
+                var mountGait = _mount.AddComponent<ProceduralGait>();
+                mountGait.LegLength = 0.76f;
+                mountGait.StrideDegrees = 24f;
+                mountGait.Body = _mount.transform.GetChild(0);
+                mountGait.Head = _mount.transform.GetChild(2);
+                mountGait.Tail = _mount.transform.GetChild(3);
+                for (var sz = 1; sz >= -1; sz -= 2)
+                    for (var sx = -1; sx <= 1; sx += 2)
+                        mountGait.Legs.Add(Part(_mount.transform, PrimitiveType.Cube, new Vector3(sx * 0.2f, 0.38f, sz * 0.65f), new Vector3(0.14f, 0.76f, 0.14f), dark));
                 foreach (var collider in _mount.GetComponentsInChildren<Collider>()) Destroy(collider); // presentation only
             }
             _mount.SetActive(true);
