@@ -223,6 +223,11 @@ namespace Pogranichye.Client
             _feedSeq = 0;
             _me = null;
             _place = null;
+            _riderVisualRoot = null;
+            _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
+            _riderHomePositions = null;
+            _riderHomeRotations = null;
+            _riderHomeCaptured = false;
             _menuOpen = false;
             CloseWeave(false);
             _holding = false;
@@ -1095,7 +1100,8 @@ namespace Pogranichye.Client
         {
             var mounted = Flag(Obj(_me, "horse"), "mounted") && !_firstPerson;
             if (!_riderHomeCaptured) CaptureRiderHome();
-            if (!_riderHomeCaptured) return;
+            if (!_riderHomeCaptured || _riderBody == null || _riderHead == null ||
+                _riderLeftArm == null || _riderRightArm == null || _riderLeftLeg == null || _riderRightLeg == null) return;
             var parts = RiderParts();
             if (!mounted)
             {
