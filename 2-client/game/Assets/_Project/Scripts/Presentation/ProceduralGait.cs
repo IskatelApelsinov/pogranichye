@@ -31,6 +31,7 @@ namespace Pogranichye.Client.Presentation
         private float _phase;
         private float _lunge;
         private bool _captured;
+        private float _motionSeed;
 
         /// <summary>Plays a short forward lunge (call when a confirmed attack event arrives).</summary>
         public void Lunge()
@@ -50,6 +51,14 @@ namespace Pogranichye.Client.Presentation
                 _headRestRotation = Head.localRotation;
             }
             _lastPosition = transform.position;
+            // GetInstanceID is obsolete in current Unity 6. Derive a stable per-view phase instead.
+            unchecked
+            {
+                var hash = 17;
+                var objectName = gameObject.name;
+                for (var i = 0; i < objectName.Length; i++) hash = hash * 31 + objectName[i];
+                _motionSeed = hash * 0.0137f + transform.position.x * 1.71f + transform.position.z * 2.37f;
+            }
         }
 
         private void LateUpdate()
@@ -88,7 +97,7 @@ namespace Pogranichye.Client.Presentation
 
             _lunge = Mathf.Max(0f, _lunge - dt * 3.5f);
             var lunge = Mathf.Sin(_lunge * Mathf.PI) * 0.35f;
-            var breathe = Mathf.Sin(Time.time * 1.6f + GetInstanceID() * 0.37f) * 0.012f;
+            var breathe = Mathf.Sin(Time.time * 1.6f + _motionSeed) * 0.012f;
             var bob = Mathf.Abs(Mathf.Sin(_phase)) * 0.05f * moving * LegLength * 2f;
             if (Body != null) Body.localPosition = _bodyRest + new Vector3(0f, bob + breathe, lunge);
 
@@ -96,7 +105,7 @@ namespace Pogranichye.Client.Presentation
             {
                 var nod = Mathf.Sin(_phase * 2f) * 3f * moving;
                 var drop = Eating ? 55f : Chasing ? 14f : 0f;
-                var look = moving < 0.1f && !Eating ? Mathf.Sin(Time.time * 0.5f + GetInstanceID()) * 12f : 0f;
+                var look = moving < 0.1f && !Eating ? Mathf.Sin(Time.time * 0.5f + _motionSeed) * 12f : 0f;
                 Head.localRotation = _headRestRotation * Quaternion.Euler(drop + nod, look, 0f);
                 Head.localPosition = _headRest + new Vector3(0f, bob - (Eating ? LegLength * 0.6f : 0f), lunge);
             }
