@@ -273,9 +273,10 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
     else
       toast(gateTimeout.retried?'Ответ задерживается. Повторяю запрос с прежним ID…':'⚠ Сервер пока не подтвердил действие. Следующие действия удерживаются.');
   }
-  if(r && !resolved && (r.reqid+String(r.ok))!==lastResult && !resultGate.activeItem){
-    lastResult=r.reqid+String(r.ok);
-    if(!r.ok && r.reason) toast('⚠ '+r.reason);
+  if(r){
+    const resultKey=r.reqid+String(r.ok);
+    if(!resolved && !resultGate.activeItem && resultKey!==lastResult && !r.ok && r.reason) toast('⚠ '+r.reason);
+    lastResult=resultKey;
   }
 }
 function drawTask(s){ const t=(s.me||{}).task||{};
