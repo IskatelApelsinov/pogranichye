@@ -931,6 +931,11 @@ namespace Pogranichye.Client
 
         private GameObject _mount;
         private string _lastSiteSignature;
+        private Transform _riderVisualRoot;
+        private Transform _riderBody, _riderHead, _riderLeftArm, _riderRightArm, _riderLeftLeg, _riderRightLeg;
+        private Vector3[] _riderHomePositions;
+        private Quaternion[] _riderHomeRotations;
+        private bool _riderHomeCaptured;
 
         // Procedural low-poly horse: anatomical silhouette, articulated legs, mane, tack and saddle.
         // It remains presentation-only; ownership, stamina, inventory and mounting are server-owned.
@@ -1056,6 +1061,73 @@ namespace Pogranichye.Client
                     renderer.SetPropertyBlock(block);
                 }
             }
+        }
+
+        private void CaptureRiderHome()
+        {
+            if (_riderHomeCaptured || _player == null) return;
+            _riderVisualRoot = _player.Find("PlayerVisualRoot");
+            if (_riderVisualRoot == null) return;
+            _riderBody = _riderVisualRoot.Find("Body");
+            _riderHead = _riderVisualRoot.Find("Head");
+            _riderLeftArm = _riderVisualRoot.Find("Left arm");
+            _riderRightArm = _riderVisualRoot.Find("Right arm");
+            _riderLeftLeg = _riderVisualRoot.Find("Left leg");
+            _riderRightLeg = _riderVisualRoot.Find("Right leg");
+            var parts = RiderParts();
+            _riderHomePositions = new Vector3[parts.Length];
+            _riderHomeRotations = new Quaternion[parts.Length];
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (parts[i] == null) continue;
+                _riderHomePositions[i] = parts[i].localPosition;
+                _riderHomeRotations[i] = parts[i].localRotation;
+            }
+            _riderHomeCaptured = true;
+        }
+
+        private Transform[] RiderParts()
+        {
+            return new[] { _riderVisualRoot, _riderBody, _riderHead, _riderLeftArm, _riderRightArm, _riderLeftLeg, _riderRightLeg };
+        }
+
+        private void ApplyRiderPose()
+        {
+            var mounted = Flag(Obj(_me, "horse"), "mounted") && !_firstPerson;
+            if (!_riderHomeCaptured) CaptureRiderHome();
+            if (!_riderHomeCaptured) return;
+            var parts = RiderParts();
+            if (!mounted)
+            {
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    if (parts[i] == null) continue;
+                    parts[i].localPosition = _riderHomePositions[i];
+                    parts[i].localRotation = _riderHomeRotations[i];
+                }
+                return;
+            }
+
+            // Presentation-only seated pose. The networked entity root and camera target stay
+            // at the authoritative ground position; only the visible rig is reshaped.
+            _riderVisualRoot.localPosition = new Vector3(0f, 0.34f, 0f);
+            _riderBody.localPosition = new Vector3(0f, 1.02f, 0f);
+            _riderBody.localRotation = Quaternion.Euler(8f, 0f, 0f);
+            _riderHead.localPosition = new Vector3(0f, 1.68f, 0.03f);
+            _riderHead.localRotation = Quaternion.Euler(-5f, 0f, 0f);
+            _riderLeftArm.localPosition = new Vector3(-0.34f, 1.22f, 0.16f);
+            _riderRightArm.localPosition = new Vector3(0.34f, 1.22f, 0.16f);
+            _riderLeftArm.localRotation = Quaternion.Euler(58f, 0f, -7f);
+            _riderRightArm.localRotation = Quaternion.Euler(58f, 0f, 7f);
+            _riderLeftLeg.localPosition = new Vector3(-0.22f, 0.48f, 0.1f);
+            _riderRightLeg.localPosition = new Vector3(0.22f, 0.48f, 0.1f);
+            _riderLeftLeg.localRotation = Quaternion.Euler(82f, 0f, -12f);
+            _riderRightLeg.localRotation = Quaternion.Euler(82f, 0f, 12f);
+        }
+
+        private void LateUpdate()
+        {
+            if (_active && _me != null) ApplyRiderPose();
         }
 
         private void UpdateHandLight()
