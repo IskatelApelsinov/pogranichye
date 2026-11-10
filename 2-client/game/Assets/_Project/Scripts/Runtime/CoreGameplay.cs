@@ -104,6 +104,7 @@ namespace Pogranichye.Client
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
+        private readonly Dictionary<string, GameObject> _exitViews = new Dictionary<string, GameObject>();
         private readonly HashSet<string> _seen = new HashSet<string>();
         private readonly List<string> _stale = new List<string>();
         private Transform _foeRoot;
@@ -176,6 +177,7 @@ namespace Pogranichye.Client
             _place = Obj(root, "place");
             if (root["hour"] != null) _hour = (int)Num(root, "hour");
             SyncFoes(Arr(_place, "foes"));
+            SyncExits(Arr(_place, "exits"));
             ReadFeed(Arr(_me, "feed"));
             ReadResult();
         }
@@ -193,7 +195,11 @@ namespace Pogranichye.Client
                     _me[property.Name] = property.Value;
             }
             var place = Obj(root, "place");
-            if (place != null) SyncFoes(Arr(place, "foes"));
+            if (place != null)
+            {
+                SyncFoes(Arr(place, "foes"));
+                SyncExits(Arr(place, "exits"));
+            }
             ReadFeed(Arr(_me, "feed"));
             ReadResult();
         }
@@ -203,6 +209,8 @@ namespace Pogranichye.Client
             foreach (var pair in _foes)
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
             _foes.Clear();
+            foreach (var view in _exitViews.Values) if (view != null) Destroy(view);
+            _exitViews.Clear();
             _feed.Clear();
             _floaters.Clear();
             if (_gate != null) _gate.Clear();
@@ -395,6 +403,99 @@ namespace Pogranichye.Client
                 if (_foes[id].Root != null) Destroy(_foes[id].Root);
                 _foes.Remove(id);
             }
+        }
+
+        // Settlement exits are authoritative scene anchors from place.exits. The client only
+        // decorates these exact points; it never invents a destination or enables op:"travel".
+        private void SyncExits(JArray exits)
+        {
+            var active = new HashSet<string>();
+            if (exits != null)
+            {
+                foreach (var token in exits)
+                {
+                    var id = Str(token, "to");
+                    if (string.IsNullOrEmpty(id)) continue;
+                    active.Add(id);
+                    GameObject root;
+                    if (!_exitViews.TryGetValue(id, out root) || root == null)
+                    {
+                        root = BuildExitView(id);
+                        _exitViews[id] = root;
+                    }
+
+                    var x = Num(token, "x");
+                    var z = Num(token, "y");
+                    root.transform.position = new Vector3(x, 0f, z);
+                    var inward = new Vector3(-x, 0f, -z);
+                    if (inward.sqrMagnitude < 0.01f) inward = Vector3.forward;
+                    root.transform.rotation = Quaternion.LookRotation(inward.normalized, Vector3.up);
+                    var pass = Str(token, "kind") == "pass";
+                    var label = Str(token, "name");
+                    if (string.IsNullOrEmpty(label)) label = pass ? "Перевал" : "Тракт";
+                    var text = root.GetComponentInChildren<TextMesh>();
+                    if (text != null) text.text = label;
+                    var marker = root.transform.Find("Pass marker");
+                    if (marker != null) marker.gameObject.SetActive(pass);
+                }
+            }
+
+            var stale = new List<string>();
+            foreach (var pair in _exitViews)
+                if (!active.Contains(pair.Key)) stale.Add(pair.Key);
+            foreach (var id in stale)
+            {
+                if (_exitViews[id] != null) Destroy(_exitViews[id]);
+                _exitViews.Remove(id);
+            }
+        }
+
+        private GameObject BuildExitView(string destinationId)
+        {
+            var root = new GameObject("Settlement exit " + destinationId);
+            root.transform.SetParent(transform, true);
+            var wood = new Color(0.27f, 0.17f, 0.1f);
+            var pale = new Color(0.72f, 0.61f, 0.42f);
+            CreateExitPart(root.transform, new Vector3(-1.15f, 1.35f, 0f), new Vector3(0.22f, 2.7f, 0.24f), wood);
+            CreateExitPart(root.transform, new Vector3(1.15f, 1.35f, 0f), new Vector3(0.22f, 2.7f, 0.24f), wood);
+            CreateExitPart(root.transform, new Vector3(0f, 2.62f, 0f), new Vector3(2.5f, 0.24f, 0.28f), wood);
+            CreateExitPart(root.transform, new Vector3(0f, 0.045f, -2.4f), new Vector3(2.3f, 0.08f, 4.8f), new Color(0.34f, 0.28f, 0.19f));
+            var marker = CreateExitPart(root.transform, new Vector3(0f, 3.05f, 0f), new Vector3(0.34f, 0.55f, 0.34f), pale);
+            marker.name = "Pass marker";
+            marker.SetActive(false);
+
+            var labelObject = new GameObject("Exit label");
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = new Vector3(0f, 3.35f, 0.08f);
+            var mesh = labelObject.AddComponent<TextMesh>();
+            mesh.text = "Тракт";
+            mesh.fontSize = 48;
+            mesh.characterSize = 0.075f;
+            mesh.anchor = TextAnchor.MiddleCenter;
+            mesh.alignment = TextAlignment.Center;
+            mesh.color = new Color(0.94f, 0.87f, 0.68f);
+            foreach (var collider in root.GetComponentsInChildren<Collider>()) Destroy(collider);
+            return root;
+        }
+
+        private static Transform CreateExitPart(Transform parent, Vector3 localPosition, Vector3 scale, Color color)
+        {
+            var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localScale = scale;
+            var renderer = part.GetComponent<Renderer>();
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (renderer != null && shader != null)
+            {
+                var material = new Material(shader);
+                if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+                else if (material.HasProperty("_Color")) material.color = color;
+                renderer.sharedMaterial = material;
+            }
+            var collider = part.GetComponent<Collider>();
+            if (collider != null) Destroy(collider);
+            return part.transform;
         }
 
         private FoeRec CreateFoe(string id, string kind, string displayName)
@@ -1229,6 +1330,16 @@ namespace Pogranichye.Client
             GUILayout.EndArea();
         }
 
+        private bool HasFeature(string feature)
+        {
+            var site = Obj(_place, "site");
+            var features = Arr(site, "features");
+            if (features == null) return true; // older frame: preserve legacy affordances
+            foreach (var value in features)
+                if (string.Equals(value.ToString(), feature, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
         private bool Near(string poi, float radius)
         {
             Vector2 anchor;
@@ -1279,11 +1390,11 @@ namespace Pogranichye.Client
                 GUI.enabled = true;
                 GUILayout.EndHorizontal();
             }
-            if (Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
-            if (Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
+            if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
+            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
-            if (Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
-            if (Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
+            if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
+            if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
             foreach (var pair in TakeAt)
                 if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
                     Ask("Взять", "take", "item", pair.Key);
@@ -1483,6 +1594,7 @@ namespace Pogranichye.Client
             var nodes = Arr(region, "nodes");
             var roads = Arr(region, "roads");
             if (nodes == null) return;
+            DrawRegionMap(nodes, roads);
             foreach (var node in nodes)
             {
                 var id = Str(node, "id");
@@ -1500,6 +1612,76 @@ namespace Pogranichye.Client
                     Ask("Дорога", "journey", "target", id);
                     _menuOpen = false;
                 }
+            }
+        }
+
+        // The regional map is a projection of me.region only. Coordinates and edges are
+        // server supplied; absent settlements stay in the fog and unknown nodes are nameless.
+        private void DrawRegionMap(JArray nodes, JArray roads)
+        {
+            var rect = GUILayoutUtility.GetRect(420f, 190f, GUILayout.ExpandWidth(true));
+            GUI.Box(rect, GUIContent.none);
+            var points = new Dictionary<string, Vector2>();
+            var minX = float.MaxValue;
+            var maxX = float.MinValue;
+            var minY = float.MaxValue;
+            var maxY = float.MinValue;
+            foreach (var node in nodes)
+            {
+                var id = Str(node, "id");
+                var x = Num(node, "x");
+                var y = Num(node, "y");
+                points[id] = new Vector2(x, y);
+                minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
+                minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
+            }
+            if (points.Count == 0) return;
+            var inner = new Rect(rect.x + 18f, rect.y + 24f, rect.width - 36f, rect.height - 42f);
+            const float pad = 18f;
+            var spanX = Mathf.Max(1f, maxX - minX);
+            var spanY = Mathf.Max(1f, maxY - minY);
+            Vector2 Project(JToken node)
+            {
+                var x = Num(node, "x");
+                var y = Num(node, "y");
+                return new Vector2(inner.x + pad + (x - minX) / spanX * Mathf.Max(1f, inner.width - pad * 2f),
+                    inner.yMax - pad - (y - minY) / spanY * Mathf.Max(1f, inner.height - pad * 2f));
+            }
+
+            if (roads != null)
+            {
+                foreach (var road in roads)
+                {
+                    Vector2 a, b;
+                    if (!points.TryGetValue(Str(road, "a"), out a) || !points.TryGetValue(Str(road, "b"), out b)) continue;
+                    var delta = b - a;
+                    var length = delta.magnitude;
+                    if (length < 1f) continue;
+                    var previous = GUI.color;
+                    GUI.color = new Color(0.58f, 0.48f, 0.32f, 0.9f);
+                    var matrix = GUI.matrix;
+                    GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, a);
+                    GUI.DrawTexture(new Rect(a.x, a.y - 1.5f, length, 3f), Texture2D.whiteTexture);
+                    GUI.matrix = matrix;
+                    GUI.color = previous;
+                }
+            }
+
+            foreach (var node in nodes)
+            {
+                var state = Str(node, "state");
+                var point = Project(node);
+                var previous = GUI.color;
+                GUI.color = state == "here" ? new Color(0.95f, 0.78f, 0.35f)
+                    : state == "visited" ? new Color(0.65f, 0.78f, 0.55f)
+                    : state == "known" ? new Color(0.58f, 0.7f, 0.83f)
+                    : new Color(0.55f, 0.53f, 0.48f);
+                GUI.DrawTexture(new Rect(point.x - 5f, point.y - 5f, 10f, 10f), Texture2D.whiteTexture);
+                GUI.color = previous;
+                var label = state == "unknown" ? "?" : Str(node, "name");
+                if (state == "here") label = "Ты";
+                if (!string.IsNullOrEmpty(label))
+                    GUI.Label(new Rect(point.x + 7f, point.y - 10f, 130f, 20f), label);
             }
         }
 
