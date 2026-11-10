@@ -741,6 +741,7 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             AddBaseClothingDetails(visualRoot, id);
+            if (!isPlayer) AddRoleWorkwear(visualRoot, role, id);
             AddFaceDetails(visualRoot, id, isPlayer);
             AddRoleAccessories(visualRoot, role);
 
@@ -907,6 +908,81 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.105f, 1.59f, 0.171f), new Vector3(0.009f, 0.065f, 0.012f));
                 scar.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
                 ApplyColor(scar.GetComponent<Renderer>(), Color.Lerp(skin, new Color(0.34f, 0.17f, 0.13f), 0.42f));
+            }
+        }
+
+        // Workwear gives professions a readable silhouette before the player knows an NPC's name.
+        // All variants are derived from stable entity IDs; no random state or wire fields are needed.
+        private void AddRoleWorkwear(Transform root, string role, ulong id)
+        {
+            var normalized = (role ?? string.Empty).ToLowerInvariant();
+            var wear = (float)((id / 5UL) % 4UL) * 0.035f;
+            switch (normalized)
+            {
+                case "smith":
+                {
+                    var leather = Color.Lerp(new Color(0.16f, 0.105f, 0.065f), new Color(0.31f, 0.20f, 0.12f), wear * 5f);
+                    var apron = CreatePart("Workwear • smith leather apron", PrimitiveType.Cube, root,
+                        new Vector3(0f, 0.82f, 0.177f), new Vector3(0.31f, 0.48f, 0.045f));
+                    ApplyColor(apron.GetComponent<Renderer>(), leather);
+                    var bib = CreatePart("Workwear • smith apron bib", PrimitiveType.Cube, root,
+                        new Vector3(0f, 1.12f, 0.17f), new Vector3(0.25f, 0.20f, 0.04f));
+                    ApplyColor(bib.GetComponent<Renderer>(), leather);
+                    for (var side = -1; side <= 1; side += 2)
+                    {
+                        var strap = CreatePart("Workwear • smith shoulder strap", PrimitiveType.Cube, root,
+                            new Vector3(side * 0.15f, 1.22f, 0.06f), new Vector3(0.045f, 0.25f, 0.035f));
+                        strap.transform.localRotation = Quaternion.Euler(0f, 0f, side * -18f);
+                        ApplyColor(strap.GetComponent<Renderer>(), new Color(0.12f, 0.08f, 0.05f));
+                    }
+                    break;
+                }
+                case "cook":
+                {
+                    var linen = Color.Lerp(new Color(0.66f, 0.59f, 0.46f), new Color(0.82f, 0.76f, 0.63f), wear * 5f);
+                    var apron = CreatePart("Workwear • cook linen apron", PrimitiveType.Cube, root,
+                        new Vector3(0f, 0.80f, 0.177f), new Vector3(0.30f, 0.43f, 0.035f));
+                    ApplyColor(apron.GetComponent<Renderer>(), linen);
+                    var pocket = CreatePart("Workwear • cook apron pocket", PrimitiveType.Cube, root,
+                        new Vector3(0f, 0.78f, 0.199f), new Vector3(0.15f, 0.12f, 0.012f));
+                    ApplyColor(pocket.GetComponent<Renderer>(), new Color(0.48f, 0.39f, 0.28f));
+                    break;
+                }
+                case "farmer":
+                {
+                    var cloth = Color.Lerp(new Color(0.28f, 0.31f, 0.18f), new Color(0.48f, 0.39f, 0.23f), wear * 5f);
+                    var apron = CreatePart("Workwear • farmer field apron", PrimitiveType.Cube, root,
+                        new Vector3(0f, 0.79f, 0.176f), new Vector3(0.32f, 0.40f, 0.035f));
+                    ApplyColor(apron.GetComponent<Renderer>(), cloth);
+                    var shoulder = CreatePart("Workwear • farmer shoulder cloth", PrimitiveType.Capsule, root,
+                        new Vector3(0f, 1.25f, -0.015f), new Vector3(0.38f, 0.12f, 0.24f));
+                    ApplyColor(shoulder.GetComponent<Renderer>(), Color.Lerp(cloth, new Color(0.18f, 0.20f, 0.13f), 0.35f));
+                    break;
+                }
+                case "fisher":
+                {
+                    var sash = CreatePart("Workwear • fisher crossbody sash", PrimitiveType.Cube, root,
+                        new Vector3(0.02f, 1.00f, 0.18f), new Vector3(0.075f, 0.70f, 0.035f));
+                    sash.transform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+                    ApplyColor(sash.GetComponent<Renderer>(), new Color(0.18f, 0.29f, 0.34f));
+                    var cuff = CreatePart("Workwear • fisher cuff", PrimitiveType.Cylinder, root,
+                        new Vector3(0.33f, 0.68f, 0f), new Vector3(0.17f, 0.055f, 0.17f));
+                    cuff.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    ApplyColor(cuff.GetComponent<Renderer>(), new Color(0.22f, 0.31f, 0.34f));
+                    break;
+                }
+                case "hunter":
+                {
+                    var leather = new Color(0.23f, 0.20f, 0.13f);
+                    var mantle = CreatePart("Workwear • hunter shoulder mantle", PrimitiveType.Capsule, root,
+                        new Vector3(0f, 1.23f, -0.04f), new Vector3(0.42f, 0.17f, 0.28f));
+                    ApplyColor(mantle.GetComponent<Renderer>(), leather);
+                    var strap = CreatePart("Workwear • hunter chest strap", PrimitiveType.Cube, root,
+                        new Vector3(-0.03f, 1.00f, 0.18f), new Vector3(0.07f, 0.56f, 0.035f));
+                    strap.transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
+                    ApplyColor(strap.GetComponent<Renderer>(), new Color(0.14f, 0.11f, 0.075f));
+                    break;
+                }
             }
         }
 
