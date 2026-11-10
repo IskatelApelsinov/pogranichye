@@ -143,3 +143,15 @@ func (c *BodyC) Heal(rest bool, medicine float64, s *dice.Stream) float64 {
 	lost += c.Infection * 0.25 // гниющая рана точит здоровье, пока её не вычистят
 	return lost
 }
+
+// HurtPart — прицельная рана в КОНКРЕТНУЮ часть тела (бой от первого лица: куда попали, туда и легло).
+// Неизвестная часть считается корпусом.
+func (c *BodyC) HurtPart(part string, amount float64) {
+	if c == nil || amount <= 0 {
+		return
+	}
+	if _, ok := partMax[part]; !ok {
+		part = "torso"
+	}
+	c.hurt(part, amount)
+}

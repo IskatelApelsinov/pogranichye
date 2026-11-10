@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"strconv"
 
 	"pogranichye/arcane"
@@ -44,14 +45,20 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if v == nil {
 			return
 		}
+		// LoD по «температуре» области (heat.go): далёким от игроков нужды считаем реже, но одним
+		// шагом на k часов — итог тот же, работы меньше. k==0 — не его очередь в этот час.
+		k := lodStep(w, e, clock.TotalHours)
+		if k == 0 {
+			return
+		}
 		m := core.Mind(e)
 		resting := night || (m != nil && m.Goal == mind.GoalRest)
 
-		v.Hunger = clamp(v.Hunger+hungerPerHour, 0, 100)
+		v.Hunger = clamp(v.Hunger+hungerPerHour*k, 0, 100)
 		if resting {
-			v.Energy = clamp(v.Energy+3.0, 0, 100)
+			v.Energy = clamp(v.Energy+3.0*k, 0, 100)
 		} else {
-			v.Energy = clamp(v.Energy-energyPerHour, 0, 100)
+			v.Energy = clamp(v.Energy-energyPerHour*k, 0, 100)
 		}
 
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
@@ -75,14 +82,14 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		// здоровье: гибнет от сильного голода/истощения, иначе медленно восстанавливается
 		switch {
 		case v.Hunger >= 95 || v.Energy <= 2:
-			v.Health = clamp(v.Health-2.5, 0, 100)
+			v.Health = clamp(v.Health-2.5*k, 0, 100)
 		case v.Hunger < 60 && v.Energy > 30:
-			v.Health = clamp(v.Health+0.6, 0, 100)
+			v.Health = clamp(v.Health+0.6*k, 0, 100)
 		}
 
 		// настрой тянется к цели, заданной нуждами (сытость/силы/здоровье)
 		target := 0.4*(100-v.Hunger) + 0.3*v.Energy + 0.3*v.Health
-		v.Morale = clamp(v.Morale+(target-v.Morale)*0.05, 0, 100)
+		v.Morale = clamp(v.Morale+(target-v.Morale)*(1-math.Pow(0.95, k)), 0, 100)
 	})
 }
 

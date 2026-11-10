@@ -72,10 +72,122 @@
       }
     ],
     "result": null,
-    "task": { "stage": 1, "met": false, "worked": false, "drank": false, "done": false, "text": "Познакомься с кем-нибудь из жителей (💬)." },
+    "task": {
+      "stage": 1,
+      "met": false,
+      "worked": false,
+      "drank": false,
+      "done": false,
+      "text": "Познакомься с кем-нибудь из жителей (💬)."
+    },
     "journal": [
-      { "seq": 1, "day": 40, "kind": "met", "text": "Познакомился с жителем деревни." }
-    ]
+      {
+        "seq": 1,
+        "day": 40,
+        "kind": "met",
+        "text": "Познакомился с жителем деревни."
+      }
+    ],
+    "weave": {
+      "nodes": [
+        {
+          "id": "knot",
+          "name": "узел",
+          "hint": "источник: сила плетения"
+        }
+      ],
+      "capacity": 4,
+      "max_len": 12,
+      "known": [
+        {
+          "name": "Искра",
+          "nodes": [
+            "knot",
+            "barb",
+            "seal"
+          ]
+        }
+      ]
+    },
+    "combat": {
+      "stance": "balanced",
+      "guard": false,
+      "sneak": false,
+      "feint": false,
+      "cd": 0,
+      "shield": 0,
+      "light": 0,
+      "arrows": 4,
+      "weapon": "sword",
+      "kills": {
+        "wolf": 1
+      },
+      "ko": 0
+    },
+    "feed": [
+      {
+        "seq": 3,
+        "kind": "hit",
+        "text": "Попал: волк, корпус.",
+        "foe": "901",
+        "part": "torso",
+        "dmg": 12
+      }
+    ],
+    "quests": {
+      "offers": [
+        {
+          "id": "cull:wolf:2:18",
+          "kind": "cull",
+          "via": "board",
+          "giver": "7",
+          "giver_name": "староста",
+          "species": "wolf",
+          "qty": 2,
+          "text": "Волки режут скот у самой околицы. Убей двух.",
+          "coins": 8
+        }
+      ],
+      "active": [
+        {
+          "id": "wood:2:18",
+          "kind": "deliver",
+          "via": "board",
+          "giver": "7",
+          "giver_name": "староста",
+          "text": "Дровяник пуст, а ночи холодны. Нужно 4 охапки дров.",
+          "good": "wood",
+          "species": "",
+          "qty": 4,
+          "have": 1,
+          "ready": false,
+          "coins": 4
+        }
+      ],
+      "done": 0,
+      "rep": 0
+    },
+    "recipes": [
+      {
+        "id": "sword",
+        "name": "Сковать меч",
+        "at": "smithy",
+        "needs": {
+          "metal": 2,
+          "wood": 1
+        },
+        "gives": "sword",
+        "qty": 1,
+        "can": false,
+        "here": false
+      }
+    ],
+    "journey": null,
+    "party": {
+      "leader": "",
+      "members": [],
+      "invite_from": null
+    }
   },
   "place": {
     "name": "Белогорье",
@@ -96,15 +208,46 @@
         "trait": "тихий",
         "act": "отдыхает",
         "want": "при деле",
-        "gear": { "hand": "", "worn": {} },
+        "gear": {
+          "hand": "",
+          "worn": {}
+        },
         "act_code": "rest_idle",
         "player": false,
         "pos": {
           "x": 5.2,
           "y": -3.1,
           "facing": 210
-        }
+        },
+        "casting": ""
+      }
+    ],
+    "foes": [
+      {
+        "id": "901",
+        "kind": "wolf",
+        "name": "волк",
+        "x": -110.5,
+        "y": 20.1,
+        "facing": 90,
+        "hp": 30,
+        "max": 30,
+        "state": "roam",
+        "aware": false,
+        "slow": false,
+        "weak": false,
+        "blind": false,
+        "stun": false
+      }
+    ],
+    "market": [
+      {
+        "good": "bread",
+        "stock": 248,
+        "price": 0.4,
+        "sell": 0.4
       }
     ]
-  }
+  },
+  "hour": 14
 }

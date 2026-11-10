@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,7 +35,15 @@ type Server struct {
 
 	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
 	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
+
+	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
+	hot, warm, cold int
+	lastStepMs      float64
 }
+
+// fastEach — шаг РЕАЛЬНОГО времени (бой, ходьба НПС, дорога, мана): чаще игрового часа, чтобы бой от
+// первого лица был отзывчивым. Игровой час (нужды/экономика) идёт своим темпом tickEach.
+const fastEach = 100 * time.Millisecond
 
 // New создаёт сервер: генерирует мир и службу аккаунтов.
 // SetTick задаёт темп мира (сколько реального времени на один игровой час). Для демо-профиля можно
@@ -78,6 +87,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/ws", s.handleWS)
 	mux.HandleFunc("/api/layout", s.handleLayout)
+	mux.HandleFunc("/api/stats", s.handleStats)
 	mux.HandleFunc("/", s.handleIndex)
 	return mux
 }
@@ -98,16 +108,47 @@ func (s *Server) Step() {
 
 func (s *Server) tickLoop() {
 	t := time.NewTicker(s.tickEach)
+	f := time.NewTicker(fastEach)
 	defer t.Stop()
-	for range t.C {
-		s.mu.Lock()
-		s.runner.Step(s.world) // игровой час: нужды/цели/экономика
-		// физический шаг ходьбы НПС — в РЕАЛЬНОМ времени (длительность тика), отдельно от игровых
-		// часов; тела под управлением игроков пропускаем (их ведёт сам игрок).
-		sim.StepNPCMovement(s.world, s.tickEach.Seconds(), func(id core.ID) bool { return s.ctl[id] != 0 })
-		sim.RegenMana(s.world, s.tickEach.Seconds()) // мана игроков восстанавливается в реальном времени
-		s.mu.Unlock()
+	defer f.Stop()
+	for {
+		select {
+		case <-t.C:
+			s.mu.Lock()
+			t0 := time.Now()
+			s.runner.Step(s.world) // игровой час: нужды/цели/экономика
+			s.lastStepMs = float64(time.Since(t0).Microseconds()) / 1000
+			s.mu.Unlock()
+		case <-f.C:
+			s.mu.Lock()
+			s.fastStep(fastEach.Seconds())
+			s.mu.Unlock()
+		}
 	}
+}
+
+// fastStep — один шаг реального времени (под замком): температура областей, ходьба НПС горячих
+// поселений, враги и бой, путники, мана. Вынесен отдельно — его же зовут тесты.
+func (s *Server) fastStep(dt float64) {
+	ctl := func(id core.ID) bool { return s.ctl[id] != 0 }
+	s.hot, s.warm, s.cold = sim.UpdateHeat(s.world, ctl)
+	// тела под управлением игроков пропускаем (их ведёт сам игрок)
+	sim.StepNPCMovement(s.world, dt, ctl)
+	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
+	sim.StepJourneys(s.world, dt)
+	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
+}
+
+// handleStats — диагностика нагрузки: сколько сущностей, как распределена «температура» областей.
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	foes := 0
+	s.world.Each("foe", func(*core.Entity) { foes++ })
+	out := map[string]any{"entities": s.world.Count(), "players": len(s.ctl), "foes": foes,
+		"hot": s.hot, "warm": s.warm, "cold": s.cold, "hour_ms": s.lastStepMs,
+		"day": s.runner.Clock.Day(), "hour": s.runner.Clock.Hour()}
+	s.mu.Unlock()
+	writeJSON(w, out)
 }
 
 // --- HTTP: аккаунты ---
@@ -193,6 +234,8 @@ func (s *Server) release(cid core.ID, sid uint64) {
 		}
 		sim.ClearCoDrink(s.world, e) // снять приглашение выпить с ушедшего и его партнёра
 		sim.EndTalk(e)               // закрыть разговор
+		sim.PartyLeave(s.world, e)   // ушёл из мира — вышел из отряда
+		sim.SetGuard(s.world, e, false)
 	}
 }
 
@@ -244,9 +287,19 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// поток состояния: картина вокруг персонажа ~раз в секунду
+	// поток состояния: полная картина ~раз в секунду. Клиент первого лица может попросить ещё и
+	// БЫСТРЫЕ кадры (?fast=N, 2..15 Гц): лёгкий срез «тело/враги/соседи» между полными — для боя.
 	tick := time.NewTicker(1 * time.Second)
 	defer tick.Stop()
+	var fastC <-chan time.Time
+	if hz, _ := strconv.Atoi(r.URL.Query().Get("fast")); hz >= 2 {
+		if hz > 15 {
+			hz = 15
+		}
+		ft := time.NewTicker(time.Second / time.Duration(hz))
+		defer ft.Stop()
+		fastC = ft.C
+	}
 	_ = conn.WriteText(s.stateJSON(cid)) // первый кадр сразу
 	for {
 		select {
@@ -254,6 +307,10 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-tick.C:
 			if err := conn.WriteText(s.stateJSON(cid)); err != nil {
+				return
+			}
+		case <-fastC:
+			if err := conn.WriteText(s.fastJSON(cid)); err != nil {
 				return
 			}
 		}
@@ -284,9 +341,21 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		// навигация менеджмент-клиента v1.6: дискретный переход в локацию
 		Location string `json:"location"`
 		// расширение v1.7: инвентарь/рынок/путешествия
-		Good string `json:"good"`
-		Side string `json:"side"`
-		Qty  int    `json:"qty"`
+		Good   string   `json:"good"`
+		Side   string   `json:"side"`
+		Qty    int      `json:"qty"`    // ядро v1.10: плетения, бой, хитрости, просьбы, ремесло, дорога, отряд
+		Nodes  []string `json:"nodes"`  // узор плетения
+		Aim    string   `json:"aim"`    // часть тела: head|torso|arm|leg
+		Style  string   `json:"style"`  // стиль удара
+		Acc    float64  `json:"acc"`    // точность 0..1 (прицельный клиент)
+		Power  float64  `json:"power"`  // натяжение/замах 0..1
+		Aimed  bool     `json:"aimed"`  // клиент целился сам (первое лицо)
+		On     bool     `json:"on"`     // блок вкл/выкл
+		Stance string   `json:"stance"` // стойка
+		Trick  string   `json:"trick"`  // хитрость
+		Choice string   `json:"choice"` // решение на встрече в пути
+		Quest  string   `json:"quest"`  // id просьбы
+
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -307,8 +376,10 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "move":
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			p := sim.EnsureScenePos(s.world, e)
-			sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
+			if !sim.OnRoad(e) {
+				p := sim.EnsureScenePos(s.world, e)
+				sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
+			}
 		}
 		s.mu.Unlock()
 	case "buy":
@@ -324,7 +395,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if in.Item == "beer" {
 			s.mu.Lock()
 			if e := s.world.Get(cid); e != nil {
-				rok, rwhy := sim.DrinkBeer(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.DrinkBeer(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 			s.mu.Unlock()
 		}
@@ -333,24 +405,37 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			switch in.Action {
 			case "chop":
-				rok, rwhy := sim.ChopWood(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.ChopWood(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fish":
-				rok, rwhy := sim.FishCatch(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.FishCatch(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "cast":
-				rok, rwhy := sim.CastSpark(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.CastSpark(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "build":
-				rok, rwhy := sim.Build(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.Build(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "hunt":
-				rok, rwhy := sim.Hunt(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.Hunt(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fight":
-				rok, rwhy := sim.Fight(s.world, e, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+				rok, rwhy := sim.Fight(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "mine":
+				rok, rwhy := sim.Mine(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "gather":
+				rok, rwhy := sim.Gather(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()
 	case "take": // подобрать предмет (v1.7)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			rok, rwhy := sim.Take(s.world, e, in.Item, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			rok, rwhy := sim.Take(s.world, e, in.Item, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "equip":
@@ -368,7 +453,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "trade": // рынок: купить/продать (v1.7)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			rok, rwhy := sim.Trade(s.world, e, in.Good, in.Side, in.Qty, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			rok, rwhy := sim.Trade(s.world, e, in.Good, in.Side, in.Qty, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "travel": // перейти в другое поселение (v1.7)
@@ -380,7 +466,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "goto": // дискретная навигация менеджмент-клиента: встать в локацию (v1.6)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.GoTo(s.world, e, in.Location)
+			if !sim.OnRoad(e) {
+				sim.GoTo(s.world, e, in.Location)
+			}
 		}
 		s.mu.Unlock()
 	case "talk": // заговорить с жителем рядом (v1.4)
@@ -392,7 +480,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "say": // выбрать реплику в разговоре (знакомство/угощение)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			rok, rwhy := sim.Say(s.world, e, in.Line, in.ReqID); sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			rok, rwhy := sim.Say(s.world, e, in.Line, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "endtalk":
@@ -419,6 +508,84 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			sim.ClearCoDrink(s.world, e)
 		}
 		s.mu.Unlock()
+	default:
+		s.applyCore(cid, in.Op, coreIntent{Nodes: in.Nodes, Target: in.Target, ReqID: in.ReqID, Aim: in.Aim,
+			Style: in.Style, Acc: in.Acc, Power: in.Power, Aimed: in.Aimed, On: in.On, Stance: in.Stance,
+			Trick: in.Trick, Choice: in.Choice, Quest: in.Quest, Action: in.Action, Item: in.Item})
+	}
+}
+
+// coreIntent — поля намерений ядра v1.10 (плетения/бой/просьбы/ремесло/дорога/отряд).
+type coreIntent struct {
+	Nodes                                                   []string
+	Target, ReqID, Aim, Style, Stance, Trick, Choice, Quest string
+	Action, Item                                            string
+	Acc, Power                                              float64
+	Aimed, On                                               bool
+}
+
+// applyCore — намерения ядра v1.10. Всё серверно-авторитетно; исход — в me.result и ленте me.feed.
+func (s *Server) applyCore(cid core.ID, op string, in coreIntent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e := s.world.Get(cid)
+	if e == nil {
+		return
+	}
+	w := s.world
+	rng := s.runner.Hub.Stream("player", eid(cid))
+	ctl := func(id core.ID) bool { return s.ctl[id] != 0 }
+	day := s.runner.Clock.Day()
+	ok, why, has := false, "", true
+	switch op {
+	case "weave": // сплести узор из узлов (магия плетениями)
+		ok, why = sim.WeaveCast(w, e, in.Nodes, parseID(in.Target), in.ReqID, rng)
+	case "attack": // удар/выстрел: ввод (цель, часть тела, точность) → серверное разрешение
+		ok, why = sim.Strike(w, e, sim.StrikeInput{Target: parseID(in.Target), Aim: in.Aim, Style: in.Style,
+			Acc: in.Acc, Power: in.Power, Aimed: in.Aimed, ReqID: in.ReqID}, rng)
+	case "guard":
+		sim.SetGuard(w, e, in.On)
+		has = false
+	case "dodge":
+		ok, why = sim.DodgeRoll(w, e)
+	case "stance":
+		ok, why = sim.SetStance(w, e, in.Stance)
+	case "trick":
+		ok, why = sim.Trick(w, e, in.Trick, in.ReqID)
+	case "quest":
+		switch in.Action {
+		case "accept":
+			ok, why = sim.QuestAccept(w, e, in.Quest, day)
+		case "turnin":
+			ok, why = sim.QuestTurnIn(w, e, in.Quest)
+		case "drop":
+			ok, why = sim.QuestDrop(w, e, in.Quest)
+		}
+	case "craft":
+		ok, why = sim.Craft(w, e, in.Item, in.ReqID)
+	case "use":
+		ok, why = sim.Use(w, e, in.Item, in.ReqID)
+	case "journey":
+		if in.Action == "choose" {
+			ok, why = sim.JourneyChoose(w, e, in.Choice, rng)
+		} else {
+			ok, why = sim.JourneyStart(w, e, parseID(in.Target), in.ReqID, rng)
+		}
+	case "party":
+		switch in.Action {
+		case "invite":
+			ok, why = sim.PartyInvite(w, e, parseID(in.Target), ctl)
+		case "accept":
+			ok, why = sim.PartyAccept(w, e)
+		case "leave":
+			sim.PartyLeave(w, e)
+			ok = true
+		}
+	default:
+		has = false
+	}
+	if has {
+		sim.SetResult(w, e, in.ReqID, ok, why)
 	}
 }
 
@@ -457,36 +624,41 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"age": round1(v.Age), "health": round0(v.Health), "hunger": round0(v.Hunger),
 			"energy": round0(v.Energy), "morale": round0(v.Morale),
 			"skills": meSkills(e), // умения и их уровни — прокачка от труда (v1.6)
-			"goal": m.Goal, "last": m.LastAct, "home": home.Status,
+			"goal":   m.Goal, "last": m.LastAct, "home": home.Status,
 			"act_code": m.ActCode, // стабильный код занятия для анимаций клиента (#23)
 			"mug":      meMug(e),  // держит ли кружку (интерактивность v1.2)
 			"mana":     meMana(e), // мана для магического разряда (v1.3)
 			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
-			"stash": meStash(e),
-			"pos":   mePos(e), // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
-			"talk":         meTalk(s.world, e),   // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
-			"invite_from":  meInvite(s.world, e), // кто зовёт выпить вместе (co-drink, v1.4)
-			"social_event": meSocial(e),           // подтверждённый тост/угощение (монотонный seq) — v1.5
-			"known_places": s.meKnownPlaces(e),     // что игрок знает о поселениях: visited/known (#26, v1.5)
-			"desire":       sim.Desire(e),           // текущее главное желание (v1.7)
-			"inv":          meInv(e),                // инвентарь: предметы, рука, одежда (v1.7)
-			"world":        sim.Settlements(s.world), // карта поселений для путешествий (v1.7)
-			"result":       meResult(e),              // ack последнего действия (reqid/ok/reason) — #40
-			"task":         sim.OpeningTask(e),       // минимальная вводная задача (#80)
+			"stash":        meStash(e),
+			"pos":          mePos(e),                                      // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
+			"talk":         meTalk(s.world, e),                            // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
+			"invite_from":  meInvite(s.world, e),                          // кто зовёт выпить вместе (co-drink, v1.4)
+			"social_event": meSocial(e),                                   // подтверждённый тост/угощение (монотонный seq) — v1.5
+			"known_places": s.meKnownPlaces(e),                            // что игрок знает о поселениях: visited/known (#26, v1.5)
+			"desire":       sim.Desire(e),                                 // текущее главное желание (v1.7)
+			"inv":          meInv(e),                                      // инвентарь: предметы, рука, одежда (v1.7)
+			"world":        sim.Settlements(s.world),                      // карта поселений для путешествий (v1.7)
+			"result":       meResult(e),                                   // ack последнего действия (reqid/ok/reason) — #40
+			"task":         sim.OpeningTask(e),                            // минимальная вводная задача (#80)
 			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()), // личная летопись вех (#54)
+			// ядро v1.10
+			"weave":   sim.WeaveView(s.world, e),                                                            // плетения: узлы, ёмкость ума, знакомые схемы
+			"combat":  sim.CombatView(s.world, e),                                                           // стойка/блок/щит/стрелы/убитые
+			"feed":    sim.Feed(e),                                                                          // лента подтверждённых событий (монотонный seq)
+			"quests":  sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
+			"recipes": sim.RecipesView(e),                                                                   // ремесло: рецепты и хватает ли сырья
+			"journey": sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
+			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
 		},
 	}
-	if pl != nil && pl.Settlement != 0 {
+	out["hour"] = s.runner.Clock.Hour()                    // час суток 0..23 — для света/ночи на клиенте
+	if pl != nil && pl.Settlement != 0 && !sim.OnRoad(e) { // в пути сцены поселения нет — см. me.journey
 		if se := s.world.Get(pl.Settlement); se != nil {
 			st := core.Settle(se)
 			neighbors := []map[string]any{}
-			n := 0
-			s.world.Each("place", func(o *core.Entity) {
-				if n >= 8 || o.ID == e.ID {
-					return
-				}
-				if p := core.Place(o); p != nil && p.Settlement == pl.Settlement {
+			for _, o := range s.nearest(e, pl.Settlement, neighborCap) {
+				{
 					if oi := core.Ident(o); oi != nil {
 						nx, ny, nf := neighborPos(o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
 						om := core.Mind(o)
@@ -499,14 +671,14 @@ func (s *Server) stateJSON(cid core.ID) string {
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": shownName, "known": known,
 							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct, "want": sim.Desire(o),
-							"gear": sim.PublicGear(o), // видимая экипировка: рука + надетое (#48), без личной сумы
-							"act_code": om.ActCode, // стабильный код занятия соседа (для анимаций)
-							"player":   s.ctl[o.ID] != 0, // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
+							"gear":     sim.PublicGear(o),     // видимая экипировка: рука + надетое (#48), без личной сумы
+							"act_code": om.ActCode,            // стабильный код занятия соседа (для анимаций)
+							"player":   s.ctl[o.ID] != 0,      // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
+							"casting":  sim.CastingSeen(e, o), // плетёт ли (опытный маг читает имя узора) — v1.10
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
-						n++
 					}
 				}
-			})
+			}
 			out["place"] = map[string]any{
 				"name": st.Name, "tier": st.Tier,
 				"food":        round0(econ.FoodOnHand(se)),
@@ -516,8 +688,76 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer":        round0(st.Store[sim.BeerGood]), // запас пива в корчме (v1.2)
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
+				"foes":        sim.FoesView(s.world, pl.Settlement), // звери/лихие люди сцены (v1.10)
+				"market":      sim.MarketView(se, e),                // прилавок: запас и цены (v1.10)
 			}
 		}
+	}
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
+// neighborCap — сколько ближайших жителей попадает в кадр (раньше 8 первых по обходу; теперь —
+// БЛИЖАЙШИЕ к игроку, чтобы вид от первого лица не терял тех, кто стоит рядом).
+const neighborCap = 24
+
+// nearest — до n ближайших к игроку жителей его поселения (не в пути), по расстоянию в сцене.
+func (s *Server) nearest(e *core.Entity, settlement core.ID, n int) []*core.Entity {
+	px, py, _ := neighborPos(e)
+	type row struct {
+		e *core.Entity
+		d float64
+	}
+	var rows []row
+	s.world.Each("place", func(o *core.Entity) {
+		if o.ID == e.ID || sim.OnRoad(o) {
+			return
+		}
+		if p := core.Place(o); p != nil && p.Settlement == settlement && core.Ident(o) != nil {
+			x, y, _ := neighborPos(o)
+			rows = append(rows, row{o, (x-px)*(x-px) + (y-py)*(y-py)})
+		}
+	})
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].d != rows[j].d {
+			return rows[i].d < rows[j].d
+		}
+		return rows[i].e.ID < rows[j].e.ID
+	})
+	if len(rows) > n {
+		rows = rows[:n]
+	}
+	out := make([]*core.Entity, len(rows))
+	for i, r := range rows {
+		out[i] = r.e
+	}
+	return out
+}
+
+// fastJSON — БЫСТРЫЙ кадр (по запросу ?fast=N): только то, что меняется в бою каждую долю секунды —
+// тело игрока, боевое состояние, лента, позиции соседей и врагов. Помечен "fast":true; полные кадры
+// идут как прежде раз в секунду.
+func (s *Server) fastJSON(cid core.ID) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e := s.world.Get(cid)
+	if e == nil {
+		return `{"v":1,"fast":true,"alive":false}`
+	}
+	v := core.Vitals(e)
+	me := map[string]any{"pos": mePos(e), "mana": meMana(e), "combat": sim.CombatView(s.world, e),
+		"feed": sim.Feed(e), "result": meResult(e), "wounds": meWounds(e)}
+	if v != nil {
+		me["health"], me["energy"] = round0(v.Health), round0(v.Energy)
+	}
+	out := map[string]any{"v": 1, "fast": true, "alive": true, "me": me}
+	if pl := core.Place(e); pl != nil && pl.Settlement != 0 && !sim.OnRoad(e) {
+		ns := []map[string]any{}
+		for _, o := range s.nearest(e, pl.Settlement, neighborCap) {
+			x, y, f := neighborPos(o)
+			ns = append(ns, map[string]any{"id": eid(o.ID), "pos": map[string]any{"x": round1(x), "y": round1(y), "facing": round0(f)}})
+		}
+		out["place"] = map[string]any{"neighbors": ns, "foes": sim.FoesView(s.world, pl.Settlement)}
 	}
 	b, _ := json.Marshal(out)
 	return string(b)

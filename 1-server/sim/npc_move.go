@@ -56,6 +56,9 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		if pl == nil || pl.Settlement == 0 {
 			return // не в поселении — сцены нет
 		}
+		if !isHot(w, pl.Settlement) || OnRoad(e) {
+			return // остывшее поселение: тел в сцене нет (heat.go); путник — на тракте, не в сцене
+		}
 		id := core.Ident(e)
 		m := core.Mind(e)
 		if id == nil || m == nil {
