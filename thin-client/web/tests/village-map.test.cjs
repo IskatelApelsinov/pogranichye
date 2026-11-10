@@ -36,6 +36,13 @@ test('live markers use server positions and never copy hidden NPC names',()=>{
   assert.deepEqual(s.neighbors[0],{x:12,y:5,facing:180,player:false,role:'smith',activity:''});
   assert.equal(s.foes[0].selected,true);assert.equal('name' in s.neighbors[0],false);
 });
+test('null coordinates are not mistaken for world origin',()=>{
+  const s=VillageMap.buildScene(layout,{place:{
+    neighbors:[{role:'smith',pos:{x:null,y:4}},{role:'farmer',pos:{x:2,y:null}}],
+    foes:[{id:'null-foe',kind:'fox',x:null,y:0}]
+  },me:{pos:{x:null,y:0}}},null);
+  assert.equal(s.neighbors.length,0);assert.equal(s.foes.length,0);assert.equal(s.player,null);
+});
 test('missing optional state is safe',()=>{
   const s=VillageMap.buildScene(layout,{place:{},me:{}},null);
   assert.equal(s.neighbors.length,0);assert.equal(s.foes.length,0);assert.equal(s.player,null);
