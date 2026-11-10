@@ -80,6 +80,19 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 	}
 }
 
+// SetFrontier задаёт настройки бесконечного мира: потолок числа поселений (0 — мир не растёт) и
+// сколько деревень в каждом новом краю. Внешний мир растёт туда, куда приходят игроки.
+func (s *Server) SetFrontier(max, villages int) {
+	s.mu.Lock()
+	cfg := sim.DefaultFrontier()
+	cfg.Max, cfg.Enabled = max, max > 0
+	if villages > 0 {
+		cfg.Villages = villages
+	}
+	sim.ConfigureFrontier(s.world, cfg)
+	s.mu.Unlock()
+}
+
 // Handler собирает маршруты (отдельно от Run — удобно для тестов).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -146,7 +159,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	s.world.Each("foe", func(*core.Entity) { foes++ })
 	out := map[string]any{"entities": s.world.Count(), "players": len(s.ctl), "foes": foes,
 		"hot": s.hot, "warm": s.warm, "cold": s.cold, "hour_ms": s.lastStepMs,
-		"day": s.runner.Clock.Day(), "hour": s.runner.Clock.Hour()}
+		"day": s.runner.Clock.Day(), "hour": s.runner.Clock.Hour(),
+		"frontier": sim.FrontierStats(s.world)}
 	s.mu.Unlock()
 	writeJSON(w, out)
 }
@@ -477,7 +491,10 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "talk": // заговорить с жителем рядом (v1.4)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.StartTalk(s.world, e, parseID(in.Target))
+			// talk — идемпотентная установка состояния (без кулдауна и без платы): повтор просто
+			// перенацеливает разговор. Если клиент прислал reqid, исход коррелируется в me.result (#40).
+			rok, rwhy := sim.StartTalk(s.world, e, parseID(in.Target))
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "say": // выбрать реплику в разговоре (знакомство/угощение)

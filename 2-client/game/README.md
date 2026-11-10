@@ -1,6 +1,21 @@
 # Unity 6 client — v1 vertical slice
 
 
+## Core gameplay v1.10 — added 2026-11-10 (by Claude, with the owner's permission)
+
+- `Scripts/Runtime/CoreGameplay.cs` + `Scripts/Presentation/CoreFoeView.cs` add the v1.10 layer: foes in the
+  scene (`place.foes`), first-person aimed attacks (`op:"attack"` with target/body part/accuracy; the server
+  resolves), guard/dodge/stances/tricks, the mouse-traced weave wheel (hold R), the "Дела" window on Tab
+  (crafting, requests, market, bag, roads, party), the road screen, the confirmed event feed and status bars.
+- The socket asks for `fast=8` frames; `VerticalSliceController` routes them to `CoreGameplay` and keeps the
+  strict snapshot parser for full frames only.
+- Second pass (same day): foes got snouts, ears, tails, eyes, boar tusks, a bear hump, a hooded bandit; floating
+  damage numbers and a hit squash; chopping with the axe and fishing with the rod on LMB; H hides the hints.
+- Merged to main on the owner's instruction without an Editor run. If the project does not compile, start with
+  `CoreGameplay.cs` and the three `_core` hooks in `VerticalSliceController`.
+- Not compiled in the Unity Editor and not run in PlayMode. The two new files compile with `mcs` against
+  hand-written API stubs, which checks syntax and typing only. Treat it as a first draft to verify.
+
 ## Current implementation status — 2026-11-06
 
 > This section supersedes any conflicting historical v1-only scope statements below. The detailed feature inventory later in this file has not yet been fully reconciled with the current runtime; treat it as historical implementation notes, not as a complete current contract.

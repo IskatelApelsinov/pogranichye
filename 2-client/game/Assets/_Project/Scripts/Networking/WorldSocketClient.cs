@@ -28,7 +28,10 @@ namespace Pogranichye.Client.Networking
 
             var uri = new Uri(httpBaseUrl.TrimEnd('/'));
             var scheme = uri.Scheme == "https" ? "wss" : "ws";
-            var builder = new UriBuilder(uri) { Scheme = scheme, Port = uri.IsDefaultPort ? (scheme == "wss" ? 443 : 80) : uri.Port, Path = "/ws", Query = "token=" + Uri.EscapeDataString(token) };
+            var builder = new UriBuilder(uri) { Scheme = scheme, Port = uri.IsDefaultPort ? (scheme == "wss" ? 443 : 80) : uri.Port, Path = "/ws",
+                // fast=8: between full 1 Hz snapshots the server also sends light "fast" frames (body, combat, foes)
+                // for responsive combat; they are marked "fast":true and routed to CoreGameplay only.
+                Query = "token=" + Uri.EscapeDataString(token) + "&fast=8" };
 
             _lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _socket = new ClientWebSocket();
@@ -111,6 +114,18 @@ namespace Pogranichye.Client.Networking
                 ["action"] = action,
                 ["reqid"] = Guid.NewGuid().ToString("N")
             };
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try { await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false); }
+            finally { _sendGate.Release(); }
+        }
+
+        /// <summary>Generic intent of protocol v1.10 (attack, weave, quest, craft, journey, party…).</summary>
+        public async Task SendPayloadAsync(System.Collections.Generic.Dictionary<string, object> payload,
+            CancellationToken cancellationToken)
+        {
+            if (payload == null) throw new ArgumentNullException(nameof(payload));
+            if (!IsConnected) throw new InvalidOperationException("WebSocket не подключён.");
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
             await _sendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try { await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false); }

@@ -317,6 +317,7 @@ func arrive(w *core.World, e *core.Entity, j *JourneyC) {
 		v.Hunger = math.Min(100, v.Hunger+6)
 	}
 	say(w, e, "road", "Дорога позади: ты в поселении "+core.Settle(dst).Name+".")
+	OpenFrontier(w, e, j.To) // внешний мир растёт туда, куда дошёл игрок
 }
 
 // JourneyChoose — решение игрока на встрече в пути.

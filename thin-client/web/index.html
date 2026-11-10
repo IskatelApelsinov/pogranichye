@@ -105,6 +105,10 @@
   <button onclick="send({op:'endtalk'})" style="width:auto;margin-top:6px;padding:3px 10px">Отойти</button>
  </div>
 
+ <div class="card" id="mapcard">
+  <div class="row between"><b class="sub">🗺 Окрестности</b><span class="sub">ты — синяя стрелка · тап по зверю — цель · тап по месту — идти</span></div>
+  <canvas id="livemap" width="640" height="640" style="width:100%;height:auto;border-radius:6px;border:1px solid #5c4a35;margin-top:6px;touch-action:manipulation"></canvas>
+ </div>
  <div class="card" id="fightcard"></div>
  <div class="card hidden" id="weavecard"></div>
  <div class="card" id="questcard"></div>
