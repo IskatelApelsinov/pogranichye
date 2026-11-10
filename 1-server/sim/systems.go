@@ -185,7 +185,8 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 		ident := core.Ident(e)
 		sk := core.Skills(e)
 		if ident != nil && sk != nil && v.Energy > 8 {
-			sk.Train(ident.Role, 0.5) // труд растит навык
+			sk.Train(ident.Role, 0.5)            // труд растит навык
+			trainStatsFor(w, e, ident.Role, 0.5) // и характеристики: упорный житель крепнет, как и игрок
 			// заработок: продал излишек своего ремесла на рынок, получил из котла торга
 			// (дороже товар — больше плата; часть сразу гасит долг по еде). Добычу считает econ.
 			if se := settlementOf(w, e); se != nil {

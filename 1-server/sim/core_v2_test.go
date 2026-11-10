@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"pogranichye/arcane"
 	"pogranichye/battle"
 	"pogranichye/core"
 	"pogranichye/dice"
@@ -77,7 +78,8 @@ func TestWeaveCastHarmAndLearn(t *testing.T) {
 	p := ScenePos(e)
 	p.X, p.Y = -100, 0
 	fe := w.Spawn(&FoeC{Species: "wolf", Settlement: se.ID, X: -100, Y: 6, HP: 30, Max: 30, State: "roam"})
-	trainSkill(w, e, "mage", 60) // опытный маг — узор держится
+	w.Attach(e, &arcane.MageC{Awakened: true}) // одарённый
+	trainSkill(w, e, "mage", 60)               // опытный маг — узор держится
 	s := dice.NewStream(7)
 	before := Player(e).Mana
 	bolt := []string{"knot", "thread", "barb", "seal"}
@@ -110,6 +112,7 @@ func TestWeaveCastHarmAndLearn(t *testing.T) {
 func TestWeaveBackfireOnOverload(t *testing.T) {
 	w, e, _ := starterPlayer(t)
 	s := dice.NewStream(3)
+	w.Attach(e, &arcane.MageC{Awakened: true}) // дар есть, но узор не по уму
 	huge := []string{"barb", "fork", "fork", "barb", "loop", "thread", "fork", "barb", "knot", "fork", "barb", "loop"}
 	fails := 0
 	for i := 0; i < 8; i++ {

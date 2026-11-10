@@ -179,11 +179,14 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 	if pc.Mana < sp.Cost {
 		return false, "не хватает маны"
 	}
+	if ok, why := weaveGate(e, sp.Complexity); !ok {
+		return false, why
+	}
 	g := grimoire(w, e)
 	c := ensureCombat(w, e)
 	skill := skillOf(e, "mage")
 	name, known := g.knows(nodes)
-	eff := skill
+	eff := skill + (Stat(e, "intellect")-statBase)*0.8 - drunkPenalty(e)*40 // ум держит узор; хмель мешает
 	if known {
 		eff += 12 // знакомый узор держится увереннее
 	}
@@ -193,7 +196,8 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 	hold := arcane.MageC{Mana: sp.Complexity}
 	held, backfire := hold.Weave(sp.Complexity, eff, s)
 	if !held {
-		hurt := backfire * 1.6
+		hurt := backfire * 1.6 / statMod(e, "will", 0.15)
+		TrainStat(w, e, "will", 0.08)
 		part := "arm"
 		if sp.Complexity > arcane.Capacity(skill)+2 {
 			part = "head" // перенапряг ум
@@ -350,11 +354,15 @@ func roman(n int) string {
 func WeaveView(w *core.World, e *core.Entity) map[string]any {
 	g := grimoire(w, e)
 	skill := skillOf(e, "mage")
+	gift, canLearn, limit := GiftView(w, e)
 	return map[string]any{
-		"nodes":    WeaveNodes,
-		"capacity": round1x(arcane.Capacity(skill)), // сколько сложности ум держит без надрыва
-		"max_len":  weaveMaxLen,
-		"known":    g.Known,
+		"nodes":     WeaveNodes,
+		"capacity":  round1x(arcane.Capacity(skill)), // сколько сложности ум держит без надрыва
+		"max_len":   weaveMaxLen,
+		"known":     g.Known,
+		"gift":      gift,     // есть ли дар (v1.12)
+		"limit":     limit,    // до какой сложности узор доступен этому телу
+		"can_learn": canLearn, // можно ли здесь учиться (место силы или маг рядом) — act:"meditate"
 	}
 }
 

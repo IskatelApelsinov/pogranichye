@@ -41,6 +41,7 @@ type JourneyC struct {
 	Plan    []RoadEvent `json:"plan"`
 	Pending *RoadEvent  `json:"pending"`
 	Note    string      `json:"note"` // чем кончилась последняя встреча
+	Via     []string    `json:"via"`  // сёла, через которые лежит тракт
 }
 
 func (c *JourneyC) Kind() string { return "journey" }
@@ -208,8 +209,20 @@ func JourneyStart(w *core.World, e *core.Entity, to core.ID, reqid string, s *di
 	if v := core.Vitals(e); v == nil || v.Energy < 10 {
 		return false, "нет сил на дорогу — отдохни"
 	}
-	dist := math.Hypot(a.X-b.X, a.Y-b.Y)
-	total := math.Max(24, math.Min(75, 18+dist*0.35))
+	// путь идёт ПО ТРАКТАМ: через промежуточные сёла, длина — сумма перегонов
+	roads := RoadGraph(w, isOuter(w, a))
+	route, dist := RoadRoute(roads, pl.Settlement, to)
+	if len(route) < 2 {
+		return false, "туда нет дороги"
+	}
+	if !knowsPlace(e, to) && len(route) > 2 {
+		return false, "ты не знаешь туда дороги — расспроси людей"
+	}
+	total := math.Max(24, math.Min(110, 18+dist*0.35))
+	via := []string{}
+	for _, id := range route[1 : len(route)-1] {
+		via = append(via, core.Settle(w.Get(id)).Name)
+	}
 	n := 1 + s.Intn(3)
 	plan := make([]RoadEvent, 0, n)
 	for i := 0; i < n; i++ {
@@ -243,7 +256,7 @@ func JourneyStart(w *core.World, e *core.Entity, to core.ID, reqid string, s *di
 		if m.ID != e.ID && (mp == nil || mp.Settlement != pl.Settlement || OnRoad(m)) {
 			continue // кто не рядом — остаётся
 		}
-		j := &JourneyC{From: pl.Settlement, To: to, Total: total}
+		j := &JourneyC{From: pl.Settlement, To: to, Total: total, Via: via}
 		if m.ID == e.ID {
 			j.Plan = plan
 		} else {
@@ -314,6 +327,7 @@ func arrive(w *core.World, e *core.Entity, j *JourneyC) {
 	GoTo(w, e, "well")
 	if v := core.Vitals(e); v != nil {
 		v.Energy = math.Max(0, v.Energy-8)
+		TrainStat(w, e, "endurance", 0.3)
 		v.Hunger = math.Min(100, v.Hunger+6)
 	}
 	say(w, e, "road", "Дорога позади: ты в поселении "+core.Settle(dst).Name+".")
@@ -510,7 +524,7 @@ func JourneyView(w *core.World, e *core.Entity, hour int, season string) any {
 	}
 	out := map[string]any{"to": eidStr(j.To), "to_name": name, "progress": math.Round(prog*100) / 100,
 		"eta": math.Round(math.Max(0, j.Total-j.Done)), "scene": scene, "note": j.Note,
-		"follow": j.Lead != 0, "event": nil}
+		"follow": j.Lead != 0, "event": nil, "via": append([]string{}, j.Via...)}
 	if j.Pending != nil {
 		out["event"] = map[string]any{"kind": j.Pending.Kind, "foe": j.Pending.Foe, "text": j.Pending.Text, "options": j.Pending.Options}
 	}

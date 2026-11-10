@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"pogranichye/core"
@@ -35,6 +37,8 @@ func main() {
 	)
 	frontierMax := flag.Int("frontier-max", 300, "бесконечный мир: потолок числа поселений (0 — мир не растёт)")
 	frontierVillages := flag.Int("frontier-villages", 4, "бесконечный мир: деревень в каждом новом краю")
+	savePath := flag.String("save", "world.sav", "файл сохранения мира (\"\" — не сохранять)")
+	saveEvery := flag.Int("save-every", 120, "автосохранение мира, секунд")
 	flag.Parse()
 
 	if *demo {
@@ -55,6 +59,26 @@ func main() {
 	if *tickMs > 0 {
 		srv.SetTick(time.Duration(*tickMs) * time.Millisecond)
 		log.Printf("Демо-темп: %d мс на игровой час", *tickMs)
+	}
+	if *savePath != "" {
+		if ok, err := srv.LoadFrom(*savePath); err != nil {
+			log.Fatalf("сохранение %s не читается: %v (удали файл, чтобы начать новый мир)", *savePath, err)
+		} else if ok {
+			log.Printf("мир поднят из сохранения %s", *savePath)
+		} else {
+			log.Printf("сохранения нет — новый мир; будет записан в %s", *savePath)
+		}
+		done := make(chan struct{})
+		go func() { srv.Autosave(*savePath, time.Duration(*saveEvery)*time.Second); close(done) }()
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		go func() { // Ctrl+C / остановка контейнера: дописать мир и выйти
+			<-sig
+			srv.Close()
+			<-done
+			log.Printf("мир сохранён в %s", *savePath)
+			os.Exit(0)
+		}()
 	}
 	log.Fatal(srv.Run(*addr))
 }

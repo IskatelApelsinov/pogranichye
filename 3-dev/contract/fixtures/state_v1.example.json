@@ -107,7 +107,10 @@
             "seal"
           ]
         }
-      ]
+      ],
+      "gift": false,
+      "limit": 3,
+      "can_learn": false
     },
     "combat": {
       "stance": "balanced",
@@ -187,6 +190,34 @@
       "leader": "",
       "members": [],
       "invite_from": null
+    },
+    "stats": {
+      "strength": 10,
+      "agility": 10,
+      "endurance": 10.4,
+      "intellect": 10,
+      "perception": 10,
+      "will": 10
+    },
+    "drunk": 0,
+    "region": {
+      "nodes": [
+        {
+          "id": "2",
+          "x": 500,
+          "y": 500,
+          "state": "here",
+          "name": "Починок",
+          "tier": "village"
+        }
+      ],
+      "roads": [
+        {
+          "a": "2",
+          "b": "9",
+          "len": 120
+        }
+      ]
     }
   },
   "place": {
