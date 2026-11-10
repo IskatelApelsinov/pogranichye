@@ -140,16 +140,32 @@ namespace Pogranichye.Client.Presentation
                 case "hunter_empty":
                     _activity = "hunt";
                     break;
-                case "smith_cold":
                 case "cook_hearth":
+                    _activity = "cook";
+                    break;
                 case "brew_remedy":
+                    _activity = "brew";
+                    break;
                 case "forage_herbs":
+                    _activity = "forage";
+                    break;
                 case "weave":
+                    _activity = "weave";
+                    break;
                 case "weaver_wait":
+                    _activity = "wait";
+                    break;
                 case "herd_barn":
                 case "herd_graze":
+                    _activity = "herd";
+                    break;
                 case "keep_tavern":
+                    _activity = "tavern";
+                    break;
                 case "study_mana":
+                    _activity = "study";
+                    break;
+                case "smith_cold":
                 case "work":
                     _activity = "work";
                     break;
@@ -266,7 +282,14 @@ namespace Pogranichye.Client.Presentation
             var farming = _activity == "farm";
             var mining = _activity == "mine";
             var hunting = _activity == "hunt";
-            var working = _activity == "work" || chopping || fishing || forging || farming || mining || hunting;
+            var weaving = _activity == "weave";
+            var studying = _activity == "study";
+            var cooking = _activity == "cook" || _activity == "brew";
+            var foraging = _activity == "forage";
+            var herding = _activity == "herd";
+            var tavernWork = _activity == "tavern";
+            var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
+                hunting || weaving || studying || cooking || foraging || herding || tavernWork;
             var social = _activity == "social";
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
@@ -318,6 +341,37 @@ namespace Pogranichye.Client.Presentation
                 {
                     leftArmAngle = -42f + Mathf.Sin(_phase * 0.8f) * 5f;
                     rightArmAngle = -52f + Mathf.Sin(_phase * 0.8f + 0.4f) * 6f;
+                }
+                else if (weaving)
+                {
+                    var shuttle = Mathf.Sin(_phase * 3.2f);
+                    leftArmAngle = -34f + shuttle * 9f;
+                    rightArmAngle = -38f - shuttle * 13f;
+                }
+                else if (studying)
+                {
+                    leftArmAngle = -24f + Mathf.Sin(_phase * 0.7f) * 3f;
+                    rightArmAngle = -58f + Mathf.Sin(_phase * 1.1f) * 5f;
+                }
+                else if (cooking)
+                {
+                    leftArmAngle = -28f + Mathf.Sin(_phase * 0.8f) * 4f;
+                    rightArmAngle = -52f + Mathf.Sin(_phase * 2.1f) * 15f;
+                }
+                else if (foraging)
+                {
+                    leftArmAngle = -18f + Mathf.Sin(_phase * 0.5f) * 3f;
+                    rightArmAngle = -28f + Mathf.Max(0f, Mathf.Sin(_phase * 2.4f)) * 28f;
+                }
+                else if (herding)
+                {
+                    leftArmAngle = -12f + Mathf.Sin(_phase * 0.45f) * 3f;
+                    rightArmAngle = -42f + Mathf.Sin(_phase * 0.65f) * 5f;
+                }
+                else if (tavernWork)
+                {
+                    leftArmAngle = -18f + Mathf.Sin(_phase * 1.2f) * 5f;
+                    rightArmAngle = -32f + Mathf.Sin(_phase * 1.8f) * 10f;
                 }
             }
 
