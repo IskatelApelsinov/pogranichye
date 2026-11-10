@@ -70,6 +70,11 @@ namespace Pogranichye.Client.Presentation
 
         private void OnGUI()
         {
+            // SetupPresentationScene may add this probe immediately before it adds the
+            // camera rig. Awake then runs while no rig exists, so lazily bind it here.
+            if (_cameraRig == null)
+                _cameraRig = GetComponent<PresentationCameraRig>();
+
             var firstPerson = _cameraRig != null && _cameraRig.IsFirstPerson;
             var hasTarget = _poi != null || _npc != null;
 
