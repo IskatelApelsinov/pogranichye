@@ -1589,8 +1589,8 @@ namespace Pogranichye.Client
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
                 var speed = canRun ? 3.2f : 1.4f;
-                if (canRun) stamina = Mathf.Max(0f, stamina - 0.18f * dt);
-                else stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+                if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
+                else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
 
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;
