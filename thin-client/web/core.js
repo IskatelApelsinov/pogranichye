@@ -284,23 +284,23 @@ function drawLiveMap(s){
   const r = LAY.river; g.fillStyle = '#3f6f9a'; g.fillRect(0, Y(r.y1), W, (r.y1 - r.y0) * k);
   g.fillStyle = '#7a5a36'; g.fillRect(X(r.bridge_x0), Y(r.y1) - 2, (r.bridge_x1 - r.bridge_x0) * k, (r.y1 - r.y0) * k + 4);
   g.fillStyle = '#4a3a2a'; (LAY.buildings || []).forEach(b => g.fillRect(X(b.x0), Y(b.y1), (b.x1 - b.x0) * k, (b.y1 - b.y0) * k));
-  g.font = '10px Georgia'; g.textAlign = 'center'; g.fillStyle = '#f1e5c9cc';
+  g.font = 'bold 17px Georgia'; g.textAlign = 'center'; g.fillStyle = '#fff3d6';
   const names = {well:'площадь', tavern:'корчма', river:'река', woods:'лес', garden:'поля', smithy:'кузня', granary:'амбар', mine:'рудник', hearth:'очаг', market:'лавка'};
-  MAPLOC.forEach(n => { const p = LAY.pois[n]; if(p) g.fillText(names[n], X(p.x), Y(p.y) - 4); });
-  (s.place.neighbors || []).forEach(n => { if(!n.pos) return; g.fillStyle = n.player ? '#ffd27a' : '#e8dcc0'; g.beginPath(); g.arc(X(n.pos.x), Y(n.pos.y), n.player ? 3.5 : 2.2, 0, 7); g.fill(); });
+  MAPLOC.forEach(n => { const p = LAY.pois[n]; if(p) g.fillText(names[n], X(p.x), Y(p.y) - 8); });
+  (s.place.neighbors || []).forEach(n => { if(!n.pos) return; g.fillStyle = n.player ? '#ffd27a' : '#e8dcc0'; g.beginPath(); g.arc(X(n.pos.x), Y(n.pos.y), n.player ? 6 : 4, 0, 7); g.fill(); });
   const col = {hare:'#d9c9a8', fox:'#e07a34', boar:'#3a2c20', wolf:'#9a9da4', bear:'#241812', bandit:'#b02a22'};
   (s.place.foes || []).forEach(f => {
     if(f.state === 'dead'){ g.strokeStyle = '#0006'; g.strokeRect(X(f.x) - 2, Y(f.y) - 2, 4, 4); return; }
-    g.fillStyle = col[f.kind] || '#c96b58'; g.beginPath(); g.arc(X(f.x), Y(f.y), f.kind === 'bear' ? 5 : 3.5, 0, 7); g.fill();
-    if(f.aware || f.id === selFoe){ g.strokeStyle = f.id === selFoe ? '#ffe9a8' : '#ff5a44'; g.lineWidth = 1.5; g.beginPath(); g.arc(X(f.x), Y(f.y), 7, 0, 7); g.stroke(); }
+    g.fillStyle = col[f.kind] || '#c96b58'; g.beginPath(); g.arc(X(f.x), Y(f.y), f.kind === 'bear' ? 9 : 6, 0, 7); g.fill();
+    if(f.aware || f.id === selFoe){ g.strokeStyle = f.id === selFoe ? '#ffe9a8' : '#ff5a44'; g.lineWidth = 2.5; g.beginPath(); g.arc(X(f.x), Y(f.y), 12, 0, 7); g.stroke(); }
   });
   const p = (s.me || {}).pos; if(p){ const a = -p.facing * Math.PI / 180;
     g.save(); g.translate(X(p.x), Y(p.y)); g.rotate(a); g.fillStyle = '#6ab0ff'; g.strokeStyle = '#fff'; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(7, 0); g.lineTo(-4, 4); g.lineTo(-4, -4); g.closePath(); g.fill(); g.stroke(); g.restore(); }
+    g.beginPath(); g.moveTo(13, 0); g.lineTo(-8, 8); g.lineTo(-8, -8); g.closePath(); g.fill(); g.stroke(); g.restore(); }
   if(!cv.onclick) cv.onclick = ev => {
     const rc = cv.getBoundingClientRect(), mx = (ev.clientX - rc.left) * W / rc.width, my = (ev.clientY - rc.top) * H / rc.height;
     const wx = mx / k - half, wy = half - my / k, st = last || {};
-    let best = null, bd = 9;
+    let best = null, bd = 12;
     ((st.place || {}).foes || []).forEach(f => { const d = Math.hypot(f.x - wx, f.y - wy); if(f.state !== 'dead' && d < bd){ bd = d; best = f; } });
     if(best){ pickFoe(best.id); return; }
     let loc = null; bd = 30;
