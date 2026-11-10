@@ -114,6 +114,13 @@ function drawStats(s){
     Object.keys(N).map(k => `<span class="tag">${N[k]} ${st[k]}</span>`).join('') + '</div>';
   if(me.drunk > 0) h += `<div class="sub" style="margin-top:4px">🍺 хмель ${me.drunk}${me.drunk>30?' — руки и мысли неточны':''}</div>`;
   h += `<div class="sub" style="margin-top:4px">${wv.gift ? '✨ В тебе есть дар: ум удержит и сложный узор.' : 'Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.'}</div>`;
+  const site = (s.place||{}).site;
+  if(site){
+    const T = {river:'у реки', hills:'в холмах', forest:'в лесу', plain:'на равнине', coast:'у моря', marsh:'у болот'};
+    const F = {river:'река', woods:'лес', mine:'рудник', garden:'поля'}, all = ['river','woods','mine','garden'];
+    const lack = all.filter(f => !site.features.includes(f)).map(f => F[f]);
+    h += `<div class="sub" style="margin-top:6px">📍 Село ${T[site.terrain]||''}, славится: ${esc(site.specialty)}. Земли державы ${esc(site.state)}.${lack.length?' Здесь нет: '+lack.join(', ')+' — за этим идут в соседние сёла.':''}</div>`;
+  }
   const bag = me.bag, hz = me.horse, stb = (s.place||{}).stable, stash = me.stash||{};
   if(bag) h += `<div class="sub" style="margin-top:6px">🎒 сума: ${bag.load} из ${bag.cap}${bag.over?' — <b style="color:#c96b58">перегруз: идёшь медленно, сложи лишнее на лошадь или продай</b>':''}</div>`;
   if(hz){

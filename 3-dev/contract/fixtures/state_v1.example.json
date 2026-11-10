@@ -289,6 +289,21 @@
     "stable": {
       "horses": 2,
       "price": 40
+    },
+    "site": {
+      "terrain": "river",
+      "features": [
+        "garden",
+        "mine",
+        "river",
+        "woods"
+      ],
+      "climate": "temperate",
+      "state": "Велемир",
+      "specialty": "рыба и мельницы",
+      "lat": 48.2,
+      "lon": 12.5,
+      "cauldron": true
     }
   },
   "hour": 14

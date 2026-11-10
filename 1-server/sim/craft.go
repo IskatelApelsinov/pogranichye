@@ -143,6 +143,9 @@ func gatherAt(w *core.World, e *core.Entity, reqid, poi, good string, energy flo
 	if OnRoad(e) || !atPoi(e, poi) {
 		return false, far
 	}
+	if why := siteLacks(w, e, poi); why != "" {
+		return false, why
+	}
 	v := core.Vitals(e)
 	if v == nil || v.Energy < energy {
 		return false, "нет сил"

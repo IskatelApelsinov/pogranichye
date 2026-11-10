@@ -1259,6 +1259,16 @@ namespace Pogranichye.Client
             var coins = Num(_me, "coins");
 
             GUILayout.Label("ЗДЕСЬ");
+            var site = Obj(_place, "site");
+            if (site != null)
+            {
+                var have = string.Empty;
+                var features = Arr(site, "features");
+                if (features != null)
+                    foreach (var feature in features)
+                        have += (feature.ToString() == "river" ? "река" : feature.ToString() == "woods" ? "лес" : feature.ToString() == "mine" ? "рудник" : "поля") + "  ";
+                GUILayout.Label("Село славится: " + Str(site, "specialty") + " · держава " + Str(site, "state") + " · рядом есть: " + have);
+            }
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
                 GUILayout.BeginHorizontal();
