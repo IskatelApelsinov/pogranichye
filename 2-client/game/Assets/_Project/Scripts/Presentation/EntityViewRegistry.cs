@@ -387,10 +387,10 @@ namespace Pogranichye.Client.Presentation
             var leather = new Color(0.25f, 0.16f, 0.095f);
             var edge = new Color(0.43f, 0.30f, 0.16f);
             var chest = CreatePart("Worn jerkin • leather cuirass", PrimitiveType.Capsule, root,
-                new Vector3(0f, 1.02f, 0.055f), new Vector3(0.43f, 0.49f, 0.29f));
+                new Vector3(0f, 1.02f, 0.025f), new Vector3(0.52f, 0.54f, 0.36f));
             ApplyColor(chest.GetComponent<Renderer>(), leather);
             var frontPanel = CreatePart("Worn jerkin • front panel", PrimitiveType.Cube, root,
-                new Vector3(0f, 1.00f, 0.205f), new Vector3(0.30f, 0.39f, 0.035f));
+                new Vector3(0f, 1.00f, 0.225f), new Vector3(0.30f, 0.39f, 0.035f));
             ApplyColor(frontPanel.GetComponent<Renderer>(), edge);
             for (var side = -1; side <= 1; side += 2)
             {
@@ -420,7 +420,7 @@ namespace Pogranichye.Client.Presentation
                 Vector3.zero, new Vector3(0.25f, 0.035f, 0.34f));
             ApplyColor(wood.GetComponent<Renderer>(), new Color(0.35f, 0.22f, 0.12f));
             var boss = CreatePart("Shield • iron boss", PrimitiveType.Sphere, shield,
-                new Vector3(0f, 0f, -0.035f), new Vector3(0.10f, 0.10f, 0.045f));
+                new Vector3(0f, 0.045f, 0f), new Vector3(0.10f, 0.045f, 0.10f));
             ApplyColor(boss.GetComponent<Renderer>(), new Color(0.42f, 0.43f, 0.40f));
             var rim = CreatePart("Shield • iron rim", PrimitiveType.Cylinder, shield,
                 Vector3.zero, new Vector3(0.255f, 0.012f, 0.345f));
