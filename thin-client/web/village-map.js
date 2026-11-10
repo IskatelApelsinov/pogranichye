@@ -42,7 +42,7 @@ function nearPoi(layout,x,y,ignore,radius){
   return false;
 }
 function decorations(layout){
-  const out=[];if(!layout||!(num(layout.world_half)>0))return out;
+  const out=[];if(!layout||Number(layout.version)!==2||!(num(layout.world_half)>0))return out;
   for(let gx=-138;gx<=-76;gx+=12)for(let gy=-65;gy<=65;gy+=13){
     const seed=hash(gx,gy);if(seed%5===0)continue;
     const x=gx+(seed>>>3)%5-2,y=gy+(seed>>>7)%5-2;
@@ -78,7 +78,7 @@ function buildScene(layout,snapshot,selected){
     id:f.id,kind:String(f.kind||'beast'),x:Number(f.x),y:Number(f.y),state:String(f.state||''),aware:!!f.aware,selected:f.id===selected
   }));
   const river=layout.river||{};
-  return {half:Number(layout.world_half),villageHalf:num(layout.village_half)||0,buildings,pois,neighbors,foes,
+  return {version:Number(layout.version)||0,half:Number(layout.world_half),villageHalf:num(layout.village_half)||0,buildings,pois,neighbors,foes,
     player:validPos(me.pos)?{x:Number(me.pos.x),y:Number(me.pos.y),facing:num(me.pos.facing)||0}:null,
     river:{y0:num(river.y0),y1:num(river.y1),bridgeX0:num(river.bridge_x0),bridgeX1:num(river.bridge_x1)},
     decorations:decorations(layout)};
@@ -93,23 +93,25 @@ function background(ctx,s,atlas,w,h){
   if(atlas&&atlas.complete&&Number(atlas.naturalWidth)>=384)
     for(let y=0;y<h;y+=32)for(let x=0;x<w;x+=32)sprite(ctx,atlas,'grass',x,y,32,32);
   else{ctx.fillStyle='#71834b';ctx.fillRect(0,0,w,h);}
-  const edge=project(-70,0,s.half,w,h);
-  if(edge){ctx.fillStyle='rgba(42,74,45,.42)';ctx.fillRect(0,0,edge.x,h);}
-  if(s.villageHalf>0){
-    const a=project(-s.villageHalf,s.villageHalf,s.half,w,h),b=project(s.villageHalf,-s.villageHalf,s.half,w,h);
-    if(a&&b){ctx.fillStyle='rgba(190,171,112,.13)';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);}
-  }
-  // Decorative trails only: /api/layout does not expose the authoritative nav graph.
-  const trails=[
+  if(s.version===2){
+    const edge=project(-70,0,s.half,w,h);
+    if(edge){ctx.fillStyle='rgba(42,74,45,.42)';ctx.fillRect(0,0,edge.x,h);}
+    if(s.villageHalf>0){
+      const a=project(-s.villageHalf,s.villageHalf,s.half,w,h),b=project(s.villageHalf,-s.villageHalf,s.half,w,h);
+      if(a&&b){ctx.fillStyle='rgba(190,171,112,.13)';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);}
+    }
+    // Decorative trails only: /api/layout does not expose the authoritative nav graph.
+    const trails=[
     [[-33,12],[-24,5],[-14,-1],[0,-4]],[[0,-4],[14,-3],[22,4],[29,14]],
     [[0,-4],[-1,12],[-2,28]],[[0,-4],[12,-13],[25,-23],[33,-32]],
     [[33,-32],[50,-27],[70,-20]],[[0,-4],[0,-40],[0,-62],[0,-74]],
     [[0,-4],[-38,0],[-65,7],[-95,10]],[[29,14],[55,27],[90,40]]
-  ];
-  ctx.lineCap='round';ctx.lineJoin='round';
-  for(const trail of trails){
-    ctx.beginPath();trail.forEach((v,i)=>{const p=project(v[0],v[1],s.half,w,h);if(p){if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}});
-    ctx.strokeStyle='#765b3d';ctx.lineWidth=10;ctx.stroke();ctx.strokeStyle='#b99a6c';ctx.lineWidth=6;ctx.stroke();
+    ];
+    ctx.lineCap='round';ctx.lineJoin='round';
+    for(const trail of trails){
+      ctx.beginPath();trail.forEach((v,i)=>{const p=project(v[0],v[1],s.half,w,h);if(p){if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}});
+      ctx.strokeStyle='#765b3d';ctx.lineWidth=10;ctx.stroke();ctx.strokeStyle='#b99a6c';ctx.lineWidth=6;ctx.stroke();
+    }
   }
   if(s.river.y0!==null&&s.river.y1!==null){
     const top=project(0,s.river.y1,s.half,w,h),bottom=project(0,s.river.y0,s.half,w,h);
