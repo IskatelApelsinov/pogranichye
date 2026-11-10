@@ -19,6 +19,7 @@
 - CoreGameplay.cs: Alt-Tab отпускает guard, сбрасывает удерживаемую атаку/плетение и освобождает курсор; захват курсора разрешён только при фокусе окна.
 - WorldInteractionProbe.cs: E не запускает взаимодействие вне фокуса приложения.
 - MovementIntentQueuePolicyCheck.cs: standalone regression checks на bounded backlog, discard-on-stop и сохранение in-flight intent.
+- .github/workflows/unity-independent-csharp-checks.yml: отдельный Ubuntu/Mono job для RequestGateCheck и MovementIntentQueuePolicyCheck.
 - 2-client/game/README.md: описаны новые правила и ручная проверка Alt-Tab/F3.
 
 ## Контракт и риски
@@ -26,12 +27,16 @@
 - Wire v1.11, op:move, Layout v2 и серверная геометрия не менялись.
 - Сервер sim.ApplyMove принимает только seq > p.Seq, а не требует соседних seq; пропуски от отброшенных неотправленных intents допустимы.
 - Уже отправленный in-flight пакет отменить нельзя: он может примениться один раз (его dt ограничен сервером 250 мс). После него клиент отправит актуальный нулевой вектор. При штатной задержке это ограничивает хвост движения одним пакетом вместо всей очереди.
-- Unity Editor/PlayMode 6000.6.7f1 не запускался. В этой среде нет mcs/mono; standalone C# check добавлен, но здесь не исполнен.
+- GitHub Actions run 42881261872 завершился success: RequestGate regression checks и Movement queue regression checks оба прошли на Ubuntu/Mono.
+- Локально в этой среде нет mcs/mono, но standalone suites выполнены в CI.
+- Unity Editor/PlayMode 6000.6.7f1 не запускался; зелёный pure-C# job не является Unity build.
 
 ## Проверки и следующая задача
 
-- Выполнены source-level assertions на все ожидаемые точки интеграции; фактическая компиляция Unity не заявляется.
-- Следующий конкретный шаг: запустить MovementIntentQueuePolicyCheck.cs через mcs/mono, затем в Unity повторить ходьбу назад → отпустить клавишу при искусственной задержке сети → убедиться, что после одного in-flight шага персонаж останавливается; отдельно проверить Alt-Tab при зажатом ПКМ.
+- Source-level assertions на точки интеграции прошли; pure-C# CI прошёл; фактическая компиляция Unity не заявляется.
+- PR #230 (draft): https://github.com/IskatelApelsinov/pogranichye/pull/230. Ветка chatgpt/unity-stop-stale-move-20261110-1940, HEAD 3297b619767d0d0cbcdb266d75d8adbf63af6582; main остаётся на 3ff4eba3b49820c780c27cc38c9d6779c0ed6e7c, branch ahead 4 / behind 0.
+- Workflow run: https://github.com/IskatelApelsinov/pogranichye/actions/runs/42881261872.
+- Следующий конкретный шаг: в Unity повторить ходьбу назад → отпустить клавишу при искусственной задержке сети → убедиться, что после одного in-flight шага персонаж останавливается; отдельно проверить Alt-Tab при зажатом ПКМ.
 - Если после этого персонаж продолжает двигаться, сравнить F3 sequence/queue с me.pos.seq и проверить, не приходит ли повторное движение из другого источника.
 
 Merge не выполнялся.

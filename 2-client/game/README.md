@@ -134,4 +134,6 @@ The broader keyboard/mouse scheme and intended weighty-but-responsive character 
 
 The pure movement-queue policy has a standalone check:
 `mcs -out:movement-queue.exe Tests/MovementIntentQueuePolicyCheck.cs Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs && mono movement-queue.exe`.
+The GitHub Actions workflow also runs this check and the existing RequestGateCheck on Ubuntu/Mono; this is
+a Unity-independent C# check, not an Editor build.
 The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. Parser hardening and Editor-side positive/negative fixture checks are source changes only until the menu action is actually run. URP package pin and setup instructions are committed as project configuration, but actual package resolution, asset assignment, scene generation, runtime compatibility and server integration still require an Editor run. Do not treat this branch as a tested Unity build.
