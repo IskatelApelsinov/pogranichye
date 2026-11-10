@@ -65,7 +65,10 @@ namespace Pogranichye.Client.Presentation
                 return false;
             }
 
-            var fit = Mathf.Min(width / bounds.size.x, depth / bounds.size.z);
+            // Source Comp prefabs are larger composition pieces, not exact plot-sized houses.
+            // Leave a yard between plots and cap height independently to avoid oversized walls.
+            var fit = Mathf.Min(width * 0.76f / bounds.size.x,
+                depth * 0.76f / bounds.size.z, 5.6f / Mathf.Max(0.01f, bounds.size.y));
             if (float.IsNaN(fit) || float.IsInfinity(fit) || fit <= 0f)
             {
                 Object.Destroy(instance);
@@ -75,7 +78,19 @@ namespace Pogranichye.Client.Presentation
             instance.transform.localScale = Vector3.one * fit;
             bounds = renderers[0].bounds;
             for (var i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
-            instance.transform.localPosition = Vector3.up * (0.02f - bounds.min.y);
+
+            // Centre the visual mass on the server footprint and compensate for offset pivots.
+            var centerLocal = parent.InverseTransformPoint(bounds.center);
+            var bottomLocal = parent.InverseTransformPoint(
+                new Vector3(bounds.center.x, bounds.min.y, bounds.center.z)).y;
+            instance.transform.localPosition += new Vector3(
+                -centerLocal.x, 0.02f - bottomLocal, -centerLocal.z);
+
+            // These imported colliders duplicate server-owned building obstruction.
+            // Ignore Raycast keeps them from intercepting NPC/POI interaction probes;
+            // the camera collision sphere still explicitly checks layer 2.
+            var transforms = instance.GetComponentsInChildren<Transform>(true);
+            foreach (var child in transforms) child.gameObject.layer = 2;
             return true;
         }
     }

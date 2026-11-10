@@ -58,6 +58,11 @@ namespace Pogranichye.Client
         private float _pendingTalkDeadline;
         private string _talkFeedback;
         private bool _talkConfirmationTimedOut;
+        private Vector2 _dialogueScroll;
+        private GUIStyle _dialogueWhoStyle;
+        private GUIStyle _dialogueLineStyle;
+        private GUIStyle _dialogueOptionStyle;
+        private GUIStyle _dialogueHintStyle;
         private const float TalkConfirmationTimeoutSeconds = 48f;
         private const string DialogueRequestLabel = "Реплика NPC";
         private const string TalkRequestLabelPrefix = "Разговор NPC:";
@@ -150,6 +155,7 @@ namespace Pogranichye.Client
             {
                 UpdateJump();
                 UpdateMovement();
+                UpdateDialogueChoiceInput();
             }
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
@@ -755,28 +761,104 @@ namespace Pogranichye.Client
             }
         }
 
+        private void UpdateDialogueChoiceInput()
+        {
+            var options = _frame?.Me?.Talk?.Options;
+            if (_input == null || options == null) return;
+            var count = Mathf.Min(9, options.Count);
+            for (var i = 0; i < count; i++)
+            {
+                if (!_input.JourneyChoicePressed(i)) continue;
+                var option = options[i];
+                if (option != null && !string.IsNullOrEmpty(option.Id))
+                    QueueSay(option.Id);
+                return;
+            }
+        }
+
+        private void EnsureDialogueStyles()
+        {
+            if (_dialogueWhoStyle == null)
+            {
+                _dialogueWhoStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 21,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleLeft
+                };
+                _dialogueWhoStyle.normal.textColor = new Color(0.94f, 0.82f, 0.62f);
+            }
+            if (_dialogueLineStyle == null)
+            {
+                _dialogueLineStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 22,
+                    wordWrap = true,
+                    richText = true,
+                    alignment = TextAnchor.UpperLeft
+                };
+                _dialogueLineStyle.normal.textColor = new Color(0.97f, 0.94f, 0.86f);
+            }
+            if (_dialogueOptionStyle == null)
+            {
+                _dialogueOptionStyle = new GUIStyle(GUI.skin.button)
+                {
+                    fontSize = 18,
+                    wordWrap = true,
+                    alignment = TextAnchor.MiddleLeft,
+                    padding = new RectOffset(14, 12, 6, 6)
+                };
+            }
+            if (_dialogueHintStyle == null)
+            {
+                _dialogueHintStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 14,
+                    wordWrap = true,
+                    alignment = TextAnchor.MiddleLeft
+                };
+                _dialogueHintStyle.normal.textColor = new Color(0.78f, 0.75f, 0.67f);
+            }
+        }
+
         private void DrawSocialOverlay()
         {
             if (_frame?.Me == null) return;
             var talk = _frame.Me.Talk;
             if (talk != null)
             {
-                var rect = new Rect(Screen.width - 430f, Screen.height - 260f, 410f, 244f);
+                EnsureDialogueStyles();
+                var optionCount = talk.Options != null ? Mathf.Min(9, talk.Options.Count) : 0;
+                var desiredHeight = 190f + optionCount * 50f + (!string.IsNullOrEmpty(_talkFeedback) ? 30f : 0f);
+                var panelHeight = Mathf.Min(Screen.height - 28f, Mathf.Max(230f, desiredHeight));
+                var panelWidth = Mathf.Min(780f, Screen.width - 28f);
+                var rect = new Rect((Screen.width - panelWidth) * 0.5f,
+                    Screen.height - panelHeight - 14f, panelWidth, panelHeight);
                 GUI.Box(rect, "Разговор");
-                GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
-                GUILayout.Label(talk.Who ?? "Собеседник");
-                GUILayout.Label(talk.Line ?? "…", GUILayout.Height(54f));
+                GUILayout.BeginArea(new Rect(rect.x + 18f, rect.y + 30f, rect.width - 36f, rect.height - 42f));
+                GUILayout.Label(talk.Who ?? "Собеседник", _dialogueWhoStyle, GUILayout.Height(30f));
+                _dialogueScroll = GUILayout.BeginScrollView(_dialogueScroll,
+                    GUILayout.Height(Mathf.Max(86f, rect.height - 164f)));
+                GUILayout.Label(talk.Line ?? "…", _dialogueLineStyle, GUILayout.MinHeight(66f));
                 if (!string.IsNullOrEmpty(_talkFeedback))
-                    GUILayout.Label(_talkFeedback, GUILayout.Height(44f));
+                    GUILayout.Label(_talkFeedback, _dialogueHintStyle, GUILayout.MinHeight(24f));
                 if (talk.Options != null)
                 {
-                    foreach (var option in talk.Options)
+                    for (var i = 0; i < talk.Options.Count && i < 9; i++)
                     {
-                        if (option != null && GUILayout.Button(option.Text ?? option.Id, GUILayout.Height(28f)))
+                        var option = talk.Options[i];
+                        if (option == null || string.IsNullOrEmpty(option.Id)) continue;
+                        var label = (i + 1) + ".  " + (option.Text ?? option.Id);
+                        if (GUILayout.Button(label, _dialogueOptionStyle, GUILayout.Height(46f)))
                             QueueSay(option.Id);
                     }
                 }
-                if (GUILayout.Button("Закончить разговор")) _ = SendEndTalkAsync();
+                GUILayout.EndScrollView();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Выбор: клавиши 1–9 или нажми на реплику", _dialogueHintStyle);
+                if (GUILayout.Button("Закончить разговор", GUILayout.Width(190f), GUILayout.Height(36f)))
+                    _ = SendEndTalkAsync();
+                GUILayout.EndHorizontal();
                 GUILayout.EndArea();
             }
             else if (!string.IsNullOrEmpty(_talkFeedback))
@@ -1507,8 +1589,8 @@ namespace Pogranichye.Client
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
                 var speed = canRun ? 3.2f : 1.4f;
-                if (canRun) stamina = Mathf.Max(0f, stamina - 0.18f * dt);
-                else stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+                if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
+                else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
 
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;

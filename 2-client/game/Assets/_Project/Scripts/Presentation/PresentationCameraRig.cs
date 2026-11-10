@@ -7,7 +7,7 @@ namespace Pogranichye.Client.Presentation
     {
         [SerializeField] private Vector3 offset = new Vector3(0, 22, -28);
         [SerializeField] private float followSharpness = 5f;
-        [SerializeField] private float mouseSensitivity = 2.2f;
+        [SerializeField] private float mouseSensitivity = 0.075f;
         [SerializeField] private float thirdPersonMinPitch = 18f;
         [SerializeField] private float thirdPersonMaxPitch = 62f;
         [SerializeField] private float zoomSpeed = 5f;
