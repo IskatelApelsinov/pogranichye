@@ -70,7 +70,10 @@
  <div class="card" id="charcard"></div>
  <div class="card" id="taskcard" style="border-color:#c9a86a"></div>
 
- <div class="card">
+ <div class="card hidden" id="feedcard"></div>
+ <div class="card hidden" id="roadcard" style="border-color:#c9a86a"></div>
+
+ <div class="card" id="villagecard">
   <div class="row between"><b class="sub">Деревня</b><span class="sub" id="daytime"></span></div>
   <figure class="village-scene" aria-label="Интерактивная карта деревни">
    <img src="/village-scene.svg" alt="Деревня: корчма, кузница, рынок, огород, река, мост и жители" width="960" height="520" decoding="async">
@@ -102,6 +105,11 @@
   <button onclick="send({op:'endtalk'})" style="width:auto;margin-top:6px;padding:3px 10px">Отойти</button>
  </div>
 
+ <div class="card" id="fightcard"></div>
+ <div class="card hidden" id="weavecard"></div>
+ <div class="card" id="questcard"></div>
+ <div class="card" id="craftcard"></div>
+ <div class="card hidden" id="partycard"></div>
  <div class="card" id="invcard"></div>
  <div class="card" id="travelcard"></div>
 
@@ -142,7 +150,8 @@ async function connect(){
  ws.onclose=()=>{ if(token){ $('err').textContent='связь прервалась'; } };
  ws.onopen=()=>{ $('auth').classList.add('hidden'); $('game').classList.remove('hidden'); goTo('well'); };
 }
-function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({v:1},o))); }
+// reqid обязателен для платных/расходных намерений (идемпотентность) — подставляем, если не задан
+function send(o){ if(o.op!=='move'&&!o.reqid) o.reqid=rid(); if(ws&&ws.readyState===1) ws.send(JSON.stringify(Object.assign({v:1},o))); }
 function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 $('leave').onclick=()=>{ token=null; if(ws)ws.close(); location.reload(); };
 
@@ -155,11 +164,13 @@ const LOCS=[
  {key:'garden', name:'Поля',     ico:'🥕', desc:'Пахари работают в поле.'},
  {key:'smithy', name:'Кузница',  ico:'⚒', desc:'Кузнец куёт железо.'},
  {key:'granary',name:'Амбар',    ico:'🌾', desc:'Общие запасы зерна и хлеба.'},
- {key:'mine',   name:'Рудник',   ico:'⛏', desc:'Рудокопы добывают руду.'},
+ {key:'mine',   name:'Рудник',   ico:'⛏', desc:'Руда для кузни. Рядом бродит зверь — будь начеку.'},
+ {key:'hearth', name:'Очаг',     ico:'🔥', desc:'Общий очаг: сварить уху, зажарить мясо, приготовить снадобье.'},
+ {key:'market', name:'Лавка',    ico:'🪙', desc:'Прилавок: цены зависят от того, чего в селе мало.'},
 ];
 let curLoc='well', last=null;
 function goTo(key){
- curLoc=key; stopMinigames(); send({op:'goto',location:key});
+ curLoc=key; locSig=''; stopMinigames(); send({op:'goto',location:key});
  document.querySelectorAll('.map-hotspot').forEach(b=>b.classList.toggle('here',b.dataset.location===key));
  if(last) drawLoc(last); toast('');
 }
@@ -169,7 +180,7 @@ document.querySelectorAll('.map-hotspot').forEach(button=>{
 function toast(t){ $('toast').textContent=t; }
 
 let lastResult='';
-function render(s){ last=s; drawChar(s); drawTask(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
+function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
   const r=(s.me||{}).result;
   if(r && (r.reqid+String(r.ok))!==lastResult){ lastResult=r.reqid+String(r.ok); if(!r.ok && r.reason) toast('⚠ '+r.reason); }
 }
@@ -180,31 +191,7 @@ function drawTask(s){ const t=(s.me||{}).task||{};
     `<div class="sub">${steps.map((s,i)=>marks[i]+' '+s).join(' · ')}</div>`;
 }
 
-function drawInv(s){
- const me=s.me||{}, inv=me.inv||{items:{},hand:'',worn:{}};
- const names={axe:'топор',sword:'меч',bow:'лук',rod:'удочка',torch:'факел',lantern:'фонарь',cloak:'плащ',boots:'сапоги',hat:'шапка',bread:'хлеб',fish:'рыба',wood:'дерево',meat:'мясо',hide:'шкура',wheat:'зерно',veg:'овощи'};
- const items=Object.entries(inv.items||{}).filter(([k,v])=>v>0);
- const hand=['axe','sword','bow','rod','torch','lantern'];
- let h=`<b class="sub">сума</b> <span class="sub">· в руке: ${names[inv.hand]||'пусто'} · надето: ${Object.values(inv.worn||{}).map(x=>names[x]||x).join(', ')||'ничего'}</span>`;
- h+='<div style="margin-top:6px">'+(items.length?items.map(([k,v])=>`<span class="tag">${names[k]||k} ×${v}</span>`).join(''):'<span class="sub">пусто</span>')+'</div>';
- h+='<div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
- hand.forEach(it=>{ if((inv.items||{})[it]>0 && inv.hand!==it) h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'equip',item:'${it}'})">взять ${names[it]}</button>`; });
- ['cloak','boots','hat'].forEach(it=>{ if((inv.items||{})[it]>0) h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'wear',item:'${it}'})">надеть ${names[it]}</button>`; });
- h+='</div>';
- $('invcard').innerHTML=h;
-}
-function drawTravel(s){
- const world=(s.me&&s.me.world)||[], here=(s.me&&s.me.known_places)||[];
- const visited=new Set(here.filter(p=>p.visited).map(p=>p.id));
- const near=world.filter(p=>!p.outer), outer=world.filter(p=>p.outer);
- let h='<b class="sub">родной край</b><div class="acts">';
- near.forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">🧭 ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
- h+='</div>';
- if(outer.length){ h+=`<div style="margin-top:10px"><b class="sub">🌀 Телепорт во внешний мир</b> <span class="sub">(вокруг горы — ножками не дойти) · ${outer.length} поселений</span><div class="acts">`;
-   outer.slice(0,40).forEach(p=>{ h+=`<button style="width:auto" onclick="send({op:'travel',target:'${p.id}'})">${p.tier==='city'?'🏰':'🏘'} ${p.name}${visited.has(p.id)?' ✓':''}</button>`; });
-   h+='</div></div>'; }
- $('travelcard').innerHTML=h;
-}
+// drawInv / drawTravel / marketUI — в core.js (сума с закромами, дороги и врата, живой прилавок)
 
 function drawChar(s){
  const me=s.me||{}; const bar=(v,c)=>`<div class="bar"><div style="width:${Math.max(0,Math.min(100,v))}%;background:${c}"></div></div>`;
@@ -238,7 +225,7 @@ function drawLoc(s){
  $('locname').textContent=`${L.ico} ${L.name}`; $('locdesc').textContent=L.desc;
  const me=s.me||{};
  // кто здесь: соседи у этой локации (по близости к POI из layout — но нам хватит всех соседей сцены)
- const here=(s.place&&s.place.neighbors)||[];
+ const here=((s.place&&s.place.neighbors)||[]).slice(0,10); // ближайшие
  $('loccount').textContent=here.length?`${here.length} рядом`:'';
  const who=$('who'); who.replaceChildren();
  if(!here.length){ const d=document.createElement('div'); d.className='sub'; d.textContent='никого рядом'; who.appendChild(d); }
@@ -259,9 +246,15 @@ function drawLoc(s){
 }
 
 // контекстные действия и мини-игры локации
+let locSig='';
 function drawLocActions(s,L){
- const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren();
- const me=s.me||{};
+ const me=s.me||{}, pl=s.place||{};
+ // перестраиваем действия локации, только когда изменилось то, от чего они зависят: иначе мини-игра
+ // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
+ const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
+   (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
+ if(sig===locSig) return; locSig=sig; stopMinigames();
+ const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
  if(L.key==='tavern'){
    const beer=(s.place&&s.place.beer)||0, price=(s.place&&s.place.beer_price), mug=!!me.mug;
    const b1=btn(mug?'🍺 кружка в руке':'🍺 Заказать ('+(price??'?')+'⌾)', ()=>send({op:'buy',item:'beer',reqid:rid()}), mug||beer<1||me.coins<price);
@@ -281,30 +274,24 @@ function drawLocActions(s,L){
    A.append(btn('🏹 Взять лук',()=>send({op:'take',item:'bow',reqid:rid()})));
    A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
  } else if(L.key==='granary'){
-   ['cloak','boots','hat','torch','lantern'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка',torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
+   ['cloak','boots','hat'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
    marketUI(M,s);
  } else if(L.key==='garden'){
    A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
    marketUI(M,s);
+ } else if(L.key==='market'){
+   ['torch','lantern'].forEach(it=>A.append(btn('взять '+({torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
+   marketUI(M,s);
+ } else if(L.key==='hearth'){
+   M.innerHTML='<div class="sub">Огонь горит всегда. Рецепты очага — ниже, в «Ремесле».</div>';
  } else if(L.key==='well'){
-   A.append(btn('✨ Разряд (защита) · мана '+(me.mana??0), ()=>send({op:'act',action:'cast',reqid:rid()}), (me.mana||0)<25));
+   A.append(btn('✨ Оберег села (25 маны)', ()=>send({op:'act',action:'cast',reqid:rid()}), (me.mana||0)<25));
  } else {
-   M.innerHTML='<div class="sub">Здесь трудятся жители. Поговори с ними.</div>';
+   M.innerHTML='<div class="sub">Здесь трудятся жители. Поговори с ними.</div>'; M.className='';
  }
 }
 function btn(text,fn,dis){ const b=document.createElement('button'); b.textContent=text; b.onclick=fn; b.disabled=!!dis; return b; }
 function act2(a,msg){ send({op:'act',action:a,reqid:rid()}); toast(msg); }
-// рынок: купить/продать ходовые товары
-function marketUI(M,s){
- M.className='mg'; const names={bread:'хлеб',wheat:'зерно',fish:'рыба',wood:'дерево',veg:'овощи',meat:'мясо'};
- let h='<b class="sub">рынок</b><div class="acts" style="grid-template-columns:1fr 1fr">';
- ['bread','wheat','fish','wood'].forEach(g=>{
-   h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'trade',good:'${g}',side:'buy',qty:1})">купить ${names[g]}</button>`;
-   h+=`<button style="width:auto;padding:4px 8px" onclick="send({op:'trade',good:'${g}',side:'sell',qty:1})">продать ${names[g]}</button>`;
- });
- h+='</div>'; M.innerHTML=h;
-}
-
 // ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
 let mgRAF=0;
 function stopMinigames(){ if(mgRAF){ cancelAnimationFrame(mgRAF); mgRAF=0; } }
@@ -350,5 +337,6 @@ function drawDialog(s){
  if(se&&se.seq&&se.seq!==lastSocial){ lastSocial=se.seq; toast(se.type==='codrink'?'🍻 Вы чокнулись кружками!':se.type==='hunt'?'🦌 Добыча! мясо в закромах':'🍻 Тост за здоровье!'); }
 }
 </script>
+<script src="/core.js"></script>
 </body>
 </html>

@@ -202,6 +202,9 @@ func Travel(w *core.World, e *core.Entity, settlement core.ID) (bool, string) {
 	if pl == nil {
 		return false, "некому путешествовать"
 	}
+	if OnRoad(e) {
+		return false, "ты уже в пути"
+	}
 	pl.Settlement = settlement
 	LearnVisited(w, e, settlement)
 	GoTo(w, e, "well")
@@ -362,7 +365,7 @@ func hashReq(s string) uint64 {
 func Desire(e *core.Entity) string {
 	v := core.Vitals(e)
 	if v != nil {
-		if v.Hunger < 30 {
+		if v.Hunger > 70 { // голод РАСТЁТ к 100 (NeedsSystem) — высокий значит голоден
 			return "голоден"
 		}
 		if v.Energy < 25 {
