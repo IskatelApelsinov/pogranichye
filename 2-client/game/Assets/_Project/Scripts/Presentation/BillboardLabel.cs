@@ -4,8 +4,8 @@ namespace Pogranichye.Client.Presentation
 {
     /// <summary>
     /// Keeps a world-space TextMesh readable from the active scene camera.
-    /// The generated TextMesh front is local +Z, so its forward axis must point
-    /// directly toward the camera. A 180-degree correction mirrors the glyphs.
+    /// The generated TextMesh front faces local -Z. Its local forward must point
+    /// away from the camera so the readable face points toward the viewer.
     /// </summary>
     public sealed class BillboardLabel : MonoBehaviour
     {
@@ -30,9 +30,9 @@ namespace Pogranichye.Client.Presentation
             if (towardCamera.sqrMagnitude < 0.0001f)
                 towardCamera = Vector3.forward;
 
-            // TextMesh's readable face points along local +Z. Do not add a 180-degree
-            // yaw here: that turns the back of the text toward the camera (mirrored text).
-            transform.rotation = Quaternion.LookRotation(towardCamera.normalized, Vector3.up);
+            // Unity TextMesh's front normal is local -Z (unlike a conventional +Z billboard).
+            // Point local +Z away from the viewer so the readable face faces the camera.
+            transform.rotation = Quaternion.LookRotation(-towardCamera.normalized, Vector3.up);
         }
     }
 }
