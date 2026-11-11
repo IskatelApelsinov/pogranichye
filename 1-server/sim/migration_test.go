@@ -5,13 +5,14 @@ import (
 
 	"pogranichye/core"
 	"pogranichye/dice"
+	"pogranichye/econ"
 )
 
 func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	w := core.NewWorld("npc-road-migration")
 	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
-	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0, Region: region.ID})
-	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 50, Y: 0, Region: region.ID})
+	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0, Region: region.ID, Store: map[string]float64{econ.GoodBread: 10}})
+	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 200, Y: 0, Region: region.ID})
 	person := w.Spawn(
 		&core.IdentC{Name: "Странник", Role: "farmer"},
 		&core.VitalsC{Age: 25, Health: 100, Hunger: 10, Energy: 80},
@@ -28,7 +29,7 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	}
 	m := Migration(person)
 	if m == nil || m.From != from.ID || m.To != to.ID ||
-		len(m.Route) != 2 || m.Route[0] != from.ID || m.Route[1] != to.ID {
+		len(m.Route) != 2 || m.Route[0] != from.ID || m.Route[1] != to.ID || m.FoodSupply != 2 {
 		t.Fatalf("migration must retain the actual road route: %+v", m)
 	}
 	if core.Place(person).Settlement != 0 {
@@ -52,8 +53,15 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	person = loaded.Get(id)
 	m = Migration(person)
 	if person == nil || m == nil || m.From != from.ID || m.To != to.ID ||
-		len(m.Route) != 2 || m.ProgressHours != 0 {
+		len(m.Route) != 2 || m.ProgressHours != 0 || m.FoodSupply != 2 {
 		t.Fatalf("transit state and stable entity identity must survive save/load: %+v", m)
+	}
+
+	for h := 0; h < 25; h++ {
+		(NeedsSystem{}).Hour(loaded, core.Clock{}, nil)
+	}
+	if m.FoodSupply != 1 {
+		t.Fatalf("traveller must consume reserved bread from the travel supply: left=%d", m.FoodSupply)
 	}
 
 	total := int(m.TotalHours)
