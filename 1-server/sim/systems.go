@@ -403,7 +403,10 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		}
 		amb := 0
 		for _, r := range res {
-			if Player(r) == nil && d := core.Drives(r); d != nil && d.Ambition >= 55 {
+			if Player(r) != nil {
+				continue
+			}
+			if d := core.Drives(r); d != nil && d.Ambition >= 55 {
 				if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 45 {
 					amb++
 				}
