@@ -256,6 +256,7 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 }
 
 // StartMigration exposes the same guarded path to future group systems without exposing wire actions.
+// Pass the current Runner clock hour so the start step is not counted as a full travel hour.
 func StartMigration(w *core.World, e *core.Entity, to core.ID, reason string, startedAtHour int64) bool {
 	return startMigrationAt(w, e, to, reason, startedAtHour)
 }
