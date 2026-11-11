@@ -138,7 +138,7 @@ func containerEmpty(c *ContainerC) bool {
 func forceLeaveRoom(w *core.World, r *RoomC) {
 	if r == nil { return }
 	if owner := w.Get(r.Tenant); owner != nil {
-		if visit := RoomVisit(owner); visit != nil && visit.RoomID != 0 {
+		if visit := RoomVisit(owner); visit != nil && visit.Inside {
 			visit.Inside, visit.ChestOpen, visit.Recovery = false, false, false
 		}
 	}
