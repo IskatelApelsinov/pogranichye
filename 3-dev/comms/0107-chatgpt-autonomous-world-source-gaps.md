@@ -60,8 +60,19 @@ combat, core components, planet и канона. Не является пред�
 ### D. Путники и караваны пока не единая модель странствующих групп
 - CaravanC — товарный обоз между столицами; это не универсальная группа живых путешественников.
 - NPC PlaceC хранит поселение, JourneyC/PartyC — существующий abstract journey/party flow.
-- Необходимо проверить, какие NPC реально остаются в пути в persistent state, кто управляет их
-  расписанием/потребностями и как они появляются в physical world с теми же IDs.
+- Дополнительный callsite audit current main:
+  - `JourneyStart()` в `1-server/sim/journey.go` создаёт JourneyC для игрока и членов его PartyC;
+    PartyInvite() требует controlled(target), то есть это отряд игроков, не NPC A-Life.
+  - `startPass()` в `1-server/sim/exits.go` также создаёт JourneyC игроку.
+  - `StepJourneys()` продвигает только уже созданные journey entities; отдельного NPC departure /
+    destination / transit-progress scheduler в проверенных callsites не обнаружено.
+  - RoadEvent `traveller` — текстовая случайная встреча с вариантами talk/trade/pass, а не persistent
+    NPC entity. JourneyChoose("talk") выбирает неизвестное поселение и выдаёт знание о нём; физического
+    путника не создаёт.
+  - `PartyMembers()` собирает сущности с PartyC и общим Leader, но текущий invitation path ограничен
+    контролируемыми игроками. Это не группа жителей, переселенцев или странников.
+- Следовательно, нельзя переиспользовать JourneyC как готовую A-Life travelling population: он
+  моделирует временное путешествие игрока/его отряда, а не судьбу NPC между поселениями.
 - Искатели приключений, странствующие ремесленники, семьи переселенцев, паломники и кочующие группы
   не должны быть декорацией или случайным encounter. Они должны быть сущностями/группами с причинами,
   запасами, маршрутом, памятью и судьбой.
