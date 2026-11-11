@@ -1906,16 +1906,17 @@ namespace Pogranichye.Client
                 if (Flag(neighbor, "player")) { players++; continue; }
                 residents++;
                 var code = Str(neighbor, "act_code");
-                if (code == "drink_tavern" || code == "keep_tavern") tavern++;
+                if (code == "drink_tavern") tavern++;
+                else if (code == "keep_tavern") working++;
                 else if (code == "visit_neighbors") social++;
                 else if (code == "sleep" || code == "rest_idle") resting++;
                 else if (code == "meal") eating++;
-                else if (code == "chop_wood" || code.StartsWith("farm_") || code == "smith_forge" ||
-                    code == "mine_ore" || code == "mine_spent" || code == "fish_river" ||
-                    code == "hunt_wild" || code == "hunter_empty" || code == "cook_hearth" ||
-                    code == "brew_remedy" || code == "forage_herbs" || code == "weave" ||
-                    code == "weaver_wait" || code == "herd_barn" || code == "herd_graze" ||
-                    code == "study_mana" || code == "smith_cold" || code == "work") working++;
+                else if (code == "chop_wood" || code == "farm_sow" || code == "farm_reap" ||
+                    code == "farm_mend" || code == "farm_tend" || code == "smith_forge" ||
+                    code == "mine_ore" || code == "fish_river" || code == "fisher_mend" ||
+                    code == "hunt_wild" || code == "cook_hearth" || code == "brew_remedy" ||
+                    code == "forage_herbs" || code == "weave" || code == "herd_barn" ||
+                    code == "herd_graze" || code == "study_mana" || code == "work") working++;
             }
             GUILayout.Label("ЖИЗНЬ ПОСЕЛЕНИЯ · рядом в поле зрения");
             var presence = residents + " жителей";
@@ -1932,7 +1933,7 @@ namespace Pogranichye.Client
             var stable = Obj(_place, "stable");
             if (stable != null) details.Add("лошадей: " + (int)Num(stable, "horses"));
             var market = Arr(_place, "market");
-            if (market != null && market.Count > 0) details.Add("товаров на рынке: " + market.Count);
+            if (market != null && market.Count > 0) details.Add("торговых позиций: " + market.Count);
             if (details.Count > 0) GUILayout.Label(string.Join(" · ", details.ToArray()));
         }
 
