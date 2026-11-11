@@ -38,6 +38,9 @@ func Ochko(e *core.Entity) *OchkoC {
 }
 
 func inTavernSettlement(w *core.World, e *core.Entity) bool {
+	if OnRoad(e) {
+		return false
+	}
 	pl := core.Place(e)
 	if pl == nil || pl.Settlement == 0 {
 		return false
