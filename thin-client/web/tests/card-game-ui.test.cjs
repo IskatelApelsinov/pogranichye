@@ -7,7 +7,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const core = fs.readFileSync(path.join(root, 'core.js'), 'utf8');
 
 // Card-game intents must share the result gate; otherwise single-slot me.result can be overwritten.
-assert.match(html, /'card_game'\]\)/);
+assert.match(html, /card_game'\]\.includes\(o\.op\)/);
 assert.match(html, /card_game:'Карточная игра'/);
 
 // The tavern redraw signature includes the whole public game view, so each server move refreshes the hand/table.
