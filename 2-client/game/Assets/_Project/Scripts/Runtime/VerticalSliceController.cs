@@ -360,10 +360,12 @@ namespace Pogranichye.Client
                 GUILayout.Label("Инвентарь пока недоступен.");
                 return;
             }
-            GUILayout.Label("СУМКА И ЭКИПИРОВКА");
-            DrawInventorySummary();
-            GUILayout.Space(8f);
-            GUILayout.Label("Предметы и надетые вещи отображаются по подтверждённому серверному состоянию.");
+            if (_core == null)
+            {
+                GUILayout.Label("Интерфейс действий инвентаря ещё загружается.");
+                return;
+            }
+            _core.DrawInventoryTab();
         }
 
         private void DrawJournalTab()
