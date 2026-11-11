@@ -349,8 +349,15 @@ func MoveRoomContainer(w *core.World, e *core.Entity, day int64, kind, side, key
 	if visit.Recovery {
 		if r.State != "expired" || side != "withdraw" { return false, "из хранилища возврата можно только забрать вещи" }
 		if !roomDoor(w, e, r) { return false, "вернись к корчмарю за вещами" }
-	} else if !visit.Inside || (r.State != "rented" && !(r.State == "grace" && day <= r.GraceUntilDay)) {
-		return false, "срок доступа к комнате истёк"
+	} else {
+		if r.State == "grace" && day > r.GraceUntilDay {
+			r.State = "expired"
+			forceLeaveRoom(w, r)
+			return false, "срок доступа к комнате истёк"
+		}
+		if !visit.Inside || (r.State != "rented" && r.State != "grace") {
+			return false, "срок доступа к комнате истёк"
+		}
 	}
 	chest := Container(w.Get(r.ContainerID))
 	if chest == nil || chest.Owner != e.ID { return false, "сундук недоступен" }
