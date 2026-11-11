@@ -36,4 +36,15 @@ assert.equal(expertBuild.threshold,50);
 assert.ok(expertBuild.speed<noviceBuild.speed);
 assert.equal(Activity.building({skills:{builder:900}}).threshold,50);
 
+const noviceMining=Activity.mining({skills:{miner:0}});
+const expertMining=Activity.mining({skills:{miner:100}});
+assert.equal(noviceMining.zoneWidth,16);
+assert.equal(expertMining.zoneWidth,40);
+assert.ok(expertMining.speed<noviceMining.speed);
+const noviceForage=Activity.foraging({skills:{herbalist:0}});
+const expertForage=Activity.foraging({skills:{herbalist:100}});
+assert.equal(noviceForage.zoneWidth,20);
+assert.equal(expertForage.zoneWidth,42);
+assert.ok(expertForage.speed<noviceForage.speed);
+
 console.log('activity-minigames: skill scaling checks passed');

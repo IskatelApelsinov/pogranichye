@@ -29,5 +29,13 @@
     const skill=skillLevel(me,'builder');
     return {skill,threshold:70-skill*0.2,speed:1-skill*0.0025};
   }
-  return {skillLevel,fishing,chopping,fieldwork,forging,building};
+  function mining(me){
+    const skill=skillLevel(me,'miner');
+    return {skill,zoneWidth:16+skill*0.24,speed:1-skill*0.0025};
+  }
+  function foraging(me){
+    const skill=skillLevel(me,'herbalist');
+    return {skill,zoneWidth:20+skill*0.22,speed:1-skill*0.0025};
+  }
+  return {skillLevel,fishing,chopping,fieldwork,forging,building,mining,foraging};
 });
