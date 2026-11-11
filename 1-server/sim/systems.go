@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"sort"
 	"strconv"
 
 	"pogranichye/arcane"
@@ -63,14 +64,17 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
-		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
+		if (m != nil && m.Goal == mind.GoalEat || Migration(e) != nil) && v.Hunger >= 25 {
 			id := core.Ident(e)
-			if id != nil && v.Age < 15 {
+			if id != nil && v.Age < 15 && Migration(e) == nil {
 				// ребёнка кормит семья/община из общих запасов — без платы и без долга (дети
 				// на иждивении: едят, но ещё не работают). Нет еды в селе — голодают, как и все.
 				if s := settlementOf(w, e); s != nil && econ.Eat(s) {
 					v.Hunger = clamp(v.Hunger-45, 0, 100)
 				}
+			} else if migration := Migration(e); migration != nil && migration.FoodSupply > 0 {
+				migration.FoodSupply--
+				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			} else if econ.EatFromStash(e) {
 				// взрослый ест сперва из СВОИХ закромов; пусто — покупает на рынке (нет монет — в долг)
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
@@ -150,6 +154,11 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		m := core.Mind(e)
 		v := core.Vitals(e)
 		if m == nil || v == nil {
+			return
+		}
+		if Migration(e) != nil {
+			m.ActCode = "travel"
+			m.LastAct = "в пути"
 			return
 		}
 		pstream := hub.Stream("mind", sid(e.ID))
@@ -243,11 +252,14 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 			}
 		}
 	case mind.GoalLeave:
-		// уходит искать долю: переселяется в другое поселение (осмысленная миграция)
-		relocate(w, e, s)
-		m.LastAct = "ушёл искать лучшей доли"
-		if d := core.Drives(e); d != nil {
-			d.Ambition = 0
+		// мотив остаётся прежним, но смена поселения теперь проходит через persistent road transit.
+		if relocate(w, e, s) {
+			m.LastAct = "отправился искать лучшей доли"
+			if d := core.Drives(e); d != nil {
+				d.Ambition = 0
+			}
+		} else {
+			m.LastAct = "пока не нашёл дороги к новой доле"
 		}
 	default:
 		m.LastAct = "бродит"
@@ -394,6 +406,9 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		}
 		amb := 0
 		for _, r := range res {
+			if Player(r) != nil {
+				continue
+			}
 			if d := core.Drives(r); d != nil && d.Ambition >= 55 {
 				if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 45 {
 					amb++
@@ -412,7 +427,7 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 	for _, r := range residentsOf(w, source.ID) {
 		d := core.Drives(r)
 		v := core.Vitals(r)
-		if d != nil && v != nil && d.Ambition >= 55 && v.Age >= 16 && v.Age <= 45 {
+		if Player(r) == nil && d != nil && v != nil && d.Ambition >= 55 && v.Age >= 16 && v.Age <= 45 {
 			band = append(band, r)
 		}
 		if len(band) >= 5 {
@@ -423,6 +438,16 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		return
 	}
 	src3 := core.Settle(source)
+	// Не основываем пустую деревню, если у ватаги не хватит хлеба на дорогу.
+	// Максимальное смещение новой деревни — 180 вёрст по каждой оси.
+	worstRouteHours := math.Max(12, math.Hypot(180, 180))
+	foodNeeded := 0
+	for _, r := range band {
+		foodNeeded += migrationMeals(r, worstRouteHours)
+	}
+	if src3 == nil || src3.Store == nil || src3.Store[econ.GoodBread] < float64(foodNeeded) {
+		return
+	}
 	var reg *core.Entity
 	if src3 != nil {
 		reg = w.Get(src3.Region) // новая деревня — того же края, что родная
@@ -436,15 +461,15 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		ns.Y = clamp(src3.Y+s.Uniform(-180, 180), 0, mapSize)
 	}
 	for _, r := range band {
-		if pl := core.Place(r); pl != nil {
-			pl.Settlement = ne.ID
-		}
-		if h := core.Home(r); h != nil {
-			h.Status = "none"
-			h.Settlement = ne.ID
+		// Сохраняем личности переселенцев: они симулятивно идут к новой деревне,
+		// а не телепортируются в неё в момент основания.
+		if !startMigration(w, r, ne.ID, "founding") {
+			// RoadGraph обязан связывать поселения одной стороны гор; это страховка от
+			// некорректного мира, чтобы не потерять жителя при повреждённом графе.
+			continue
 		}
 		if d := core.Drives(r); d != nil {
-			d.Ambition = 0 // доля найдена — осели
+			d.Ambition = 0 // доля найдена — цель достигнута, группа уже в пути к своему месту
 		}
 	}
 	// обеспечить костяк: первый — пахарь, второй — повар
@@ -577,35 +602,42 @@ func residentIndex(w *core.World) map[core.ID][]*core.Entity {
 	return idx
 }
 
-func relocate(w *core.World, e *core.Entity, s *dice.Stream) {
-	var others []core.ID
-	cur := core.ID(0)
-	if pl := core.Place(e); pl != nil {
-		cur = pl.Settlement
+func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
+	if e == nil || s == nil || Player(e) != nil || Migration(e) != nil {
+		return false
 	}
-	w.Each("settlement", func(se *core.Entity) {
-		if se.ID != cur {
-			others = append(others, se.ID)
+	pl := core.Place(e)
+	if pl == nil || pl.Settlement == 0 {
+		return false
+	}
+	src := w.Get(pl.Settlement)
+	if src == nil || core.Settle(src) == nil {
+		return false
+	}
+	roads := RoadGraph(w, isOuter(w, core.Settle(src)))
+	var candidates []core.ID
+	for _, road := range roads {
+		switch src.ID {
+		case road.A:
+			candidates = append(candidates, road.B)
+		case road.B:
+			candidates = append(candidates, road.A)
 		}
-	})
-	if len(others) == 0 {
-		return
 	}
-	dest := others[s.Intn(len(others))]
-	if pl := core.Place(e); pl != nil {
-		pl.Settlement = dest
+	if len(candidates) == 0 {
+		return false
 	}
-	if h := core.Home(e); h != nil {
-		h.Status = "none"
-		h.Settlement = dest
-	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i] < candidates[j] })
+	// Stable candidate order + named mind stream make the destination reproducible.
+	dest := candidates[s.Intn(len(candidates))]
+	return startMigration(w, e, dest, "seeking_better_life")
 }
 
 // Default — стандартный набор систем в фиксированном порядке. Экономика идёт ПЕРВОЙ в сутках
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, NeedsSystem{}, MindSystem{}, LifeSystem{}, WarSystem{}, DiplomacySystem{}, ClimateSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, BrewSystem{}, worldmut.System{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, NeedsSystem{}, MindSystem{}, MigrationSystem{}, LifeSystem{}, WarSystem{}, DiplomacySystem{}, ClimateSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, BrewSystem{}, worldmut.System{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---
