@@ -88,6 +88,9 @@ func (c *sliceClient) world(fn func(e *core.Entity)) {
 
 func TestVerticalSliceTalkWorkBeer(t *testing.T) {
 	s := NewStarter("slice-e2e-seed-1", filepath.Join(t.TempDir(), "accounts.json"), []byte("slice-secret"), "")
+	// E2E фиксирует ускоренный календарный темп, чтобы проверять экономические транзакции
+	// независимо от пользовательского demo clock по умолчанию.
+	s.SetTick(400 * time.Millisecond)
 	// реальный шаг мира и реального времени, как на живом сервере — но управляемый: по выходу из теста
 	// петля останавливается и мы ДОЖИДАЕМСЯ завершения её горутины (никаких вечных тикеров после теста)
 	loopDone := make(chan struct{})
