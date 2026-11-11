@@ -243,6 +243,7 @@ func ensureStashOf(w *core.World, e *core.Entity) *econ.StashC {
 // Travel — перейти в другое поселение (меняет PlaceC и ставит у колодца). Разрешаем к любому
 // существующему поселению-соседу (демо-мир — «центр мира», отделён морем/горами от прочего).
 func Travel(w *core.World, e *core.Entity, settlement core.ID) (bool, string) {
+	if InRoom(e) { return false, "сначала выйди из комнаты" } {
 	se := w.Get(settlement)
 	if se == nil || core.Settle(se) == nil {
 		return false, "нет такого поселения"
