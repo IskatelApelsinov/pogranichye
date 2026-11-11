@@ -198,11 +198,11 @@ function sendRaw(o){
 }
 function expectsResult(o){
  if(o.reqid) return true;
- if(['buy','consume','trade','take','craft','use','equip','wear','unwear','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
+ if(['buy','consume','trade','take','craft','use','equip','wear','unwear','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say','card_game'].includes(o.op)) return true;
  return o.op==='goto' && !!o.target;
 }
 function actionLabel(o){
- const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',unwear:'Одежда',
+ const labels={card_game:'Карточная игра',buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',unwear:'Одежда',
    weave:'Плетение',attack:'Удар',dodge:'Уворот',stance:'Стойка',trick:'Хитрость',quest:'Просьба',journey:'Путешествие',
    party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти'};
  if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд',farmwork:'Помощь в поле',forge:'Помощь в кузнице',apiary:'Пасека'})[o.action]||'Действие';
@@ -419,7 +419,7 @@ function drawLocActions(s,L){
  const me=s.me||{}, pl=s.place||{};
  // перестраиваем действия локации, только когда изменилось то, от чего они зависят: иначе мини-игра
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
- const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
+ const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins,JSON.stringify(me.card_game||null)].join():L.key==='well'?((me.mana||0)<25):
    L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):L.key==='mine'?JSON.stringify([me.skills&&me.skills.miner,me.stash]):
    L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,me.skills&&me.skills.herbalist,me.skills&&me.skills.builder,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith,me.skills&&me.skills.builder,me.stash]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
@@ -431,6 +431,7 @@ function drawLocActions(s,L){
    const b2=btn('🍻 Выпить', ()=>send({op:'consume',item:'beer',reqid:rid()}), !mug);
    A.append(b1,b2);
    M.innerHTML=`<div class="sub">пива в корчме: ${beer}</div>`;
+   drawCardTable(M,me);
  } else if(L.key==='river'){
    A.append(btn('🎣 Взять удочку',()=>send({op:'take',item:'rod',reqid:rid()})));
    fishingGame(M,me);
@@ -472,6 +473,54 @@ function drawLocActions(s,L){
  }
 }
 function btn(text,fn,dis){ const b=document.createElement('button'); b.textContent=text; b.onclick=fn; b.disabled=!!dis; return b; }
+function cardNode(text){
+ const el=document.createElement('span'); el.textContent=text; el.style.cssText='display:inline-block;min-width:42px;text-align:center;padding:7px 8px;margin:3px;background:#e8dfc8;color:#28231b;border:1px solid #8b704b;border-radius:5px;font-weight:bold;box-shadow:0 2px 4px #17130f66';
+ if(/[♥♦]/.test(text)) el.style.color='#a33a30'; return el;
+}
+function cardRow(parent,label,cards){
+ const title=document.createElement('div');title.className='sub';title.textContent=label;parent.appendChild(title);
+ const row=document.createElement('div');row.className='row';row.style.gap='4px';
+ (cards||[]).forEach(card=>row.appendChild(cardNode(card.c||'?')));
+ if(!(cards||[]).length){const empty=document.createElement('span');empty.className='sub';empty.textContent='—';row.appendChild(empty);}
+ parent.appendChild(row);
+}
+function drawCardTable(M,me){
+ const game=me.card_game||null, panel=document.createElement('div');panel.style.marginTop='10px';
+ const title=document.createElement('b');title.className='sub';title.textContent='🃏 Карточный стол · ставка 10 монет';panel.appendChild(title);
+ if(!game||game.done){
+   const hint=document.createElement('div');hint.className='sub';hint.textContent='Очко или подкидной дурак против корчмаря. Партия и ставка хранятся на сервере.';panel.appendChild(hint);
+   const controls=document.createElement('div');controls.className='acts';
+   controls.append(btn('♠ Сыграть в очко',()=>send({op:'card_game',game:'ochko',action:'start'}),(me.coins||0)<10));
+   controls.append(btn('♥ Подкидной дурак',()=>send({op:'card_game',game:'durak',action:'start'}),(me.coins||0)<10));
+   panel.appendChild(controls);
+   if(game&&game.message){const result=document.createElement('div');result.className='toast';result.textContent=game.message;panel.appendChild(result);}
+   M.appendChild(panel);return;
+ }
+ const note=document.createElement('div');note.className='sub';note.textContent=game.message||'';panel.appendChild(note);
+ if(game.game==='ochko'){
+   cardRow(panel,'Корчмарь',game.dealer||[]);
+   if((game.hidden||0)>0){const hidden=document.createElement('div');hidden.className='sub';hidden.textContent='Скрытых карт: '+game.hidden;panel.appendChild(hidden);}
+   else if(game.dtotal!==null&&game.dtotal!==undefined){const total=document.createElement('div');total.className='sub';total.textContent='Очки корчмаря: '+game.dtotal;panel.appendChild(total);}
+   cardRow(panel,'Твоя рука · '+(game.ptotal||0)+' очков',game.player||[]);
+   if(!game.done){const controls=document.createElement('div');controls.className='acts';
+     controls.append(btn('Ещё карту',()=>send({op:'card_game',game:'ochko',action:'hit'})));
+     controls.append(btn('Хватит',()=>send({op:'card_game',game:'ochko',action:'stand'})));panel.appendChild(controls);}
+ } else if(game.game==='durak'){
+   const info=document.createElement('div');info.className='sub';info.textContent='Козырь '+(game.trump||'—')+' · нижняя карта '+(game.trump_card||'нет')+' · колода '+(game.deck||0)+' · у корчмаря '+(game.dealer_cards||0);panel.appendChild(info);
+   const table=document.createElement('div');table.className='mg';const tableTitle=document.createElement('b');tableTitle.className='sub';tableTitle.textContent='На столе';table.appendChild(tableTitle);
+   (game.table||[]).forEach(pair=>{const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.append(cardNode(pair.a&&pair.a.c||'?'));const arrow=document.createElement('span');arrow.textContent='→';row.appendChild(arrow);row.append(cardNode(pair.d&&pair.d.c||'?'));table.appendChild(row);});
+   if(!(game.table||[]).length){const empty=document.createElement('div');empty.className='sub';empty.textContent='Стол пуст';table.appendChild(empty);}panel.appendChild(table);
+   const turn=document.createElement('div');turn.className='sub';turn.textContent=(game.role==='attack'?'Ты атакующий':'Ты защищаешься')+' · '+(game.your_turn?'твой ход':'ход корчмаря');panel.appendChild(turn);
+   const hand=document.createElement('div');hand.className='row';hand.style.gap='5px';
+   (game.player||[]).forEach((card,index)=>{const action=game.role==='attack'?'attack':'defend';const allowed=game.your_turn&&((action==='attack'&&game.phase==='attack')||(action==='defend'&&game.phase==='defend'));const b=btn(card.c||'?',()=>send({op:'card_game',game:'durak',action,index}),!allowed);b.style.cssText='min-width:46px;padding:10px 7px;background:#e8dfc8;color:#28231b;border-color:#8b704b;font-weight:bold';if(/[♥♦]/.test(card.c||''))b.style.color='#a33a30';hand.appendChild(b);});
+   panel.appendChild(hand);
+   if(game.your_turn&&!game.done){const controls=document.createElement('div');controls.className='acts';
+     if(game.role==='defend'&&game.phase==='defend')controls.append(btn('Взять карты',()=>send({op:'card_game',game:'durak',action:'take'})));
+     if(game.role==='attack'&&game.phase==='attack'&&(game.table||[]).length&&(game.table||[]).every(p=>p.d))controls.append(btn('Бито',()=>send({op:'card_game',game:'durak',action:'done'})));
+     if(controls.childElementCount)panel.appendChild(controls);}
+ }
+ M.appendChild(panel);
+}
 function act2(a,msg){ send({op:'act',action:a,reqid:rid()}); toast(msg); }
 // ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
 const mgRAF=new Set();
