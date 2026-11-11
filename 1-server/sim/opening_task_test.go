@@ -92,11 +92,20 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 		t.Fatal("пока не сдал — работа не засчитана")
 	}
 
-	// Принёс дрова — прогресс реальный (сколько реально в закромах), задача готова к сдаче.
-	addStash(w, e, econ.GoodWood, 3)
+	// Проходим реальный игровой путь: дойти до леса и дважды успешно срубить дерево.
+	// Награда/прогресс не подставляются напрямую в StashC — их создаёт ChopWood.
+	if ok, why := GoTo(w, e, "woods"); !ok {
+		t.Fatalf("дойти до леса: %s", why)
+	}
+	if ok, why := ChopWood(w, e, "opening-chop-1"); !ok {
+		t.Fatalf("первая рубка: %s", why)
+	}
+	if ok, why := ChopWood(w, e, "opening-chop-2"); !ok {
+		t.Fatalf("вторая рубка: %s", why)
+	}
 	iss = OpeningTask(w, e)["issued"].(map[string]any)
-	if iss["have"] != 3 || iss["ready"] != true {
-		t.Fatalf("после доставки have=3 ready=true: %+v", iss)
+	if iss["have"] != 2 || iss["ready"] != true {
+		t.Fatalf("после двух настоящих рубок have=2 ready=true: %+v", iss)
 	}
 
 	// Сдал поручение (серверный turn-in) — issued очищается, worked/errand_done становятся true.
