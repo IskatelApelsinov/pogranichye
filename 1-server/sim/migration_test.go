@@ -35,6 +35,9 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	if core.Place(person).Settlement != 0 {
 		t.Fatal("traveller must not remain counted in the source or destination population")
 	}
+	if core.Settle(from).Store[econ.GoodBread] != 8 {
+		t.Fatal("reserved travel food must be deducted from the source settlement stock")
+	}
 	if ScenePos(person) != nil {
 		t.Fatal("traveller must not retain a stale physical scene position")
 	}
