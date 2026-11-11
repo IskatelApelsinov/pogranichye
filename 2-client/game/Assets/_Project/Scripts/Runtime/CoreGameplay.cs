@@ -714,7 +714,7 @@ namespace Pogranichye.Client
                     var options = Arr(roadEvent, "options");
                     for (var i = 0; options != null && i < options.Count && i < 9; i++)
                         if (_input != null && _input.JourneyChoicePressed(i))
-                            Send("journey", "action", "choose", "choice", options[i].ToString());
+                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i].ToString());
                 }
                 UpdateCursor(true);
                 return;
@@ -1491,7 +1491,7 @@ namespace Pogranichye.Client
                     {
                         var option = options[i].ToString();
                         if (GUILayout.Button("[" + (i + 1) + "] " + OptionRu(option), GUILayout.Height(30f)))
-                            Send("journey", "action", "choose", "choice", option);
+                            Ask("Выбор пути", "journey", "action", "choose", "choice", option);
                     }
                 }
             }
@@ -1673,7 +1673,7 @@ namespace Pogranichye.Client
                     GUI.enabled = Flag(quest, "ready");
                     if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", Str(quest, "id"));
                     GUI.enabled = true;
-                    if (GUILayout.Button("отказаться")) Send("quest", "action", "drop", "quest", Str(quest, "id"));
+                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", Str(quest, "id"));
                     GUILayout.EndHorizontal();
                 }
             var offers = Arr(quests, "offers");
@@ -1760,14 +1760,14 @@ namespace Pogranichye.Client
             var partyInvite = Obj(party, "invite_from");
             GUILayout.Space(8f);
             GUILayout.Label("ОТРЯД");
-            if (partyInvite != null && GUILayout.Button(Str(partyInvite, "who") + " зовёт в отряд — вступить")) Send("party", "action", "accept");
+            if (partyInvite != null && GUILayout.Button(Str(partyInvite, "who") + " зовёт в отряд — вступить")) Ask("Отряд", "party", "action", "accept");
             if (members != null && members.Count > 0)
             {
                 var list = string.Empty;
                 foreach (var member in members)
                     list += (Flag(member, "leader") ? "* " : "") + Str(member, "name") + " (" + (int)Num(member, "health") + ")   ";
                 GUILayout.Label(list);
-                if (GUILayout.Button("Выйти из отряда")) Send("party", "action", "leave");
+                if (GUILayout.Button("Выйти из отряда")) Ask("Отряд", "party", "action", "leave");
             }
             var neighbors = Arr(_place, "neighbors");
             if (neighbors != null)
