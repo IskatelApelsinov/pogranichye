@@ -72,6 +72,9 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				if s := settlementOf(w, e); s != nil && econ.Eat(s) {
 					v.Hunger = clamp(v.Hunger-45, 0, 100)
 				}
+			} else if migration := Migration(e); migration != nil && migration.FoodSupply > 0 {
+				migration.FoodSupply--
+				v.Hunger = clamp(v.Hunger-45, 0, 100)
 			} else if econ.EatFromStash(e) {
 				// взрослый ест сперва из СВОИХ закромов; пусто — покупает на рынке (нет монет — в долг)
 				v.Hunger = clamp(v.Hunger-45, 0, 100)
