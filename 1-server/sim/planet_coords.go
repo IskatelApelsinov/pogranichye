@@ -95,13 +95,13 @@ func (p PlanetProjection) Inverse(local LocalMeters) (SurfacePoint, bool) {
 		return p.Origin, true
 	}
 	c := rho / p.RadiusMeters
-	if c > math.Pi+projectionEpsilon {
+	if c >= math.Pi-projectionEpsilon {
 		return SurfacePoint{}, false
 	}
 	lat0 := p.Origin.LatitudeDeg * degreesToRadians
 	sinC, cosC := math.Sin(c), math.Cos(c)
 	sin0, cos0 := math.Sin(lat0), math.Cos(lat0)
-	latArg := cosC*sin0 + local.Nast*sinC*cos0/rho
+	latArg := cosC*sin0 + local.North*sinC*cos0/rho
 	lat := math.Asin(clampUnit(latArg))
 	lon := p.Origin.LongitudeDeg + math.Atan2(
 		local.East*sinC,
