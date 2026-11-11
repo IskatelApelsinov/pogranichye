@@ -1990,7 +1990,77 @@ namespace Pogranichye.Client.Presentation
                     }
                 }
             }
+            BuildApiary(garden);
             CreatePoiMarker(root, "Огород • работать", new Vector3(70f, 0.08f, -20f), new Color(0.32f, 0.58f, 0.28f), "work");
+            CreatePoiMarker(root, "Пасека • вынуть мёд", new Vector3(73.6f, 0.08f, -20.9f),
+                new Color(0.82f, 0.62f, 0.22f), null, "apiary");
+        }
+
+        // Presentation-only village apiary: the server remains authoritative for hive stock,
+        // season, range, rewards and the actual apiary action.
+        private static void BuildApiary(Transform garden)
+        {
+            var apiary = new GameObject("Village apiary • skeps and beekeeper's bench").transform;
+            apiary.SetParent(garden, false);
+            apiary.localPosition = new Vector3(4.4f, 0f, 0.35f);
+
+            // Low timber rack keeps wicker skeps off the wet earth.
+            CreatePrimitive("Apiary rack • long beam", PrimitiveType.Cube, apiary,
+                new Vector3(0.55f, 0.28f, 0f), new Vector3(2.55f, 0.14f, 0.48f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Apiary rack • leg", PrimitiveType.Cube, apiary,
+                    new Vector3(0.55f + x * 1.05f, 0.14f, z * 0.16f),
+                    new Vector3(0.12f, 0.28f, 0.12f), _roofMaterial);
+
+            for (var i = 0; i < 3; i++)
+            {
+                var x = -0.42f + i * 0.96f;
+                var skep = new GameObject("Wicker bee skep " + (i + 1)).transform;
+                skep.SetParent(apiary, false);
+                skep.localPosition = new Vector3(x, 0.36f, 0f);
+                CreatePrimitive("Woven straw body", PrimitiveType.Sphere, skep,
+                    new Vector3(0f, 0.42f, 0f), new Vector3(0.66f, 0.78f, 0.66f), _roofMaterial);
+                CreatePrimitive("Skep lower wicker band", PrimitiveType.Cylinder, skep,
+                    new Vector3(0f, 0.24f, 0f), new Vector3(0.335f, 0.045f, 0.335f), _woodMaterial);
+                CreatePrimitive("Skep middle wicker band", PrimitiveType.Cylinder, skep,
+                    new Vector3(0f, 0.47f, 0f), new Vector3(0.31f, 0.035f, 0.31f), _woodMaterial);
+                CreatePrimitive("Skep upper wicker band", PrimitiveType.Cylinder, skep,
+                    new Vector3(0f, 0.68f, 0f), new Vector3(0.245f, 0.03f, 0.245f), _woodMaterial);
+                CreatePrimitive("Skep crown", PrimitiveType.Sphere, skep,
+                    new Vector3(0f, 0.79f, 0f), new Vector3(0.39f, 0.22f, 0.39f), _woodMaterial);
+                CreatePrimitive("Bee entrance", PrimitiveType.Sphere, skep,
+                    new Vector3(0f, 0.20f, -0.318f), new Vector3(0.10f, 0.055f, 0.025f), _metalMaterial);
+            }
+
+            // A simple frame stand and smoker make the work site readable at player height.
+            var bench = new GameObject("Beekeeper's frame bench").transform;
+            bench.SetParent(apiary, false);
+            bench.localPosition = new Vector3(2.25f, 0f, 0.72f);
+            CreatePrimitive("Frame bench top", PrimitiveType.Cube, bench,
+                new Vector3(0f, 0.78f, 0f), new Vector3(1.15f, 0.12f, 0.55f), _woodMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Frame bench leg", PrimitiveType.Cube, bench,
+                    new Vector3(x * 0.46f, 0.38f, z * 0.20f), new Vector3(0.08f, 0.76f, 0.08f), _roofMaterial);
+            for (var i = 0; i < 2; i++)
+            {
+                var frame = CreatePrimitive("Honeycomb frame", PrimitiveType.Cube, bench,
+                    new Vector3(-0.18f + i * 0.34f, 1.02f, 0f), new Vector3(0.26f, 0.48f, 0.045f), _produceMaterial);
+                frame.transform.localRotation = Quaternion.Euler(0f, 0f, -8f + i * 16f);
+                CreatePrimitive("Frame top bar", PrimitiveType.Cube, bench,
+                    new Vector3(-0.18f + i * 0.34f, 1.28f, 0f), new Vector3(0.32f, 0.045f, 0.07f), _woodMaterial);
+            }
+            CreatePrimitive("Bee smoker • body", PrimitiveType.Cylinder, bench,
+                new Vector3(0.46f, 0.96f, -0.16f), new Vector3(0.12f, 0.19f, 0.12f), _metalMaterial);
+            CreatePrimitive("Bee smoker • spout", PrimitiveType.Cylinder, bench,
+                new Vector3(0.58f, 1.12f, -0.16f), new Vector3(0.045f, 0.12f, 0.045f), _metalMaterial);
+            CreatePrimitive("Honey crock", PrimitiveType.Cylinder, bench,
+                new Vector3(0.30f, 0.91f, 0.18f), new Vector3(0.16f, 0.13f, 0.16f), _produceMaterial);
+            CreatePrimitive("Honey crock lid", PrimitiveType.Cylinder, bench,
+                new Vector3(0.30f, 1.18f, 0.18f), new Vector3(0.17f, 0.025f, 0.17f), _woodMaterial);
+
+            CreateSign(apiary, "ПАСЕКА", new Vector3(0.55f, 1.55f, -0.55f), 0.48f);
         }
 
 
