@@ -368,18 +368,21 @@ function drawWorld(s){
 }
 
 function drawLocPulse(s){
- const pl=s.place||{}, ns=pl.neighbors||[]; let residents=0,players=0,working=0,tavern=0,social=0,resting=0,eating=0;
- ns.forEach(n=>{ if(n.player){players++;return;} residents++; const c=n.act_code||'';
-  if(c==='drink_tavern') tavern++;
-  else if(c==='keep_tavern') working++;
-  else if(c==='visit_neighbors') social++;
-  else if(c==='sleep'||c==='rest_idle') resting++;
-  else if(c==='meal') eating++;
-  else if(c==='chop_wood'||c==='farm_sow'||c==='farm_reap'||c==='farm_mend'||c==='farm_tend'||c==='smith_forge'||c==='mine_ore'||c==='fish_river'||c==='fisher_mend'||c==='hunt_wild'||c==='cook_hearth'||c==='brew_remedy'||c==='forage_herbs'||c==='weave'||c==='herd_barn'||c==='herd_graze'||c==='study_mana'||c==='work') working++;
- });
- const bits=[`рядом видно: ${residents} жителей${players?` · игроков: ${players}`:''}`,`заняты делом: ${working}`];
- if(tavern) bits.push(`корчма: ${tavern}`); if(social) bits.push(`общаются: ${social}`); if(eating) bits.push(`едят: ${eating}`); if(resting) bits.push(`отдыхают: ${resting}`);
- if(pl.tavern) bits.push(`пива: ${pl.beer||0}`); if(pl.stable) bits.push(`лошадей: ${pl.stable.horses||0}`); if(pl.market&&pl.market.length) bits.push(`торговых позиций: ${pl.market.length}`);
+ const pl=s.place||{}, ns=pl.neighbors||[], life=pl.life||null, bits=[];
+ if(life){
+  bits.push('в поселении: '+(life.population||0)+' жителей','заняты делом: '+(life.working||0));
+  const a=life.activities||{}, labels=[['field','поле'],['wood','лес'],['forge','кузница'],['mine','рудник'],['fish','рыбаки'],['hunt','охота'],['herb','травы'],['cook','кухня'],['herd','стадо'],['magic','плетения'],['tavern','корчма'],['rest','отдых'],['social','общение'],['eating','едят'],['other','прочее']];
+  const active=labels.filter(x=>(a[x[0]]||0)>0).map(x=>x[1]+': '+a[x[0]]);
+  if(active.length) bits.push('занятия: '+active.join(', '));
+  const st=life.stock||{}, stocks=[['food','еда'],['wood','дрова'],['ore','руда'],['metal','металл'],['herb','травы'],['beer','пиво']];
+  const stocked=stocks.filter(x=>(st[x[0]]||0)>0).map(x=>x[1]+': '+Math.round(st[x[0]]*10)/10);
+  if(stocked.length) bits.push('общие запасы: '+stocked.join(', '));
+ }
+ const nearResidents=ns.filter(n=>!n.player).length, nearPlayers=ns.length-nearResidents;
+ bits.push('рядом в поле зрения: '+nearResidents+' жителей'+(nearPlayers?' · игроков: '+nearPlayers:''));
+ if(pl.tavern) bits.push('пива: '+(pl.beer||0));
+ if(pl.stable) bits.push('лошадей: '+(pl.stable.horses||0));
+ if(pl.market&&pl.market.length) bits.push('торговых позиций: '+pl.market.length);
  $('locpulse').textContent=bits.join(' · ');
 }
 
