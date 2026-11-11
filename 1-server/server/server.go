@@ -6,8 +6,10 @@ package server
 
 import (
 	"bytes"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	"log"
+	"math/big"
 	"mime"
 	"net/http"
 	"os"
@@ -38,6 +40,8 @@ type Server struct {
 
 	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
 	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
+	// Подменяемый источник перемешивания нужен для детерминированных серверных тестов.
+	ochkoShuffle func([]sim.OchkoCard) error
 
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
@@ -87,6 +91,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond, // один час мира за 0.4с → сутки ~10с (видно жизнь)
 		ctl:      map[core.ID]uint64{},
+		ochkoShuffle: shuffleOchkoDeck,
 	}
 }
 
@@ -100,6 +105,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond,
 		ctl:      map[core.ID]uint64{},
+		ochkoShuffle: shuffleOchkoDeck,
 	}
 }
 
@@ -554,6 +560,26 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			}
 		}
 		s.mu.Unlock()
+	case "card_game": // серверная карточная игра (первый срез — очко против корчмаря)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			var ok bool
+			var why string
+			switch in.Action {
+			case "start":
+				shuffle := s.ochkoShuffle
+				if shuffle == nil { shuffle = shuffleOchkoDeck }
+				ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffle)
+			case "hit":
+				ok, why = sim.HitOchko(s.world, e, in.ReqID)
+			case "stand":
+				ok, why = sim.StandOchko(s.world, e, in.ReqID)
+			default:
+				why = "неизвестный ход в очко"
+			}
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
+		}
+		s.mu.Unlock()
 	case "take": // подобрать предмет (v1.7)
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
@@ -740,6 +766,20 @@ func (s *Server) applyCore(cid core.ID, op string, in coreIntent) {
 	}
 }
 
+// shuffleOchkoDeck использует crypto/rand: исход карточной партии не выводится из seed мира
+// и не может быть предсказан клиентом. При ошибке StartOchko не списывает ставку.
+func shuffleOchkoDeck(cards []sim.OchkoCard) error {
+	for i := len(cards) - 1; i > 0; i-- {
+		n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return err
+		}
+		j := int(n.Int64())
+		cards[i], cards[j] = cards[j], cards[i]
+	}
+	return nil
+}
+
 // parseID — id собеседника из строки кадра (uint64) в core.ID; 0 при ошибке.
 func parseID(sid string) core.ID {
 	n, err := strconv.ParseUint(sid, 10, 64)
@@ -806,6 +846,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"drunk":   round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
 			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
 			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
+			"card_game": sim.OchkoView(e), // личная партия; скрытая рука корчмаря не попадает в кадр
 		},
 	}
 	out["hour"] = s.runner.Clock.Hour()                    // час суток 0..23 — для света/ночи на клиенте
