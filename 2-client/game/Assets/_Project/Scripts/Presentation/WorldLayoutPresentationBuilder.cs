@@ -167,10 +167,13 @@ namespace Pogranichye.Client.Presentation
                     continue;
                 }
 
-                if (child.name != "Willow tree") continue;
                 var position = child.localPosition;
-                if (Mathf.Abs(position.x) <= 55f && Mathf.Abs(position.z) <= 55f)
-                    UnityEngine.Object.Destroy(child.gameObject);
+                var inSettlementCore = Mathf.Abs(position.x) <= 55f && Mathf.Abs(position.z) <= 55f;
+                if (child.name == "Willow tree" || child.name == "Distant woodland mass")
+                {
+                    if (inSettlementCore) UnityEngine.Object.Destroy(child.gameObject);
+                    continue;
+                }
             }
         }
 
