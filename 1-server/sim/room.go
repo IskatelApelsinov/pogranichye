@@ -220,7 +220,7 @@ func EnterRoom(w *core.World, e *core.Entity, day int64, reqid string) (bool, st
 	return true, ""
 }
 
-func OpenRoomChest(w *core.World, e *core.Entity, reqid string) (bool, string) {
+func OpenRoomChest(w *core.World, e *core.Entity, day int64, reqid string) (bool, string) {
 	pc := EnsurePlayer(w, e)
 	if reqid == "" { return false, "нужен reqid" }
 	if pc.alreadyDone(reqid) { return true, "" }
@@ -230,6 +230,10 @@ func OpenRoomChest(w *core.World, e *core.Entity, reqid string) (bool, string) {
 		return false, "сначала войди в свою комнату"
 	}
 	if !visit.Inside && !visit.Recovery { return false, "сундук сейчас недоступен" }
+	if visit.Inside {
+		if r.State == "grace" && day > r.GraceUntilDay { r.State = "expired" }
+		if r.State != "rented" && r.State != "grace" { return false, "срок доступа к комнате истёк" }
+	}
 	if visit.Recovery && r.State != "expired" { return false, "возврат вещей пока не требуется" }
 	visit.ChestOpen = true
 	pc.markDone(reqid)
@@ -390,7 +394,8 @@ func (RoomRentSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 		dueDays := day - r.PaidThroughDay
 		due := r.RentPerDay * float64(dueDays)
 		owner := w.Get(r.Tenant)
-		pu := core.Purse(owner)
+		var pu *core.PurseC
+		if owner != nil { pu = core.Purse(owner) }
 		if pu != nil && pu.Coins+0.0001 >= due {
 			pu.Coins -= due
 			r.PaidThroughDay, r.GraceUntilDay, r.State = day, 0, "rented"
