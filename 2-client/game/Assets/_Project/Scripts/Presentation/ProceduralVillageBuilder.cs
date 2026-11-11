@@ -291,12 +291,9 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Wooden stool leg", PrimitiveType.Cube, house,
                     new Vector3(stoolX, 0.55f, -0.92f), new Vector3(0.08f, 0.36f, 0.08f), _woodMaterial);
             }
-            CreatePrimitive("Storage chest", PrimitiveType.Cube, house,
-                new Vector3(1.18f, 0.70f, 0.78f), new Vector3(0.62f, 0.48f, 0.54f), _roofMaterial);
-            CreatePrimitive("Chest lid", PrimitiveType.Cube, house,
-                new Vector3(1.18f, 0.96f, 0.78f), new Vector3(0.66f, 0.08f, 0.58f), _woodMaterial);
-            CreatePrimitive("Chest iron latch", PrimitiveType.Cube, house,
-                new Vector3(1.18f, 0.78f, 0.49f), new Vector3(0.12f, 0.18f, 0.035f), _metalMaterial);
+            // A detailed, reusable household prop. It is still presentation-only:
+            // RoomC/ContainerC and server-authorized access are not wired to this chest yet.
+            BuildStorageChest(house, new Vector3(1.18f, 0.70f, 0.78f));
 
             // Hearth and hanging pot make the interior silhouette legible from outside.
             CreatePrimitive("Hearth stone base", PrimitiveType.Cube, house,
@@ -311,6 +308,171 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.02f, 1.88f, 1.18f), new Vector3(0.16f, 0.20f, 0.16f), _produceMaterial);
             CreatePrimitive("Shelf jar", PrimitiveType.Cylinder, house,
                 new Vector3(0.46f, 1.88f, 1.18f), new Vector3(0.14f, 0.18f, 0.14f), _bottleMaterial);
+        }
+
+        private static void BuildStorageChest(Transform parent, Vector3 position)
+        {
+            var chest = new GameObject("Household storage chest • oak and iron").transform;
+            chest.SetParent(parent, false);
+            chest.localPosition = position;
+
+            // The dark inner body keeps tiny gaps between the planks readable at a distance.
+            CreatePrimitive("Chest inner body", PrimitiveType.Cube, chest,
+                Vector3.zero, new Vector3(0.57f, 0.37f, 0.49f), _mugWoodMaterial);
+            CreatePrimitive("Chest lower plinth", PrimitiveType.Cube, chest,
+                new Vector3(0f, -0.17f, 0f), new Vector3(0.65f, 0.065f, 0.57f), _mugWoodMaterial);
+
+            // Four horizontal boards on each broad face.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var faceName = side < 0 ? "front" : "back";
+                var faceZ = side * 0.255f;
+                for (var row = 0; row < 4; row++)
+                {
+                    var y = -0.135f + row * 0.09f;
+                    var plankMaterial = row % 2 == 0 ? _woodMaterial : _mugWoodMaterial;
+                    CreatePrimitive("Chest " + faceName + " oak plank", PrimitiveType.Cube, chest,
+                        new Vector3(0f, y, faceZ), new Vector3(0.53f, 0.078f, 0.026f), plankMaterial);
+                }
+            }
+
+            // End boards and four corner posts close the box without hiding the plank seams.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                for (var row = 0; row < 4; row++)
+                {
+                    var y = -0.135f + row * 0.09f;
+                    var plankMaterial = row % 2 == 0 ? _mugWoodMaterial : _woodMaterial;
+                    CreatePrimitive("Chest end oak plank", PrimitiveType.Cube, chest,
+                        new Vector3(side * 0.295f, y, 0f), new Vector3(0.026f, 0.078f, 0.45f), plankMaterial);
+                }
+
+                for (var depthSide = -1; depthSide <= 1; depthSide += 2)
+                {
+                    CreatePrimitive("Chest reinforced corner post", PrimitiveType.Cube, chest,
+                        new Vector3(side * 0.285f, 0f, depthSide * 0.245f),
+                        new Vector3(0.055f, 0.40f, 0.055f), _mugWoodMaterial);
+                }
+            }
+
+            // A three-board lid with a raised front/rear rim; the seam remains visible from above.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                CreatePrimitive("Chest lid rim", PrimitiveType.Cube, chest,
+                    new Vector3(0f, 0.215f, side * 0.275f),
+                    new Vector3(0.66f, 0.06f, 0.035f), _mugWoodMaterial);
+                CreatePrimitive("Chest lid end rim", PrimitiveType.Cube, chest,
+                    new Vector3(side * 0.325f, 0.215f, 0f),
+                    new Vector3(0.035f, 0.06f, 0.55f), _mugWoodMaterial);
+            }
+
+            for (var board = -1; board <= 1; board++)
+            {
+                CreatePrimitive("Chest lid oak board", PrimitiveType.Cube, chest,
+                    new Vector3(board * 0.215f, 0.255f, 0f),
+                    new Vector3(0.208f, 0.035f, 0.56f),
+                    board == 0 ? _woodMaterial : _mugWoodMaterial);
+            }
+
+            // Forged straps wrap over the lid and down both faces. Rivets make the fastening legible.
+            for (var strap = -1; strap <= 1; strap += 2)
+            {
+                var x = strap * 0.205f;
+                CreatePrimitive("Chest iron strap • front", PrimitiveType.Cube, chest,
+                    new Vector3(x, 0.025f, -0.278f), new Vector3(0.034f, 0.39f, 0.018f), _metalMaterial);
+                CreatePrimitive("Chest iron strap • back", PrimitiveType.Cube, chest,
+                    new Vector3(x, 0.025f, 0.278f), new Vector3(0.034f, 0.39f, 0.018f), _metalMaterial);
+                CreatePrimitive("Chest iron strap • lid", PrimitiveType.Cube, chest,
+                    new Vector3(x, 0.279f, 0f), new Vector3(0.034f, 0.014f, 0.57f), _metalMaterial);
+
+                for (var row = -1; row <= 1; row += 2)
+                {
+                    CreatePrimitive("Chest strap rivet", PrimitiveType.Sphere, chest,
+                        new Vector3(x, row * 0.145f, -0.291f), Vector3.one * 0.022f, _metalMaterial);
+                    CreatePrimitive("Chest strap rivet", PrimitiveType.Sphere, chest,
+                        new Vector3(x, row * 0.145f, 0.291f), Vector3.one * 0.022f, _metalMaterial);
+                }
+            }
+
+            // Central hasp and a small dark keyhole; this is decoration, not an interaction target.
+            CreatePrimitive("Chest iron latch plate", PrimitiveType.Cube, chest,
+                new Vector3(0f, 0.015f, -0.292f), new Vector3(0.12f, 0.17f, 0.022f), _metalMaterial);
+            CreatePrimitive("Chest latch hasp", PrimitiveType.Cube, chest,
+                new Vector3(0f, -0.065f, -0.309f), new Vector3(0.055f, 0.095f, 0.018f), _metalMaterial);
+            CreatePrimitive("Chest keyhole", PrimitiveType.Sphere, chest,
+                new Vector3(0f, -0.075f, -0.322f), new Vector3(0.018f, 0.026f, 0.009f), _mugWoodMaterial);
+
+            // Simple forged end handles and four short feet keep the silhouette grounded.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                CreatePrimitive("Chest handle mounting plate", PrimitiveType.Cube, chest,
+                    new Vector3(side * 0.326f, -0.015f, -0.12f),
+                    new Vector3(0.025f, 0.095f, 0.07f), _metalMaterial);
+                CreatePrimitive("Chest handle mounting plate", PrimitiveType.Cube, chest,
+                    new Vector3(side * 0.326f, -0.015f, 0.12f),
+                    new Vector3(0.025f, 0.095f, 0.07f), _metalMaterial);
+                var handle = CreatePrimitive("Chest forged side handle", PrimitiveType.Cylinder, chest,
+                    new Vector3(side * 0.345f, -0.015f, 0f),
+                    new Vector3(0.028f, 0.12f, 0.028f), _metalMaterial);
+                handle.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+                for (var depthSide = -1; depthSide <= 1; depthSide += 2)
+                {
+                    CreatePrimitive("Chest short oak foot", PrimitiveType.Cube, chest,
+                        new Vector3(side * 0.235f, -0.19f, depthSide * 0.19f),
+                        new Vector3(0.08f, 0.06f, 0.08f), _mugWoodMaterial);
+                }
+            }
+
+            // Keep the authored detail inexpensive: one combined renderer per chest material.
+            CombineStorageChestMeshes(chest);
+        }
+
+        private static void CombineStorageChestMeshes(Transform chest)
+        {
+            var sources = new System.Collections.Generic.List<GameObject>();
+            var groups = new System.Collections.Generic.Dictionary<Material,
+                System.Collections.Generic.List<CombineInstance>>();
+
+            for (var i = 0; i < chest.childCount; i++)
+            {
+                var source = chest.GetChild(i).gameObject;
+                var filter = source.GetComponent<MeshFilter>();
+                var renderer = source.GetComponent<MeshRenderer>();
+                if (filter == null || filter.sharedMesh == null || renderer == null ||
+                    renderer.sharedMaterial == null) continue;
+
+                if (!groups.TryGetValue(renderer.sharedMaterial, out var instances))
+                {
+                    instances = new System.Collections.Generic.List<CombineInstance>();
+                    groups.Add(renderer.sharedMaterial, instances);
+                }
+
+                instances.Add(new CombineInstance
+                {
+                    mesh = filter.sharedMesh,
+                    transform = chest.worldToLocalMatrix * source.transform.localToWorldMatrix
+                });
+                sources.Add(source);
+            }
+
+            foreach (var group in groups)
+            {
+                var mesh = new Mesh { name = "Household chest • " + group.Key.name };
+                mesh.CombineMeshes(group.Value.ToArray(), true, true);
+                mesh.RecalculateBounds();
+
+                var combined = new GameObject("Chest combined • " + group.Key.name).transform;
+                combined.SetParent(chest, false);
+                combined.localPosition = Vector3.zero;
+                combined.localRotation = Quaternion.identity;
+                combined.localScale = Vector3.one;
+                combined.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+                combined.gameObject.AddComponent<MeshRenderer>().sharedMaterial = group.Key;
+                if (!_generatedMeshes.Contains(mesh)) _generatedMeshes.Add(mesh);
+            }
+
+            foreach (var source in sources) Object.Destroy(source);
         }
 
         private static void BuildCottageGables(Transform house)
