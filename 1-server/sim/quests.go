@@ -45,7 +45,6 @@ type QuestC struct {
 	Rep    map[core.ID]int `json:"rep"`
 	Healed map[core.ID]int `json:"healed"` // кого лечил плетением (для просьб «залечи»)
 	OpeningErrandDone bool `json:"opening_errand_done,omitempty"` // монотонный факт сдачи вводного поручения
-	OpeningErrandDone bool `json:"opening_errand_done,omitempty"` // монотонный факт сдачи вводного поручения
 }
 
 func (c *QuestC) Kind() string { return "quests" }
