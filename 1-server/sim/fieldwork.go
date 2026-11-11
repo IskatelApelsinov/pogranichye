@@ -143,3 +143,72 @@ func Forge(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	pc.markDone(reqid)
 	return true, ""
 }
+
+// apiaryPortion — сколько мёда вынимают за один подход к улью (полрамки; дневная норма бортника —
+// econ honeyPerDay=3, то есть два подхода).
+const apiaryPortion = 1.5
+
+// hiveOf — пасека этого села (nil, если пасеки нет).
+func hiveOf(w *core.World, seID core.ID) *econ.ResourceNodeC {
+	var hive *econ.ResourceNodeC
+	w.Each("resnode", func(ne *core.Entity) {
+		if n := econ.Node(ne); hive == nil && n != nil && n.Node == econ.NodeApiary && n.Settlement == seID {
+			hive = n
+		}
+	})
+	return hive
+}
+
+// Apiary — помочь на пасеке: вынуть рамку мёда из сельских ульев в ОБЩИЙ склад (как Farmwork/Forge —
+// труд в пользу села, не личная добыча). Мёд не творится: берётся из запаса улья (ResourceNodeC.Stock),
+// который летом наполняют пчёлы и из которого же вынимают фоновые бортники (econ/economy.go), —
+// поэтому игрок не удваивает выработку, а подставляет руки. Пустые соты → отказ без затрат.
+// Пасека стоит на лугу у полей (POI garden). Платит обычным заработком, растит навык herbalist
+// (бортничает в селе знахарь — отдельного ремесла бортника нет).
+func Apiary(w *core.World, e *core.Entity, season core.Season, reqid string) (bool, string) {
+	pc := EnsurePlayer(w, e)
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
+	if OnRoad(e) || !atPoi(e, "garden") {
+		return false, "пасека стоит на лугу у полей — подойди ближе"
+	}
+	if why := siteLacks(w, e, "garden"); why != "" {
+		return false, why
+	}
+	se := settlementEnt(w, e)
+	if se == nil {
+		return false, "ты не в поселении"
+	}
+	s := core.Settle(se)
+	hive := hiveOf(w, se.ID)
+	if s == nil || hive == nil {
+		return false, "здесь не держат пчёл"
+	}
+	if season == core.Winter {
+		return false, "ульи укрыты на зиму — пчёл не тревожат"
+	}
+	if hive.Stock < apiaryPortion {
+		if season == core.Spring {
+			return false, "соты пусты — взятка ещё не было"
+		}
+		return false, "мёд уже вынули — пчёлам надо наносить новый"
+	}
+	v := core.Vitals(e)
+	if v == nil || v.Energy < 8 {
+		return false, "нет сил возиться с ульями"
+	}
+	if s.Store == nil {
+		s.Store = map[string]float64{}
+	}
+	hive.Stock -= apiaryPortion
+	s.Store[econ.GoodHoney] += apiaryPortion
+	v.Energy -= 8
+	econ.Wage(se, e, "herbalist")
+	trainSkill(w, e, "herbalist", 0.6)
+	pc.markDone(reqid)
+	return true, ""
+}

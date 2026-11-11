@@ -105,6 +105,31 @@ func Equip(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 	return true, ""
 }
 
+// Unwear — снять надетое (одежду/доспех/щит). Вещь остаётся в суме: Wear её оттуда и не забирал,
+// так что снять = освободить слот. Снимать то, что не надето, — отказ (клиент не должен гадать).
+func Unwear(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
+	var pc *PlayerC
+	if reqid != "" {
+		pc = EnsurePlayer(w, e)
+		if pc.alreadyDone(reqid) {
+			return true, ""
+		}
+	}
+	slot, ok := wearSlot[item]
+	if !ok {
+		return false, "это не носят"
+	}
+	inv := ensureInv(w, e)
+	if inv.Worn[slot] != item {
+		return false, "это и так не надето"
+	}
+	delete(inv.Worn, slot)
+	if pc != nil {
+		pc.markDone(reqid)
+	}
+	return true, ""
+}
+
 // Wear — надеть одежду (слот по предмету). Лёгкий подъём настроя за обновку.
 func Wear(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 	var pc *PlayerC

@@ -328,3 +328,36 @@ func TestWagePaysAndClearsDebt(t *testing.T) {
 		t.Fatal("после погашения долга труд должен копить монеты")
 	}
 }
+
+// Пасека: мёд носят пчёлы (запас улья), бортник лишь вынимает. Без бортника мёд копится в сотах
+// до потолка и на склад сам не попадает; зимой невынутое съедает семья.
+func TestApiaryHiveStockIsTheOnlyHoneySource(t *testing.T) {
+	w, se := mini(map[string]float64{GoodBread: 9999}, "", 0)
+	hive := Node(w.Spawn(&ResourceNodeC{Node: NodeApiary, Good: GoodHoney, Settlement: se.ID}))
+	summer := 0
+	for d := 1; d <= 800 && summer == 0; d++ {
+		if dayHour(d).Season() == core.Summer {
+			summer = d
+		}
+	}
+	// lab учитывает жителей; без единого жителя село не обрабатывается — добавим пахаря
+	w.Spawn(&core.IdentC{Name: "П", Role: "farmer", Sex: "м"}, &core.VitalsC{Age: 30, Health: 100}, &core.PlaceC{Settlement: se.ID})
+	for i := 0; i < 10; i++ {
+		run(w, summer+i)
+	}
+	if hive.Stock != HiveCap() {
+		t.Fatalf("без бортника соты наполняются до потолка %v, а в них %v", HiveCap(), hive.Stock)
+	}
+	if got := core.Settle(se).Store[GoodHoney]; got != 0 {
+		t.Fatalf("без бортника мёд на склад не попадает, а там %v", got)
+	}
+	// пришёл бортник: за день вынимает не больше своей нормы, и ровно столько убывает в улье
+	w.Spawn(&core.IdentC{Name: "Б", Role: "herbalist", Sex: "ж"}, &core.VitalsC{Age: 30, Health: 100}, &core.PlaceC{Settlement: se.ID})
+	run(w, summer+10)
+	if got := core.Settle(se).Store[GoodHoney]; got != honeyPerDay {
+		t.Fatalf("бортник вынимает %v в день, вынул %v", honeyPerDay, got)
+	}
+	if hive.Stock != HiveCap()-honeyPerDay {
+		t.Fatalf("вынутое должно убыть из улья: осталось %v", hive.Stock)
+	}
+}

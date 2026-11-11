@@ -37,5 +37,10 @@
     const skill=skillLevel(me,'herbalist');
     return {skill,zoneWidth:20+skill*0.22,speed:1-skill*0.0025};
   }
-  return {skillLevel,fishing,chopping,fieldwork,forging,building,mining,foraging};
+  // Пасека: у новичка окно уже, чем на травах (пчёлы не прощают суеты), но опыт расширяет его быстрее.
+  function beekeeping(me){
+    const skill=skillLevel(me,'herbalist');
+    return {skill,zoneWidth:14+skill*0.28,speed:1.1-skill*0.003};
+  }
+  return {skillLevel,fishing,chopping,fieldwork,forging,building,mining,foraging,beekeeping};
 });

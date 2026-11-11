@@ -548,6 +548,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "forge":
 				rok, rwhy := sim.Forge(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "apiary":
+				rok, rwhy := sim.Apiary(s.world, e, s.runner.Clock.Season(), in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()
@@ -569,6 +572,13 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
 			ok, why := sim.Wear(s.world, e, in.Item, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
+		}
+		s.mu.Unlock()
+	case "unwear": // снять надетое (v1.17)
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			ok, why := sim.Unwear(s.world, e, in.Item, in.ReqID)
 			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
 		s.mu.Unlock()
