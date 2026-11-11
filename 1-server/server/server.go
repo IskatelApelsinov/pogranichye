@@ -498,7 +498,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "move":
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			if !sim.OnRoad(e) {
+			if !sim.OnRoad(e) && !sim.InRoom(e) {
 				p := sim.EnsureScenePos(s.world, e)
 				sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
 			}
@@ -596,6 +596,41 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				}
 			default:
 				why = "неизвестная карточная игра"
+			}
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
+		}
+		s.mu.Unlock()
+	case "room": // аренда комнаты, серверный вход и личный сундук
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			var ok bool
+			var why string
+			day := s.runner.Clock.Day()
+			switch in.Action {
+			case "rent":
+				ok, why = sim.RentRoom(s.world, e, day, in.ReqID)
+			case "enter":
+				ok, why = sim.EnterRoom(s.world, e, day, in.ReqID)
+			case "open":
+				ok, why = sim.OpenRoomChest(s.world, e, day, in.ReqID)
+			case "close":
+				ok, why = sim.CloseRoomChest(s.world, e, in.ReqID)
+			case "leave":
+				ok, why = sim.LeaveRoom(s.world, e, in.ReqID)
+			case "recover":
+				ok, why = sim.RecoverRoomChest(s.world, e, in.ReqID)
+			case "renew":
+				ok, why = sim.RenewRoom(s.world, e, day, in.ReqID)
+			case "move":
+				if in.Item != "" {
+					ok, why = sim.MoveRoomContainer(s.world, e, day, "item", in.Side, in.Item, in.Qty, in.ReqID)
+				} else if in.Good != "" {
+					ok, why = sim.MoveRoomContainer(s.world, e, day, "good", in.Side, in.Good, in.Qty, in.ReqID)
+				} else {
+					why = "укажи предмет или товар"
+				}
+			default:
+				why = "неизвестное действие с комнатой"
 			}
 			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
@@ -878,6 +913,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
 			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
 			"card_game": sim.CardGameView(e), // личная партия; скрытая рука корчмаря не попадает в кадр
+			"room": sim.RoomView(s.world, e, s.runner.Clock.Day()), // личная аренда, серверное присутствие и сундук
 		},
 	}
 	out["hour"] = s.runner.Clock.Hour()                    // час суток 0..23 — для света/ночи на клиенте
@@ -923,6 +959,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
 				"life":        s.placeLife(se),                           // агрегаты жизни общины (v1.18)
+				"rooms":       sim.RoomsView(s.world, e),                   // доступные комнаты корчмы
 			}
 		}
 	}
