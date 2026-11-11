@@ -765,8 +765,11 @@ namespace Pogranichye.Client
                     }
                     if (IsWearableEquipment(item.Key))
                     {
-                        if (GUILayout.Button("Надеть", GUILayout.Width(86f)))
-                            QueueInventoryItemIntent("wear", item.Key);
+                        // The worn slot is server-authoritative; never toggle optimistically on click.
+                        var isWorn = IsItemWorn(inventory, item.Key);
+                        var operation = isWorn ? "unwear" : "wear";
+                        if (GUILayout.Button(isWorn ? "Снять" : "Надеть", GUILayout.Width(86f)))
+                            QueueInventoryItemIntent(operation, item.Key);
                     }
                     GUILayout.EndHorizontal();
                 }
@@ -787,13 +790,24 @@ namespace Pogranichye.Client
 
         private static bool IsHandEquipment(string item)
         {
-            return item == "axe" || item == "sword" || item == "bow"
+            return item == "axe" || item == "sword" || item == "knife" || item == "bow"
                 || item == "rod" || item == "torch" || item == "lantern";
         }
 
         private static bool IsWearableEquipment(string item)
         {
-            return item == "cloak" || item == "boots" || item == "hat";
+            return item == "cloak" || item == "boots" || item == "hat"
+                || item == "jerkin" || item == "shield" || item == "purse";
+        }
+
+        private static bool IsItemWorn(InventoryFrame inventory, string item)
+        {
+            if (inventory?.Worn == null || string.IsNullOrEmpty(item)) return false;
+            foreach (var wornItem in inventory.Worn.Values)
+            {
+                if (string.Equals(wornItem, item, StringComparison.Ordinal)) return true;
+            }
+            return false;
         }
 
         private void QueueInventoryItemIntent(string op, string item)
