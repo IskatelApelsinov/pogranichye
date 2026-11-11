@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"testing"
 
 	"pogranichye/core"
@@ -8,7 +9,7 @@ import (
 
 func TestContainerMovesAreAtomicAndCapacityBounded(t *testing.T) {
 	from := &ContainerC{Capacity: 20, Goods: map[string]float64{"wood": 8.5}, Items: map[string]int{"bandage": 3}}
-	to := &ContainerC{Capacity: 10, Goods: map[string]float64{}, Items: map[string]int{}}
+	to := &ContainerC{Capacity: 5, Goods: map[string]float64{}, Items: map[string]int{}}
 
 	if err := MoveContainerGoods(from, to, "wood", 2.5); err != nil {
 		t.Fatalf("move fractional goods: %v", err)
@@ -29,8 +30,11 @@ func TestContainerMovesAreAtomicAndCapacityBounded(t *testing.T) {
 	if err := MoveContainerItems(from, to, "bandage", 99); err == nil {
 		t.Fatal("missing source quantity must be rejected")
 	}
-	if err := MoveContainerGoods(from, to, "wood", 20); err == nil {
+	if err := MoveContainerGoods(from, to, "wood", 1); err == nil {
 		t.Fatal("over-capacity destination must be rejected")
+	}
+	if err := MoveContainerGoods(from, to, "wood", math.NaN()); err == nil {
+		t.Fatal("NaN quantity must be rejected")
 	}
 	if err := MoveContainerItems(from, to, "bandage", 0); err == nil {
 		t.Fatal("zero quantity must be rejected")
