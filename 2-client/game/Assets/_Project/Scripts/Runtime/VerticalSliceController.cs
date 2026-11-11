@@ -1181,7 +1181,6 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(poi.ActionIntent))
             {
                 QueueWorldAction(poi.ActionIntent);
-                _status = "Выбрана точка: " + poi.Title + ". Действие отправлено серверу на проверку.";
                 return;
             }
 
