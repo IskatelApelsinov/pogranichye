@@ -1407,6 +1407,23 @@ namespace Pogranichye.Client
             _weaveOpen = false;
             if (_rig != null) _rig.SetMouseGestureCapture(false);
             if (!cast || _pattern.Count == 0) return;
+            // The server's personal weave limit is distinct from general mana/skill capacity.
+            // Avoid knowingly sending a pattern this body cannot currently hold; the server
+            // remains authoritative and older frames without the field stay compatible.
+            var weave = Obj(_me, "weave");
+            var personalLimit = Num(weave, "limit");
+            if (personalLimit > 0f)
+            {
+                int complexity, cost;
+                bool closed;
+                ReadPattern(out complexity, out cost, out closed);
+                if (complexity > personalLimit)
+                {
+                    Toast("Узор слишком сложен для тебя сейчас (предел " +
+                        personalLimit.ToString("0.#", CultureInfo.InvariantCulture) + "). Учись у мага или в месте силы.", 3f);
+                    return;
+                }
+            }
             CoreFoeView foe;
             string part;
             float accuracy, distance;
@@ -1517,8 +1534,16 @@ namespace Pogranichye.Client
                 var what = ReadPattern(out complexity, out cost, out closed);
                 var over = complexity - capacity;
                 var risk = over <= -1f ? "удержишь" : over <= 1f ? "на пределе" : "надорвёшься";
+                var personalLimit = Num(weave, "limit");
+                var personal = personalLimit > 0f
+                    ? " · предел тела " + personalLimit.ToString("0.#", CultureInfo.InvariantCulture)
+                    : "";
+                var inaccessible = personalLimit > 0f && complexity > personalLimit;
                 text += "\nСделает: " + what + " · сложность " + complexity + " из " + capacity.ToString("0.#", CultureInfo.InvariantCulture)
-                    + " (" + risk + ") · маны " + cost + (closed ? "" : " · узор НЕ замкнут");
+                    + " (" + risk + ")" + personal + (inaccessible ? " · ПОКА НЕДОСТУПНО" : "")
+                    + " · маны " + cost + (closed ? "" : " · узор НЕ замкнут");
+                if (inaccessible)
+                    text += "\nНужно учиться у мага или в месте силы; сервер не примет этот узор.";
             }
             var known = Arr(weave, "known");
             if (known != null)
