@@ -214,3 +214,44 @@ func TestFoundingMigrationFoodUsesActualRoadDistance(t *testing.T) {
 	}
 }
 
+func TestChildTravellerConsumesReservedMigrationFood(t *testing.T) {
+	w := core.NewWorld("child-migration-rations")
+	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
+	from := w.Spawn(&core.SettlementC{
+		Name: "Исток", X: 0, Y: 0, Region: region.ID,
+		Store: map[string]float64{econ.GoodBread: 10},
+	})
+	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 1, Y: 0, Region: region.ID})
+	child := w.Spawn(
+		&core.IdentC{Name: "Ребёнок", Role: "child"},
+		&core.VitalsC{Age: 10, Health: 100, Hunger: 24.5, Energy: 80},
+		&core.HomeC{Status: "owned", Settlement: from.ID},
+		&core.PlaceC{Settlement: from.ID},
+	)
+
+	if !startMigrationAt(w, child, to.ID, "family", 0) {
+		t.Fatal("a child traveller with a connected, provisioned route must be allowed to depart")
+	}
+	m := Migration(child)
+	if m == nil || m.FoodSupply != 1 || core.Settle(from).Store[econ.GoodBread] != 9 {
+		t.Fatalf("departure must reserve exactly one meal from the source settlement: migration=%+v bread=%.1f",
+			m, core.Settle(from).Store[econ.GoodBread])
+	}
+
+	// A child normally eats from the settlement community store. In transit there is
+	// no resident settlement, so the reserved MigrationC supply must take precedence.
+	(NeedsSystem{}).Hour(w, core.Clock{TotalHours: 1}, nil)
+	if m.FoodSupply != 0 {
+		t.Fatalf("child traveller must consume the reserved ration, left=%d", m.FoodSupply)
+	}
+	if got := core.Vitals(child).Hunger; got != 0 {
+		t.Fatalf("reserved ration must satisfy the child's first hungry travel tick, hunger=%.1f", got)
+	}
+	if core.Settle(from).Store[econ.GoodBread] != 9 {
+		t.Fatalf("travel food was already reserved; needs must not charge the source store again, bread=%.1f",
+			core.Settle(from).Store[econ.GoodBread])
+	}
+	if Migration(child) == nil || core.Place(child).Settlement != 0 {
+		t.Fatal("feeding must not complete or relocate the child before the route duration elapses")
+	}
+}
