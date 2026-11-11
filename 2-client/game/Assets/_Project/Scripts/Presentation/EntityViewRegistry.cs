@@ -686,6 +686,7 @@ namespace Pogranichye.Client.Presentation
                     var flame = CreatePart("Held torch • flame", PrimitiveType.Sphere, held,
                         new Vector3(0f, 0.48f, 0f), new Vector3(0.10f, 0.15f, 0.10f));
                     ApplyColor(flame.GetComponent<Renderer>(), new Color(1f, 0.48f, 0.10f));
+                    AddHeldLight(flame.transform, new Color(1f, 0.58f, 0.28f), 2.1f, 8f);
                     break;
                 }
                 case "lantern":
@@ -696,9 +697,27 @@ namespace Pogranichye.Client.Presentation
                     var glow = CreatePart("Held lantern • glass", PrimitiveType.Sphere, held,
                         new Vector3(0f, 0.43f, 0.065f), new Vector3(0.075f, 0.11f, 0.035f));
                     ApplyColor(glow.GetComponent<Renderer>(), new Color(1f, 0.72f, 0.30f));
+                    AddHeldLight(glow.transform, new Color(1f, 0.72f, 0.42f), 1.6f, 10f);
                     break;
                 }
             }
+        }
+
+        // Held light is a local presentation effect only. Server-side night safety,
+        // visibility and encounter rules remain authoritative and are not inferred here.
+        private static void AddHeldLight(Transform source, Color color, float intensity, float range)
+        {
+            if (source == null) return;
+            var lightObject = new GameObject("Held light • local illumination");
+            lightObject.transform.SetParent(source, false);
+            lightObject.transform.localPosition = Vector3.zero;
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = color;
+            light.intensity = intensity;
+            light.range = range;
+            light.shadows = LightShadows.None;
+            light.renderMode = LightRenderMode.Auto;
         }
 
         public bool TryGetView(string entityId, out GameObject view)
