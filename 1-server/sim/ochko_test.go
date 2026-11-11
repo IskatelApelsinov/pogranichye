@@ -104,3 +104,20 @@ func TestOchkoRejectsInsufficientFundsAndWrongPlace(t *testing.T) {
 		t.Fatal("starting away from the tavern must not charge")
 	}
 }
+
+func TestOchkoRequiresCurrentTavernAndLivingPlayer(t *testing.T) {
+	w := core.NewWorld("ochko-presence")
+	e, _ := drinker(w, 100, 0)
+	shuffle := fixedOchkoDeck(nil)
+	other := w.Spawn(&core.SettlementC{Name: "Другое село", Tavern: false})
+	original := core.Place(e).Settlement
+	core.Place(e).Settlement = other.ID
+	if ok, _ := StartOchko(w, e, "wrong-settlement", shuffle); ok || core.Purse(e).Coins != 100 {
+		t.Fatal("scene coordinates alone must not allow play in a settlement without a tavern")
+	}
+	core.Place(e).Settlement = original
+	core.Vitals(e).Health = 0
+	if ok, _ := StartOchko(w, e, "dead", shuffle); ok || core.Purse(e).Coins != 100 {
+		t.Fatal("a dead character must not start a card game")
+	}
+}
