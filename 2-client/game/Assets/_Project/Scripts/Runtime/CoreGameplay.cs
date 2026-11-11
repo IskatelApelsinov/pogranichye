@@ -1821,6 +1821,45 @@ namespace Pogranichye.Client
             return false;
         }
 
+        private static string TerrainName(string terrain)
+        {
+            switch (terrain)
+            {
+                case "river": return "речная долина";
+                case "hills": return "холмы";
+                case "forest": return "лесная местность";
+                case "plain": return "равнина";
+                case "coast": return "побережье";
+                case "marsh": return "болота";
+                default: return string.IsNullOrEmpty(terrain) ? "неизвестная местность" : terrain;
+            }
+        }
+
+        private static string ClimateName(string climate)
+        {
+            switch (climate)
+            {
+                case "polar": return "полярный";
+                case "cold": return "холодный";
+                case "temperate": return "умеренный";
+                case "warm": return "тёплый";
+                case "hot": return "жаркий";
+                default: return string.IsNullOrEmpty(climate) ? "неизвестен" : climate;
+            }
+        }
+
+        private static string FeatureName(string feature)
+        {
+            switch (feature)
+            {
+                case "river": return "река";
+                case "woods": return "лес";
+                case "mine": return "рудник";
+                case "garden": return "поля";
+                default: return feature;
+            }
+        }
+
         private bool Near(string poi, float radius)
         {
             Vector2 anchor;
@@ -1851,15 +1890,29 @@ namespace Pogranichye.Client
             var coins = Num(_me, "coins");
 
             GUILayout.Label("ЗДЕСЬ");
+            if (_place != null)
+            {
+                var tier = Str(_place, "tier");
+                var tierName = tier == "city" ? "город" : tier == "village" ? "деревня" : tier;
+                GUILayout.Label(Str(_place, "name") + (string.IsNullOrEmpty(tierName) ? "" : " · " + tierName));
+            }
             var site = Obj(_place, "site");
             if (site != null)
             {
-                var have = string.Empty;
+                var have = new System.Collections.Generic.List<string>();
                 var features = Arr(site, "features");
                 if (features != null)
                     foreach (var feature in features)
-                        have += (feature.ToString() == "river" ? "река" : feature.ToString() == "woods" ? "лес" : feature.ToString() == "mine" ? "рудник" : "поля") + "  ";
-                GUILayout.Label("Село славится: " + Str(site, "specialty") + " · держава " + Str(site, "state") + " · рядом есть: " + have);
+                    {
+                        var featureName = FeatureName(feature.ToString());
+                        if (!string.IsNullOrEmpty(featureName)) have.Add(featureName);
+                    }
+                GUILayout.Label("Местность: " + TerrainName(Str(site, "terrain")) +
+                    " · климат: " + ClimateName(Str(site, "climate")));
+                GUILayout.Label("Особенность: " + Str(site, "specialty") +
+                    " · держава: " + Str(site, "state"));
+                if (have.Count > 0)
+                    GUILayout.Label("Угодья поблизости: " + string.Join(" · ", have.ToArray()));
             }
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
