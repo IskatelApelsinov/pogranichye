@@ -87,3 +87,43 @@ func TestCraftDuplicateReqIDDoesNotDuplicateOutput(t *testing.T) {
 		t.Fatal("повтор reqid не должен повторно тратить энергию")
 	}
 }
+
+func TestPurseCraftWearAndPublicAppearanceDoNotChangeCoins(t *testing.T) {
+	w, e, _ := starterPlayer(t)
+	if ok, why := GoTo(w, e, "granary"); !ok {
+		t.Fatalf("перейти к амбару: %s", why)
+	}
+	st := ensureStashOf(w, e)
+	st.Goods["leather"] = 1
+	st.Goods["cloth"] = 1
+	coins := core.Purse(e).Coins
+
+	if ok, why := Craft(w, e, "purse", "craft-purse"); !ok {
+		t.Fatalf("сшить кошель: %s", why)
+	}
+	if Inv(e).Items["purse"] != 1 || st.Goods["leather"] != 0 || st.Goods["cloth"] != 0 {
+		t.Fatalf("кошель должен быть настоящим предметом, а материалы — списаны: inv=%#v goods=%#v", Inv(e).Items, st.Goods)
+	}
+	if ok, why := Wear(w, e, "purse", "wear-purse"); !ok {
+		t.Fatalf("надеть кошель: %s", why)
+	}
+	if Inv(e).Worn["belt"] != "purse" {
+		t.Fatalf("кошель должен занимать слот belt: %#v", Inv(e).Worn)
+	}
+	gear := PublicGear(e)
+	if gear["worn"].(map[string]string)["belt"] != "purse" {
+		t.Fatalf("кошель должен быть виден в публичной экипировке: %#v", gear)
+	}
+	if core.Purse(e).Coins != coins {
+		t.Fatal("физический кошель не должен менять или дублировать денежный баланс")
+	}
+	if ok, why := Unwear(w, e, "purse", "unwear-purse"); !ok {
+		t.Fatalf("снять кошель: %s", why)
+	}
+	if _, exists := Inv(e).Worn["belt"]; exists || Inv(e).Items["purse"] != 1 {
+		t.Fatalf("снятие должно освободить пояс, сохранив предмет: %#v", Inv(e))
+	}
+	if core.Purse(e).Coins != coins {
+		t.Fatal("снятие физического кошеля не должно трогать монеты")
+	}
+}
