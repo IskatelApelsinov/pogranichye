@@ -111,6 +111,33 @@ func TestMigrationStartTickDoesNotAdvanceTransitBeforeOneWorldHour(t *testing.T)
 	}
 }
 
+func TestMigrationStartTickSkipsNeedsWhenTransitBeginsBeforeNeedsSystem(t *testing.T) {
+	w := core.NewWorld("migration-start-before-needs")
+	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
+	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0, Region: region.ID, Store: map[string]float64{econ.GoodBread: 10}})
+	w.Spawn(&core.SettlementC{Name: "Перевал", X: 200, Y: 0, Region: region.ID})
+	person := w.Spawn(
+		&core.IdentC{Name: "Странник", Role: "farmer"},
+		&core.VitalsC{Age: 25, Health: 100, Hunger: 10, Energy: 80},
+		&core.DrivesC{Ambition: 90},
+		&core.MindC{Goal: "leave", GoalUntil: 10},
+		&core.HomeC{Status: "owned", Settlement: from.ID},
+		&core.PlaceC{Settlement: from.ID},
+	)
+
+	runner := core.NewRunner("migration-start-before-needs", MindSystem{}, NeedsSystem{}, MigrationSystem{})
+	runner.Step(w)
+	m := Migration(person)
+	if m == nil || m.ProgressHours != 0 || core.Vitals(person).Hunger != 10 {
+		t.Fatalf("a partial start tick must not advance travel or needs: migration=%+v hunger=%.1f", m, core.Vitals(person).Hunger)
+	}
+
+	runner.Step(w)
+	if m.ProgressHours != 1 || core.Vitals(person).Hunger <= 10 {
+		t.Fatalf("the next full hour must advance both travel and needs: progress=%.1f hunger=%.1f", m.ProgressHours, core.Vitals(person).Hunger)
+	}
+}
+
 func TestMigrationRecoveryRestoresHomeToFallbackSettlement(t *testing.T) {
 	w := core.NewWorld("migration-recovery-home")
 	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
