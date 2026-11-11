@@ -344,15 +344,14 @@
         "rest": 1,
         "social": 0,
         "eating": 0,
-        "other": 0
+        "other": 0,
+        "maintenance": 0
       },
       "stock": {
-        "food": 466,
         "wood": 24,
         "ore": 8,
         "metal": 3,
-        "herb": 5,
-        "beer": 12
+        "herb": 5
       }
     }
   },
