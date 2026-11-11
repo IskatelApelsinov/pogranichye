@@ -53,7 +53,7 @@ func validSurfacePoint(p SurfacePoint) bool {
 		p.LatitudeDeg >= -90 && p.LatitudeDeg <= 90
 }
 
-// Forward projects a geodetic point to the local tangent plane. It returns false for invalid
+// Forward projects a geodetic point to the local azimuthal plane. It returns false for invalid
 // input or the exact antipode of the projection origin.
 func (p PlanetProjection) Forward(point SurfacePoint) (LocalMeters, bool) {
 	if p.RadiusMeters <= 0 || math.IsNaN(p.RadiusMeters) || math.IsInf(p.RadiusMeters, 0) ||
@@ -81,7 +81,7 @@ func (p PlanetProjection) Forward(point SurfacePoint) (LocalMeters, bool) {
 	}, true
 }
 
-// Inverse maps local tangent-plane metres back to a geodetic point. The returned elevation is
+// Inverse maps local azimuthal-plane metres back to a geodetic point. The returned elevation is
 // inherited from Origin; callers that model terrain height should assign it separately.
 func (p PlanetProjection) Inverse(local LocalMeters) (SurfacePoint, bool) {
 	if p.RadiusMeters <= 0 || math.IsNaN(p.RadiusMeters) || math.IsInf(p.RadiusMeters, 0) ||
