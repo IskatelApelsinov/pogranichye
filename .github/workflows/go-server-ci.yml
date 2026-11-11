@@ -1,0 +1,48 @@
+name: Go server CI
+
+on:
+  pull_request:
+    paths:
+      - "1-server/**"
+      - ".github/workflows/go-server-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "1-server/**"
+      - ".github/workflows/go-server-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-server-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-server:
+    name: Build, vet and test (Go 1.24)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 1-server
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 1-server/go.mod
+          cache: true
+          cache-dependency-path: 1-server/go.sum
+
+      - name: Build all packages
+        run: go build ./...
+
+      - name: Vet all packages
+        run: go vet ./...
+
+      - name: Test all packages
+        run: go test ./... -count=1
