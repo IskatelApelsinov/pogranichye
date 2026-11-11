@@ -24,5 +24,6 @@ jobs:
         run: |
           node --check thin-client/web/core.js
           node --check thin-client/web/village-map.js
+          node --check thin-client/web/activity-minigames.js
       - name: Run thin-client regression tests
         run: node --test thin-client/web/tests/*.test.cjs
