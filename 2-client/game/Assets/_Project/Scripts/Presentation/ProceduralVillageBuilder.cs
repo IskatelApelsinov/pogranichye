@@ -494,7 +494,7 @@ namespace Pogranichye.Client.Presentation
             }
 
             BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
-            BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f));
+            BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f), true);
             // The server blocks the whole tavern footprint; keep the bench fully outside
             // its south edge so the POI approach remains physically reachable.
             CreateImportedProp(tavern, "bench_rustic", new Vector3(0.55f, 0f, -6.65f),
@@ -1262,7 +1262,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, 0.378f, 0f), new Vector3(0.023f, 0.018f, 0.023f), _corkMaterial);
         }
 
-        private static void BuildTavernTable(Transform tavern, Vector3 position)
+        private static void BuildTavernTable(Transform tavern, Vector3 position, bool cardGame = false)
         {
             var table = new GameObject("Tavern table").transform;
             table.SetParent(tavern, false);
@@ -1281,6 +1281,55 @@ namespace Pogranichye.Client.Presentation
             }
             CreateBeerMug(table, new Vector3(0.1f, 0.98f, 0.05f));
             CreateTavernTableware(table);
+            if (cardGame) BuildTavernCardGameDressing(table);
+        }
+
+        // Static presentation only. Card state, hidden hands, stakes and settlement
+        // must come from the server's future card-game contract.
+        private static void BuildTavernCardGameDressing(Transform table)
+        {
+            var cards = new[]
+            {
+                new Vector3(-0.34f, 0.99f, -0.28f),
+                new Vector3(-0.12f, 1.00f, -0.25f),
+                new Vector3(0.10f, 1.01f, -0.22f),
+                new Vector3(0.32f, 1.00f, -0.18f),
+                new Vector3(-0.05f, 1.02f, 0.12f),
+                new Vector3(0.18f, 1.02f, 0.16f)
+            };
+
+            for (var i = 0; i < cards.Length; i++)
+            {
+                var card = CreatePrimitive("Playing card • " + (i + 1), PrimitiveType.Cube, table,
+                    cards[i], new Vector3(0.19f, 0.018f, 0.29f),
+                    i % 2 == 0 ? _foamMaterial : _clothMaterial);
+                card.transform.localRotation = Quaternion.Euler(0f, -18f + i * 13f, (i % 3 - 1) * 2.5f);
+                if (i == 1 || i == 4)
+                {
+                    CreatePrimitive("Card back inset", PrimitiveType.Cube, table,
+                        cards[i] + new Vector3(0f, 0.012f, 0f),
+                        new Vector3(0.145f, 0.006f, 0.235f), _roofMaterial);
+                }
+            }
+
+            // Small common pot and loose copper coins; no client-side stake or payout.
+            CreatePrimitive("Card game pot • wooden bowl", PrimitiveType.Cylinder, table,
+                new Vector3(-0.42f, 0.99f, 0.34f), new Vector3(0.23f, 0.045f, 0.23f), _woodMaterial);
+            for (var i = 0; i < 5; i++)
+            {
+                var coin = CreatePrimitive("Card game copper coin", PrimitiveType.Cylinder, table,
+                    new Vector3(-0.42f + (i % 3) * 0.035f, 1.045f + (i / 3) * 0.018f,
+                        0.34f + (i % 2) * 0.025f),
+                    new Vector3(0.075f, 0.012f, 0.075f), _metalMaterial);
+                coin.transform.localRotation = Quaternion.Euler(0f, i * 17f, 0f);
+            }
+
+            CreatePrimitive("Card table candle base", PrimitiveType.Cylinder, table,
+                new Vector3(0.48f, 1.00f, -0.35f), new Vector3(0.12f, 0.025f, 0.12f), _metalMaterial);
+            CreatePrimitive("Card table candle", PrimitiveType.Cylinder, table,
+                new Vector3(0.48f, 1.12f, -0.35f), new Vector3(0.045f, 0.12f, 0.045f), _foamMaterial);
+            CreatePrimitive("Card table candle flame", PrimitiveType.Sphere, table,
+                new Vector3(0.48f, 1.25f, -0.35f), new Vector3(0.045f, 0.09f, 0.045f), _fireMaterial);
         }
 
         private static void CreateTavernTableware(Transform table)
