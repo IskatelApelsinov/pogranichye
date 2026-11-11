@@ -109,6 +109,47 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("beer")] public double Beer { get; set; }
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
+        [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementLifeFrame
+    {
+        [JsonProperty("population")] public int Population { get; set; }
+        [JsonProperty("working")] public int Working { get; set; }
+        [JsonProperty("activities")] public SettlementActivityCountsFrame Activities { get; set; }
+        [JsonProperty("stock")] public SettlementStockFrame Stock { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementActivityCountsFrame
+    {
+        [JsonProperty("field")] public int Field { get; set; }
+        [JsonProperty("wood")] public int Wood { get; set; }
+        [JsonProperty("forge")] public int Forge { get; set; }
+        [JsonProperty("mine")] public int Mine { get; set; }
+        [JsonProperty("fish")] public int Fish { get; set; }
+        [JsonProperty("hunt")] public int Hunt { get; set; }
+        [JsonProperty("herb")] public int Herb { get; set; }
+        [JsonProperty("cook")] public int Cook { get; set; }
+        [JsonProperty("herd")] public int Herd { get; set; }
+        [JsonProperty("magic")] public int Magic { get; set; }
+        [JsonProperty("tavern")] public int Tavern { get; set; }
+        [JsonProperty("rest")] public int Rest { get; set; }
+        [JsonProperty("social")] public int Social { get; set; }
+        [JsonProperty("eating")] public int Eating { get; set; }
+        [JsonProperty("other")] public int Other { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementStockFrame
+    {
+        [JsonProperty("food")] public double Food { get; set; }
+        [JsonProperty("wood")] public double Wood { get; set; }
+        [JsonProperty("ore")] public double Ore { get; set; }
+        [JsonProperty("metal")] public double Metal { get; set; }
+        [JsonProperty("herb")] public double Herb { get; set; }
+        [JsonProperty("beer")] public double Beer { get; set; }
     }
 
     [Serializable]
