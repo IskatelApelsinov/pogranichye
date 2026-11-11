@@ -13,7 +13,7 @@ func (s *Server) placeLife(se *core.Entity) map[string]any {
     st := core.Settle(se)
     if st == nil { return nil }
     activities := map[string]int{
-        "field":0, "wood":0, "forge":0, "mine":0, "fish":0, "hunt":0, "herb":0,
+        "field":0, "maintenance":0, "wood":0, "forge":0, "mine":0, "fish":0, "hunt":0, "herb":0,
         "cook":0, "herd":0, "magic":0, "tavern":0, "rest":0, "social":0, "eating":0, "other":0,
     }
     population, working := 0, 0
@@ -25,7 +25,8 @@ func (s *Server) placeLife(se *core.Entity) map[string]any {
         if mind == nil { return }
         category, productive := "", false
         switch mind.ActCode {
-        case "farm_sow", "farm_reap", "farm_mend", "farm_tend": category, productive = "field", true
+        case "farm_sow", "farm_reap", "farm_tend": category, productive = "field", true
+        case "farm_mend": category, productive = "maintenance", true
         case "chop_wood": category, productive = "wood", true
         case "smith_forge": category, productive = "forge", true
         case "mine_ore": category, productive = "mine", true
