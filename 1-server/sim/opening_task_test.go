@@ -107,6 +107,16 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 	if task["issued"] != nil || task["errand_done"] != true || task["worked"] != true || task["met"] != true {
 		t.Fatalf("после сдачи: issued nil, errand_done/worked/met true: %+v", task)
 	}
+
+	// Закрытые квесты — ограниченный журнал последних 24 записей; вводная веха должна
+	// пережить его очистку и не исчезнуть после множества последующих поручений.
+	qc := questsOf(w, e)
+	for i := 0; i < 30; i++ {
+		qc.Closed = append(qc.Closed, "other:"+string(rune(1000+i)))
+	}
+	if got := OpeningTask(w, e)["errand_done"]; got != true {
+		t.Fatalf("errand_done должен быть монотонным после очистки журнала, got=%v", got)
+	}
 }
 
 // Следующий шаг из comms 0084 — «гарантировать жителя-дровосека с нуждой» — на поверку оказался
