@@ -100,3 +100,47 @@ func TestCreateRoomRejectsInvalidCapacityAndPrice(t *testing.T) {
 		t.Fatalf("invalid room creation must not leave orphan entities: count=%d", w.Count())
 	}
 }
+
+
+func TestRoomLeaseStateAndChestAccess(t *testing.T) {
+	w := core.NewWorld("room-lease-access")
+	roomEntity, chestEntity, err := CreateRoom(w, 42, 7, "room-door", 4, 40)
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	room, chest := Room(roomEntity), Container(chestEntity)
+	room.Tenant = 15
+	room.PaidThrough = 12
+	room.GraceUntil = 14
+	chest.Tenant = 15
+	chest.Goods["wood"] = 3
+
+	if got := RoomLeaseStateAt(room, 12); got != RoomLeaseActive {
+		t.Fatalf("paid-through day must be active, got %q", got)
+	}
+	if got := RoomLeaseStateAt(room, 13); got != RoomLeaseGrace {
+		t.Fatalf("day inside grace period must be grace, got %q", got)
+	}
+	if got := RoomLeaseStateAt(room, 15); got != RoomLeaseExpired {
+		t.Fatalf("day after grace must be expired, got %q", got)
+	}
+	if got := RoomLeaseStateAt(&RoomC{}, 1); got != RoomLeaseVacant {
+		t.Fatalf("unleased room must be vacant, got %q", got)
+	}
+	if !CanAccessRoomChest(roomEntity, chestEntity, 15, 12) ||
+		!CanAccessRoomChest(roomEntity, chestEntity, 15, 14) {
+		t.Fatal("tenant must retain chest access while active and during grace")
+	}
+	if CanAccessRoomChest(roomEntity, chestEntity, 15, 15) {
+		t.Fatal("tenant must lose chest access after grace period")
+	}
+	if CanAccessRoomChest(roomEntity, chestEntity, 16, 12) {
+		t.Fatal("another player must not access the tenant's chest")
+	}
+	if CanAccessRoomChest(roomEntity, roomEntity, 15, 12) {
+		t.Fatal("room entity must not be accepted as its chest")
+	}
+	if chest.Goods["wood"] != 3 {
+		t.Fatal("lease expiry must never destroy chest contents")
+	}
+}
