@@ -55,6 +55,11 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 			npc = r
 		}
 	}
+	// Start at the well; keep the giver beside this known return point so the test
+	// can physically navigate out to the woods and back before turning the errand in.
+	if ok, why := GoTo(w, e, "well"); !ok {
+		t.Fatalf("встать у колодца: %s", why)
+	}
 	np := EnsureScenePos(w, npc)
 	p := ScenePos(e)
 	np.X, np.Y = p.X+1, p.Y
@@ -107,6 +112,10 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 	if iss["have"] != 2 || iss["ready"] != true {
 		t.Fatalf("после двух настоящих рубок have=2 ready=true: %+v", iss)
 	}
+	if ok, why := GoTo(w, e, "well"); !ok {
+		t.Fatalf("вернуться к жителю: %s", why)
+	}
+	StartTalk(w, e, npc.ID)
 
 	// Сдал поручение (серверный turn-in) — issued очищается, worked/errand_done становятся true.
 	if ok, why := Say(w, e, "work", "e3"); !ok {
