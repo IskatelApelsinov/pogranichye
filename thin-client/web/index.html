@@ -371,15 +371,16 @@ function drawLocPulse(s){
  const pl=s.place||{}, ns=pl.neighbors||[], life=pl.life||null, bits=[];
  if(life){
   bits.push('в поселении: '+(life.population||0)+' жителей','заняты делом: '+(life.working||0));
-  const a=life.activities||{}, labels=[['field','поле'],['wood','лес'],['forge','кузница'],['mine','рудник'],['fish','рыбаки'],['hunt','охота'],['herb','травы'],['cook','кухня'],['herd','стадо'],['magic','плетения'],['tavern','корчма'],['rest','отдых'],['social','общение'],['eating','едят'],['other','прочее']];
+  const a=life.activities||{}, labels=[['field','поле'],['maintenance','ремонт снастей'],['wood','лес'],['forge','кузница'],['mine','рудник'],['fish','рыбаки'],['hunt','охота'],['herb','травы'],['cook','кухня'],['herd','стадо'],['magic','плетения'],['tavern','корчма'],['rest','отдых'],['social','общение'],['eating','едят'],['other','прочее']];
   const active=labels.filter(x=>(a[x[0]]||0)>0).map(x=>x[1]+': '+a[x[0]]);
   if(active.length) bits.push('занятия: '+active.join(', '));
-  const st=life.stock||{}, stocks=[['food','еда'],['wood','дрова'],['ore','руда'],['metal','металл'],['herb','травы'],['beer','пиво']];
+  const st=life.stock||{}, stocks=[['wood','дрова'],['ore','руда'],['metal','металл'],['herb','травы']];
   const stocked=stocks.filter(x=>(st[x[0]]||0)>0).map(x=>x[1]+': '+Math.round(st[x[0]]*10)/10);
   if(stocked.length) bits.push('общие запасы: '+stocked.join(', '));
  }
  const nearResidents=ns.filter(n=>!n.player).length, nearPlayers=ns.length-nearResidents;
  bits.push('рядом в поле зрения: '+nearResidents+' жителей'+(nearPlayers?' · игроков: '+nearPlayers:''));
+ if((pl.food||0)>0) bits.push('еда: '+pl.food);
  if(pl.tavern) bits.push('пива: '+(pl.beer||0));
  if(pl.stable) bits.push('лошадей: '+(pl.stable.horses||0));
  if(pl.market&&pl.market.length) bits.push('торговых позиций: '+pl.market.length);
