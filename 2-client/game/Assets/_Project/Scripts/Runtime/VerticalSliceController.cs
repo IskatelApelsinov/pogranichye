@@ -84,6 +84,8 @@ namespace Pogranichye.Client
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
         private GUIStyle _mapPoiStyle;
+        private GUIStyle _mapPoiLabelStyle;
+        private GUIStyle _mapNeighborStyle;
         private GUIStyle _mapPlayerStyle;
         private readonly List<string> _sessionJournal = new List<string>();
         private string _lastJournalAction;
@@ -548,7 +550,7 @@ namespace Pogranichye.Client
             else
             {
                 DrawLocalMap();
-                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  ★ Вы");
+                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  • Жители  ★ Вы");
                 GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
             }
 
@@ -613,6 +615,35 @@ namespace Pogranichye.Client
                     GUI.Box(marker, MapPoiGlyph(poiId), _mapPoiStyle);
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
+                    var labelRect = new Rect(position.x + 10f, position.y - 8f, 112f, 16f);
+                    GUI.Label(labelRect, MapPoiName(poiId), _mapPoiLabelStyle);
+                }
+            }
+
+            var neighbors = _frame?.Place?.Neighbors;
+            if (neighbors != null)
+            {
+                foreach (var neighbor in neighbors)
+                {
+                    if (neighbor?.Position == null) continue;
+                    var position = WorldMapProjection.ToMapPoint(
+                        neighbor.Position.X, neighbor.Position.Y, half, mapRect);
+                    var marker = new Rect(position.x - 4f, position.y - 4f, 8f, 8f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = neighbor.Controlled
+                        ? new Color(0.28f, 0.72f, 0.88f, 1f)
+                        : neighbor.Known
+                            ? new Color(0.78f, 0.78f, 0.58f, 1f)
+                            : new Color(0.58f, 0.62f, 0.52f, 1f);
+                    GUI.contentColor = Color.white;
+                    GUI.Box(marker, neighbor.Controlled ? "И" : "•", _mapNeighborStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+                    var residentName = neighbor.Controlled
+                        ? "Игрок"
+                        : neighbor.Known && !string.IsNullOrWhiteSpace(neighbor.Name) ? neighbor.Name : "Житель";
+                    GUI.Label(new Rect(position.x + 5f, position.y - 7f, 90f, 14f), residentName, _mapPoiLabelStyle);
                 }
             }
 
@@ -641,7 +672,7 @@ namespace Pogranichye.Client
                 GUILayout.Label($"Ваше положение: X {playerPosition.X:0.0} м · Y {playerPosition.Y:0.0} м");
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
-            GUILayout.Label("Места: К — корчма · Кз — кузница · А — амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+            GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
         }
 
         private static void DrawMapFill(Rect rect, Color color)
@@ -662,8 +693,36 @@ namespace Pogranichye.Client
                 padding = new RectOffset(0, 0, 0, 0)
             };
             _mapPoiStyle.normal.textColor = Color.white;
+            _mapPoiLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 9,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip
+            };
+            _mapPoiLabelStyle.normal.textColor = new Color(1f, 0.96f, 0.82f, 1f);
+            _mapNeighborStyle = new GUIStyle(_mapPoiStyle) { fontSize = 8 };
+            _mapNeighborStyle.normal.textColor = Color.white;
             _mapPlayerStyle = new GUIStyle(_mapPoiStyle) { fontSize = 11 };
             _mapPlayerStyle.normal.textColor = Color.white;
+        }
+
+        private static string MapPoiName(string poiId)
+        {
+            switch (poiId)
+            {
+                case "tavern": return "Корчма";
+                case "smithy": return "Кузница";
+                case "granary": return "Конюшня / амбар";
+                case "market": return "Рынок";
+                case "well": return "Колодец";
+                case "hearth": return "Очаг";
+                case "garden": return "Огород";
+                case "river": return "Река";
+                case "woods": return "Лес";
+                case "mine": return "Рудник";
+                default: return poiId;
+            }
         }
 
         private static string MapPoiGlyph(string poiId)
@@ -672,7 +731,7 @@ namespace Pogranichye.Client
             {
                 case "tavern": return "К";
                 case "smithy": return "Кз";
-                case "granary": return "А";
+                case "granary": return "Кн";
                 case "market": return "Р";
                 case "well": return "Кл";
                 case "hearth": return "С";
