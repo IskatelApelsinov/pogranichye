@@ -3,6 +3,7 @@ package sim
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"pogranichye/core"
 )
@@ -104,7 +105,8 @@ func CreateRoom(w *core.World, settlement, building core.ID, doorPOI string, ren
 	if w == nil || settlement == 0 {
 		return nil, nil, errors.New("комната должна принадлежать поселению")
 	}
-	if rentPrice <= 0 || chestCapacity <= 0 {
+	if math.IsNaN(rentPrice) || math.IsInf(rentPrice, 0) || rentPrice <= 0 ||
+		math.IsNaN(chestCapacity) || math.IsInf(chestCapacity, 0) || chestCapacity <= 0 {
 		return nil, nil, errors.New("цена аренды и вместимость должны быть положительными")
 	}
 	chest := w.Spawn(&ContainerC{
@@ -125,7 +127,7 @@ func MoveContainerGoods(from, to *ContainerC, good string, qty float64) error {
 	if from == nil || to == nil || from == to {
 		return errors.New("нужны два разных контейнера")
 	}
-	if good == "" || qty <= 0 {
+	if good == "" || math.IsNaN(qty) || math.IsInf(qty, 0) || qty <= 0 {
 		return errors.New("укажи товар и положительное количество")
 	}
 	if from.Goods[good]+1e-9 < qty {
