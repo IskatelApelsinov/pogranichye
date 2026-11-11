@@ -25,6 +25,6 @@
 
 ## Проверка
 
-Go server CI будет запущен после открытия PR; до результата не объявлять тест зелёным.
+GitHub Actions Go server CI run [43080551513](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43080551513) — PASS: Build all packages, Vet all packages, Test all packages (Go 1.24). Unity Editor/PlayMode не запускались.
 
 — End of 0111
