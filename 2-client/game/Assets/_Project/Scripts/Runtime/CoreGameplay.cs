@@ -1655,10 +1655,17 @@ namespace Pogranichye.Client
         {
             var combat = Obj(_me, "combat");
             var x = Screen.width * 0.5f - 170f;
-            var y = Screen.height - 74f;
+            var y = Screen.height - 86f;
             Bar(new Rect(x, y, 340f, 10f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
             Bar(new Rect(x, y + 13f, 340f, 8f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
             Bar(new Rect(x, y + 24f, 340f, 8f), Num(_me, "mana") / 100f, new Color(0.5f, 0.65f, 0.88f));
+            var drunk = Mathf.Clamp(Num(_me, "drunk"), 0f, 100f);
+            if (drunk > 0f)
+            {
+                Bar(new Rect(x, y + 35f, 340f, 7f), drunk / 100f, new Color(0.78f, 0.55f, 0.28f));
+                GUI.Label(new Rect(x + 346f, y + 29f, 110f, 20f),
+                    "Хмель " + drunk.ToString("0", CultureInfo.InvariantCulture) + "%");
+            }
             var weapon = Str(combat, "weapon");
             var stance = Str(combat, "stance");
             var line = (string.IsNullOrEmpty(weapon) ? "кулаки" : Name(weapon))
@@ -1667,9 +1674,9 @@ namespace Pogranichye.Client
                 + (Flag(combat, "guard") ? " · БЛОК" : "") + (Flag(combat, "sneak") ? " · крадёшься" : "")
                 + (Flag(combat, "feint") ? " · финт готов" : "")
                 + (Num(combat, "shield") > 0f ? " · щит " + (int)Num(combat, "shield") : "");
-            GUI.Label(new Rect(x, y + 34f, 520f, 22f), line);
+            GUI.Label(new Rect(x, y + 45f, 520f, 22f), line);
             if (_showHints)
-                GUI.Label(new Rect(x - 120f, y + 52f, 900f, 22f),
+                GUI.Label(new Rect(x - 120f, y + 63f, 900f, 22f),
                     "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка · H скрыть подсказки");
         }
 
