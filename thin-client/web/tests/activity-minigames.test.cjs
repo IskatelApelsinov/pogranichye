@@ -29,4 +29,11 @@ assert.equal(noviceForge.threshold,72);
 assert.equal(expertForge.threshold,50);
 assert.ok(expertForge.speed<noviceForge.speed);
 
+const noviceBuild=Activity.building({skills:{builder:0}});
+const expertBuild=Activity.building({skills:{builder:100}});
+assert.equal(noviceBuild.threshold,70);
+assert.equal(expertBuild.threshold,50);
+assert.ok(expertBuild.speed<noviceBuild.speed);
+assert.equal(Activity.building({skills:{builder:900}}).threshold,50);
+
 console.log('activity-minigames: skill scaling checks passed');
