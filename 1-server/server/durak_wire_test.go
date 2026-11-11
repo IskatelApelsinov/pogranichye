@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"pogranichye/core"
@@ -85,6 +86,25 @@ func TestDurakIntentAndPrivateFrame(t *testing.T) {
 	}
 	if core.Purse(e).Coins != 90 {
 		t.Fatalf("ставка не списана: %.2f", core.Purse(e).Coins)
+	}
+
+	// Активная партия, закрытая рука и выбор игры должны пережить world save/load.
+	path := filepath.Join(t.TempDir(), "world.sav")
+	if err := s.SaveTo(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	restored := NewStarter("durak-other-seed", "", []byte("x"), "")
+	loaded, err := restored.LoadFrom(path)
+	if err != nil || !loaded {
+		t.Fatalf("load: loaded=%t err=%v", loaded, err)
+	}
+	s = restored
+	e = s.world.Get(cid)
+	if g := sim.Durak(e); g == nil || g.Done || len(g.Player) != 6 || len(g.Dealer) != 6 || len(g.Deck) != 24 {
+		t.Fatalf("Durak state did not survive save/load: %#v", g)
+	}
+	if sim.Player(e).CardGame != "durak" || core.Purse(e).Coins != 90 {
+		t.Fatal("selected game and deducted stake must persist")
 	}
 
 	me = send("attack", 0, "durak-attack")
