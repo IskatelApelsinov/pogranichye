@@ -37,6 +37,16 @@ func Ochko(e *core.Entity) *OchkoC {
 	return c
 }
 
+func inTavernSettlement(w *core.World, e *core.Entity) bool {
+	pl := core.Place(e)
+	if pl == nil || pl.Settlement == 0 {
+		return false
+	}
+	se := w.Get(pl.Settlement)
+	st := core.Settle(se)
+	return st != nil && st.Tavern
+}
+
 func ochkoTotal(hand []OchkoCard) int {
 	total, aces := 0, 0
 	for _, card := range hand {
@@ -89,13 +99,12 @@ func StartOchko(w *core.World, e *core.Entity, reqid string, shuffle func([]Ochk
 	if !atTavern(e) {
 		return false, "за карты садятся у карточного стола в корчме"
 	}
-	pl := core.Place(e)
-	se := (*core.Entity)(nil)
-	if pl != nil {
-		se = w.Get(pl.Settlement)
-	}
-	if se == nil || core.Settle(se) == nil || !core.Settle(se).Tavern {
+	if !inTavernSettlement(w, e) {
 		return false, "здесь нет корчмы"
+	}
+	v := core.Vitals(e)
+	if v == nil || v.Health <= 0 {
+		return false, "нельзя играть в таком состоянии"
 	}
 	pu := core.Purse(e)
 	if pu == nil || pu.Coins < OchkoStake {
@@ -214,6 +223,13 @@ func changeOchko(w *core.World, e *core.Entity, reqid string, change func(*Ochko
 	}
 	if !atTavern(e) {
 		return false, "вернись к карточному столу в корчме"
+	}
+	if !inTavernSettlement(w, e) {
+		return false, "здесь нет корчмы"
+	}
+	v := core.Vitals(e)
+	if v == nil || v.Health <= 0 {
+		return false, "нельзя продолжать игру в таком состоянии"
 	}
 	if pu == nil {
 		return false, "нет кошеля"
