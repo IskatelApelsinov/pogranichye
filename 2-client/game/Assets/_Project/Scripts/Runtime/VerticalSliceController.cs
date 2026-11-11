@@ -375,19 +375,18 @@ namespace Pogranichye.Client
             GUILayout.Label("ЖУРНАЛ ПЕРСОНАЖА");
             GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
             GUILayout.Space(5f);
-            GUILayout.Label("Текущее поручение");
-            GUILayout.Label(me.Task?.Text ?? "Пока нет активной записи о поручении.", GUILayout.MinHeight(36f));
+            GUILayout.Label("ВВОДНЫЙ МАРШРУТ И ЛИЧНОЕ ПОРУЧЕНИЕ");
+            GUILayout.Label(TutorialHint(), GUILayout.MinHeight(42f));
             if (me.Task != null)
             {
-                GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Работа: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
-                GUILayout.Label(me.Task.Done ? "Вводное дело завершено." : "Дело ещё продолжается.");
+                GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Навык работы: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
                 if (me.Task.Issued != null)
                 {
                     var errand = me.Task.Issued;
                     var giver = string.IsNullOrWhiteSpace(errand.GiverName) ? "житель" : errand.GiverName;
                     var good = OpeningErrandGoodLabel(errand.Good);
                     GUILayout.BeginVertical(GUI.skin.box);
-                    GUILayout.Label("ЛИЧНОЕ ПОРУЧЕНИЕ · " + giver);
+                    GUILayout.Label("ПРИНЯТОЕ ЛИЧНОЕ ПОРУЧЕНИЕ · " + giver);
                     GUILayout.Label($"Принести: {good} — {Mathf.Max(0, errand.Have)}/{Mathf.Max(0, errand.Quantity)}");
                     GUILayout.Label(errand.Ready ? "Можно отнести поручение и получить плату." : "Поручение принято. Продолжай собирать нужное.");
                     GUILayout.Label($"Обещанная плата: {errand.Coins:0.##} монет");
@@ -395,8 +394,27 @@ namespace Pogranichye.Client
                 }
                 else if (me.Task.ErrandDone)
                 {
-                    GUILayout.Label("Вводное поручение жителя уже сдано и сохранено сервером.");
+                    GUILayout.Label("Личное поручение жителя сдано и сохранено сервером.");
                 }
+                else if (me.Task.Met)
+                {
+                    GUILayout.Label("Личное поручение ещё не принято. Свободные занятия развивают навыки, но не заменяют сдачу поручения.");
+                }
+                else
+                {
+                    GUILayout.Label("Личное поручение откроется после знакомства с жителем.");
+                }
+
+                if (me.Task.Done && me.Task.ErrandDone)
+                    GUILayout.Label("Вводный маршрут завершён; личное поручение сдано сервером.");
+                else if (me.Task.Done)
+                    GUILayout.Label("Базовые вехи маршрута выполнены, но личное поручение жителя ещё не сдавалось.");
+                else
+                    GUILayout.Label("Вводный маршрут продолжается.");
+            }
+            else
+            {
+                GUILayout.Label("Сервер пока не передал состояние вводного маршрута.");
             }
 
             GUILayout.Space(8f);
@@ -747,8 +765,11 @@ namespace Pogranichye.Client
                     }
                     if (IsWearableEquipment(item.Key))
                     {
-                        if (GUILayout.Button("Надеть", GUILayout.Width(86f)))
-                            QueueInventoryItemIntent("wear", item.Key);
+                        // The worn slot is server-authoritative; never toggle optimistically on click.
+                        var isWorn = IsItemWorn(inventory, item.Key);
+                        var operation = isWorn ? "unwear" : "wear";
+                        if (GUILayout.Button(isWorn ? "Снять" : "Надеть", GUILayout.Width(86f)))
+                            QueueInventoryItemIntent(operation, item.Key);
                     }
                     GUILayout.EndHorizontal();
                 }
@@ -769,13 +790,24 @@ namespace Pogranichye.Client
 
         private static bool IsHandEquipment(string item)
         {
-            return item == "axe" || item == "sword" || item == "bow"
+            return item == "axe" || item == "sword" || item == "knife" || item == "bow"
                 || item == "rod" || item == "torch" || item == "lantern";
         }
 
         private static bool IsWearableEquipment(string item)
         {
-            return item == "cloak" || item == "boots" || item == "hat";
+            return item == "cloak" || item == "boots" || item == "hat"
+                || item == "jerkin" || item == "shield" || item == "purse";
+        }
+
+        private static bool IsItemWorn(InventoryFrame inventory, string item)
+        {
+            if (inventory?.Worn == null || string.IsNullOrEmpty(item)) return false;
+            foreach (var wornItem in inventory.Worn.Values)
+            {
+                if (string.Equals(wornItem, item, StringComparison.Ordinal)) return true;
+            }
+            return false;
         }
 
         private void QueueInventoryItemIntent(string op, string item)
@@ -1182,12 +1214,36 @@ namespace Pogranichye.Client
         {
             if (_frame == null || _frame.Me == null)
                 return "Подключитесь к миру, чтобы начать знакомство с деревней.";
+
             var task = _frame.Me.Task;
-            if (task != null && !string.IsNullOrWhiteSpace(task.Text))
-                return task.Done ? "Вводная задача завершена. " + task.Text : task.Text;
-            if (_tutorialStep == 0)
-                return "Шаг 1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
-            return "Знакомство подтверждено. Ожидаю серверное состояние следующего этапа.";
+            if (task == null)
+            {
+                return _tutorialStep == 0
+                    ? "Шаг 1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы»."
+                    : "Сервер пока не передал состояние вводного маршрута.";
+            }
+
+            if (task.Issued != null)
+                return !string.IsNullOrWhiteSpace(task.Text)
+                    ? task.Text
+                    : "У вас есть принятое личное поручение жителя.";
+
+            if (task.ErrandDone)
+            {
+                if (task.Done)
+                    return "Вводный маршрут завершён: личное поручение сдано серверу.";
+                return "Личное поручение сдано серверу. " +
+                    (string.IsNullOrWhiteSpace(task.Text) ? "Загляните в корчму и выпейте пива." : task.Text);
+            }
+
+            if (!task.Met)
+                return !string.IsNullOrWhiteSpace(task.Text)
+                    ? task.Text
+                    : "Шаг 1 — подойдите к жителю и нажмите E. Выберите реплику «Будем знакомы».";
+
+            return "Знакомство подтверждено, но личное поручение ещё не принято. " +
+                "Поговорите со знакомым жителем; если у него есть актуальная просьба, примите её в окне «Дела». " +
+                "Свободная работа развивает навыки, но сама по себе не считается сдачей поручения.";
         }
 
         private void SetCameraMode(bool firstPerson)
