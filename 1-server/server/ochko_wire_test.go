@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"pogranichye/core"
@@ -91,5 +92,68 @@ func TestOchkoIntentAndPrivateFrame(t *testing.T) {
 	}
 	if len(game["dealer"].([]any)) < 2 {
 		t.Fatalf("банкир должен раскрыть минимум две карты: %#v", game["dealer"])
+	}
+}
+
+func TestOchkoPersistsAcrossWorldSaveLoad(t *testing.T) {
+	s := NewStarter("ochko-persist", "", []byte("x"), "")
+	s.ochkoShuffle = func(cards []sim.OchkoCard) error {
+		cards[51] = sim.OchkoCard{Code: "10♠", Value: 10}
+		cards[50] = sim.OchkoCard{Code: "8♠", Value: 8}
+		cards[49] = sim.OchkoCard{Code: "10♣", Value: 10}
+		cards[48] = sim.OchkoCard{Code: "7♦", Value: 7}
+		return nil
+	}
+	var cid core.ID
+	s.world.Each("ident", func(e *core.Entity) {
+		if cid == 0 {
+			if v := core.Vitals(e); v != nil && v.Age >= 18 {
+				if p := core.Place(e); p != nil && p.Settlement != 0 {
+					cid = e.ID
+				}
+			}
+		}
+	})
+	if cid == 0 {
+		t.Fatal("нет тела для сохранения партии")
+	}
+	e := s.world.Get(cid)
+	sim.EnsureScenePos(s.world, e)
+	sim.EnsurePlayer(s.world, e)
+	if core.Purse(e) == nil {
+		s.world.Attach(e, &core.PurseC{Coins: 100, Debts: map[string]float64{}})
+	} else {
+		core.Purse(e).Coins = 100
+	}
+	core.Settle(s.world.Get(core.Place(e).Settlement)).Tavern = true
+	sim.GoTo(s.world, e, "tavern")
+	s.applyIntent(cid, `{"v":1,"op":"card_game","action":"start","reqid":"persist-start"}`)
+	if g := sim.Ochko(e); g == nil || g.Done {
+		t.Fatalf("expected active game before save: %#v", g)
+	}
+	path := filepath.Join(t.TempDir(), "world.sav")
+	if err := s.SaveTo(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	restored := NewStarter("other-seed", "", []byte("x"), "")
+	loaded, err := restored.LoadFrom(path)
+	if err != nil || !loaded {
+		t.Fatalf("load: loaded=%t err=%v", loaded, err)
+	}
+	re := restored.world.Get(cid)
+	g := sim.Ochko(re)
+	if g == nil || g.Done || len(g.Player) != 2 || len(g.Dealer) != 2 || len(g.Deck) != 48 {
+		t.Fatalf("active private game did not survive save/load: %#v", g)
+	}
+	if got := core.Purse(re).Coins; got != 90 {
+		t.Fatalf("stake should remain deducted exactly once after load: %.2f", got)
+	}
+	var frame map[string]any
+	if err := json.Unmarshal([]byte(restored.stateJSON(cid)), &frame); err != nil {
+		t.Fatal(err)
+	}
+	view := frame["me"].(map[string]any)["card_game"].(map[string]any)
+	if len(view["dealer"].([]any)) != 1 || view["hidden"] != float64(1) || view["dtotal"] != nil {
+		t.Fatalf("saved hidden card leaked after reconnect: %#v", view)
 	}
 }
