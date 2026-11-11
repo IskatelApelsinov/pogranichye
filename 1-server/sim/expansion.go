@@ -82,7 +82,14 @@ func Take(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 }
 
 // Equip — взять предмет в руку (должен быть в суме и быть «ручным»).
-func Equip(w *core.World, e *core.Entity, item string) (bool, string) {
+func Equip(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
+	var pc *PlayerC
+	if reqid != "" {
+		pc = EnsurePlayer(w, e)
+		if pc.alreadyDone(reqid) {
+			return true, ""
+		}
+	}
 	inv := ensureInv(w, e)
 	if item != "" && inv.Items[item] < 1 {
 		return false, "такого нет в суме"
@@ -91,11 +98,21 @@ func Equip(w *core.World, e *core.Entity, item string) (bool, string) {
 		return false, "это не берут в руку"
 	}
 	inv.Hand = item
+	if pc != nil {
+		pc.markDone(reqid)
+	}
 	return true, ""
 }
 
 // Wear — надеть одежду (слот по предмету). Лёгкий подъём настроя за обновку.
-func Wear(w *core.World, e *core.Entity, item string) (bool, string) {
+func Wear(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
+	var pc *PlayerC
+	if reqid != "" {
+		pc = EnsurePlayer(w, e)
+		if pc.alreadyDone(reqid) {
+			return true, ""
+		}
+	}
 	slot, ok := wearSlot[item]
 	if !ok {
 		return false, "это не носят"
@@ -104,9 +121,15 @@ func Wear(w *core.World, e *core.Entity, item string) (bool, string) {
 	if inv.Items[item] < 1 {
 		return false, "такой одежды нет"
 	}
-	inv.Worn[slot] = item
-	if v := core.Vitals(e); v != nil {
-		v.Morale = math.Min(100, v.Morale+2)
+	// Re-selecting the already worn item is a no-op; it must not farm the morale bonus.
+	if inv.Worn[slot] != item {
+		inv.Worn[slot] = item
+		if v := core.Vitals(e); v != nil {
+			v.Morale = math.Min(100, v.Morale+2)
+		}
+	}
+	if pc != nil {
+		pc.markDone(reqid)
 	}
 	return true, ""
 }
