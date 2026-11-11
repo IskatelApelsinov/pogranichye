@@ -230,7 +230,9 @@ func (g *DurakC) Act(action string, index int) (bool, string) {
 				return false, "сначала нужно отбиться от всех карт"
 			}
 			g.endBout(true)
-			g.Message = "Бито — теперь твой соперник заходит."
+			if !g.Done {
+				g.Message = "Бито — теперь твой соперник заходит."
+			}
 		default:
 			return false, "неизвестный ход атакующего"
 		}
@@ -241,7 +243,9 @@ func (g *DurakC) Act(action string, index int) (bool, string) {
 		switch action {
 		case "take":
 			g.endBout(false)
-			g.Message = "Ты взял карты — корчмарь продолжает заход."
+			if !g.Done {
+				g.Message = "Ты взял карты — корчмарь продолжает заход."
+			}
 		case "defend":
 			pairIndex := g.undefended()
 			if pairIndex < 0 {
@@ -336,7 +340,9 @@ func (g *DurakC) botAttack() bool {
 	}
 	if g.undefended() < 0 {
 		g.endBout(true)
-		g.Message = "Корчмарь говорит «бито»."
+		if !g.Done {
+			g.Message = "Корчмарь говорит «бито»."
+		}
 		return true
 	}
 	return false
@@ -366,7 +372,9 @@ func (g *DurakC) botDefend() bool {
 		return true
 	}
 	g.endBout(false)
-	g.Message = "Корчмарь забрал карты. Твой заход."
+	if !g.Done {
+		g.Message = "Корчмарь забрал карты. Твой заход."
+	}
 	return true
 }
 
