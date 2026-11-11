@@ -14,7 +14,7 @@
 `3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md` и свежих comms.
 
 ## P0 — ближайшее (иммерсивность, локации, взаимодействие)
-- [ ] Карточная игра «Очко» против корчмаря — серверный срез в PR (ожидает Go CI/review): server-only колода/рука банкира, crypto/rand, ставка через `PurseC`, reqid, reconnect/save-load и приватный `me.card_game`.
+- [x] Карточная игра «Очко» против корчмаря — PR #340 (2026-11-11): server-only колода/рука банкира, `crypto/rand`, ставка через `PurseC`, reqid, приватный `me.card_game`, reconnect/save-load; Go 1.24 build/vet/test PASS.
 - [x] Личная летопись игрока `me.journal` (#54, v1.9): server-authoritative вехи (знакомство/труд/корчма),
       монотонный `seq`, аддитивно — данные для вкладки «Журнал» Unity/тонкого клиента.
 - [x] Навигация: congestion/parking-slots у POI (жители не слипаются, занимают разные места),
