@@ -237,7 +237,8 @@
       "load": 5,
       "cap": 40,
       "over": false
-    }
+    },
+    "room": null
   },
   "place": {
     "id": "2",
@@ -354,7 +355,8 @@
         "metal": 3,
         "herb": 5
       }
-    }
+    },
+    "rooms": []
   },
   "hour": 14
 }
