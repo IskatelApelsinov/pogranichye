@@ -40,6 +40,8 @@ type Server struct {
 
 	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
 	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
+	// Подменяемый источник перемешивания нужен для детерминированных серверных тестов.
+	ochkoShuffle func([]sim.OchkoCard) error
 
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
@@ -89,6 +91,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond, // один час мира за 0.4с → сутки ~10с (видно жизнь)
 		ctl:      map[core.ID]uint64{},
+		ochkoShuffle: shuffleOchkoDeck,
 	}
 }
 
@@ -563,7 +566,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			var why string
 			switch in.Action {
 			case "start":
-				ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffleOchkoDeck)
+				shuffle := s.ochkoShuffle
+				if shuffle == nil { shuffle = shuffleOchkoDeck }
+				ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffle)
 			case "hit":
 				ok, why = sim.HitOchko(s.world, e, in.ReqID)
 			case "stand":
