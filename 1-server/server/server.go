@@ -850,6 +850,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"site":        sim.SiteView(s.world, se),                // место на планете и характер села (v1.14)
 				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
+				"life":        s.placeLife(se),                           // агрегаты жизни общины (v1.18)
 			}
 		}
 	}
