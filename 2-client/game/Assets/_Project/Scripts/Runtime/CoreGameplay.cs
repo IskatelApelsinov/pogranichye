@@ -165,6 +165,15 @@ namespace Pogranichye.Client
             var bag = Obj(_me, "bag");
             var horse = Obj(_me, "horse");
 
+            // Coins are already server-authoritative in me.coins (core.PurseC.Coins).
+            // Show that existing ledger here; do not invent a second balance for a future
+            // wearable purse item or infer money from inventory contents.
+            GUILayout.Label("МОНЕТЫ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("При себе: " + Num(_me, "coins").ToString("0.#", CultureInfo.InvariantCulture));
+            GUILayout.EndVertical();
+
+            GUILayout.Space(6f);
             GUILayout.Label("ЭКИПИРОВКА");
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("В руке: " + (string.IsNullOrEmpty(hand) ? "пусто" : Name(hand)));
