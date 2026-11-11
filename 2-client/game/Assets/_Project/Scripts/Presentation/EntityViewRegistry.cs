@@ -96,6 +96,7 @@ namespace Pogranichye.Client.Presentation
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
                     SetActivityCode(view, neighbor.ActivityCode);
                     ApplyNeighborGearAppearance(view, neighbor.Gear, id);
+                    ApplyControlledPlayerMarker(view, neighbor.Controlled);
                     var targetRotation = neighbor.Position != null
                         ? Quaternion.Euler(0f, FacingToUnityYaw(neighbor.Position.Facing), 0f)
                         : position.sqrMagnitude > 0.01f
@@ -133,6 +134,36 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+
+        /// <summary>
+        /// Marks server-confirmed player-controlled neighbors with a subtle cloth armband.
+        /// This is presentation only: the Controlled flag comes from the authoritative frame.
+        /// </summary>
+        private void ApplyControlledPlayerMarker(GameObject view, bool controlled)
+        {
+            if (view == null) return;
+
+            var arm = view.transform.Find("Left arm");
+            if (arm == null) return;
+
+            var marker = arm.Find("Controlled player armband");
+            if (!controlled)
+            {
+                if (marker != null) marker.gameObject.SetActive(false);
+                return;
+            }
+
+            if (marker == null)
+            {
+                var band = CreatePart("Controlled player armband", PrimitiveType.Cylinder, arm,
+                    new Vector3(0f, 0.02f, 0f), new Vector3(0.19f, 0.045f, 0.19f));
+                ApplyColor(band.GetComponent<Renderer>(), new Color(0.16f, 0.43f, 0.48f));
+            }
+            else
+            {
+                marker.gameObject.SetActive(true);
+            }
+        }
 
         /// <summary>
         /// Applies only the public hand/worn subset from neighbors[].gear. Never infers
