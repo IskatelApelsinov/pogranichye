@@ -131,9 +131,10 @@ func TestMigrationRecoveryRestoresHomeToFallbackSettlement(t *testing.T) {
 		t.Fatal("migration must remember the intended destination")
 	}
 	m.Route = []core.ID{from.ID} // simulate a corrupted saved itinerary
+	w.Detach(person, "place") // recovery must also restore a missing resident-location component
 	(MigrationSystem{}).Hour(w, core.Clock{TotalHours: 1}, nil)
 
-	if Migration(person) != nil || core.Place(person).Settlement != from.ID {
+	if Migration(person) != nil || core.Place(person) == nil || core.Place(person).Settlement != from.ID {
 		t.Fatal("invalid route must recover the NPC to the original settlement")
 	}
 	if core.Home(person).Settlement != from.ID || core.Home(person).Status != "none" {
