@@ -106,6 +106,19 @@ func migrationMeals(e *core.Entity, totalHours float64) int {
 	return meals
 }
 
+
+func returnMigrationFood(w *core.World, settlement core.ID, supply int) {
+	if w == nil || settlement == 0 || supply <= 0 {
+		return
+	}
+	if s := core.Settle(w.Get(settlement)); s != nil {
+		if s.Store == nil {
+			s.Store = map[string]float64{}
+		}
+		s.Store[econ.GoodBread] += float64(supply)
+	}
+}
+
 // MigrationSystem advances NPC travel independently of connected players.
 // Needs, aging and mortality continue in the existing world systems while PlaceC.Settlement == 0.
 type MigrationSystem struct{}
@@ -128,16 +141,20 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			m.ProgressHours < 0 || len(m.Route) < 2 ||
 			m.Route[0] != m.From || m.Route[len(m.Route)-1] != m.To {
 			// Corrupt/missing endpoint: prefer the original settlement, otherwise the destination.
+			returnTo := core.ID(0)
 			if pl := core.Place(e); pl != nil {
 				switch {
 				case src != nil:
 					pl.Settlement = m.From
+					returnTo = m.From
 				case dst != nil:
 					pl.Settlement = m.To
+					returnTo = m.To
 				default:
 					pl.Settlement = 0
 				}
 			}
+			returnMigrationFood(w, returnTo, m.FoodSupply)
 			w.Detach(e, "migration")
 			return
 		}
@@ -167,6 +184,7 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			mind.ActCode = ""
 			mind.LastAct = "добрался до нового поселения"
 		}
+		returnMigrationFood(w, to, m.FoodSupply)
 		chronicle.Record(w, clock.Day(), "прибытие", "переселенец прибыл в "+core.Settle(w.Get(to)).Name)
 		w.Detach(e, "migration")
 	}
