@@ -46,8 +46,8 @@ namespace Pogranichye.Client.Editor
                 if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null || frame.Me.SocialEvent == null || frame.Me.SocialEvent.Sequence != 7)
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
                 if (frame.Place.Life == null || frame.Place.Life.Population < 0 || frame.Place.Life.Working < 0 ||
-                    frame.Place.Life.Activities == null || frame.Place.Life.Stock == null ||
-                    frame.Place.Life.Stock.Food < 0 || frame.Place.Life.Stock.Wood < 0)
+                    frame.Place.Life.Activities == null || frame.Place.Life.Stock == null || frame.Place.Life.Activities.Maintenance < 0 ||
+                    frame.Place.Life.Stock.Wood < 0 || frame.Place.Life.Stock.Metal < 0 || frame.Place.Beer < 0)
                     throw new FormatException("The shared v1.18 fixture must include a valid settlement life summary.");
 
                 ValidateNegativeCases();

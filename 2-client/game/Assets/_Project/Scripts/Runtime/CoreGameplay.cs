@@ -1970,6 +1970,7 @@ namespace Pogranichye.Client
                 var activities = Obj(life, "activities");
                 var activityDetails = new System.Collections.Generic.List<string>();
                 AddLifeCount(activityDetails, activities, "field", "поле");
+                AddLifeCount(activityDetails, activities, "maintenance", "ремонт снастей");
                 AddLifeCount(activityDetails, activities, "wood", "лес");
                 AddLifeCount(activityDetails, activities, "forge", "кузница");
                 AddLifeCount(activityDetails, activities, "mine", "рудник");
@@ -1991,12 +1992,10 @@ namespace Pogranichye.Client
                 if (stock != null)
                 {
                     var stockDetails = new System.Collections.Generic.List<string>();
-                    AddLifeStock(stockDetails, stock, "food", "еда");
                     AddLifeStock(stockDetails, stock, "wood", "дрова");
                     AddLifeStock(stockDetails, stock, "ore", "руда");
                     AddLifeStock(stockDetails, stock, "metal", "металл");
                     AddLifeStock(stockDetails, stock, "herb", "травы");
-                    AddLifeStock(stockDetails, stock, "beer", "пиво");
                     if (stockDetails.Count > 0)
                         GUILayout.Label("Общие запасы: " + string.Join(" · ", stockDetails.ToArray()));
                 }
@@ -2017,6 +2016,8 @@ namespace Pogranichye.Client
             }
 
             var details = new System.Collections.Generic.List<string>();
+            if (Num(_place, "food") > 0) details.Add("еда: " + Num(_place, "food").ToString("0.#", CultureInfo.InvariantCulture));
+            if (Flag(_place, "tavern")) details.Add("пиво в корчме: " + Num(_place, "beer").ToString("0.#", CultureInfo.InvariantCulture));
             var stable = Obj(_place, "stable");
             if (stable != null) details.Add("лошадей: " + (int)Num(stable, "horses"));
             var market = Arr(_place, "market");
