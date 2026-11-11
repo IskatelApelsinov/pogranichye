@@ -171,7 +171,7 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
                 Ask("Экипировка", "equip", "item", string.Empty);
 
-            foreach (var item in new[] { "axe", "sword", "bow", "rod", "torch", "lantern" })
+            foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
             {
                 var quantity = Count(items, item);
                 if (quantity < 1f) continue;
@@ -196,7 +196,7 @@ namespace Pogranichye.Client
                 }
             }
             if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
-            foreach (var item in new[] { "cloak", "boots", "hat" })
+            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield" })
             {
                 var quantity = Count(items, item);
                 if (quantity < 1f) continue;
