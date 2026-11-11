@@ -1960,49 +1960,80 @@ namespace Pogranichye.Client
         /// <summary>Shows a small live pulse from the server's currently replicated local neighbors.</summary>
         private void DrawSettlementPulse()
         {
-            var neighbors = Arr(_place, "neighbors");
-            if (neighbors == null) return;
-            var residents = 0;
-            var players = 0;
-            var working = 0;
-            var tavern = 0;
-            var social = 0;
-            var resting = 0;
-            var eating = 0;
-            foreach (var neighbor in neighbors)
+            var life = Obj(_place, "life");
+            if (life != null)
             {
-                if (Flag(neighbor, "player")) { players++; continue; }
-                residents++;
-                var code = Str(neighbor, "act_code");
-                if (code == "drink_tavern") tavern++;
-                else if (code == "keep_tavern") working++;
-                else if (code == "visit_neighbors") social++;
-                else if (code == "sleep" || code == "rest_idle") resting++;
-                else if (code == "meal") eating++;
-                else if (code == "chop_wood" || code == "farm_sow" || code == "farm_reap" ||
-                    code == "farm_mend" || code == "farm_tend" || code == "smith_forge" ||
-                    code == "mine_ore" || code == "fish_river" || code == "fisher_mend" ||
-                    code == "hunt_wild" || code == "cook_hearth" || code == "brew_remedy" ||
-                    code == "forage_herbs" || code == "weave" || code == "herd_barn" ||
-                    code == "herd_graze" || code == "study_mana" || code == "work") working++;
+                GUILayout.Label("ЖИЗНЬ ПОСЕЛЕНИЯ · общая сводка");
+                GUILayout.Label("Жителей: " + (int)Num(life, "population") +
+                    " · заняты делом: " + (int)Num(life, "working"));
+
+                var activities = Obj(life, "activities");
+                var activityDetails = new System.Collections.Generic.List<string>();
+                AddLifeCount(activityDetails, activities, "field", "поле");
+                AddLifeCount(activityDetails, activities, "wood", "лес");
+                AddLifeCount(activityDetails, activities, "forge", "кузница");
+                AddLifeCount(activityDetails, activities, "mine", "рудник");
+                AddLifeCount(activityDetails, activities, "fish", "рыбаки");
+                AddLifeCount(activityDetails, activities, "hunt", "охота");
+                AddLifeCount(activityDetails, activities, "herb", "травы");
+                AddLifeCount(activityDetails, activities, "cook", "кухня");
+                AddLifeCount(activityDetails, activities, "herd", "стадо");
+                AddLifeCount(activityDetails, activities, "magic", "плетения");
+                AddLifeCount(activityDetails, activities, "tavern", "корчма");
+                AddLifeCount(activityDetails, activities, "rest", "отдых");
+                AddLifeCount(activityDetails, activities, "social", "общение");
+                AddLifeCount(activityDetails, activities, "eating", "едят");
+                AddLifeCount(activityDetails, activities, "other", "прочее");
+                if (activityDetails.Count > 0)
+                    GUILayout.Label("Занятия: " + string.Join(" · ", activityDetails.ToArray()));
+
+                var stock = Obj(life, "stock");
+                if (stock != null)
+                {
+                    var stockDetails = new System.Collections.Generic.List<string>();
+                    AddLifeStock(stockDetails, stock, "food", "еда");
+                    AddLifeStock(stockDetails, stock, "wood", "дрова");
+                    AddLifeStock(stockDetails, stock, "ore", "руда");
+                    AddLifeStock(stockDetails, stock, "metal", "металл");
+                    AddLifeStock(stockDetails, stock, "herb", "травы");
+                    AddLifeStock(stockDetails, stock, "beer", "пиво");
+                    if (stockDetails.Count > 0)
+                        GUILayout.Label("Общие запасы: " + string.Join(" · ", stockDetails.ToArray()));
+                }
             }
-            GUILayout.Label("ЖИЗНЬ ПОСЕЛЕНИЯ · рядом в поле зрения");
-            var presence = residents + " жителей";
-            if (players > 0) presence += " · игроков: " + players;
-            GUILayout.Label("Видно: " + presence);
-            var activity = "Заняты делом: " + working;
-            if (tavern > 0) activity += " · корчма: " + tavern;
-            if (social > 0) activity += " · общаются: " + social;
-            if (eating > 0) activity += " · едят: " + eating;
-            if (resting > 0) activity += " · отдыхают: " + resting;
-            GUILayout.Label(activity);
+
+            var neighbors = Arr(_place, "neighbors");
+            if (neighbors != null)
+            {
+                var residents = 0;
+                var players = 0;
+                foreach (var neighbor in neighbors)
+                {
+                    if (Flag(neighbor, "player")) players++;
+                    else residents++;
+                }
+                GUILayout.Label("Рядом в поле зрения: " + residents + " жителей" +
+                    (players > 0 ? " · игроков: " + players : ""));
+            }
+
             var details = new System.Collections.Generic.List<string>();
-            if (Flag(_place, "tavern")) details.Add("пиво в корчме: " + Num(_place, "beer").ToString("0.#", CultureInfo.InvariantCulture));
             var stable = Obj(_place, "stable");
             if (stable != null) details.Add("лошадей: " + (int)Num(stable, "horses"));
             var market = Arr(_place, "market");
             if (market != null && market.Count > 0) details.Add("торговых позиций: " + market.Count);
             if (details.Count > 0) GUILayout.Label(string.Join(" · ", details.ToArray()));
+        }
+
+        private static void AddLifeCount(System.Collections.Generic.List<string> target, JObject activities, string key, string label)
+        {
+            var count = (int)Num(activities, key);
+            if (count > 0) target.Add(label + ": " + count);
+        }
+
+        private static void AddLifeStock(System.Collections.Generic.List<string> target, JObject stock, string key, string label)
+        {
+            var amount = Num(stock, key);
+            if (amount > 0) target.Add(label + ": " + amount.ToString("0.#", CultureInfo.InvariantCulture));
         }
 
         private void DrawMenu()
