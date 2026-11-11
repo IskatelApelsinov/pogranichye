@@ -77,7 +77,7 @@ namespace Pogranichye.Client
         {
             { "axe", "топор" }, { "sword", "меч" }, { "bow", "лук" }, { "rod", "удочка" }, { "torch", "факел" },
             { "lantern", "фонарь" }, { "knife", "нож" }, { "cloak", "плащ" }, { "boots", "сапоги" },
-            { "hat", "шапка" }, { "jerkin", "кожаная куртка" }, { "shield", "щит" }, { "arrow", "стрелы" },
+            { "hat", "шапка" }, { "jerkin", "кожаная куртка" }, { "shield", "щит" }, { "purse", "кожаный кошель" }, { "arrow", "стрелы" },
             { "bandage", "повязка" }, { "potion", "снадобье" }, { "stew", "уха" }, { "roast", "жаркое" },
             { "bread", "хлеб" }, { "fish", "рыба" }, { "wood", "дерево" }, { "meat", "мясо" }, { "hide", "шкура" },
             { "wheat", "зерно" }, { "veg", "овощи" }, { "ore", "руда" }, { "metal", "железо" },
@@ -256,7 +256,7 @@ namespace Pogranichye.Client
                 }
             }
             if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
-            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield" })
+            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield", "purse" })
             {
                 var quantity = Count(items, item);
                 if (quantity < 1f) continue;
@@ -400,6 +400,7 @@ namespace Pogranichye.Client
                 case "feet": return "Ноги";
                 case "armor": return "Торс";
                 case "offhand": return "Левая рука";
+                case "belt": return "Пояс";
                 default: return slot;
             }
         }
