@@ -63,6 +63,7 @@ func targetForGoal(role, goal string) (x, y float64) {
 // остаётся владельцем позиции, просто навигация дискретная (в отличие от непрерывной ходьбы Unity).
 // Возвращает (ок, причина). Локации — ключи POINamed (tavern/smithy/river/woods/...).
 func GoTo(w *core.World, e *core.Entity, location string) (bool, string) {
+	if InRoom(e) { return false, "сначала выйди из комнаты" } {
 	p, ok := POINamed[location]
 	if !ok {
 		return false, "нет такой локации"
