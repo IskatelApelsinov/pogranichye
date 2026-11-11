@@ -1742,6 +1742,8 @@ namespace Pogranichye.Client
             }
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
+            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) Ask("Работа в поле", "act", "action", "farmwork");
+            if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) Ask("Работа у горна", "act", "action", "forge");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
