@@ -17,6 +17,7 @@
 - [x] Физический кошель — PR #344 (2026-11-11): craftable leather purse, belt slot, public server-confirmed appearance, Unity inventory controls; `PurseC.Coins` остаётся единственным балансом; Go 1.24 build/vet/test PASS.
 - [x] Карточная игра «Очко» против корчмаря — PR #340 (2026-11-11): server-only колода/рука банкира, `crypto/rand`, ставка через `PurseC`, reqid, приватный `me.card_game`, reconnect/save-load; Go 1.24 build/vet/test PASS.
 - [x] Подкидной «Дурак» против корчмаря — PR #342 (2026-11-11): server-only 36-card engine, козырь, attack/defend/take/throw-in, AI, settlement, private `me.card_game`, reqid and save/load; Go 1.24 build/vet/test PASS.
+- [x] Интерфейс карточного стола в обоих клиентах — Unity PR #346 и тонкий клиент PR #347 (2026-11-11): очко/дурак, серверные ходы через RequestGate, приватная рука, обновление по `me.card_game`; тонкий клиент: Node syntax + regression tests PASS. Unity Editor/Play Mode pending.
 - [x] Личная летопись игрока `me.journal` (#54, v1.9): server-authoritative вехи (знакомство/труд/корчма),
       монотонный `seq`, аддитивно — данные для вкладки «Журнал» Unity/тонкого клиента.
 - [x] Навигация: congestion/parking-slots у POI (жители не слипаются, занимают разные места),
