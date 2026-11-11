@@ -946,6 +946,7 @@ func CombatView(w *core.World, e *core.Entity) map[string]any {
 // зверю ставит тело игрока на дистанцию dist от него со стороны, откуда игрок шёл. Толстый клиент
 // подходит ногами и этим не пользуется. Зверь при этом может заметить (если игрок не крадётся).
 func Approach(w *core.World, e *core.Entity, foe core.ID, dist float64) (bool, string) {
+	if InRoom(e) { return false, "сначала выйди из комнаты" }
 	fe := w.Get(foe)
 	pl := core.Place(e)
 	if fe == nil || Foe(fe) == nil || pl == nil || Foe(fe).Settlement != pl.Settlement || OnRoad(e) {
