@@ -93,11 +93,17 @@ func migrationMeals(e *core.Entity, totalHours float64) int {
 	if v := core.Vitals(e); v != nil {
 		hunger = v.Hunger
 	}
-	projected := hunger + 0.6*totalHours
-	if projected <= 80 {
-		return 0
+	// Match NeedsSystem's hourly order exactly: hunger rises by 0.6, then a meal is
+	// consumed at 25 and reduces hunger by 45. Round travel duration up to whole ticks.
+	meals := 0
+	for hour := 0; hour < int(math.Ceil(totalHours)); hour++ {
+		hunger = math.Min(100, hunger+0.6)
+		if hunger >= 25 {
+			meals++
+			hunger = math.Max(0, hunger-45)
+		}
 	}
-	return int(math.Ceil((projected - 80) / 45))
+	return meals
 }
 
 // MigrationSystem advances NPC travel independently of connected players.
