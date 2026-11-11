@@ -116,8 +116,11 @@ namespace Pogranichye.Client.Presentation
                     _activity = "social";
                     break;
                 case "fish_river":
-                case "fisher_mend":
                     _activity = "fish";
+                    break;
+                case "fisher_mend":
+                    // Net maintenance is not active fishing; use a distinct repair pose and prop.
+                    _activity = "mend_net";
                     break;
                 case "chop_wood":
                     _activity = "chop";
@@ -287,6 +290,7 @@ namespace Pogranichye.Client.Presentation
             var resting = _activity == "rest";
             var chopping = _activity == "chop";
             var fishing = _activity == "fish";
+            var mendingNet = _activity == "mend_net";
             var forging = _activity == "forge";
             var farming = _activity == "farm";
             var mining = _activity == "mine";
@@ -298,7 +302,7 @@ namespace Pogranichye.Client.Presentation
             var herding = _activity == "herd";
             var tavernWork = _activity == "tavern";
             var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
-                hunting || weaving || studying || cooking || foraging || herding || tavernWork;
+                hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet;
             var social = _activity == "social";
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
@@ -334,6 +338,12 @@ namespace Pogranichye.Client.Presentation
                 {
                     leftArmAngle = -24f + Mathf.Sin(_phase * 0.65f) * 4f;
                     rightArmAngle = -48f + Mathf.Sin(_phase * 0.65f + 0.5f) * 7f;
+                }
+                else if (mendingNet)
+                {
+                    var stitch = Mathf.Sin(_phase * 2.6f);
+                    leftArmAngle = -36f + stitch * 7f;
+                    rightArmAngle = -42f - stitch * 11f;
                 }
                 else if (forging)
                 {
