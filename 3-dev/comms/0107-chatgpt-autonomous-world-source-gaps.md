@@ -167,3 +167,11 @@ combat, core components, planet и канона. Не является пред�
 - Основание поселения предварительно проверяет фактический `RoadRoute` для всей группы и суммарный запас хлеба. Кандидатные сущности поселения удаляются, если маршрут/запас не проходят проверку; NextID не откатывается.
 - Добавлены Runner-level тесты для старта в тот же tick, recovery, дорожного detour и детского питания в пути. Это укрепляет первый transit slice, но не превращает его в физическую/пространственную систему путешествий.
 - В main теперь два последовательных серверных PR: #355 (persistent migration) и #358 (clock/provision/recovery invariants). Не повторять их при проектировании traveller groups.
+
+
+### H. Отдельная ветка room-chest-server — не сливать напрямую
+- Проверена ветка `chatgpt/room-chest-server-20261111` (в ней есть `1-server/sim/room.go`, `server.go`, room wire tests и comms 0103).
+- Она представляет альтернативную полную реализацию комнат и сундуков: повторно объявляет `RoomC` и `ContainerC`, повторно регистрирует те же component kinds и использует несовместимую схему полей (`ContainerID/State/RentPerDay` против уже merged `ChestID/LeaseState/RentPrice`).
+- На актуальном main уже существуют канонические `RoomC/ContainerC` в `1-server/sim/containers.go` (PR #352) и lease/access guards в PR #354. Прямое слияние `room.go` создаст redeclaration/registration conflicts и сломает сборку.
+- Ветка также вводит целый `op:"room"` wire surface и `place.rooms/me.room` без согласованной миграции от уже принятого component schema. Не переносить её целиком и не подменять текущие типы.
+- Если возвращаться к полноценной аренде, нужно портировать только недостающие use cases (rent/enter/open/move/recover/renew + authoritative frame) поверх существующих типов и согласовать additive wire contract; отдельно решить физическую дверь/интерьер. До этого ветка остаётся reference/архивом, не merge candidate.
