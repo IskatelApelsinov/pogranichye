@@ -116,10 +116,18 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if m == nil {
 			return
 		}
-		if w.Get(m.From) == nil || w.Get(m.To) == nil || m.TotalHours <= 0 {
-			// Corrupt/missing destination: return the person to the source rather than orphaning them.
+		src, dst := core.Settle(w.Get(m.From)), core.Settle(w.Get(m.To))
+		if src == nil || dst == nil || m.TotalHours <= 0 {
+			// Corrupt/missing endpoint: prefer the original settlement, otherwise the destination.
 			if pl := core.Place(e); pl != nil {
-				pl.Settlement = m.From
+				switch {
+				case src != nil:
+					pl.Settlement = m.From
+				case dst != nil:
+					pl.Settlement = m.To
+				default:
+					pl.Settlement = 0
+				}
 			}
 			w.Detach(e, "migration")
 			return
