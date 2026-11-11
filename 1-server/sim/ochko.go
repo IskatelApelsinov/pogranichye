@@ -227,10 +227,6 @@ func changeOchko(w *core.World, e *core.Entity, reqid string, change func(*Ochko
 	if !inTavernSettlement(w, e) {
 		return false, "здесь нет корчмы"
 	}
-	v := core.Vitals(e)
-	if v == nil || v.Health <= 0 {
-		return false, "нельзя продолжать игру в таком состоянии"
-	}
 	if pu == nil {
 		return false, "нет кошеля"
 	}
