@@ -49,7 +49,7 @@ func Room(e *core.Entity) *RoomC {
 type ContainerC struct {
 	RoomID   core.ID          `json:"room_id"`
 	Owner    core.ID          `json:"owner"`
-	Kind     string           `json:"kind"`
+	Type     string           `json:"kind"`
 	Capacity float64          `json:"capacity"`
 	Items    map[string]int   `json:"items"`
 	Goods    map[string]float64 `json:"goods"`
@@ -103,7 +103,7 @@ func EnsureTavernRooms(w *core.World, settlement *core.Entity) {
 	for number := 1; number <= TavernRoomCount; number++ {
 		if existing[number] { continue }
 		chest := w.Spawn(&ContainerC{
-			Kind: "room_chest", Capacity: RoomChestCapacity,
+			Type: "room_chest", Capacity: RoomChestCapacity,
 			Items: map[string]int{}, Goods: map[string]float64{},
 		})
 		roomEntity := w.Spawn(&RoomC{
