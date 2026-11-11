@@ -180,6 +180,7 @@ func PartyView(w *core.World, e *core.Entity) map[string]any {
 
 // JourneyStart — выйти в путь к поселению. Отряд вожака выходит вместе с ним.
 func JourneyStart(w *core.World, e *core.Entity, to core.ID, reqid string, s *dice.Stream) (bool, string) {
+	if InRoom(e) { return false, "сначала выйди из комнаты" } {
 	pc := EnsurePlayer(w, e)
 	if reqid == "" {
 		return false, "нужен reqid"
