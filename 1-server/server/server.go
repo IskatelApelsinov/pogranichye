@@ -90,7 +90,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		world: w, runner: r,
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
-		tickEach: 400 * time.Millisecond, // один час мира за 0.4с → сутки ~10с (видно жизнь)
+		tickEach: 1600 * time.Millisecond, // демо: 4× медленнее; сутки ~38с, fastStep движения не замедляется
 		ctl:      map[core.ID]uint64{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
@@ -105,7 +105,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		world: w, runner: r,
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
-		tickEach: 400 * time.Millisecond,
+		tickEach: 1600 * time.Millisecond,
 		ctl:      map[core.ID]uint64{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
