@@ -58,7 +58,7 @@ func TestFounding(t *testing.T) {
 		t.Fatal("переселенцы не должны появляться в новом поселении до прибытия")
 	}
 	for h := 0; h <= int(maxHours); h++ {
-		(MigrationSystem{}).Hour(w, core.Clock{}, nil)
+		(MigrationSystem{}).Hour(w, core.Clock{TotalHours: int64(h + 1)}, nil)
 	}
 	if len(residentsOf(w, newSet)) < 3 {
 		t.Fatal("после завершения пути в новом поселении должна прибыть ватага переселенцев")
