@@ -76,4 +76,17 @@ func TestTalkIntentCorrelatesResult(t *testing.T) {
 	if result["reqid"] != "talk-rejected" || result["ok"] != false || result["reason"] == "" {
 		t.Fatalf("отклонённый talk должен вернуть reqid, ok=false и причину: %#v", result)
 	}
+
+	// A stale/nonexistent target must also produce a correlated rejection.
+	sim.EndTalk(e)
+	s.applyIntent(cid, `{"v":1,"op":"talk","target":"18446744073709551615","reqid":"talk-stale"}`)
+	var stale map[string]any
+	if err := json.Unmarshal([]byte(s.stateJSON(cid)), &stale); err != nil {
+		t.Fatal(err)
+	}
+	me = stale["me"].(map[string]any)
+	result = me["result"].(map[string]any)
+	if result["reqid"] != "talk-stale" || result["ok"] != false || result["reason"] == "" {
+		t.Fatalf("stale target должен вернуть reqid, ok=false и причину: %#v", result)
+	}
 }
