@@ -6,6 +6,7 @@ import (
 	"pogranichye/chronicle"
 	"pogranichye/core"
 	"pogranichye/dice"
+	"pogranichye/econ"
 )
 
 // MigrationC — persistent abstract transit for an NPC between settlements.
@@ -18,6 +19,7 @@ type MigrationC struct {
 	ProgressHours float64   `json:"progress_hours"`
 	TotalHours    float64   `json:"total_hours"`
 	Reason        string    `json:"reason"`
+	FoodSupply    int       `json:"food_supply"`
 }
 
 func init() {
@@ -58,9 +60,18 @@ func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bo
 	if len(route) < 2 || route[0] != from || route[len(route)-1] != to || distance <= 0 {
 		return false
 	}
+	totalHours := math.Max(12, distance)
+	foodNeeded := migrationMeals(e, totalHours)
+	store := core.Settle(src).Store
+	if foodNeeded > 0 && (store == nil || store[econ.GoodBread] < float64(foodNeeded)) {
+		return false // no supplies: a real migration cannot begin on an empty road
+	}
+	if foodNeeded > 0 {
+		store[econ.GoodBread] -= float64(foodNeeded)
+	}
 	w.Attach(e, &MigrationC{
 		From: from, To: to, Route: append([]core.ID(nil), route...),
-		TotalHours: math.Max(12, distance), Reason: reason,
+		TotalHours: totalHours, Reason: reason, FoodSupply: foodNeeded,
 	})
 	pl.Settlement = 0 // transit is not counted as a resident of either endpoint
 	if h := core.Home(e); h != nil {
@@ -74,6 +85,19 @@ func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bo
 		w.Detach(e, "nav")
 	}
 	return true
+}
+
+
+func migrationMeals(e *core.Entity, totalHours float64) int {
+	hunger := 20.0
+	if v := core.Vitals(e); v != nil {
+		hunger = v.Hunger
+	}
+	projected := hunger + 0.6*totalHours
+	if projected <= 80 {
+		return 0
+	}
+	return int(math.Ceil((projected - 80) / 45))
 }
 
 // MigrationSystem advances NPC travel independently of connected players.
