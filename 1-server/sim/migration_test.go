@@ -1,0 +1,72 @@
+package sim
+
+import (
+	"testing"
+
+	"pogranichye/core"
+	"pogranichye/dice"
+)
+
+func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
+	w := core.NewWorld("npc-road-migration")
+	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0})
+	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 50, Y: 0})
+	person := w.Spawn(
+		&core.IdentC{Name: "Странник", Role: "farmer"},
+		&core.VitalsC{Age: 25, Health: 100, Hunger: 10, Energy: 80},
+		&core.DrivesC{Ambition: 90},
+		&core.MindC{Goal: "leave"},
+		&core.HomeC{Status: "owned", Settlement: from.ID},
+		&core.PlaceC{Settlement: from.ID},
+		&ScenePosC{X: 4, Y: 8, Stam: 1},
+	)
+	id := person.ID
+
+	if !relocate(w, person, dice.NewStream(7)) {
+		t.Fatal("NPC with a connected destination must begin migration")
+	}
+	m := Migration(person)
+	if m == nil || m.From != from.ID || m.To != to.ID ||
+		len(m.Route) != 2 || m.Route[0] != from.ID || m.Route[1] != to.ID {
+		t.Fatalf("migration must retain the actual road route: %+v", m)
+	}
+	if core.Place(person).Settlement != 0 {
+		t.Fatal("traveller must not remain counted in the source or destination population")
+	}
+	if ScenePos(person) != nil {
+		t.Fatal("traveller must not retain a stale physical scene position")
+	}
+	if len(residentsOf(w, from.ID)) != 0 || len(residentsOf(w, to.ID)) != 0 {
+		t.Fatal("traveller must be absent from both settlement resident indexes")
+	}
+	if core.Home(person).Settlement != to.ID || core.Home(person).Status != "none" {
+		t.Fatal("old housing must be relinquished and destination remembered")
+	}
+
+	wire, err := w.Dump(nil)
+	if err != nil {
+		t.Fatalf("dump world during transit: %v", err)
+	}
+	loaded := core.LoadWorld(wire)
+	person = loaded.Get(id)
+	m = Migration(person)
+	if person == nil || m == nil || m.From != from.ID || m.To != to.ID ||
+		len(m.Route) != 2 || m.ProgressHours != 0 {
+		t.Fatalf("transit state and stable entity identity must survive save/load: %+v", m)
+	}
+
+	total := int(m.TotalHours)
+	for h := 0; h < total-1; h++ {
+		(MigrationSystem{}).Hour(loaded, core.Clock{}, nil)
+	}
+	if Migration(person) == nil || core.Place(person).Settlement != 0 {
+		t.Fatal("NPC must remain in transit until the full route duration elapses")
+	}
+	(MigrationSystem{}).Hour(loaded, core.Clock{}, nil)
+	if Migration(person) != nil || core.Place(person).Settlement != to.ID {
+		t.Fatal("NPC must arrive at the recorded destination after route duration")
+	}
+	if loaded.Get(id) != person {
+		t.Fatal("migration must preserve the same entity identity")
+	}
+}
