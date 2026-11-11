@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"pogranichye/core"
+	"pogranichye/chronicle"
 	"pogranichye/dice"
 )
 
@@ -135,5 +136,3 @@ func StartMigration(w *core.World, e *core.Entity, to core.ID, reason string) bo
 	return startMigration(w, e, to, reason)
 }
 
-// Keep the dice import explicit in this file's system signature; no random stream is consumed here.
-var _ *dice.Hub
