@@ -182,3 +182,39 @@ func MoveContainerItems(from, to *ContainerC, item string, qty int) error {
 	to.Revision++
 	return nil
 }
+
+
+// RoomLeaseStateAt вычисляет состояние аренды на конкретный игровой день.
+// Состояние вычисляется из дат, а не доверяет потенциально устаревшему LeaseState.
+// GraceUntil — последний день льготного периода включительно.
+func RoomLeaseStateAt(room *RoomC, day int64) string {
+	if room == nil || room.Tenant == 0 || room.PaidThrough <= 0 {
+		return RoomLeaseVacant
+	}
+	if day <= room.PaidThrough {
+		return RoomLeaseActive
+	}
+	if room.GraceUntil > room.PaidThrough && day <= room.GraceUntil {
+		return RoomLeaseGrace
+	}
+	return RoomLeaseExpired
+}
+
+// CanAccessRoomChest проверяет связь комнаты с сундуком и право арендатора.
+// Доступ сохраняется в течение льготного периода, но прекращается после него.
+// Функция ничего не меняет: содержимое сундука не удаляется при истечении аренды.
+func CanAccessRoomChest(roomEntity, chestEntity *core.Entity, actor core.ID, day int64) bool {
+	if roomEntity == nil || chestEntity == nil || actor == 0 {
+		return false
+	}
+	room := Room(roomEntity)
+	chest := Container(chestEntity)
+	if room == nil || chest == nil || room.ChestID != chestEntity.ID {
+		return false
+	}
+	if chest.ContainerKind != ContainerRoomChest || room.Tenant != actor || chest.Tenant != actor {
+		return false
+	}
+	state := RoomLeaseStateAt(room, day)
+	return state == RoomLeaseActive || state == RoomLeaseGrace
+}
