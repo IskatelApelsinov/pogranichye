@@ -112,14 +112,44 @@ namespace Pogranichye.Client
         public string BuildPressedKeysDebug()
         {
             var keys = new List<string>();
-            if (Move.sqrMagnitude > 0.01f) keys.Add("WASD");
-            if (SprintHeld) keys.Add("Shift");
-            if (JumpPressed) keys.Add("Space");
-            if (InteractPressed) keys.Add("E");
-            if (MenuPressed) keys.Add("Tab");
-            if (WeaveHeld) keys.Add("R");
-            if (PrimaryPressed || _primary.IsPressed()) keys.Add("ЛКМ");
-            if (SecondaryPressed || _secondary.IsPressed()) keys.Add("ПКМ");
+            var keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                // Report physical keys, not the generic "WASD" label. This makes it possible
+                // to distinguish a genuinely held S/Down key from a bad movement transform.
+                if (keyboard.wKey.isPressed) keys.Add("W");
+                if (keyboard.aKey.isPressed) keys.Add("A");
+                if (keyboard.sKey.isPressed) keys.Add("S");
+                if (keyboard.dKey.isPressed) keys.Add("D");
+                if (keyboard.upArrowKey.isPressed) keys.Add("↑");
+                if (keyboard.leftArrowKey.isPressed) keys.Add("←");
+                if (keyboard.downArrowKey.isPressed) keys.Add("↓");
+                if (keyboard.rightArrowKey.isPressed) keys.Add("→");
+                if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed) keys.Add("Shift");
+                if (keyboard.spaceKey.isPressed) keys.Add("Space");
+                if (keyboard.eKey.isPressed) keys.Add("E");
+                if (keyboard.tabKey.isPressed) keys.Add("Tab");
+                if (keyboard.escapeKey.isPressed) keys.Add("Esc");
+                if (keyboard.rKey.isPressed) keys.Add("R");
+                if (keyboard.backspaceKey.isPressed) keys.Add("Backspace");
+                if (keyboard.qKey.isPressed) keys.Add("Q");
+                if (keyboard.fKey.isPressed) keys.Add("F");
+                if (keyboard.tKey.isPressed) keys.Add("T");
+                if (keyboard.hKey.isPressed) keys.Add("H");
+                if (keyboard.zKey.isPressed) keys.Add("Z");
+                if (keyboard.xKey.isPressed) keys.Add("X");
+                if (keyboard.vKey.isPressed) keys.Add("V");
+                if (keyboard.bKey.isPressed) keys.Add("B");
+                if (keyboard.cKey.isPressed) keys.Add("C");
+                for (var i = 0; i < _weaveNodes.Length; i++)
+                    if (_weaveNodes[i].IsPressed()) keys.Add((i + 1).ToString());
+            }
+            if (Mouse.current != null)
+            {
+                if (Mouse.current.leftButton.isPressed) keys.Add("ЛКМ");
+                if (Mouse.current.rightButton.isPressed) keys.Add("ПКМ");
+                if (Mouse.current.middleButton.isPressed) keys.Add("СКМ");
+            }
             return keys.Count == 0 ? "нет" : string.Join(", ", keys);
         }
 
