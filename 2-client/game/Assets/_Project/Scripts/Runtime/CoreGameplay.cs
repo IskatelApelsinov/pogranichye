@@ -1889,6 +1889,53 @@ namespace Pogranichye.Client
             return bag == null ? 0f : Num(bag, key);
         }
 
+        /// <summary>Shows a small live pulse from the server's currently replicated local neighbors.</summary>
+        private void DrawSettlementPulse()
+        {
+            var neighbors = Arr(_place, "neighbors");
+            if (neighbors == null) return;
+            var residents = 0;
+            var players = 0;
+            var working = 0;
+            var tavern = 0;
+            var social = 0;
+            var resting = 0;
+            var eating = 0;
+            foreach (var neighbor in neighbors)
+            {
+                if (Flag(neighbor, "player")) { players++; continue; }
+                residents++;
+                var code = Str(neighbor, "act_code");
+                if (code == "drink_tavern" || code == "keep_tavern") tavern++;
+                else if (code == "visit_neighbors") social++;
+                else if (code == "sleep" || code == "rest_idle") resting++;
+                else if (code == "meal") eating++;
+                else if (code == "chop_wood" || code.StartsWith("farm_") || code == "smith_forge" ||
+                    code == "mine_ore" || code == "mine_spent" || code == "fish_river" ||
+                    code == "hunt_wild" || code == "hunter_empty" || code == "cook_hearth" ||
+                    code == "brew_remedy" || code == "forage_herbs" || code == "weave" ||
+                    code == "weaver_wait" || code == "herd_barn" || code == "herd_graze" ||
+                    code == "study_mana" || code == "smith_cold" || code == "work") working++;
+            }
+            GUILayout.Label("ЖИЗНЬ ПОСЕЛЕНИЯ · рядом в поле зрения");
+            var presence = residents + " жителей";
+            if (players > 0) presence += " · игроков: " + players;
+            GUILayout.Label("Видно: " + presence);
+            var activity = "Заняты делом: " + working;
+            if (tavern > 0) activity += " · корчма: " + tavern;
+            if (social > 0) activity += " · общаются: " + social;
+            if (eating > 0) activity += " · едят: " + eating;
+            if (resting > 0) activity += " · отдыхают: " + resting;
+            GUILayout.Label(activity);
+            var details = new System.Collections.Generic.List<string>();
+            if (Flag(_place, "tavern")) details.Add("пиво в корчме: " + Num(_place, "beer").ToString("0.#", CultureInfo.InvariantCulture));
+            var stable = Obj(_place, "stable");
+            if (stable != null) details.Add("лошадей: " + (int)Num(stable, "horses"));
+            var market = Arr(_place, "market");
+            if (market != null && market.Count > 0) details.Add("товаров на рынке: " + market.Count);
+            if (details.Count > 0) GUILayout.Label(string.Join(" · ", details.ToArray()));
+        }
+
         private void DrawMenu()
         {
             var width = Mathf.Min(900f, Screen.width - 40f);
@@ -1932,6 +1979,7 @@ namespace Pogranichye.Client
                 if (have.Count > 0)
                     GUILayout.Label("Угодья поблизости: " + string.Join(" · ", have.ToArray()));
             }
+            DrawSettlementPulse();
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
                 GUILayout.BeginHorizontal();
