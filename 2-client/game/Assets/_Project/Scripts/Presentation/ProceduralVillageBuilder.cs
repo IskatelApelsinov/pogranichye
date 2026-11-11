@@ -1596,7 +1596,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (hand == null || _woodMaterial == null || _metalMaterial == null) return null;
             if (activity != "eat" && activity != "chop" && activity != "mine" && activity != "forge" &&
-                activity != "farm" && activity != "fish" && activity != "mend_net" && activity != "hunt" &&
+                activity != "farm" && activity != "mend_gear" && activity != "fish" && activity != "mend_net" && activity != "hunt" &&
                 activity != "weave" && activity != "study" && activity != "cook" &&
                 activity != "brew" && activity != "forage" && activity != "herd" &&
                 activity != "tavern")
@@ -1640,6 +1640,16 @@ namespace Pogranichye.Client.Presentation
                 {
                     CreatePrimitive("Tool • smith hammer head", PrimitiveType.Cube, tool,
                         new Vector3(0f, 0.43f, 0f), new Vector3(0.23f, 0.13f, 0.13f), _metalMaterial);
+                    break;
+                }
+                case "mend_gear":
+                {
+                    // A compact awl and leather patch represent winter repairs done indoors.
+                    var patch = CreatePrimitive("Tool • leather gear patch", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.39f, 0.02f), new Vector3(0.16f, 0.12f, 0.025f), _clothMaterial);
+                    patch.transform.localRotation = Quaternion.Euler(0f, 0f, -9f);
+                    CreatePrimitive("Tool • repair awl", PrimitiveType.Cylinder, tool,
+                        new Vector3(0.08f, 0.52f, 0.02f), new Vector3(0.012f, 0.10f, 0.012f), _metalMaterial);
                     break;
                 }
                 case "farm":
