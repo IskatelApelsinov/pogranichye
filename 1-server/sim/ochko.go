@@ -133,6 +133,7 @@ func StartOchko(w *core.World, e *core.Entity, reqid string, shuffle func([]Ochk
 	} else {
 		w.Attach(e, g)
 	}
+	pc.CardGame = "ochko"
 	if ochkoTotal(g.Player) == 21 {
 		finishOchko(g, pu, true)
 	}
