@@ -421,7 +421,7 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 	for _, r := range residentsOf(w, source.ID) {
 		d := core.Drives(r)
 		v := core.Vitals(r)
-		if d != nil && v != nil && d.Ambition >= 55 && v.Age >= 16 && v.Age <= 45 {
+		if Player(r) == nil && d != nil && v != nil && d.Ambition >= 55 && v.Age >= 16 && v.Age <= 45 {
 			band = append(band, r)
 		}
 		if len(band) >= 5 {
@@ -587,7 +587,7 @@ func residentIndex(w *core.World) map[core.ID][]*core.Entity {
 }
 
 func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
-	if e == nil || s == nil || Migration(e) != nil {
+	if e == nil || s == nil || Player(e) != nil || Migration(e) != nil {
 		return false
 	}
 	pl := core.Place(e)
