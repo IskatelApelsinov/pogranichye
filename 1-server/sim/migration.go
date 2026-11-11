@@ -192,18 +192,18 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			m.Route[0] != m.From || m.Route[len(m.Route)-1] != m.To {
 			// Corrupt/missing endpoint: prefer the original settlement, otherwise the destination.
 			returnTo := core.ID(0)
-			if pl := core.Place(e); pl != nil {
-				switch {
-				case src != nil:
-					pl.Settlement = m.From
-					returnTo = m.From
-				case dst != nil:
-					pl.Settlement = m.To
-					returnTo = m.To
-				default:
-					pl.Settlement = 0
-				}
+			switch {
+			case src != nil:
+				returnTo = m.From
+			case dst != nil:
+				returnTo = m.To
 			}
+			pl := core.Place(e)
+			if pl == nil {
+				pl = &core.PlaceC{}
+				w.Attach(e, pl)
+			}
+			pl.Settlement = returnTo
 			if home := core.Home(e); home != nil {
 				home.Status = "none"
 				home.Settlement = returnTo
@@ -212,7 +212,11 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				mind.Goal = ""
 				mind.GoalUntil = 0
 				mind.ActCode = ""
-				mind.LastAct = "путь прерван, вернулся в поселение"
+				if returnTo != 0 {
+					mind.LastAct = "путь прерван, вернулся в поселение"
+				} else {
+					mind.LastAct = "путь прерван, поселение недоступно"
+				}
 			}
 			returnMigrationFood(w, returnTo, m.FoodSupply)
 			w.Detach(e, "migration")
