@@ -10,6 +10,14 @@ import (
 
 func TestOchkoIntentAndPrivateFrame(t *testing.T) {
 	s := NewStarter("ochko-wire", "", []byte("x"), "")
+	s.ochkoShuffle = func(cards []sim.OchkoCard) error {
+		cards[51] = sim.OchkoCard{Code: "10♠", Value: 10}
+		cards[50] = sim.OchkoCard{Code: "9♠", Value: 9}
+		cards[49] = sim.OchkoCard{Code: "10♣", Value: 10}
+		cards[48] = sim.OchkoCard{Code: "7♦", Value: 7}
+		cards[47] = sim.OchkoCard{Code: "2♥", Value: 2}
+		return nil
+	}
 	var cid core.ID
 	s.world.Each("ident", func(e *core.Entity) {
 		if cid != 0 {
