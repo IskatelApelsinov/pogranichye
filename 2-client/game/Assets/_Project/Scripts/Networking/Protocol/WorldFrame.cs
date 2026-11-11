@@ -144,6 +144,20 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
+    public sealed class IssuedErrandFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("giver")] public string Giver { get; set; }
+        [JsonProperty("giver_name")] public string GiverName { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("qty")] public int Quantity { get; set; }
+        [JsonProperty("have")] public int Have { get; set; }
+        [JsonProperty("ready")] public bool Ready { get; set; }
+        [JsonProperty("coins")] public double Coins { get; set; }
+        [JsonProperty("accepted")] public bool Accepted { get; set; }
+    }
+
+    [Serializable]
     public sealed class OpeningTaskFrame
     {
         [JsonProperty("stage")] public int Stage { get; set; }
@@ -152,6 +166,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("drank")] public bool Drank { get; set; }
         [JsonProperty("done")] public bool Done { get; set; }
         [JsonProperty("text")] public string Text { get; set; }
+        [JsonProperty("errand_done")] public bool ErrandDone { get; set; }
+        [JsonProperty("issued")] public IssuedErrandFrame Issued { get; set; }
     }
 
     [Serializable]
