@@ -160,6 +160,18 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
         }
 
+        private static void DrawCondition(JObject me, string key, string label, Color color)
+        {
+            if (me == null || me[key] == null) return;
+            var value = Mathf.Clamp(Num(me, key), 0f, 100f);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(112f));
+            var barRect = GUILayoutUtility.GetRect(100f, 8f, GUILayout.ExpandWidth(true));
+            Bar(barRect, value / 100f, color);
+            GUILayout.Label(value.ToString("0", CultureInfo.InvariantCulture), GUILayout.Width(32f));
+            GUILayout.EndHorizontal();
+        }
+
         public void DrawInventoryTab()
         {
             if (!_active || _me == null)
@@ -182,6 +194,16 @@ namespace Pogranichye.Client
             GUILayout.Label("МОНЕТЫ");
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("При себе: " + Num(_me, "coins").ToString("0.#", CultureInfo.InvariantCulture));
+            GUILayout.EndVertical();
+
+            // Vitals are server-owned; hunger is a rising need (0 = full), not a satiety score.
+            GUILayout.Space(6f);
+            GUILayout.Label("СОСТОЯНИЕ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            DrawCondition(_me, "health", "Здоровье", new Color(0.55f, 0.66f, 0.42f));
+            DrawCondition(_me, "hunger", "Голод", new Color(0.82f, 0.58f, 0.32f));
+            DrawCondition(_me, "energy", "Силы", new Color(0.45f, 0.68f, 0.82f));
+            DrawCondition(_me, "morale", "Настрой", new Color(0.68f, 0.55f, 0.78f));
             GUILayout.EndVertical();
 
             // Character attributes are read directly from the server frame. They grow
