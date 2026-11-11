@@ -10,6 +10,9 @@ namespace Pogranichye.Client.Presentation
     public sealed class WorldInteractionProbe : MonoBehaviour
     {
         [SerializeField] private float interactRange = 3.2f;
+        [SerializeField] private float aimAssistRadius = 0.18f;
+        private const int HitCapacity = 32;
+        private readonly RaycastHit[] _hits = new RaycastHit[HitCapacity];
         private Camera _camera;
         private PresentationCameraRig _cameraRig;
         private Pogranichye.Client.ClientInput _input;
@@ -27,19 +30,7 @@ namespace Pogranichye.Client.Presentation
 
         private void Update()
         {
-            WorldPoi nextPoi = null;
-            WorldNpc nextNpc = null;
-
-            if (_camera != null)
-            {
-                if (Physics.Raycast(_camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f)),
-                    out var hit, interactRange, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-                {
-                    nextPoi = hit.collider.GetComponentInParent<WorldPoi>();
-                    if (nextPoi == null)
-                        nextNpc = hit.collider.GetComponentInParent<WorldNpc>();
-                }
-            }
+            ResolveTarget(out var nextPoi, out var nextNpc);
 
             if (_poi != nextPoi)
             {
@@ -60,6 +51,70 @@ namespace Pogranichye.Client.Presentation
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();
             }
+        }
+
+        private void ResolveTarget(out WorldPoi poi, out WorldNpc npc)
+        {
+            poi = null;
+            npc = null;
+            if (_camera == null) return;
+
+            var ray = _camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var count = Physics.RaycastNonAlloc(ray, _hits, interactRange,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            SortHits(count);
+
+            if (FindTargetBeforeObstacle(count, out poi, out npc)) return;
+
+            // A small, bounded sphere sweep makes E interaction forgiving for narrow NPC
+            // colliders and low-poly POI meshes. Solid world geometry still occludes targets.
+            if (aimAssistRadius <= 0f) return;
+            count = Physics.SphereCastNonAlloc(ray, aimAssistRadius, _hits, interactRange,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            SortHits(count);
+            FindTargetBeforeObstacle(count, out poi, out npc);
+        }
+
+        private void SortHits(int count)
+        {
+            // NonAlloc queries do not promise hit ordering. Insertion sort is cheap for the
+            // small fixed buffer and avoids per-frame allocations from RaycastAll/Array.Sort.
+            for (var i = 1; i < count; i++)
+            {
+                var value = _hits[i];
+                var j = i - 1;
+                while (j >= 0 && _hits[j].distance > value.distance)
+                {
+                    _hits[j + 1] = _hits[j];
+                    j--;
+                }
+                _hits[j + 1] = value;
+            }
+        }
+
+        private bool FindTargetBeforeObstacle(int count, out WorldPoi poi, out WorldNpc npc)
+        {
+            poi = null;
+            npc = null;
+            for (var i = 0; i < count; i++)
+            {
+                var collider = _hits[i].collider;
+                if (collider == null || !collider.enabled) continue;
+
+                var hitPoi = collider.GetComponentInParent<WorldPoi>();
+                var hitNpc = hitPoi == null ? collider.GetComponentInParent<WorldNpc>() : null;
+                if (hitPoi != null || hitNpc != null)
+                {
+                    poi = hitPoi;
+                    npc = hitNpc;
+                    return true;
+                }
+
+                // Ignore triggers and non-blocking colliders; the first solid collider
+                // prevents selecting an NPC/POI behind a wall, building or closed door.
+                if (!collider.isTrigger) return false;
+            }
+            return false;
         }
 
         private void OnDisable()
@@ -123,8 +178,6 @@ namespace Pogranichye.Client.Presentation
                 : new Color(0.92f, 0.91f, 0.84f, 0.72f);
             GUI.color = color;
 
-            // A restrained four-part reticle remains visible against both bright sky
-            // and dark interiors without covering the object being examined.
             GUI.DrawTexture(new Rect(centerX - 1f, centerY - 7f, 2f, 4f), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(centerX - 1f, centerY + 3f, 2f, 4f), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(centerX - 7f, centerY - 1f, 4f, 2f), Texture2D.whiteTexture);
