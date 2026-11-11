@@ -73,12 +73,12 @@
     ],
     "result": null,
     "task": {
-      "stage": 1,
-      "met": false,
+      "stage": 2,
+      "met": true,
       "worked": false,
       "drank": false,
       "done": false,
-      "text": "Познакомься с кем-нибудь из жителей (💬).",
+      "text": "Поработай: сруби дрова, налови рыбы или помоги на стройке.",
       "errand_done": false,
       "issued": {
         "id": "errand:42",
