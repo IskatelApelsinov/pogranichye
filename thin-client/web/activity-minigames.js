@@ -25,5 +25,9 @@
     const skill=skillLevel(me,'smith');
     return {skill,threshold:72-skill*0.22,speed:1-skill*0.0025};
   }
-  return {skillLevel,fishing,chopping,fieldwork,forging};
+  function building(me){
+    const skill=skillLevel(me,'builder');
+    return {skill,threshold:70-skill*0.2,speed:1-skill*0.0025};
+  }
+  return {skillLevel,fishing,chopping,fieldwork,forging,building};
 });
