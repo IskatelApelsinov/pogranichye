@@ -520,3 +520,11 @@ func ActDurak(w *core.World, e *core.Entity, action string, index int, reqid str
 	pc.markDone(reqid)
 	return true, ""
 }
+
+ // CardGameView exposes the last selected personal table, without exposing any server-only state.
+func CardGameView(e *core.Entity) any {
+	if pc := Player(e); pc != nil && pc.CardGame == "durak" {
+		return DurakView(e)
+	}
+	return OchkoView(e)
+}
