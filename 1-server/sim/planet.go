@@ -128,7 +128,10 @@ func SiteOf(w *core.World, se *core.Entity) *SiteC {
 	}
 	s := core.Settle(se)
 	p := EnsurePlanet(w)
-	r := core.Region(w.Get(s.Region))
+	var r *core.RegionC
+	if regionEntity := w.Get(s.Region); regionEntity != nil {
+		r = core.Region(regionEntity)
+	}
 	if c, _ := se.Get("site").(*SiteC); c != nil {
 		// Сохранённые v0 SiteC содержат прежнюю плоскую аппроксимацию. Пересчитываем только
 		// координатные поля из неизменных SettlementC.X/Y; рельеф, угодья и специализация остаются.
