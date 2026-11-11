@@ -168,9 +168,6 @@ func finishOchko(g *OchkoC, pu *core.PurseC, natural bool) {
 		dealerTotal = ochkoTotal(g.Dealer)
 	}
 	switch {
-	case playerTotal > 21:
-		g.Result = "bust"
-		g.Message = fmt.Sprintf("Перебор (%d). Ставка ушла заведению.", playerTotal)
 	case dealerTotal > 21 || playerTotal > dealerTotal:
 		pu.Coins += g.Stake * 2
 		g.Result = "win"
