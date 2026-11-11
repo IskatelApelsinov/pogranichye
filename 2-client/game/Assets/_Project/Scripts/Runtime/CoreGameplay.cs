@@ -2374,8 +2374,6 @@ namespace Pogranichye.Client
                     if (GUILayout.Button("Хватит")) Ask("Очко: остановиться", "card_game", "game", "ochko", "action", "stand");
                     GUILayout.EndHorizontal();
                 }
-                else if (GUILayout.Button("Новая партия в очко") && atTable)
-                    Ask("Очко", "card_game", "game", "ochko", "action", "start");
             }
             else if (gameName == "durak")
             {
@@ -2416,8 +2414,6 @@ namespace Pogranichye.Client
                         GUILayout.Button("Бито — закончить заход"))
                         Ask("Дурак: бито", "card_game", "game", "durak", "action", "done");
                 }
-                else if (done && atTable && GUILayout.Button("Новая партия в дурака"))
-                    Ask("Дурак", "card_game", "game", "durak", "action", "start");
             }
             GUILayout.EndVertical();
         }
