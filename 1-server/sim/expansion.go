@@ -457,6 +457,9 @@ func completedErrand(e *core.Entity) bool {
 	if qc == nil {
 		return false
 	}
+	if qc.OpeningErrandDone {
+		return true
+	}
 	for _, id := range qc.Closed {
 		if strings.HasPrefix(id, "errand:") {
 			return true
