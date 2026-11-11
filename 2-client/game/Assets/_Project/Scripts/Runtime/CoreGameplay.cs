@@ -340,8 +340,8 @@ namespace Pogranichye.Client
                 case "head": return "Голова";
                 case "body": return "Тело";
                 case "feet": return "Ноги";
-                case "armor": return "Броня";
-                case "offhand": return "Вторая рука";
+                case "armor": return "Торс";
+                case "offhand": return "Левая рука";
                 default: return slot;
             }
         }
