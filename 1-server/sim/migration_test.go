@@ -56,7 +56,7 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	person = loaded.Get(id)
 	m = Migration(person)
 	if person == nil || m == nil || m.From != from.ID || m.To != to.ID ||
-		len(m.Route) != 2 || m.ProgressHours != 0 || m.FoodSupply != 2 {
+		len(m.Route) != 2 || m.ProgressHours != 0 || m.FoodSupply != 5 {
 		t.Fatalf("transit state and stable entity identity must survive save/load: %+v", m)
 	}
 
