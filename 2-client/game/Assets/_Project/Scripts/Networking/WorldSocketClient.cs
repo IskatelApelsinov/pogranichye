@@ -75,7 +75,7 @@ namespace Pogranichye.Client.Networking
 
         public async Task SendItemIntentAsync(string op, string item, CancellationToken cancellationToken)
         {
-            if (op != "equip" && op != "wear" && op != "take")
+            if (op != "equip" && op != "wear" && op != "take" && op != "unwear")
                 throw new ArgumentException("Неподдерживаемое действие с предметом.", nameof(op));
             if (string.IsNullOrWhiteSpace(item))
                 throw new ArgumentException("Не задан предмет.", nameof(item));
@@ -88,9 +88,9 @@ namespace Pogranichye.Client.Networking
                 ["op"] = op,
                 ["item"] = item
             };
-            // take mutates inventory and therefore requires the server's bounded reqid dedup.
+            // take and unwear require the server's bounded reqid dedup and correlated result.
             // equip/wear are state-setting intents and are naturally idempotent.
-            if (op == "take")
+            if (op == "take" || op == "unwear")
                 payload["reqid"] = Guid.NewGuid().ToString("N");
 
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
