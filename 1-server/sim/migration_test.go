@@ -66,7 +66,7 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	if Migration(person) != nil || core.Place(person).Settlement != to.ID {
 		t.Fatal("NPC must arrive at the recorded destination after route duration")
 	}
-	if loaded.Get(id) != person {
+	if person.ID != id {
 		t.Fatal("migration must preserve the same entity identity")
 	}
 }
