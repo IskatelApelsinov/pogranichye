@@ -60,6 +60,7 @@ namespace Pogranichye.Client
         private bool _talkConfirmationTimedOut;
         private bool _drinkRequestPending;
         private const string DrinkRequestLabelPrefix = "Совместная кружка:";
+        private const string WorldActionLabelPrefix = "Действие мира:";
         private Vector2 _dialogueScroll;
         private GUIStyle _dialogueWhoStyle;
         private GUIStyle _dialogueLineStyle;
@@ -344,9 +345,9 @@ namespace Pogranichye.Client
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
             GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("🪓 Рубить")) _ = SendWorldActionAsync("chop");
-            if (GUILayout.Button("🎣 Рыбачить")) _ = SendWorldActionAsync("fish");
-            if (GUILayout.Button("✨ Разряд")) _ = SendWorldActionAsync("cast");
+            if (GUILayout.Button("🪓 Рубить")) QueueWorldAction("chop");
+            if (GUILayout.Button("🎣 Рыбачить")) QueueWorldAction("fish");
+            if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
             GUILayout.EndHorizontal();
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
         }
@@ -927,17 +928,15 @@ namespace Pogranichye.Client
             }
         }
 
-        private async Task SendWorldActionAsync(string action)
+        private void QueueWorldAction(string action)
         {
-            var socket = _socket;
-            try
+            if (_connectionState != WorldConnectionState.Active || _core == null ||
+                !_core.QueueRequest(WorldActionLabelPrefix + " " + action, "act", "action", action))
             {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendActAsync(action, _lifetime.Token);
-                Enqueue(() => _status = "Действие отправлено: " + action + ". Результат подтвердит сервер.");
+                _status = "Не удалось поставить действие в очередь. Проверьте соединение и дождитесь предыдущего ответа.";
+                return;
             }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось выполнить действие: " + ex.Message); }
+            _status = "Ожидаю подтверждения сервера: " + action + "…";
         }
 
         private void SendCorePayload(Dictionary<string, object> payload)
@@ -1021,6 +1020,13 @@ namespace Pogranichye.Client
                         ? "Сервер отклонил действие с кружкой: " + reason
                         : "Нет подтверждения сервера на действие с кружкой. Можно попробовать ещё раз.";
             }
+
+            if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
+                _status = outcome == RequestGate.Outcome.Accepted
+                    ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    : outcome == RequestGate.Outcome.Rejected
+                        ? "Сервер отклонил действие: " + reason
+                        : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
         }
 
         private void UpdateTalkConfirmationTimeout()
@@ -1174,7 +1180,7 @@ namespace Pogranichye.Client
 
             if (!string.IsNullOrEmpty(poi.ActionIntent))
             {
-                _ = SendWorldActionAsync(poi.ActionIntent);
+                QueueWorldAction(poi.ActionIntent);
                 _status = "Выбрана точка: " + poi.Title + ". Действие отправлено серверу на проверку.";
                 return;
             }
