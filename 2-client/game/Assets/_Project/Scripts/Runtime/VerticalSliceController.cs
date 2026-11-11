@@ -147,6 +147,8 @@ namespace Pogranichye.Client
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
+            if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
+                _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
             if (_input != null && _input.ToggleDiagnosticsPressed) _movementDebugVisible = !_movementDebugVisible;
             if (_input != null && _input.ToggleFullscreenPressed) ToggleFullscreen();
