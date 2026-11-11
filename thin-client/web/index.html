@@ -265,7 +265,7 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
   if(resolved){
     if(pendingMinigameAction && resolved.reqid===pendingMinigameAction.reqid){
       const pending=pendingMinigameAction; pendingMinigameAction=null;
-      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить',bbuild:'🔨 Закрепить балку'})[pending.buttonId]||'Повторить'; }
+      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить',bbuild:'🔨 Закрепить балку',mmine:'⛏ Ударить по жиле',hforage:'🌿 Срезать травы'})[pending.buttonId]||'Повторить'; }
       toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
     } else {
       toast(r.ok ? resolved.label+': подтверждено' : resolved.label+' — отказ: '+(r.reason||'сервер отказал'));
@@ -398,8 +398,8 @@ function drawLocActions(s,L){
  // перестраиваем действия локации, только когда изменилось то, от чего они зависят: иначе мини-игра
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
  const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
-   L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):
-   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,me.skills&&me.skills.builder,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith,me.skills&&me.skills.builder,me.stash]):
+   L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):L.key==='mine'?JSON.stringify([me.skills&&me.skills.miner,me.stash]):
+   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,me.skills&&me.skills.herbalist,me.skills&&me.skills.builder,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith,me.skills&&me.skills.builder,me.stash]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
  if(sig===locSig) return; locSig=sig; stopMinigames();
  const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
@@ -426,11 +426,15 @@ function drawLocActions(s,L){
  } else if(L.key==='granary'){
    ['cloak','boots','hat'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
    marketUI(M,s);
+ } else if(L.key==='mine'){
+   miningGame(M,me);
  } else if(L.key==='garden'){
    const gardenBuildGame=document.createElement('div'); gardenBuildGame.style.gridColumn='1 / -1'; A.append(gardenBuildGame);
    buildingGame(gardenBuildGame,me);
    const fieldGame=document.createElement('div'); fieldGame.style.gridColumn='1 / -1'; A.append(fieldGame);
    fieldworkGame(fieldGame,me);
+   const forageGame=document.createElement('div'); forageGame.style.gridColumn='1 / -1'; A.append(forageGame);
+   foragingGame(forageGame,me);
    marketUI(M,s);
  } else if(L.key==='market'){
    ['torch','lantern'].forEach(it=>A.append(btn('взять '+({torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
@@ -483,6 +487,34 @@ function choppingGame(M,me){
 }
 
 
+
+
+function zoneTimingGame(M,cfg,title,skillLabel,buttonId,buttonText,action,successText,missText){
+ M.className='mg';
+ M.innerHTML=`<b class="sub">${title}</b>
+   <div class="sub">${skillLabel}: ${Math.round(cfg.skill)} · окно точной работы: ${Math.round(cfg.zoneWidth)}%</div>
+   <div class="track"><div class="zone" id="${buttonId}zone"></div><div class="mark" id="${buttonId}mark"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="${buttonId}">${buttonText}</button></div>`;
+ const zone=$(buttonId+'zone'), mark=$(buttonId+'mark');
+ const zx=Math.random()*(100-cfg.zoneWidth), zw=cfg.zoneWidth;
+ zone.style.left=zx+'%'; zone.style.width=zw+'%';
+ let t=0;
+ const loop=()=>{t+=0.034*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;mark.style.left=p+'%';mark.dataset.p=p;scheduleMinigameFrame(loop);};
+ loop();
+ $(buttonId).onclick=()=>{
+   const p=parseFloat(mark.dataset.p||'0');
+   if(p>=zx&&p<=zx+zw) sendMinigameAction(action,buttonId,successText);
+   else toast(missText);
+ };
+}
+function miningGame(M,me){
+ const cfg=ActivityMinigames.mining(me);
+ zoneTimingGame(M,cfg,'Добыча руды','Навык рудокопа','mmine','⛏ Ударить по жиле','mine','Добыча руды подтверждена сервером.','…удар пришёлся мимо жилы, попробуй ещё раз');
+}
+function foragingGame(M,me){
+ const cfg=ActivityMinigames.foraging(me);
+ zoneTimingGame(M,cfg,'Сбор трав','Навык травника','hforage','🌿 Срезать травы','gather','Травы собраны и внесены в закрома.','…сорвал не те стебли, попробуй ещё раз');
+}
 
 function buildingGame(M,me){
  const cfg=ActivityMinigames.building(me);
