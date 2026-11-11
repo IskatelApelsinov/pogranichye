@@ -1631,14 +1631,68 @@ namespace Pogranichye.Client
 
         private void DrawWorldContextAction()
         {
-            if (_menuOpen || _weaveOpen || _me == null || !HasFeature("garden") || !Near("apiary", 5f)) return;
+            if (_menuOpen || _weaveOpen || _me == null) return;
 
-            const float width = 224f;
-            const float height = 58f;
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 126f, width, height);
-            GUI.Box(rect, "Пасека");
-            if (GUI.Button(new Rect(rect.x + 8f, rect.y + 24f, rect.width - 16f, 27f), "Вынуть мёд из улья"))
-                Ask("Пасека", "act", "action", "apiary");
+            // Show one concise action at the point of work; the server still validates every intent.
+            // The full activity list remains available in the Дела window.
+            string title = null;
+            string primaryLabel = null;
+            string primaryAction = null;
+            string secondaryLabel = null;
+            string secondaryAction = null;
+
+            if (HasFeature("garden") && Near("apiary", 5f))
+            {
+                title = "Пасека";
+                primaryLabel = "Вынуть мёд из улья";
+                primaryAction = "apiary";
+            }
+            else if (HasFeature("woods") && Near("woods", 10f))
+            {
+                title = "Лесная делянка";
+                primaryLabel = "Срубить дерево";
+                primaryAction = "chop";
+            }
+            else if (HasFeature("river") && Near("river", 10f))
+            {
+                title = "Берег реки";
+                primaryLabel = "Закинуть удочку";
+                primaryAction = "fish";
+            }
+            else if (HasFeature("mine") && Near("mine", 10f))
+            {
+                title = "Рудный выход";
+                primaryLabel = "Добыть руду";
+                primaryAction = "mine";
+            }
+            else if (HasFeature("garden") && Near("garden", 10f))
+            {
+                title = "Огород и поля";
+                primaryLabel = "Собрать травы";
+                primaryAction = "gather";
+                secondaryLabel = "Помочь в поле";
+                secondaryAction = "farmwork";
+            }
+            else if (Near("smithy", 10f))
+            {
+                title = "Кузница";
+                primaryLabel = "Помочь у горна";
+                primaryAction = "forge";
+            }
+
+            if (string.IsNullOrEmpty(primaryAction)) return;
+
+            const float width = 244f;
+            const float rowHeight = 27f;
+            var rows = string.IsNullOrEmpty(secondaryAction) ? 1 : 2;
+            var height = 31f + rows * rowHeight + 8f;
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 126f - (rows - 1) * 29f, width, height);
+            GUI.Box(rect, title);
+            if (GUI.Button(new Rect(rect.x + 8f, rect.y + 24f, rect.width - 16f, rowHeight), primaryLabel))
+                Ask(title, "act", "action", primaryAction);
+            if (!string.IsNullOrEmpty(secondaryAction) &&
+                GUI.Button(new Rect(rect.x + 8f, rect.y + 24f + rowHeight, rect.width - 16f, rowHeight), secondaryLabel))
+                Ask(title, "act", "action", secondaryAction);
         }
 
         private void DrawFoeLabels()
