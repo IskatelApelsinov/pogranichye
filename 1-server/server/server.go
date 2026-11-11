@@ -555,13 +555,15 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "equip":
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.Equip(s.world, e, in.Item)
+			ok, why := sim.Equip(s.world, e, in.Item, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
 		s.mu.Unlock()
 	case "wear":
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.Wear(s.world, e, in.Item)
+			ok, why := sim.Wear(s.world, e, in.Item, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
 		s.mu.Unlock()
 	case "trade": // рынок: купить/продать (v1.7)
