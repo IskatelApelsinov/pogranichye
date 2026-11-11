@@ -52,9 +52,9 @@ func (s *Server) placeLife(se *core.Entity) map[string]any {
     return map[string]any{
         "population": population, "working": working, "activities": activities,
         "stock": map[string]any{
-            "food": round0(econ.FoodOnHand(se)), "wood": round0(store[econ.GoodWood]),
+            "wood": round0(store[econ.GoodWood]),
             "ore": round0(store[econ.GoodOre]), "metal": round0(store[econ.GoodMetal]),
-            "herb": round0(store[econ.GoodHerb]), "beer": round0(store[sim.BeerGood]),
+            "herb": round0(store[econ.GoodHerb]),
         },
     }
 }
