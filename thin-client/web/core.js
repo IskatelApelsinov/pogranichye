@@ -307,8 +307,6 @@ function drawCraft(s){
   craftFeedback.resolve(me.result);
   const here = rec.filter(r => r.here);
   let h = '<b>🔨 Ремесло</b> ';
-  if(typeof curLoc!=='undefined' && curLoc==='mine') h += '<div class="acts">' + sbtn('⛏ Добыть руду', `send({op:'act',action:'mine'})`) + '</div>';
-  if(typeof curLoc!=='undefined' && curLoc==='garden') h += '<div class="acts">' + sbtn('🌿 Собрать травы', `send({op:'act',action:'gather'})`) + '</div>';
   if(!here.length) h += '<span class="sub">Мастерят у кузни, очага и амбара. Сырьё: руда — на руднике, травы — у огородов, шкуры и мясо — с охоты.</span>';
   else h += `<span class="sub">${AT[here[0].at]||''}</span>`;
   here.forEach(r => {
