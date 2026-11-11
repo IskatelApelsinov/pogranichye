@@ -196,11 +196,11 @@ function sendRaw(o){
 }
 function expectsResult(o){
  if(o.reqid) return true;
- if(['buy','consume','trade','take','craft','use','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
+ if(['buy','consume','trade','take','craft','use','equip','wear','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
  return o.op==='goto' && !!o.target;
 }
 function actionLabel(o){
- const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',
+ const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',
    weave:'Плетение',attack:'Удар',dodge:'Уворот',stance:'Стойка',trick:'Хитрость',quest:'Просьба',journey:'Путешествие',
    party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти'};
  if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд'})[o.action]||'Действие';
