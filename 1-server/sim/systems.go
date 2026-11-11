@@ -403,7 +403,7 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		}
 		amb := 0
 		for _, r := range res {
-			if d := core.Drives(r); d != nil && d.Ambition >= 55 {
+			if Player(r) == nil && d := core.Drives(r); d != nil && d.Ambition >= 55 {
 				if v := core.Vitals(r); v != nil && v.Age >= 16 && v.Age <= 45 {
 					amb++
 				}
@@ -445,7 +445,7 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		ns.Y = clamp(src3.Y+s.Uniform(-180, 180), 0, mapSize)
 	}
 	for _, r := range band {
-		// Сохраняем личности переселенцев: они физически/симулятивно идут к новой деревне,
+		// Сохраняем личности переселенцев: они симулятивно идут к новой деревне,
 		// а не телепортируются в неё в момент основания.
 		if !startMigration(w, r, ne.ID, "founding") {
 			// RoadGraph обязан связывать поселения одной стороны гор; это страховка от
