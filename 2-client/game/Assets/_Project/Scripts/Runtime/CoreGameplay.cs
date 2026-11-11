@@ -2092,6 +2092,8 @@ namespace Pogranichye.Client
                 GUI.enabled = true;
                 GUILayout.EndHorizontal();
             }
+
+            DrawCardGames();
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) Ask("Работа в поле", "act", "action", "farmwork");
@@ -2329,6 +2331,136 @@ namespace Pogranichye.Client
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        private void DrawCardGames()
+        {
+            var game = Obj(_me, "card_game");
+            var gameName = Str(game, "game");
+            var done = Flag(game, "done");
+            var atTable = _place != null && Flag(_place, "tavern") && Near("tavern", 12f);
+
+            if (atTable)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("КАРТОЧНЫЙ СТОЛ · ставка 10 монет");
+                if (game == null || done)
+                {
+                    GUILayout.BeginHorizontal();
+                    GUI.enabled = Num(_me, "coins") >= 10f;
+                    if (GUILayout.Button("Сыграть в очко")) Ask("Очко", "card_game", "game", "ochko", "action", "start");
+                    if (GUILayout.Button("Сыграть в подкидного дурака")) Ask("Дурак", "card_game", "game", "durak", "action", "start");
+                    GUI.enabled = true;
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            if (game == null) return;
+            GUILayout.BeginVertical(GUI.skin.box);
+            if (gameName == "ochko")
+            {
+                GUILayout.Label("ОЧКО · кон " + Num(game, "stake").ToString("0.#", CultureInfo.InvariantCulture));
+                DrawCardRow("Корчмарь", Arr(game, "dealer"));
+                if (!Flag(game, "done") && Num(game, "hidden") > 0f)
+                    GUILayout.Label("Скрытых карт у корчмаря: " + (int)Num(game, "hidden"));
+                else if (Tok(game, "dtotal") != null)
+                    GUILayout.Label("Очки корчмаря: " + (int)Num(game, "dtotal"));
+                DrawCardRow("Твоя рука · " + (int)Num(game, "ptotal") + " очков", Arr(game, "player"));
+                GUILayout.Label(Str(game, "message"));
+                if (!done)
+                {
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("Ещё карту")) Ask("Очко: взять карту", "card_game", "game", "ochko", "action", "hit");
+                    if (GUILayout.Button("Хватит")) Ask("Очко: остановиться", "card_game", "game", "ochko", "action", "stand");
+                    GUILayout.EndHorizontal();
+                }
+                else if (GUILayout.Button("Новая партия в очко") && atTable)
+                    Ask("Очко", "card_game", "game", "ochko", "action", "start");
+            }
+            else if (gameName == "durak")
+            {
+                GUILayout.Label("ПОДКИДНОЙ ДУРАК · кон " + Num(game, "stake").ToString("0.#", CultureInfo.InvariantCulture));
+                GUILayout.Label("Козырь: " + Str(game, "trump") + " · нижняя карта: " +
+                    (string.IsNullOrEmpty(Str(game, "trump_card")) ? "колода пуста" : Str(game, "trump_card")) +
+                    " · в колоде: " + (int)Num(game, "deck") + " · у корчмаря: " + (int)Num(game, "dealer_cards"));
+                DrawDurakTable(Arr(game, "table"));
+                GUILayout.Label("Твоя роль: " + (Str(game, "role") == "attack" ? "атакующий" : "защитник") +
+                    (Flag(game, "your_turn") ? " · твой ход" : " · ход корчмаря"));
+                DrawCardRow("Твои карты", Arr(game, "player"));
+                GUILayout.Label(Str(game, "message"));
+                if (!done && Flag(game, "your_turn"))
+                {
+                    var role = Str(game, "role");
+                    var phase = Str(game, "phase");
+                    var hand = Arr(game, "player");
+                    if (hand != null)
+                    {
+                        for (var i = 0; i < hand.Count; i++)
+                        {
+                            var code = Str(hand[i], "c");
+                            if (role == "attack" && phase == "attack")
+                            {
+                                if (GUILayout.Button("Подкинуть / зайти: " + code))
+                                    Ask("Дурак: атака", "card_game", "game", "durak", "action", "attack", "index", i);
+                            }
+                            else if (role == "defend" && phase == "defend")
+                            {
+                                if (GUILayout.Button("Отбиться: " + code))
+                                    Ask("Дурак: отбивание", "card_game", "game", "durak", "action", "defend", "index", i);
+                            }
+                        }
+                    }
+                    if (role == "defend" && phase == "defend" && GUILayout.Button("Взять карты"))
+                        Ask("Дурак: взять", "card_game", "game", "durak", "action", "take");
+                    if (role == "attack" && phase == "attack" && DurakTableBeaten(Arr(game, "table")) &&
+                        GUILayout.Button("Бито — закончить заход"))
+                        Ask("Дурак: бито", "card_game", "game", "durak", "action", "done");
+                }
+                else if (done && atTable && GUILayout.Button("Новая партия в дурака"))
+                    Ask("Дурак", "card_game", "game", "durak", "action", "start");
+            }
+            GUILayout.EndVertical();
+        }
+
+        private static void DrawCardRow(string title, JArray cards)
+        {
+            GUILayout.Label(title);
+            if (cards == null || cards.Count == 0)
+            {
+                GUILayout.Label("—");
+                return;
+            }
+            var line = string.Empty;
+            foreach (var card in cards)
+            {
+                if (line.Length > 0) line += "   ";
+                line += "[" + Str(card, "c") + "]";
+            }
+            GUILayout.Label(line);
+        }
+
+        private static void DrawDurakTable(JArray table)
+        {
+            GUILayout.Label("На столе");
+            if (table == null || table.Count == 0)
+            {
+                GUILayout.Label("Пусто");
+                return;
+            }
+            foreach (var pair in table)
+            {
+                var attack = Str(Obj(pair, "a"), "c");
+                var defence = Str(Obj(pair, "d"), "c");
+                GUILayout.Label("  " + attack + (string.IsNullOrEmpty(defence) ? "  →  ?" : "  →  " + defence));
+            }
+        }
+
+        private static bool DurakTableBeaten(JArray table)
+        {
+            if (table == null || table.Count == 0) return false;
+            foreach (var pair in table)
+                if (Obj(pair, "d") == null) return false;
+            return true;
         }
 
         // Regional map as a list: server-known nodes only (me.region). Unknown road ends carry no name.
