@@ -32,7 +32,9 @@ namespace Pogranichye.Client.Presentation
         private bool _playerHadMug;
         private string _lastPlayerEquipmentSignature = string.Empty;
         private string _lastTalkEvent = string.Empty;
-        private string _lastSocialEvent = string.Empty;
+        private long _lastSocialEventSequence;
+        private ulong _socialEventOwner;
+        private bool _hasSocialEventBaseline;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -705,25 +707,43 @@ namespace Pogranichye.Client.Presentation
 
         private void ApplyTalkPresentation(WorldFrame frame, GameObject player)
         {
-            // Co-drink is a one-shot server event, not a guess based on localized dialogue text.
+            // social_event is a retained "last event" field, not a transient packet.
+            // Establish a baseline on the first snapshot (and when the controlled body changes)
+            // so reconnecting/rebuilding the view registry cannot replay an old toast.
+            var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             var socialEvent = frame.Me.SocialEvent;
-            if (socialEvent != null && socialEvent.Sequence > 0 &&
-                socialEvent.Sequence.ToString() != _lastSocialEvent)
+            var sequence = socialEvent != null ? socialEvent.Sequence : 0L;
+            var isNewSocialEvent = false;
+            if (!_hasSocialEventBaseline || _socialEventOwner != playerId)
             {
-                _lastSocialEvent = socialEvent.Sequence.ToString();
-                if (string.Equals(socialEvent.Type, "codrink", System.StringComparison.OrdinalIgnoreCase))
+                _socialEventOwner = playerId;
+                _lastSocialEventSequence = sequence;
+                _hasSocialEventBaseline = true;
+            }
+            else if (sequence < _lastSocialEventSequence)
+            {
+                // A new world/session may restart its per-body sequence. Re-baseline silently.
+                _lastSocialEventSequence = sequence;
+            }
+            else if (sequence > _lastSocialEventSequence)
+            {
+                _lastSocialEventSequence = sequence;
+                isNewSocialEvent = true;
+            }
+
+            if (isNewSocialEvent && socialEvent != null &&
+                string.Equals(socialEvent.Type, "codrink", System.StringComparison.OrdinalIgnoreCase))
+            {
+                var playerMotion = player.GetComponent<EntityMotion>();
+                if (playerMotion != null) playerMotion.PlayClinkGesture();
+                if (TryGetView(socialEvent.With, out var drinkPartner))
                 {
-                    var playerMotion = player.GetComponent<EntityMotion>();
-                    if (playerMotion != null) playerMotion.PlayClinkGesture();
-                    if (TryGetView(socialEvent.With, out var drinkPartner))
+                    var partnerNpc = drinkPartner.GetComponent<WorldNpc>();
+                    if (partnerNpc != null) partnerNpc.PlayServerClink();
+                    else
                     {
-                        var partnerNpc = drinkPartner.GetComponent<WorldNpc>();
-                        if (partnerNpc != null) partnerNpc.PlayServerClink();
-                        else
-                        {
-                            var partnerMotion = drinkPartner.GetComponent<EntityMotion>();
-                            if (partnerMotion != null) partnerMotion.PlayClinkGesture();
-                        }
+                        var partnerMotion = drinkPartner.GetComponent<EntityMotion>();
+                        if (partnerMotion != null) partnerMotion.PlayClinkGesture();
                     }
                 }
             }
