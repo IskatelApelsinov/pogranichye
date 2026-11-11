@@ -63,7 +63,7 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
-		if m != nil && m.Goal == mind.GoalEat && v.Hunger >= 25 {
+		if (m != nil && m.Goal == mind.GoalEat || Migration(e) != nil) && v.Hunger >= 25 {
 			id := core.Ident(e)
 			if id != nil && v.Age < 15 {
 				// ребёнка кормит семья/община из общих запасов — без платы и без долга (дети
