@@ -48,6 +48,8 @@ func TestPlanetProjectionRoundTripsColdAndHighLatitudeRegions(t *testing.T) {
 		{"cold north", SurfacePoint{LatitudeDeg: 61, LongitudeDeg: 30}, SurfacePoint{LatitudeDeg: 63.5, LongitudeDeg: 34}},
 		{"high north", SurfacePoint{LatitudeDeg: 84, LongitudeDeg: -40}, SurfacePoint{LatitudeDeg: 86, LongitudeDeg: 15}},
 		{"near north pole", SurfacePoint{LatitudeDeg: 89.2, LongitudeDeg: 10}, SurfacePoint{LatitudeDeg: 89.5, LongitudeDeg: 170}},
+		{"north pole origin", SurfacePoint{LatitudeDeg: 90, LongitudeDeg: 0}, SurfacePoint{LatitudeDeg: 89.5, LongitudeDeg: 120}},
+		{"south pole origin", SurfacePoint{LatitudeDeg: -90, LongitudeDeg: 0}, SurfacePoint{LatitudeDeg: -89.4, LongitudeDeg: -75}},
 		{"southern hemisphere", SurfacePoint{LatitudeDeg: -42, LongitudeDeg: 120}, SurfacePoint{LatitudeDeg: -39, LongitudeDeg: 118}},
 		{"equator", SurfacePoint{LatitudeDeg: 0, LongitudeDeg: -5}, SurfacePoint{LatitudeDeg: 2, LongitudeDeg: 3}},
 	}
