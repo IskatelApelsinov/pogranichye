@@ -14,7 +14,7 @@ func drinker(w *core.World, coins, beer float64) (*core.Entity, *core.Entity) {
 	})
 	e := w.Spawn(
 		&core.IdentC{Name: "Питок", Role: "farmer", Sex: "м"},
-		&core.VitalsC{Morale: 50, Hunger: 40},
+		&core.VitalsC{Health: 100, Morale: 50, Hunger: 40},
 		&core.PurseC{Coins: coins, Debts: map[string]float64{}},
 		&core.PlaceC{Settlement: se.ID},
 	)
