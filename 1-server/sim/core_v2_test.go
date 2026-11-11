@@ -332,7 +332,7 @@ func TestCraftChainOreToSword(t *testing.T) {
 	if Inv(e).Items["sword"] != 1 || econ.Stash(e).Goods[econ.GoodOre] != 0 {
 		t.Fatalf("цепочка руда→железо→меч не сошлась: %+v %+v", Inv(e).Items, econ.Stash(e).Goods)
 	}
-	if ok, _ := Equip(w, e, "sword"); !ok {
+	if ok, _ := Equip(w, e, "sword", "equip-sword"); !ok {
 		t.Fatal("скованный меч берётся в руку")
 	}
 }
