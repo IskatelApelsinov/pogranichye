@@ -112,6 +112,9 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
+                    // A remote participant/NPC only holds a tankard while its confirmed drink
+                    // gesture is active. The mug is presentation, not inferred inventory state.
+                    SetMug(view, motion != null && motion.IsDrinkGesturePlaying);
                     // v1.4 server fields are authoritative; do not infer familiarity locally.
                     var displayName = neighbor.Known ? neighbor.Name : neighbor.Description;
                     SetLabel(view, displayName);
@@ -736,8 +739,10 @@ namespace Pogranichye.Client.Presentation
             {
                 var playerMotion = player.GetComponent<EntityMotion>();
                 if (playerMotion != null) playerMotion.PlayClinkGesture();
+                SetMug(player, true);
                 if (TryGetView(socialEvent.With, out var drinkPartner))
                 {
+                    SetMug(drinkPartner, true);
                     var partnerNpc = drinkPartner.GetComponent<WorldNpc>();
                     if (partnerNpc != null) partnerNpc.PlayServerClink();
                     else
@@ -772,7 +777,11 @@ namespace Pogranichye.Client.Presentation
                 var partnerMotion = partner.GetComponent<EntityMotion>();
                 if (partnerMotion != null) partnerMotion.PlayTalkGesture(player.transform);
                 var partnerNpc = partner.GetComponent<WorldNpc>();
-                if (partnerNpc != null && npcDrink) partnerNpc.PlayServerDrink();
+                if (partnerNpc != null && npcDrink)
+                {
+                    SetMug(partner, true);
+                    partnerNpc.PlayServerDrink();
+                }
             }
         }
 
@@ -1269,7 +1278,12 @@ namespace Pogranichye.Client.Presentation
             if (hand == null) hand = view.transform.Find("Right arm/Right hand");
             if (hand == null) return;
 
+            var heldItem = hand.Find("Held equipment item");
+            if (heldItem != null) heldItem.gameObject.SetActive(!held);
+
             var mug = hand.Find("Held tankard");
+            // Avoid creating an inactive tankard for every nearby entity that is not drinking.
+            if (mug == null && !held) return;
             if (mug == null)
             {
                 var detailedTankard = ProceduralVillageBuilder.CreateTankardView(hand, "Held tankard");
