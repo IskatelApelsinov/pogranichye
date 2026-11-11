@@ -44,6 +44,7 @@ type QuestC struct {
 	Count  int             `json:"count"`
 	Rep    map[core.ID]int `json:"rep"`
 	Healed map[core.ID]int `json:"healed"` // кого лечил плетением (для просьб «залечи»)
+	OpeningErrandDone bool `json:"opening_errand_done,omitempty"` // монотонный факт сдачи вводного поручения
 }
 
 func (c *QuestC) Kind() string { return "quests" }
@@ -367,6 +368,12 @@ func QuestTurnIn(w *core.World, e *core.Entity, id string) (bool, string) {
 		}
 		qc.Rep[q.Settlement]++
 		qc.Count++
+		if len(q.ID) >= 7 && q.ID[:7] == "errand:" {
+			qc.OpeningErrandDone = true
+		}
+		if len(q.ID) >= 7 && q.ID[:7] == "errand:" {
+			qc.OpeningErrandDone = true
+		}
 		qc.Closed = append(qc.Closed, q.ID)
 		if len(qc.Closed) > 24 {
 			qc.Closed = qc.Closed[len(qc.Closed)-24:]

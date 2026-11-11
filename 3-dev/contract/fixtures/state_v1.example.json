@@ -73,12 +73,24 @@
     ],
     "result": null,
     "task": {
-      "stage": 1,
-      "met": false,
+      "stage": 2,
+      "met": true,
       "worked": false,
       "drank": false,
       "done": false,
-      "text": "Познакомься с кем-нибудь из жителей (💬)."
+      "text": "Поработай: сруби дрова, налови рыбы или помоги на стройке.",
+      "errand_done": false,
+      "issued": {
+        "id": "errand:42",
+        "giver": "42",
+        "giver_name": "Ждан",
+        "good": "wood",
+        "qty": 2,
+        "have": 0,
+        "ready": false,
+        "coins": 2,
+        "accepted": true
+      }
     },
     "journal": [
       {

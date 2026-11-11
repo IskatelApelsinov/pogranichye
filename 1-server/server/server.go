@@ -542,6 +542,12 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "gather":
 				rok, rwhy := sim.Gather(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "farmwork":
+				rok, rwhy := sim.Farmwork(s.world, e, s.runner.Clock.Season(), in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "forge":
+				rok, rwhy := sim.Forge(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()
@@ -775,7 +781,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"inv":          meInv(e),                                      // инвентарь: предметы, рука, одежда (v1.7)
 			"world":        sim.Settlements(s.world),                      // карта поселений для путешествий (v1.7)
 			"result":       meResult(e),                                   // ack последнего действия (reqid/ok/reason) — #40
-			"task":         sim.OpeningTask(e),                            // минимальная вводная задача (#80)
+			"task":         sim.OpeningTask(s.world, e),                   // вводная задача + выданное поручение (#80)
 			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()), // личная летопись вех (#54)
 			// ядро v1.10
 			"weave":   sim.WeaveView(s.world, e),                                                            // плетения: узлы, ёмкость ума, знакомые схемы
