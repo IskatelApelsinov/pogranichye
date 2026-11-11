@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"pogranichye/battle"
 	"pogranichye/core"
@@ -368,10 +369,7 @@ func QuestTurnIn(w *core.World, e *core.Entity, id string) (bool, string) {
 		}
 		qc.Rep[q.Settlement]++
 		qc.Count++
-		if len(q.ID) >= 7 && q.ID[:7] == "errand:" {
-			qc.OpeningErrandDone = true
-		}
-		if len(q.ID) >= 7 && q.ID[:7] == "errand:" {
+		if strings.HasPrefix(q.ID, "errand:") {
 			qc.OpeningErrandDone = true
 		}
 		qc.Closed = append(qc.Closed, q.ID)

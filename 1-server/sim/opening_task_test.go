@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -175,5 +176,27 @@ func TestOpeningTaskAvailableFromRosterWoodcutterWithoutStaging(t *testing.T) {
 	iss, ok := OpeningTask(w, e)["issued"].(map[string]any)
 	if !ok || iss["good"] != econ.GoodWood {
 		t.Fatalf("поручение должно быть про дрова, с первой секунды: %+v", iss)
+	}
+}
+
+func TestOpeningErrandDoneSurvivesComponentJSONRoundTrip(t *testing.T) {
+	before := &QuestC{
+		Active: []Quest{{ID: "errand:starter:7", Kind: "deliver", Good: econ.GoodWood, Qty: 2}},
+		Closed: []string{"errand:old"},
+		OpeningErrandDone: true,
+	}
+	data, err := json.Marshal(before)
+	if err != nil {
+		t.Fatalf("marshal quest component: %v", err)
+	}
+	var after QuestC
+	if err := json.Unmarshal(data, &after); err != nil {
+		t.Fatalf("unmarshal quest component: %v", err)
+	}
+	if !after.OpeningErrandDone {
+		t.Fatalf("opening errand completion must survive save/load JSON: %s", data)
+	}
+	if len(after.Active) != 1 || after.Active[0].ID != before.Active[0].ID {
+		t.Fatalf("active quests must remain intact across the same persistence boundary: %+v", after.Active)
 	}
 }
