@@ -21,7 +21,7 @@ const (
 // ContainerC хранит физическое содержимое отдельной сущности.
 // StashC (домашние bulk goods) и HorseC.Bag (седельная поклажа) намеренно не являются ContainerC.
 type ContainerC struct {
-	Kind         string             `json:"kind"`
+	ContainerKind string             `json:"kind"`
 	Capacity     float64            `json:"capacity"`
 	Goods        map[string]float64 `json:"goods"`
 	Items        map[string]int     `json:"items"`
@@ -110,7 +110,7 @@ func CreateRoom(w *core.World, settlement, building core.ID, doorPOI string, ren
 		return nil, nil, errors.New("цена аренды и вместимость должны быть положительными")
 	}
 	chest := w.Spawn(&ContainerC{
-		Kind: ContainerRoomChest, Capacity: chestCapacity,
+		ContainerKind: ContainerRoomChest, Capacity: chestCapacity,
 		Goods: map[string]float64{}, Items: map[string]int{},
 		AccessPolicy: "tenant",
 	})
