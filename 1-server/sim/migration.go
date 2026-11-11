@@ -111,7 +111,11 @@ func returnMigrationFood(w *core.World, settlement core.ID, supply int) {
 	if w == nil || settlement == 0 || supply <= 0 {
 		return
 	}
-	if s := core.Settle(w.Get(settlement)); s != nil {
+	entity := w.Get(settlement)
+	if entity == nil {
+		return
+	}
+	if s := core.Settle(entity); s != nil {
 		if s.Store == nil {
 			s.Store = map[string]float64{}
 		}
@@ -135,10 +139,16 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if m == nil {
 			return
 		}
-		src, dst := core.Settle(w.Get(m.From)), core.Settle(w.Get(m.To))
+		var src, dst *core.SettlementC
+		if entity := w.Get(m.From); entity != nil {
+			src = core.Settle(entity)
+		}
+		if entity := w.Get(m.To); entity != nil {
+			dst = core.Settle(entity)
+		}
 		if src == nil || dst == nil || m.TotalHours <= 0 ||
 			math.IsNaN(m.TotalHours) || math.IsInf(m.TotalHours, 0) ||
-			m.ProgressHours < 0 || len(m.Route) < 2 ||
+			m.ProgressHours < 0 || math.IsNaN(m.ProgressHours) || math.IsInf(m.ProgressHours, 0) || len(m.Route) < 2 ||
 			m.Route[0] != m.From || m.Route[len(m.Route)-1] != m.To {
 			// Corrupt/missing endpoint: prefer the original settlement, otherwise the destination.
 			returnTo := core.ID(0)
