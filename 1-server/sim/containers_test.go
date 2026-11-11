@@ -59,7 +59,7 @@ func TestRoomAndChestAreSeparatePersistentEntities(t *testing.T) {
 		room.DoorPOI != "tavern-room-1" || room.LeaseState != RoomLeaseVacant {
 		t.Fatalf("room must point at its own chest and preserve location/lease metadata: %+v", room)
 	}
-	if chest.Kind != ContainerRoomChest || chest.AccessPolicy != "tenant" || chest.Capacity != 40 {
+	if chest.ContainerKind != ContainerRoomChest || chest.AccessPolicy != "tenant" || chest.Capacity != 40 {
 		t.Fatalf("unexpected chest policy or capacity: %+v", chest)
 	}
 
