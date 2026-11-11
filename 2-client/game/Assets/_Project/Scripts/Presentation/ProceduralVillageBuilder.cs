@@ -1596,7 +1596,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (hand == null || _woodMaterial == null || _metalMaterial == null) return null;
             if (activity != "eat" && activity != "chop" && activity != "mine" && activity != "forge" &&
-                activity != "farm" && activity != "fish" && activity != "hunt" &&
+                activity != "farm" && activity != "fish" && activity != "mend_net" && activity != "hunt" &&
                 activity != "weave" && activity != "study" && activity != "cook" &&
                 activity != "brew" && activity != "forage" && activity != "herd" &&
                 activity != "tavern")
@@ -1656,6 +1656,21 @@ namespace Pogranichye.Client.Presentation
                     rod.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
                     CreatePrimitive("Tool • fishing line", PrimitiveType.Cube, tool,
                         new Vector3(0.045f, 0.66f, 0.015f), new Vector3(0.006f, 0.22f, 0.006f), _clothMaterial);
+                    break;
+                }
+                case "mend_net":
+                {
+                    // A small hoop and crossed twine make net repair readable at a glance.
+                    var hoop = CreatePrimitive("Tool • net repair hoop", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.48f, 0f), new Vector3(0.15f, 0.018f, 0.15f), _metalMaterial);
+                    hoop.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                    for (var strand = -2; strand <= 2; strand++)
+                    {
+                        var line = CreatePrimitive("Tool • net twine", PrimitiveType.Cube, tool,
+                            new Vector3(strand * 0.045f, 0.48f, 0.018f),
+                            new Vector3(0.006f, 0.22f, 0.006f), _clothMaterial);
+                        line.transform.localRotation = Quaternion.Euler(0f, 0f, strand * 7f);
+                    }
                     break;
                 }
                 case "hunt":
