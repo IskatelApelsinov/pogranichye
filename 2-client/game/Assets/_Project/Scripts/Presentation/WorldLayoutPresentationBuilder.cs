@@ -28,6 +28,7 @@ namespace Pogranichye.Client.Presentation
             if (root == null || layout == null || layout.Version != 2 || root.Find("ServerLayoutV2") != null) return;
             var world = new GameObject("ServerLayoutV2").transform;
             world.SetParent(root, false);
+            RemoveLegacyOverlappingSettlementAssets(root, layout);
             _ground = MakeTexturedMaterial("Layout ground • meadow", new Color(0.36f, 0.43f, 0.25f), 0, 10f, 10f);
             _water = MakeTexturedMaterial("Layout river • current", new Color(0.17f, 0.36f, 0.43f), 5, 2f, 18f);
             _timber = MakeTexturedMaterial("Layout timber • weathered boards", new Color(0.30f, 0.20f, 0.13f), 2, 2f, 2f);
@@ -124,6 +125,56 @@ namespace Pogranichye.Client.Presentation
             }
             CreateCombinedMesh(world, "Far woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
             CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
+        }
+
+
+        /// <summary>
+        /// The pre-Layout-v2 prototype built a second village at hard-coded coordinates.
+        /// Once authoritative footprints arrive, those old houses/roads/trees overlap the
+        /// imported footprint prefabs. Keep the old scene only as a no-layout fallback.
+        /// </summary>
+        private static void RemoveLegacyOverlappingSettlementAssets(Transform root, WorldLayoutFrame layout)
+        {
+            var legacy = root != null ? root.Find("PrototypeVillage") : null;
+            if (legacy == null || layout == null || layout.Buildings == null) return;
+
+            var duplicateRoots = new[]
+            {
+                "North cottage", "Stable & granary", "East cottage", "West cottage", "South-east cottage",
+                "Tutorial Tavern", "Blacksmith workshop", "Village market",
+                "Northwest cottage", "North lane cottage", "Northeast cottage",
+                "Outlying farm barn", "Old windmill", "Outlying crop field",
+                "West grain field", "East grain field", "Northern meadow plots",
+                "Village path", "Cross path", "North lane • west branch", "North lane • east branch",
+                "Northwest country road", "Eastern country road", "Southern farm lane"
+            };
+
+            for (var i = 0; i < duplicateRoots.Length; i++)
+            {
+                var duplicate = legacy.Find(duplicateRoots[i]);
+                if (duplicate != null) UnityEngine.Object.Destroy(duplicate.gameObject);
+            }
+
+            // The old random tree pass was unaware of server building footprints and
+            // placed trunks directly through the central settlement. Layout v2 owns
+            // the woodland; retain only legacy trees outside the playable village core.
+            for (var i = legacy.childCount - 1; i >= 0; i--)
+            {
+                var child = legacy.GetChild(i);
+                if (child.name == "Distant tree silhouette")
+                {
+                    UnityEngine.Object.Destroy(child.gameObject);
+                    continue;
+                }
+
+                var position = child.localPosition;
+                var inSettlementCore = Mathf.Abs(position.x) <= 55f && Mathf.Abs(position.z) <= 55f;
+                if (child.name == "Willow tree" || child.name == "Distant woodland mass")
+                {
+                    if (inSettlementCore) UnityEngine.Object.Destroy(child.gameObject);
+                    continue;
+                }
+            }
         }
 
         private static void AddLowPolyTree(
