@@ -1298,18 +1298,39 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.18f, 1.02f, 0.16f)
             };
 
+            var ranks = new[] { "6", "9", "В", "Д", "К", "Т" };
+            var suits = new[] { "♣", "♦", "♥", "♠", "♣", "♦" };
             for (var i = 0; i < cards.Length; i++)
             {
-                var card = CreatePrimitive("Playing card • " + (i + 1), PrimitiveType.Cube, table,
-                    cards[i], new Vector3(0.19f, 0.018f, 0.29f),
-                    i % 2 == 0 ? _foamMaterial : _clothMaterial);
+                var card = CreatePrimitive("Playing card • " + ranks[i] + suits[i], PrimitiveType.Cube, table,
+                    cards[i], new Vector3(0.19f, 0.018f, 0.29f), _foamMaterial);
                 card.transform.localRotation = Quaternion.Euler(0f, -18f + i * 13f, (i % 3 - 1) * 2.5f);
+
                 if (i == 1 || i == 4)
                 {
-                    CreatePrimitive("Card back inset", PrimitiveType.Cube, table,
-                        cards[i] + new Vector3(0f, 0.012f, 0f),
+                    // Two face-down cards break up the spread and show the patterned reverse.
+                    CreatePrimitive("Card back inset", PrimitiveType.Cube, card.transform,
+                        new Vector3(0f, 0.010f, 0f),
                         new Vector3(0.145f, 0.006f, 0.235f), _roofMaterial);
+                    for (var side = -1; side <= 1; side += 2)
+                    {
+                        var motif = CreatePrimitive("Card back • diamond motif", PrimitiveType.Cube, card.transform,
+                            new Vector3(0f, 0.014f, side * 0.055f),
+                            new Vector3(0.075f, 0.004f, 0.075f), _metalMaterial);
+                        motif.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+                    }
+                    continue;
                 }
+
+                var ink = i == 2 || i == 5
+                    ? new Color(0.58f, 0.09f, 0.07f)
+                    : new Color(0.10f, 0.11f, 0.12f);
+                CreateCardMarking(card.transform, ranks[i], new Vector3(-0.060f, 0.012f, -0.105f),
+                    Quaternion.Euler(-90f, 0f, 0f), ink, 0.0042f);
+                CreateCardMarking(card.transform, suits[i], new Vector3(0.015f, 0.012f, 0.005f),
+                    Quaternion.Euler(-90f, 0f, 0f), ink, 0.0038f);
+                CreateCardMarking(card.transform, ranks[i], new Vector3(0.060f, 0.012f, 0.105f),
+                    Quaternion.Euler(-90f, 180f, 0f), ink, 0.0042f);
             }
 
             // Small common pot and loose copper coins; no client-side stake or payout.
@@ -1330,6 +1351,28 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.48f, 1.12f, -0.35f), new Vector3(0.045f, 0.12f, 0.045f), _foamMaterial);
             CreatePrimitive("Card table candle flame", PrimitiveType.Sphere, table,
                 new Vector3(0.48f, 1.25f, -0.35f), new Vector3(0.045f, 0.09f, 0.045f), _fireMaterial);
+        }
+
+        private static void CreateCardMarking(Transform parent, string value, Vector3 localPosition,
+            Quaternion localRotation, Color color, float characterSize)
+        {
+            var marking = new GameObject("Card face marking • " + value);
+            marking.transform.SetParent(parent, false);
+            marking.transform.localPosition = localPosition;
+            marking.transform.localRotation = localRotation;
+            var text = marking.AddComponent<TextMesh>();
+            text.text = value;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 48;
+            text.characterSize = characterSize;
+            text.color = color;
+            var renderer = marking.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
         }
 
         private static void CreateTavernTableware(Transform table)
