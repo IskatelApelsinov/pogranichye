@@ -145,6 +145,11 @@ func finishOchko(g *OchkoC, pu *core.PurseC, natural bool) {
 		g.Message = fmt.Sprintf("Очко на двух картах! Выплата %.0f монет.", g.Stake*2.5)
 		return
 	}
+	if playerTotal > 21 {
+		g.Result = "bust"
+		g.Message = fmt.Sprintf("Перебор (%d). Ставка ушла заведению.", playerTotal)
+		return
+	}
 	dealerTotal := ochkoTotal(g.Dealer)
 	for dealerTotal < 17 && len(g.Deck) > 0 {
 		g.Dealer = append(g.Dealer, g.Deal())
