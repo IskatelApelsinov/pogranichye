@@ -150,6 +150,16 @@ namespace Pogranichye.Client
             _input = input;
         }
 
+        private static void DrawAttribute(JObject stats, string key, string label)
+        {
+            if (stats == null || stats[key] == null) return;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(Num(stats, key).ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(48f));
+            GUILayout.EndHorizontal();
+        }
+
         public void DrawInventoryTab()
         {
             if (!_active || _me == null)
@@ -173,6 +183,23 @@ namespace Pogranichye.Client
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("При себе: " + Num(_me, "coins").ToString("0.#", CultureInfo.InvariantCulture));
             GUILayout.EndVertical();
+
+            // Character attributes are read directly from the server frame. They grow
+            // through authoritative activities; the client only presents the current values.
+            var stats = Obj(_me, "stats");
+            if (stats != null)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("ХАРАКТЕРИСТИКИ");
+                GUILayout.BeginVertical(GUI.skin.box);
+                DrawAttribute(stats, "strength", "Сила");
+                DrawAttribute(stats, "agility", "Ловкость");
+                DrawAttribute(stats, "endurance", "Выносливость");
+                DrawAttribute(stats, "intellect", "Ум");
+                DrawAttribute(stats, "perception", "Восприятие");
+                DrawAttribute(stats, "will", "Воля");
+                GUILayout.EndVertical();
+            }
 
             GUILayout.Space(6f);
             GUILayout.Label("ЭКИПИРОВКА");
