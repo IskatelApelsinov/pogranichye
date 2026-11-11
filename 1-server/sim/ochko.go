@@ -212,6 +212,12 @@ func changeOchko(w *core.World, e *core.Entity, reqid string, change func(*Ochko
 	if g == nil || g.Done {
 		return false, "партия не идёт — начни заново"
 	}
+	if !atTavern(e) {
+		return false, "вернись к карточному столу в корчме"
+	}
+	if pu == nil {
+		return false, "нет кошеля"
+	}
 	ok, why := change(g, pu)
 	if ok {
 		pc.markDone(reqid)
