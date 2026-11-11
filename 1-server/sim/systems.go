@@ -253,7 +253,7 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 		}
 	case mind.GoalLeave:
 		// мотив остаётся прежним, но смена поселения теперь проходит через persistent road transit.
-		if relocate(w, e, s) {
+		if relocateAt(w, e, s, clock.TotalHours) {
 			m.LastAct = "отправился искать лучшей доли"
 			if d := core.Drives(e); d != nil {
 				d.Ambition = 0
@@ -380,12 +380,16 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 
 	// основание НОВЫХ поселений: из переполненной деревни с амбициозными — переселенцы ставят
 	// новую (мир растёт не только населением, но и числом мест). Ограничено потолком.
-	foundNewSettlement(w, hub.Stream("life", "found"), clock.Day())
+	foundNewSettlementAt(w, hub.Stream("life", "found"), clock.Day(), clock.TotalHours)
 }
 
 const maxSettlements = 400 // потолок числа поселений (производительность; поднимается легко)
 
 func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
+	foundNewSettlementAt(w, s, day, 0)
+}
+
+func foundNewSettlementAt(w *core.World, s *dice.Stream, day, startedAtHour int64) {
 	if !s.Chance(0.05) { // редкое событие в масштабе мира
 		return
 	}
@@ -438,20 +442,11 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		return
 	}
 	src3 := core.Settle(source)
-	// Не основываем пустую деревню, если у ватаги не хватит хлеба на дорогу.
-	// Максимальное смещение новой деревни — 180 вёрст по каждой оси.
-	worstRouteHours := math.Max(12, math.Hypot(180, 180))
-	foodNeeded := 0
-	for _, r := range band {
-		foodNeeded += migrationMeals(r, worstRouteHours)
-	}
-	if src3 == nil || src3.Store == nil || src3.Store[econ.GoodBread] < float64(foodNeeded) {
+	if src3 == nil {
 		return
 	}
-	var reg *core.Entity
-	if src3 != nil {
-		reg = w.Get(src3.Region) // новая деревня — того же края, что родная
-	}
+	reg := w.Get(src3.Region) // новая деревня — того же края, что родная
+	firstSpawnedID := w.NextID
 	ne := NewSettlement(w, s, procToponym(s), reg)
 	// встаёт НЕПОДАЛЁКУ от родной (переселенцы уходят не за тридевять земель), но часто за
 	// пределы досягаемости сборщиков — так растёт вольное от податей пограничье
@@ -460,10 +455,22 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		ns.X = clamp(src3.X+s.Uniform(-180, 180), 0, mapSize)
 		ns.Y = clamp(src3.Y+s.Uniform(-180, 180), 0, mapSize)
 	}
+
+	// Validate the actual RoadGraph route before committing the settlement and moving any resident.
+	foodNeeded, routeOK := migrationFoodNeededForGroup(w, source, ne, band)
+	if !routeOK || (foodNeeded > 0 && src3.Store[econ.GoodBread] < float64(foodNeeded)) {
+		// NewSettlement only spawned the settlement and its own resource nodes; discard that
+		// tentative allocation as one unit, keeping NextID monotonic.
+		for id := firstSpawnedID; id < w.NextID; id++ {
+			w.Remove(id)
+		}
+		return
+	}
+
 	for _, r := range band {
 		// Сохраняем личности переселенцев: они симулятивно идут к новой деревне,
 		// а не телепортируются в неё в момент основания.
-		if !startMigration(w, r, ne.ID, "founding") {
+		if !startMigrationAt(w, r, ne.ID, "founding", startedAtHour) {
 			// RoadGraph обязан связывать поселения одной стороны гор; это страховка от
 			// некорректного мира, чтобы не потерять жителя при повреждённом графе.
 			continue
@@ -603,6 +610,10 @@ func residentIndex(w *core.World) map[core.ID][]*core.Entity {
 }
 
 func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
+	return relocateAt(w, e, s, 0)
+}
+
+func relocateAt(w *core.World, e *core.Entity, s *dice.Stream, startedAtHour int64) bool {
 	if e == nil || s == nil || Player(e) != nil || Migration(e) != nil {
 		return false
 	}
@@ -630,7 +641,7 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i] < candidates[j] })
 	// Stable candidate order + named mind stream make the destination reproducible.
 	dest := candidates[s.Intn(len(candidates))]
-	return startMigration(w, e, dest, "seeking_better_life")
+	return startMigrationAt(w, e, dest, "seeking_better_life", startedAtHour)
 }
 
 // Default — стандартный набор систем в фиксированном порядке. Экономика идёт ПЕРВОЙ в сутках
