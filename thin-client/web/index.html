@@ -139,6 +139,7 @@
 </div>
 
 <script src="/request-gate.js"></script>
+<script src="/activity-minigames.js"></script>
 <script>
 let token=null, ws=null, mode='login';
 const $=id=>document.getElementById(id);
@@ -207,6 +208,7 @@ function actionLabel(o){
  return labels[o.op]||'Действие';
 }
 const resultGate=new PogranichyeRequestGate(sendRaw,6,15000);
+const ActivityMinigames=window.PogranichyeActivityMinigames;
 function send(o){
  const payload=Object.assign({},o);
  if(!expectsResult(payload)) return sendRaw(payload);
@@ -396,6 +398,7 @@ function drawLocActions(s,L){
  // перестраиваем действия локации, только когда изменилось то, от чего они зависят: иначе мини-игра
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
  const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
+   L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
  if(sig===locSig) return; locSig=sig; stopMinigames();
  const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
@@ -407,12 +410,12 @@ function drawLocActions(s,L){
    M.innerHTML=`<div class="sub">пива в корчме: ${beer}</div>`;
  } else if(L.key==='river'){
    A.append(btn('🎣 Взять удочку',()=>send({op:'take',item:'rod',reqid:rid()})));
-   fishingGame(M);
+   fishingGame(M,me);
  } else if(L.key==='woods'){
    A.append(btn('🪓 Взять топор',()=>send({op:'take',item:'axe',reqid:rid()})));
    A.append(btn('🏹 Охота',()=>act2('hunt','Охочусь…')));
    A.append(btn('⚔ Стычка',()=>act2('fight','Отгоняю зверя…')));
-   choppingGame(M);
+   choppingGame(M,me);
  } else if(L.key==='smithy'){
    A.append(btn('⚔ Взять меч',()=>send({op:'take',item:'sword',reqid:rid()})));
    A.append(btn('🏹 Взять лук',()=>send({op:'take',item:'bow',reqid:rid()})));
@@ -441,29 +444,33 @@ function act2(a,msg){ send({op:'act',action:a,reqid:rid()}); toast(msg); }
 // ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
 let mgRAF=0;
 function stopMinigames(){ if(mgRAF){ cancelAnimationFrame(mgRAF); mgRAF=0; } }
-function fishingGame(M){
+function fishingGame(M,me){
+ const cfg=ActivityMinigames.fishing(me);
  M.className='mg'; M.innerHTML=`<b class="sub">Рыбалка</b>
+   <div class="sub">Навык рыбака: ${Math.round(cfg.skill)} · окно подсечки: ${Math.round(cfg.zoneWidth)}%</div>
    <div class="track" id="ftrack"><div class="zone" id="fzone"></div><div class="mark" id="fmark"></div></div>
    <div class="acts"><button class="primary" style="width:auto" id="fcast">🎣 Подсечь</button></div>`;
  const zone=$('fzone'), mark=$('fmark');
- const zx=20+Math.random()*55, zw=18; zone.style.left=zx+'%'; zone.style.width=zw+'%';
+ const zx=Math.random()*(100-cfg.zoneWidth), zw=cfg.zoneWidth; zone.style.left=zx+'%'; zone.style.width=zw+'%';
  let t=0;
- const loop=()=>{ t+=0.03; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ const loop=()=>{ t+=0.03*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
  loop();
  $('fcast').onclick=()=>{ const p=parseFloat(mark.dataset.p||'0');
    if(p>=zx&&p<=zx+zw){ sendMinigameAction('fish','fcast','Улов подтверждён сервером и внесён в закрома.'); }
    else toast('…сорвалось, лови момент'); };
 }
 // ---------- мини-игра РУБКА: останови шкалу силы на максимуме ----------
-function choppingGame(M){
+function choppingGame(M,me){
+ const cfg=ActivityMinigames.chopping(me);
  M.className='mg'; M.innerHTML=`<b class="sub">Рубка дров</b>
+   <div class="sub">Навык дровосека: ${Math.round(cfg.skill)} · порог сильного удара: ${Math.round(cfg.threshold)}%</div>
    <div class="track" id="ctrack"><div class="fill" id="cfill" style="width:0%"></div></div>
    <div class="acts"><button class="primary" style="width:auto" id="cchop">🪓 Бить</button></div>`;
  const fill=$('cfill'); let t=0;
- const loop=()=>{ t+=0.045; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ const loop=()=>{ t+=0.045*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
  loop();
  $('cchop').onclick=()=>{ const p=parseFloat(fill.dataset.p||'0');
-   if(p>=70){ sendMinigameAction('chop','cchop',p>=92?'Сильный удар подтверждён сервером, древесина получена.':'Рубка подтверждена сервером, древесина получена.'); }
+   if(p>=cfg.threshold){ sendMinigameAction('chop','cchop','Рубка подтверждена сервером; древесина получена.'); }
    else toast('…слабо, бей в полную силу'); };
 }
 
