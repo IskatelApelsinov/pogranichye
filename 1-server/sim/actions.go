@@ -35,8 +35,9 @@ const dedupCap = 64 // сколько недавних reqid помним на �
 // история обработанных reqid (кольцо) для идемпотентности при ретрае. reqid записывается ТОЛЬКО при
 // успехе действия, поэтому повтор после неудачи (отошёл/нет сил) по тому же id корректно сработает.
 type PlayerC struct {
-	Mana float64  `json:"mana"`
-	Done []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
+	Mana     float64  `json:"mana"`
+	Done     []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
+	CardGame string   `json:"card_game,omitempty"` // последняя выбранная карточная игра для общего me.card_game
 	// коррелируемый результат последнего действия (#40 ack): клиент сверяет по reqid
 	RReqid    string `json:"-"`
 	ROk       bool   `json:"-"`
