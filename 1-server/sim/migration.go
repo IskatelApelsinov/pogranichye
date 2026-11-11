@@ -17,6 +17,7 @@ type MigrationC struct {
 	To            core.ID   `json:"to"`
 	Route         []core.ID `json:"route"`
 	ProgressHours float64   `json:"progress_hours"`
+	StartedAtHour int64     `json:"started_at_hour"`
 	TotalHours    float64   `json:"total_hours"`
 	Reason        string    `json:"reason"`
 	FoodSupply    int       `json:"food_supply"`
@@ -40,6 +41,12 @@ func Migration(e *core.Entity) *MigrationC {
 // One map verst per world hour is the initial simulation rate; route distance remains authoritative
 // and can be balanced later without changing the stored route or NPC identity.
 func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bool {
+	return startMigrationAt(w, e, to, reason, 0)
+}
+
+// startMigrationAt records the world hour in which transit was created. MigrationSystem
+// must not count the remainder of that same Runner.Step as a full travel hour.
+func startMigrationAt(w *core.World, e *core.Entity, to core.ID, reason string, startedAtHour int64) bool {
 	if w == nil || e == nil || Player(e) != nil || to == 0 || Migration(e) != nil {
 		return false
 	}
@@ -71,7 +78,7 @@ func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bo
 	}
 	w.Attach(e, &MigrationC{
 		From: from, To: to, Route: append([]core.ID(nil), route...),
-		TotalHours: totalHours, Reason: reason, FoodSupply: foodNeeded,
+		StartedAtHour: startedAtHour, TotalHours: totalHours, Reason: reason, FoodSupply: foodNeeded,
 	})
 	pl.Settlement = 0 // transit is not counted as a resident of either endpoint
 	if h := core.Home(e); h != nil {
@@ -106,6 +113,43 @@ func migrationMeals(e *core.Entity, totalHours float64) int {
 	return meals
 }
 
+
+// migrationFoodNeededForGroup plans the whole founding band against the actual road route.
+// A straight-line offset is not a safe bound: RoadGraph may route through intermediate settlements.
+func migrationFoodNeededForGroup(w *core.World, source, destination *core.Entity, travellers []*core.Entity) (int, bool) {
+	if w == nil || source == nil || destination == nil || len(travellers) == 0 {
+		return 0, false
+	}
+	src, dst := core.Settle(source), core.Settle(destination)
+	if src == nil || dst == nil {
+		return 0, false
+	}
+	outer := isOuter(w, src)
+	if outer != isOuter(w, dst) {
+		return 0, false
+	}
+	route, distance := RoadRoute(RoadGraph(w, outer), source.ID, destination.ID)
+	if len(route) < 2 || route[0] != source.ID || route[len(route)-1] != destination.ID || distance <= 0 {
+		return 0, false
+	}
+
+	totalHours := math.Max(12, distance)
+	needed := 0
+	for _, traveller := range travellers {
+		if traveller == nil || Player(traveller) != nil || Migration(traveller) != nil {
+			return 0, false
+		}
+		place := core.Place(traveller)
+		if place == nil || place.Settlement != source.ID {
+			return 0, false
+		}
+		needed += migrationMeals(traveller, totalHours)
+	}
+	if needed > 0 && src.Store == nil {
+		return 0, false
+	}
+	return needed, true
+}
 
 func returnMigrationFood(w *core.World, settlement core.ID, supply int) {
 	if w == nil || settlement == 0 || supply <= 0 {
@@ -164,8 +208,23 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 					pl.Settlement = 0
 				}
 			}
+			if home := core.Home(e); home != nil {
+				home.Status = "none"
+				home.Settlement = returnTo
+			}
+			if mind := core.Mind(e); mind != nil {
+				mind.Goal = ""
+				mind.GoalUntil = 0
+				mind.ActCode = ""
+				mind.LastAct = "путь прерван, вернулся в поселение"
+			}
 			returnMigrationFood(w, returnTo, m.FoodSupply)
 			w.Detach(e, "migration")
+			return
+		}
+		// A migration created by a system earlier in this same Runner.Step has not
+		// travelled for a full world hour yet.
+		if clock.TotalHours <= m.StartedAtHour {
 			return
 		}
 		m.ProgressHours++
@@ -201,7 +260,7 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 }
 
 // StartMigration exposes the same guarded path to future group systems without exposing wire actions.
-func StartMigration(w *core.World, e *core.Entity, to core.ID, reason string) bool {
-	return startMigration(w, e, to, reason)
+func StartMigration(w *core.World, e *core.Entity, to core.ID, reason string, startedAtHour int64) bool {
+	return startMigrationAt(w, e, to, reason, startedAtHour)
 }
 
