@@ -370,15 +370,16 @@ function drawWorld(s){
 function drawLocPulse(s){
  const pl=s.place||{}, ns=pl.neighbors||[]; let residents=0,players=0,working=0,tavern=0,social=0,resting=0,eating=0;
  ns.forEach(n=>{ if(n.player){players++;return;} residents++; const c=n.act_code||'';
-  if(c==='drink_tavern'||c==='keep_tavern') tavern++;
+  if(c==='drink_tavern') tavern++;
+  else if(c==='keep_tavern') working++;
   else if(c==='visit_neighbors') social++;
   else if(c==='sleep'||c==='rest_idle') resting++;
   else if(c==='meal') eating++;
-  else if(c==='chop_wood'||c.startsWith('farm_')||c==='smith_forge'||c==='mine_ore'||c==='mine_spent'||c==='fish_river'||c==='hunt_wild'||c==='hunter_empty'||c==='cook_hearth'||c==='brew_remedy'||c==='forage_herbs'||c==='weave'||c==='weaver_wait'||c==='herd_barn'||c==='herd_graze'||c==='study_mana'||c==='smith_cold'||c==='work') working++;
+  else if(c==='chop_wood'||c==='farm_sow'||c==='farm_reap'||c==='farm_mend'||c==='farm_tend'||c==='smith_forge'||c==='mine_ore'||c==='fish_river'||c==='fisher_mend'||c==='hunt_wild'||c==='cook_hearth'||c==='brew_remedy'||c==='forage_herbs'||c==='weave'||c==='herd_barn'||c==='herd_graze'||c==='study_mana'||c==='work') working++;
  });
  const bits=[`рядом видно: ${residents} жителей${players?` · игроков: ${players}`:''}`,`заняты делом: ${working}`];
  if(tavern) bits.push(`корчма: ${tavern}`); if(social) bits.push(`общаются: ${social}`); if(eating) bits.push(`едят: ${eating}`); if(resting) bits.push(`отдыхают: ${resting}`);
- if(pl.tavern) bits.push(`пива: ${pl.beer||0}`); if(pl.stable) bits.push(`лошадей: ${pl.stable.horses||0}`); if(pl.market&&pl.market.length) bits.push(`товаров на рынке: ${pl.market.length}`);
+ if(pl.tavern) bits.push(`пива: ${pl.beer||0}`); if(pl.stable) bits.push(`лошадей: ${pl.stable.horses||0}`); if(pl.market&&pl.market.length) bits.push(`торговых позиций: ${pl.market.length}`);
  $('locpulse').textContent=bits.join(' · ');
 }
 
