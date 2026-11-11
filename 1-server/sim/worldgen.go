@@ -60,6 +60,7 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 		settleIDs = append(settleIDs, se.ID)
 	}
 	makeRealms(w, g, settleIDs)                             // державы делят землю и берут десятину
+	w.Each("settlement", func(se *core.Entity) { EnsureTavernRooms(w, se) })
 	w.Spawn(&chronicle.ChronicleC{Tally: map[string]int{}}) // летопись мира — память о заметных событиях
 	chronicle.Record(w, 0, "начало", fmt.Sprintf("мир начался: %d поселений", len(settleIDs)))
 	return w, hub
@@ -141,6 +142,7 @@ func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 	}
 	makeRealms(w, g, ids)
 	generateOuterWorld(w, g) // внешний мир: десятки деревень и несколько городов за горами (телепорт)
+	w.Each("settlement", func(se *core.Entity) { EnsureTavernRooms(w, se) })
 	return w, hub
 }
 
