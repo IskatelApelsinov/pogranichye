@@ -495,6 +495,7 @@ namespace Pogranichye.Client.Presentation
 
             BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
             BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f), true);
+            BuildTavernKitchen(tavern);
             // The server blocks the whole tavern footprint; keep the bench fully outside
             // its south edge so the POI approach remains physically reachable.
             CreateImportedProp(tavern, "bench_rustic", new Vector3(0.55f, 0f, -6.65f),
@@ -1260,6 +1261,85 @@ namespace Pogranichye.Client.Presentation
             label.transform.localRotation = Quaternion.identity;
             CreatePrimitive("Bottle cork", PrimitiveType.Cylinder, bottle,
                 new Vector3(0f, 0.378f, 0f), new Vector3(0.023f, 0.018f, 0.023f), _corkMaterial);
+        }
+
+        private static void BuildTavernKitchen(Transform tavern)
+        {
+            // A compact preparation corner foreshadows the future kitchen activity.
+            // It is static dressing only: no ingredients, recipes or server resources are created.
+            var kitchen = new GameObject("Tavern kitchen • preparation corner").transform;
+            kitchen.SetParent(tavern, false);
+            kitchen.localPosition = new Vector3(-2.02f, 0f, 0.68f);
+
+            CreatePrimitive("Kitchen worktop", PrimitiveType.Cube, kitchen,
+                new Vector3(0f, 0.84f, 0f), new Vector3(0.82f, 0.12f, 0.68f), _roofMaterial);
+            for (var x = -1; x <= 1; x += 2)
+            for (var z = -1; z <= 1; z += 2)
+                CreatePrimitive("Kitchen table leg", PrimitiveType.Cube, kitchen,
+                    new Vector3(x * 0.33f, 0.40f, z * 0.25f),
+                    new Vector3(0.09f, 0.80f, 0.09f), _woodMaterial);
+
+            // A worn chopping board, bread and vegetables make the station readable at a glance.
+            CreatePrimitive("Kitchen chopping board", PrimitiveType.Cube, kitchen,
+                new Vector3(0.02f, 0.915f, -0.04f), new Vector3(0.48f, 0.035f, 0.34f), _woodMaterial);
+            var loaf = CreateMeshPart("Kitchen bread loaf", kitchen, BuildBreadLoafMesh(), _produceMaterial);
+            loaf.transform.localPosition = new Vector3(-0.16f, 0.97f, -0.04f);
+            loaf.transform.localScale = new Vector3(0.48f, 0.42f, 0.46f);
+            loaf.transform.localRotation = Quaternion.Euler(0f, 24f, 0f);
+
+            for (var i = 0; i < 3; i++)
+            {
+                var vegetable = CreatePrimitive("Kitchen root vegetable", PrimitiveType.Capsule, kitchen,
+                    new Vector3(0.20f + i * 0.10f, 0.98f, 0.03f + (i % 2) * 0.12f),
+                    new Vector3(0.075f, 0.12f, 0.075f), i == 1 ? _fireMaterial : _produceMaterial);
+                vegetable.transform.localRotation = Quaternion.Euler(0f, 0f, 72f + i * 12f);
+            }
+
+            // A small iron kitchen knife rests beside the board, blade turned away from the edge.
+            var knifeHandle = CreatePrimitive("Kitchen knife • wooden handle", PrimitiveType.Cube, kitchen,
+                new Vector3(0.30f, 0.96f, -0.19f), new Vector3(0.055f, 0.035f, 0.20f), _roofMaterial);
+            knifeHandle.transform.localRotation = Quaternion.Euler(0f, -24f, 0f);
+            var knifeBlade = CreatePrimitive("Kitchen knife • iron blade", PrimitiveType.Cube, kitchen,
+                new Vector3(0.25f, 0.965f, -0.015f), new Vector3(0.09f, 0.018f, 0.16f), _metalMaterial);
+            knifeBlade.transform.localRotation = Quaternion.Euler(0f, -24f, 0f);
+
+            // Storage jars and a sack hint at pantry supplies without implying an inventory count.
+            CreatePrimitive("Kitchen flour sack", PrimitiveType.Capsule, kitchen,
+                new Vector3(-0.36f, 0.38f, 0.43f), new Vector3(0.25f, 0.35f, 0.22f), _clothMaterial);
+            CreatePrimitive("Kitchen grain jar", PrimitiveType.Cylinder, kitchen,
+                new Vector3(0.34f, 1.02f, 0.22f), new Vector3(0.12f, 0.15f, 0.12f), _produceMaterial);
+            CreatePrimitive("Kitchen jar lid", PrimitiveType.Cylinder, kitchen,
+                new Vector3(0.34f, 1.18f, 0.22f), new Vector3(0.13f, 0.025f, 0.13f), _woodMaterial);
+
+            // Wall shelf and drying herbs are mounted against the left timber wall.
+            CreatePrimitive("Kitchen wall shelf", PrimitiveType.Cube, kitchen,
+                new Vector3(-0.40f, 1.76f, 0.12f), new Vector3(0.22f, 0.09f, 1.18f), _woodMaterial);
+            for (var i = 0; i < 3; i++)
+            {
+                var z = -0.28f + i * 0.38f;
+                CreatePrimitive("Kitchen spice crock", PrimitiveType.Cylinder, kitchen,
+                    new Vector3(-0.34f, 1.94f, z), new Vector3(0.10f, 0.16f, 0.10f),
+                    i == 1 ? _produceMaterial : _foamMaterial);
+                CreatePrimitive("Kitchen crock lid", PrimitiveType.Cylinder, kitchen,
+                    new Vector3(-0.34f, 2.11f, z), new Vector3(0.11f, 0.025f, 0.11f), _roofMaterial);
+            }
+
+            for (var bundle = 0; bundle < 3; bundle++)
+            {
+                var herb = new GameObject("Dried kitchen herbs • bundle " + (bundle + 1)).transform;
+                herb.SetParent(kitchen, false);
+                herb.localPosition = new Vector3(-0.43f, 1.48f, -0.34f + bundle * 0.34f);
+                CreatePrimitive("Herb bundle • twine", PrimitiveType.Cylinder, herb,
+                    Vector3.zero, new Vector3(0.035f, 0.09f, 0.035f), _produceMaterial);
+                for (var leaf = 0; leaf < 5; leaf++)
+                {
+                    var sprig = CreatePrimitive("Herb bundle • dried leaf", PrimitiveType.Cube, herb,
+                        new Vector3(0.035f + (leaf % 2) * 0.025f, -0.10f - leaf * 0.025f,
+                            (leaf - 2) * 0.035f),
+                        new Vector3(0.035f, 0.16f, 0.045f), _grassMaterial);
+                    sprig.transform.localRotation = Quaternion.Euler(0f, 0f, (leaf - 2) * 12f);
+                }
+            }
         }
 
         private static void BuildTavernTable(Transform tavern, Vector3 position, bool cardGame = false)
