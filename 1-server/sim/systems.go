@@ -438,6 +438,16 @@ func foundNewSettlement(w *core.World, s *dice.Stream, day int64) {
 		return
 	}
 	src3 := core.Settle(source)
+	// Не основываем пустую деревню, если у ватаги не хватит хлеба на дорогу.
+	// Максимальное смещение новой деревни — 180 вёрст по каждой оси.
+	worstRouteHours := math.Max(12, math.Hypot(180, 180))
+	foodNeeded := 0
+	for _, r := range band {
+		foodNeeded += migrationMeals(r, worstRouteHours)
+	}
+	if src3 == nil || src3.Store == nil || src3.Store[econ.GoodBread] < float64(foodNeeded) {
+		return
+	}
 	var reg *core.Entity
 	if src3 != nil {
 		reg = w.Get(src3.Region) // новая деревня — того же края, что родная
