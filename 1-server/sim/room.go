@@ -92,8 +92,9 @@ func InRoom(e *core.Entity) bool {
 
 // EnsureTavernRooms creates the two starter rooms once. IDs are stable and snapshots preserve them.
 func EnsureTavernRooms(w *core.World, settlement *core.Entity) {
+	if w == nil || settlement == nil { return }
 	st := core.Settle(settlement)
-	if w == nil || settlement == nil || st == nil || !st.Tavern { return }
+	if st == nil || !st.Tavern { return }
 	existing := map[int]bool{}
 	w.Each("room", func(re *core.Entity) {
 		r := Room(re)
@@ -132,6 +133,15 @@ func containerEmpty(c *ContainerC) bool {
 	for _, n := range c.Items { if n > 0 { return false } }
 	for _, n := range c.Goods { if n > 0.0001 { return false } }
 	return true
+}
+
+func forceLeaveRoom(w *core.World, r *RoomC) {
+	if r == nil { return }
+	if owner := w.Get(r.Tenant); owner != nil {
+		if visit := RoomVisit(owner); visit != nil && visit.RoomID != 0 {
+			visit.Inside, visit.ChestOpen, visit.Recovery = false, false, false
+		}
+	}
 }
 
 func releaseRoom(w *core.World, re *core.Entity, r *RoomC) {
@@ -213,7 +223,10 @@ func EnterRoom(w *core.World, e *core.Entity, day int64, reqid string) (bool, st
 	re, r := roomForPlayer(w, e)
 	if r == nil || r.Tenant != e.ID { return false, "у тебя нет арендованной комнаты" }
 	if !roomDoor(w, e, r) { return false, "подойди к двери своей комнаты в корчме" }
-	if r.State == "grace" && day > r.GraceUntilDay { r.State = "expired" }
+	if r.State == "grace" && day > r.GraceUntilDay {
+		r.State = "expired"
+		forceLeaveRoom(w, r)
+	}
 	if r.State != "rented" && r.State != "grace" { return false, "срок комнаты истёк — обратись к корчмарю за вещами" }
 	w.Attach(e, &RoomVisitC{RoomID: re.ID, Inside: true})
 	pc.markDone(reqid)
@@ -232,7 +245,10 @@ func OpenRoomChest(w *core.World, e *core.Entity, day int64, reqid string) (bool
 	if !visit.Inside && !visit.Recovery { return false, "сундук сейчас недоступен" }
 	if visit.Inside {
 		if r.State == "grace" && day > r.GraceUntilDay { r.State = "expired" }
-		if r.State != "rented" && r.State != "grace" { return false, "срок доступа к комнате истёк" }
+		if r.State != "rented" && r.State != "grace" {
+			visit.Inside, visit.ChestOpen = false, false
+			return false, "срок доступа к комнате истёк"
+		}
 	}
 	if visit.Recovery && r.State != "expired" { return false, "возврат вещей пока не требуется" }
 	visit.ChestOpen = true
@@ -336,6 +352,8 @@ func MoveRoomContainer(w *core.World, e *core.Entity, day int64, kind, side, key
 	}
 	chest := Container(w.Get(r.ContainerID))
 	if chest == nil || chest.Owner != e.ID { return false, "сундук недоступен" }
+	if side != "deposit" && side != "withdraw" { return false, "неизвестное направление переноса" }
+	if chest.Capacity <= 0 { chest.Capacity = RoomChestCapacity }
 	switch kind {
 	case "item":
 		inv := ensureInv(w, e)
@@ -396,8 +414,8 @@ func (RoomRentSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 		owner := w.Get(r.Tenant)
 		var pu *core.PurseC
 		if owner != nil { pu = core.Purse(owner) }
-		if pu != nil && pu.Coins+0.0001 >= due {
-			pu.Coins -= due
+		if pu != nil && pu.Coins >= due {
+			pu.Coins = math.Max(0, pu.Coins-due)
 			r.PaidThroughDay, r.GraceUntilDay, r.State = day, 0, "rented"
 			return
 		}
@@ -406,7 +424,10 @@ func (RoomRentSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 			r.GraceUntilDay = day + RoomGraceDays - 1
 		}
 		if day > r.GraceUntilDay { r.State = "expired" }
-		if r.State == "expired" && containerEmpty(chest) { releaseRoom(w, re, r) }
+		if r.State == "expired" {
+			forceLeaveRoom(w, r)
+			if containerEmpty(chest) { releaseRoom(w, re, r) }
+		}
 	})
 }
 
