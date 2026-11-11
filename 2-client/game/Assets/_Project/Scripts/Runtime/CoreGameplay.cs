@@ -215,7 +215,7 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ВЕЩИ В СУМЕ");
+            GUILayout.Label("ПРЕДМЕТЫ ПЕРСОНАЖА");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasItems = false;
             if (items != null)
@@ -228,7 +228,26 @@ namespace Pogranichye.Client
                     GUILayout.Label(Name(item.Name) + " ×" + quantity);
                 }
             }
-            if (!hasItems) GUILayout.Label("Сума пуста.");
+            if (!hasItems) GUILayout.Label("Переносимых предметов пока нет.");
+            GUILayout.EndVertical();
+
+            GUILayout.Space(6f);
+            GUILayout.Label("ЗАПАСЫ И МАТЕРИАЛЫ В ЗАКРОМАХ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            var hasGoods = false;
+            if (stash != null)
+            {
+                var goods = new List<string>();
+                foreach (var good in stash.Properties())
+                    if (Num(stash, good.Name) >= 1f) goods.Add(good.Name);
+                goods.Sort(StringComparer.Ordinal);
+                foreach (var good in goods)
+                {
+                    hasGoods = true;
+                    GUILayout.Label(Name(good) + " ×" + (int)Num(stash, good));
+                }
+            }
+            if (!hasGoods) GUILayout.Label("Закрома пока пусты.");
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
@@ -267,7 +286,7 @@ namespace Pogranichye.Client
             {
                 var load = Num(bag, "load");
                 var capacity = Num(bag, "cap");
-                GUILayout.Label("Сума: " + load.ToString("0.#", CultureInfo.InvariantCulture) + " / "
+                GUILayout.Label("Нагрузка товаров: " + load.ToString("0.#", CultureInfo.InvariantCulture) + " / "
                     + capacity.ToString("0.#", CultureInfo.InvariantCulture)
                     + (Flag(bag, "over") ? " — перегруз, движение замедлено" : ""));
             }
