@@ -5,7 +5,7 @@
 
 const RU = {
   axe:'топор', sword:'меч', bow:'лук', rod:'удочка', torch:'факел', lantern:'фонарь', knife:'нож',
-  cloak:'плащ', boots:'сапоги', hat:'шапка', jerkin:'кожаная куртка', shield:'щит', arrow:'стрелы',
+  cloak:'плащ', boots:'сапоги', hat:'шапка', jerkin:'кожаная куртка', shield:'щит', purse:'кожаный кошель', arrow:'стрелы',
   bandage:'повязка', potion:'снадобье', stew:'уха', roast:'жаркое',
   bread:'хлеб', fish:'рыба', wood:'дерево', meat:'мясо', hide:'шкура', wheat:'зерно', veg:'овощи',
   ore:'руда', metal:'железо', leather:'кожа', herb:'травы', flour:'мука', game:'дичь', cheese:'сыр',
@@ -14,7 +14,7 @@ const RU = {
 };
 const ru = k => RU[k] || k;
 const HAND = ['axe','sword','knife','bow','rod','torch','lantern'];
-const WEAR = ['cloak','boots','hat','jerkin','shield'];
+const WEAR = ['cloak','boots','hat','jerkin','shield','purse'];
 const USE  = ['stew','roast','potion','bandage'];
 const EAT  = ['bread','fish','meat','cheese','veg','game','egg'];
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -149,7 +149,11 @@ function drawInv(s){
   h += '<div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
   HAND.forEach(it => { if((inv.items||{})[it]>0 && inv.hand!==it) h += sbtn('в руку: '+ru(it), `send({op:'equip',item:'${it}'})`); });
   if(inv.hand) h += sbtn('убрать из руки', `send({op:'equip',item:''})`);
-  WEAR.forEach(it => { if((inv.items||{})[it]>0 && !Object.values(inv.worn||{}).includes(it)) h += sbtn('надеть: '+ru(it), `send({op:'wear',item:'${it}'})`); });
+  WEAR.forEach(it => {
+    const worn = Object.values(inv.worn||{}).includes(it);
+    if((inv.items||{})[it]>0 && !worn) h += sbtn('надеть: '+ru(it), `send({op:'wear',item:'${it}'})`);
+    if(worn) h += sbtn('снять: '+ru(it), `send({op:'unwear',item:'${it}'})`);
+  });
   USE.forEach(it => { if((inv.items||{})[it]>0) h += sbtn((it==='potion'||it==='bandage'?'🩹 ':'🍲 ')+ru(it), `send({op:'use',item:'${it}'})`); });
   h += '</div>';
   h += '<div style="margin-top:8px"><b class="sub">закрома</b> ' + (goods.length ? goods.map(([k,v])=>`<span class="tag">${ru(k)} ×${Math.floor(v)}</span>`).join('') : '<span class="sub">пусто</span>') + '</div>';
