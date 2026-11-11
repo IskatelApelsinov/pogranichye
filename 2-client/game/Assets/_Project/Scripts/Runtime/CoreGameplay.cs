@@ -1677,14 +1677,29 @@ namespace Pogranichye.Client
                     GUILayout.EndHorizontal();
                 }
             var offers = Arr(quests, "offers");
+            var currentTalk = Obj(_me, "talk");
+            var currentTalkWith = Str(currentTalk, "with");
             if (offers != null)
                 foreach (var offer in offers)
                 {
                     GUILayout.BeginHorizontal();
-                    var who = Str(offer, "via") == "board" ? "доска у колодца" : Str(offer, "giver_name");
+                    var via = Str(offer, "via");
+                    var giver = Str(offer, "giver");
+                    var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
+                    var who = via == "board" ? "доска у колодца"
+                        : isCurrentNpc ? "собеседник " + Str(offer, "giver_name")
+                        : Str(offer, "giver_name");
                     var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
-                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 170f));
-                    if (GUILayout.Button("взяться")) Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
+                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 210f));
+                    if (via != "npc" || isCurrentNpc)
+                    {
+                        if (GUILayout.Button(isCurrentNpc ? "взяться у него" : "взяться"))
+                            Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
+                    }
+                    else
+                    {
+                        GUILayout.Label("поговори с жителем");
+                    }
                     GUILayout.EndHorizontal();
                 }
 
