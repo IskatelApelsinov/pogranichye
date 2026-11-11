@@ -7,7 +7,8 @@ import (
 )
 
 // placeLife aggregates the current settlement only. It reads NPC identity/activity and
-// the communal store, never private containers or natural resource-node stock.
+// the communal store, never private containers or natural resource-node stock. It is called
+// only from full state frames; fast frames deliberately avoid this world-wide scan.
 func (s *Server) placeLife(se *core.Entity) map[string]any {
     if s == nil || s.world == nil || se == nil { return nil }
     st := core.Settle(se)
