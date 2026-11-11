@@ -2367,7 +2367,7 @@ namespace Pogranichye.Client
                     GUILayout.Label("Очки корчмаря: " + (int)Num(game, "dtotal"));
                 DrawCardRow("Твоя рука · " + (int)Num(game, "ptotal") + " очков", Arr(game, "player"));
                 GUILayout.Label(Str(game, "message"));
-                if (!done)
+                if (!done && atTable)
                 {
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("Ещё карту")) Ask("Очко: взять карту", "card_game", "game", "ochko", "action", "hit");
@@ -2386,7 +2386,7 @@ namespace Pogranichye.Client
                     (Flag(game, "your_turn") ? " · твой ход" : " · ход корчмаря"));
                 DrawCardRow("Твои карты", Arr(game, "player"));
                 GUILayout.Label(Str(game, "message"));
-                if (!done && Flag(game, "your_turn"))
+                if (!done && atTable && Flag(game, "your_turn"))
                 {
                     var role = Str(game, "role");
                     var phase = Str(game, "phase");
