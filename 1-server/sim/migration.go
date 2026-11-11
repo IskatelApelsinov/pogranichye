@@ -3,8 +3,8 @@ package sim
 import (
 	"math"
 
-	"pogranichye/core"
 	"pogranichye/chronicle"
+	"pogranichye/core"
 	"pogranichye/dice"
 )
 
@@ -38,7 +38,7 @@ func Migration(e *core.Entity) *MigrationC {
 // One map verst per world hour is the initial simulation rate; route distance remains authoritative
 // and can be balanced later without changing the stored route or NPC identity.
 func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bool {
-	if w == nil || e == nil || to == 0 || Migration(e) != nil {
+	if w == nil || e == nil || Player(e) != nil || to == 0 || Migration(e) != nil {
 		return false
 	}
 	pl := core.Place(e)
