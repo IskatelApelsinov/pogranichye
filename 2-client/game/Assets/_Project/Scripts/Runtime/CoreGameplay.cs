@@ -1617,6 +1617,7 @@ namespace Pogranichye.Client
 
             DrawFoeLabels();
             DrawStatus();
+            DrawWorldContextAction();
             DrawFeed();
             DrawQuestTracker();
             if (_hitMarker > 0f)
@@ -1626,6 +1627,18 @@ namespace Pogranichye.Client
                 GUI.Box(new Rect(Screen.width * 0.5f - 150f, Screen.height * 0.62f, 300f, 28f), _toast);
             if (_weaveOpen) DrawWeave();
             if (_menuOpen) DrawMenu();
+        }
+
+        private void DrawWorldContextAction()
+        {
+            if (_menuOpen || _weaveOpen || _me == null || !HasFeature("garden") || !Near("apiary", 5f)) return;
+
+            const float width = 224f;
+            const float height = 58f;
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 126f, width, height);
+            GUI.Box(rect, "Пасека");
+            if (GUI.Button(new Rect(rect.x + 8f, rect.y + 24f, rect.width - 16f, 27f), "Вынуть мёд из улья"))
+                Ask("Пасека", "act", "action", "apiary");
         }
 
         private void DrawFoeLabels()
