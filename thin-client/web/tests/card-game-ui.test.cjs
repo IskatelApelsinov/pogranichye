@@ -15,9 +15,11 @@ assert.match(html, /JSON\.stringify\(me\.card_game\|\|null\)/);
 assert.match(html, /drawCardTable\(M,me\)/);
 
 // Both games use only the public me.card_game fields and the server's action/index contract.
-for (const action of ['start', 'hit', 'stand', 'attack', 'defend', 'take', 'done']) {
+for (const action of ['start', 'hit', 'stand', 'take', 'done']) {
   assert.ok(html.includes(`action:'${action}'`), `missing card-game action: ${action}`);
 }
+assert.match(html, /game\.role==='attack'\?'attack':'defend'/);
+assert.match(html, /game:'durak',action,index/);
 assert.match(html, /dealer_cards/);
 assert.match(html, /game\.player/);
 assert.match(html, /game\.table/);
