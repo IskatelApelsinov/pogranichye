@@ -102,6 +102,9 @@ func StartOchko(w *core.World, e *core.Entity, reqid string, shuffle func([]Ochk
 	if g := Ochko(e); g != nil && !g.Done {
 		return false, "ты уже играешь партию"
 	}
+	if g := Durak(e); g != nil && !g.Done {
+		return false, "сначала закончи партию в дурака"
+	}
 	if !atTavern(e) {
 		return false, "за карты садятся у карточного стола в корчме"
 	}
@@ -133,6 +136,7 @@ func StartOchko(w *core.World, e *core.Entity, reqid string, shuffle func([]Ochk
 	} else {
 		w.Attach(e, g)
 	}
+	pc.CardGame = "ochko"
 	if ochkoTotal(g.Player) == 21 {
 		finishOchko(g, pu, true)
 	}

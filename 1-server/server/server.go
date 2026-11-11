@@ -42,6 +42,7 @@ type Server struct {
 	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
 	// Подменяемый источник перемешивания нужен для детерминированных серверных тестов.
 	ochkoShuffle func([]sim.OchkoCard) error
+	durakShuffle func([]sim.DurakCard) error
 
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
@@ -92,6 +93,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		tickEach: 400 * time.Millisecond, // один час мира за 0.4с → сутки ~10с (видно жизнь)
 		ctl:      map[core.ID]uint64{},
 		ochkoShuffle: shuffleOchkoDeck,
+		durakShuffle: shuffleDurakDeck,
 	}
 }
 
@@ -106,6 +108,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		tickEach: 400 * time.Millisecond,
 		ctl:      map[core.ID]uint64{},
 		ochkoShuffle: shuffleOchkoDeck,
+		durakShuffle: shuffleDurakDeck,
 	}
 }
 
@@ -452,6 +455,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		ReqID string `json:"reqid"`
 		// действия v1.3: рубка/рыбалка/магия — op:"act" с action
 		Action string `json:"action"`
+		Game   string `json:"game"`
+		Index  int    `json:"index"`
 		// социальное v1.4: разговор/знакомство/совместное питьё
 		Target string `json:"target"` // id собеседника/партнёра (uint64 строкой)
 		Line   string `json:"line"`   // выбранная реплика
@@ -560,22 +565,37 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			}
 		}
 		s.mu.Unlock()
-	case "card_game": // серверная карточная игра (первый срез — очко против корчмаря)
+	case "card_game": // серверные карточные игры против корчмаря
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
 			var ok bool
 			var why string
-			switch in.Action {
-			case "start":
-				shuffle := s.ochkoShuffle
-				if shuffle == nil { shuffle = shuffleOchkoDeck }
-				ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffle)
-			case "hit":
-				ok, why = sim.HitOchko(s.world, e, in.ReqID)
-			case "stand":
-				ok, why = sim.StandOchko(s.world, e, in.ReqID)
+			game := in.Game
+			if game == "" { game = "ochko" } // совместимость с первым контрактом #340
+			switch game {
+			case "ochko":
+				switch in.Action {
+				case "start":
+					shuffle := s.ochkoShuffle
+					if shuffle == nil { shuffle = shuffleOchkoDeck }
+					ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffle)
+				case "hit":
+					ok, why = sim.HitOchko(s.world, e, in.ReqID)
+				case "stand":
+					ok, why = sim.StandOchko(s.world, e, in.ReqID)
+				default:
+					why = "неизвестный ход в очко"
+				}
+			case "durak":
+				if in.Action == "start" {
+					shuffle := s.durakShuffle
+					if shuffle == nil { shuffle = shuffleDurakDeck }
+					ok, why = sim.StartDurak(s.world, e, in.ReqID, shuffle)
+				} else {
+					ok, why = sim.ActDurak(s.world, e, in.Action, in.Index, in.ReqID)
+				}
 			default:
-				why = "неизвестный ход в очко"
+				why = "неизвестная карточная игра"
 			}
 			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
@@ -780,6 +800,17 @@ func shuffleOchkoDeck(cards []sim.OchkoCard) error {
 	return nil
 }
 
+// shuffleDurakDeck — криптографическое перемешивание 36-карточной колоды.
+func shuffleDurakDeck(cards []sim.DurakCard) error {
+	for i := len(cards) - 1; i > 0; i-- {
+		n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(i+1)))
+		if err != nil { return err }
+		j := int(n.Int64())
+		cards[i], cards[j] = cards[j], cards[i]
+	}
+	return nil
+}
+
 // parseID — id собеседника из строки кадра (uint64) в core.ID; 0 при ошибке.
 func parseID(sid string) core.ID {
 	n, err := strconv.ParseUint(sid, 10, 64)
@@ -846,7 +877,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"drunk":   round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
 			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
 			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
-			"card_game": sim.OchkoView(e), // личная партия; скрытая рука корчмаря не попадает в кадр
+			"card_game": sim.CardGameView(e), // личная партия; скрытая рука корчмаря не попадает в кадр
 		},
 	}
 	out["hour"] = s.runner.Clock.Hour()                    // час суток 0..23 — для света/ночи на клиенте
