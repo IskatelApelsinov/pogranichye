@@ -43,6 +43,9 @@ func inTavernSettlement(w *core.World, e *core.Entity) bool {
 		return false
 	}
 	se := w.Get(pl.Settlement)
+	if se == nil {
+		return false
+	}
 	st := core.Settle(se)
 	return st != nil && st.Tavern
 }
