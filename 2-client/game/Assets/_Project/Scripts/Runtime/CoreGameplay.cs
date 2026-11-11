@@ -1852,6 +1852,18 @@ namespace Pogranichye.Client
             }
         }
 
+        private static string TimeOfDayName(int hour)
+        {
+            var normalized = ((hour % 24) + 24) % 24;
+            if (normalized < 5) return "глубокая ночь";
+            if (normalized < 8) return "рассвет";
+            if (normalized < 11) return "утро";
+            if (normalized < 17) return "день";
+            if (normalized < 20) return "вечер";
+            if (normalized < 22) return "сумерки";
+            return "ночь";
+        }
+
         private static string FeatureName(string feature)
         {
             switch (feature)
@@ -1899,6 +1911,8 @@ namespace Pogranichye.Client
                 var tier = Str(_place, "tier");
                 var tierName = tier == "city" ? "город" : tier == "village" ? "деревня" : tier;
                 GUILayout.Label(Str(_place, "name") + (string.IsNullOrEmpty(tierName) ? "" : " · " + tierName));
+                GUILayout.Label("Местное время: " + _hour.ToString("00", CultureInfo.InvariantCulture) +
+                    ":00 · " + TimeOfDayName(_hour));
             }
             var site = Obj(_place, "site");
             if (site != null)
