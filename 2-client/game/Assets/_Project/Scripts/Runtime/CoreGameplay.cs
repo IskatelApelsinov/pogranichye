@@ -23,6 +23,69 @@ namespace Pogranichye.Client
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
+        private static Texture2D _uiPanelTexture;
+        private static Texture2D _uiButtonTexture;
+        private static Texture2D _uiButtonHoverTexture;
+        private static Texture2D _uiButtonActiveTexture;
+
+        private static Texture2D MakeUiTexture(Color color)
+        {
+            var texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            texture.SetPixel(0, 0, color);
+            texture.Apply();
+            return texture;
+        }
+
+        /// <summary>Shared parchment-and-iron IMGUI theme for every thick-client panel.</summary>
+        public static void ApplyUiTheme()
+        {
+            if (Event.current == null || GUI.skin == null) return;
+            if (_uiPanelTexture == null) _uiPanelTexture = MakeUiTexture(new Color(0.075f, 0.083f, 0.073f, 0.97f));
+            if (_uiButtonTexture == null) _uiButtonTexture = MakeUiTexture(new Color(0.19f, 0.17f, 0.13f, 0.98f));
+            if (_uiButtonHoverTexture == null) _uiButtonHoverTexture = MakeUiTexture(new Color(0.34f, 0.27f, 0.16f, 1f));
+            if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.48f, 0.34f, 0.17f, 1f));
+
+            var label = GUI.skin.label;
+            label.fontSize = 13;
+            label.wordWrap = true;
+            label.normal.textColor = new Color(0.88f, 0.85f, 0.76f);
+            label.margin = new RectOffset(4, 4, 3, 4);
+
+            var box = GUI.skin.box;
+            box.normal.background = _uiPanelTexture;
+            box.normal.textColor = new Color(0.91f, 0.76f, 0.48f);
+            box.fontSize = 14;
+            box.fontStyle = FontStyle.Bold;
+            box.alignment = TextAnchor.UpperLeft;
+            box.padding = new RectOffset(12, 12, 10, 10);
+            box.margin = new RectOffset(4, 4, 5, 5);
+
+            var button = GUI.skin.button;
+            button.normal.background = _uiButtonTexture;
+            button.hover.background = _uiButtonHoverTexture;
+            button.active.background = _uiButtonActiveTexture;
+            button.focused.background = _uiButtonHoverTexture;
+            button.normal.textColor = new Color(0.91f, 0.88f, 0.79f);
+            button.hover.textColor = Color.white;
+            button.active.textColor = Color.white;
+            button.fontSize = 12;
+            button.fontStyle = FontStyle.Bold;
+            button.padding = new RectOffset(9, 9, 6, 6);
+            button.margin = new RectOffset(3, 3, 3, 3);
+
+            var field = GUI.skin.textField;
+            field.normal.background = _uiButtonTexture;
+            field.focused.background = _uiButtonHoverTexture;
+            field.normal.textColor = Color.white;
+            field.fontSize = 13;
+            field.padding = new RectOffset(7, 7, 5, 5);
+        }
+
         private sealed class FoeRec
         {
             public GameObject Root;
@@ -1598,6 +1661,7 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
+            ApplyUiTheme();
             if (!_active || _me == null) return;
 
             if (_hurtFlash > 0f)
