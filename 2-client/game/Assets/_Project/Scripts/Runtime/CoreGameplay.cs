@@ -125,6 +125,7 @@ namespace Pogranichye.Client
 
         private bool _menuOpen;
         private Vector2 _menuScroll;
+        private float _regionMapZoom = 1f;
         private bool _weaveOpen;
         private readonly List<string> _pattern = new List<string>();
         private int _weaveLastNode = -1;
@@ -2012,7 +2013,25 @@ namespace Pogranichye.Client
             var nodes = Arr(region, "nodes");
             var roads = Arr(region, "roads");
             if (nodes == null) return;
-            DrawRegionMap(nodes, roads);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("КАРТА КРАЯ", GUILayout.ExpandWidth(true));
+            var previousGuiEnabled = GUI.enabled;
+            GUI.enabled = previousGuiEnabled && _regionMapZoom > 1f;
+            if (GUILayout.Button("−", GUILayout.Width(34f)))
+                _regionMapZoom = Mathf.Max(1f, _regionMapZoom - 0.5f);
+            GUI.enabled = previousGuiEnabled && _regionMapZoom < 4f;
+            if (GUILayout.Button("+", GUILayout.Width(34f)))
+                _regionMapZoom = Mathf.Min(4f, _regionMapZoom + 0.5f);
+            GUI.enabled = previousGuiEnabled && _regionMapZoom > 1f;
+            if (GUILayout.Button("Весь край", GUILayout.Width(88f)))
+                _regionMapZoom = 1f;
+            GUI.enabled = previousGuiEnabled;
+            GUILayout.EndHorizontal();
+            GUILayout.Label(_regionMapZoom <= 1f
+                ? "Все известные места и дороги"
+                : "Приближение к окрестностям текущего поселения · ×" + _regionMapZoom.ToString("0.0", CultureInfo.InvariantCulture));
+            DrawRegionMap(nodes, roads, hereId);
             foreach (var node in nodes)
             {
                 var id = Str(node, "id");
@@ -2035,9 +2054,9 @@ namespace Pogranichye.Client
 
         // The regional map is a projection of me.region only. Coordinates and edges are
         // server supplied; absent settlements stay in the fog and unknown nodes are nameless.
-        private void DrawRegionMap(JArray nodes, JArray roads)
+        private void DrawRegionMap(JArray nodes, JArray roads, string hereId)
         {
-            var rect = GUILayoutUtility.GetRect(420f, 190f, GUILayout.ExpandWidth(true));
+            var rect = GUILayoutUtility.GetRect(420f, 220f, GUILayout.ExpandWidth(true));
             GUI.Box(rect, GUIContent.none);
             var points = new Dictionary<string, Vector2>();
             var minX = float.MaxValue;
@@ -2058,12 +2077,28 @@ namespace Pogranichye.Client
             const float pad = 18f;
             var spanX = Mathf.Max(1f, maxX - minX);
             var spanY = Mathf.Max(1f, maxY - minY);
+            var fitScale = Mathf.Min(
+                Mathf.Max(1f, inner.width - pad * 2f) / spanX,
+                Mathf.Max(1f, inner.height - pad * 2f) / spanY);
+            var boundsCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            var mapCenter = boundsCenter;
+            if (_regionMapZoom > 1f)
+            {
+                foreach (var node in nodes)
+                {
+                    if (Str(node, "id") != hereId) continue;
+                    mapCenter = new Vector2(Num(node, "x"), Num(node, "y"));
+                    break;
+                }
+            }
+            var scale = fitScale * _regionMapZoom;
+            var screenCenter = inner.center;
             Vector2 Project(JToken node)
             {
                 var x = Num(node, "x");
                 var y = Num(node, "y");
-                return new Vector2(inner.x + pad + (x - minX) / spanX * Mathf.Max(1f, inner.width - pad * 2f),
-                    inner.yMax - pad - (y - minY) / spanY * Mathf.Max(1f, inner.height - pad * 2f));
+                return new Vector2(screenCenter.x + (x - mapCenter.x) * scale,
+                    screenCenter.y - (y - mapCenter.y) * scale);
             }
 
             if (roads != null)
