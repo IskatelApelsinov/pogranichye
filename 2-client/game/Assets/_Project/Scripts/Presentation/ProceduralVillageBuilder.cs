@@ -419,8 +419,8 @@ namespace Pogranichye.Client.Presentation
                 for (var depthSide = -1; depthSide <= 1; depthSide += 2)
                 {
                     CreatePrimitive("Chest short oak foot", PrimitiveType.Cube, chest,
-                        new Vector3(side * 0.235f, -0.22f, depthSide * 0.19f),
-                        new Vector3(0.08f, 0.08f, 0.08f), _mugWoodMaterial);
+                        new Vector3(side * 0.235f, -0.19f, depthSide * 0.19f),
+                        new Vector3(0.08f, 0.06f, 0.08f), _mugWoodMaterial);
                 }
             }
         }
