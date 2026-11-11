@@ -379,6 +379,22 @@ namespace Pogranichye.Client
             {
                 GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Работа: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
                 GUILayout.Label(me.Task.Done ? "Вводное дело завершено." : "Дело ещё продолжается.");
+                if (me.Task.Issued != null)
+                {
+                    var errand = me.Task.Issued;
+                    var giver = string.IsNullOrWhiteSpace(errand.GiverName) ? "житель" : errand.GiverName;
+                    var good = OpeningErrandGoodLabel(errand.Good);
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label("ЛИЧНОЕ ПОРУЧЕНИЕ · " + giver);
+                    GUILayout.Label($"Принести: {good} — {Mathf.Max(0, errand.Have)}/{Mathf.Max(0, errand.Quantity)}");
+                    GUILayout.Label(errand.Ready ? "Можно отнести поручение и получить плату." : "Поручение принято. Продолжай собирать нужное.");
+                    GUILayout.Label($"Обещанная плата: {errand.Coins:0.##} монет");
+                    GUILayout.EndVertical();
+                }
+                else if (me.Task.ErrandDone)
+                {
+                    GUILayout.Label("Вводное поручение жителя уже сдано и сохранено сервером.");
+                }
             }
 
             GUILayout.Space(8f);
@@ -419,6 +435,22 @@ namespace Pogranichye.Client
             GUILayout.Label("Наблюдения собираются клиентом с момента входа и не заменяют сохранённую серверную летопись.", GUILayout.MinHeight(36f));
         }
 
+        private static string OpeningErrandGoodLabel(string good)
+        {
+            switch (good)
+            {
+                case "wood": return "дрова";
+                case "fish": return "рыбу";
+                case "meat": return "мясо";
+                case "ore": return "руду";
+                case "bread": return "хлеб";
+                case "herb": return "травы";
+                case "hide": return "шкуры";
+                case "metal": return "железо";
+                default: return string.IsNullOrWhiteSpace(good) ? "неизвестный товар" : good;
+            }
+        }
+
         private static string JournalKindLabel(string kind)
         {
             switch (kind)
@@ -452,7 +484,9 @@ namespace Pogranichye.Client
 
             if (me.Task != null)
             {
-                var signature = $"{me.Task.Met}|{me.Task.Worked}|{me.Task.Drank}|{me.Task.Done}|{me.Task.Text}";
+                var issued = me.Task.Issued;
+                var signature = $"{me.Task.Met}|{me.Task.Worked}|{me.Task.Drank}|{me.Task.Done}|{me.Task.ErrandDone}|{me.Task.Text}"
+                    + (issued == null ? "|no-errand" : $"|{issued.Id}|{issued.Good}|{issued.Have}|{issued.Quantity}|{issued.Ready}");
                 if (signature != _lastJournalTaskSignature)
                 {
                     _lastJournalTaskSignature = signature;
