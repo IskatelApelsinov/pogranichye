@@ -426,6 +426,9 @@ func StartDurak(w *core.World, e *core.Entity, reqid string, shuffle func([]Dura
 	if g := Durak(e); g != nil && !g.Done {
 		return false, "ты уже играешь партию"
 	}
+	if g := Ochko(e); g != nil && !g.Done {
+		return false, "сначала закончи партию в очко"
+	}
 	if !atTavern(e) {
 		return false, "за карты садятся в корчме"
 	}
