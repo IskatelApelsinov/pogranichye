@@ -113,7 +113,9 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(22, 0.055f, 1.7f), _pathMaterial);
 
             BuildHouse(village, "North cottage", new Vector3(-34, 0, -25), 0.2f);
-            BuildHouse(village, "Granary", new Vector3(-2, 0, 36), -0.12f);
+            BuildHouse(village, "Stable & granary", new Vector3(-2, 0, 28), -0.12f);
+            CreatePoiMarker(village, "Конюшня • лошади и конюх", new Vector3(-2f, 0.08f, 28f),
+                new Color(0.62f, 0.43f, 0.25f), null, null);
             BuildHouse(village, "East cottage", new Vector3(12, 0, -31), -0.25f);
             BuildHouse(village, "West cottage", new Vector3(-8, 0, -29), 0.35f);
             BuildHouse(village, "South-east cottage", new Vector3(33, 0, -24), 0.15f);
