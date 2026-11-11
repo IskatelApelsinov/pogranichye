@@ -603,14 +603,14 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
 	}
 	roads := RoadGraph(w, isOuter(w, core.Settle(src)))
 	var candidates []core.ID
-	w.Each("settlement", func(se *core.Entity) {
-		if se.ID == src.ID || isOuter(w, core.Settle(se)) != isOuter(w, core.Settle(src)) {
-			return
+	for _, road := range roads {
+		switch src.ID {
+		case road.A:
+			candidates = append(candidates, road.B)
+		case road.B:
+			candidates = append(candidates, road.A)
 		}
-		if route, _ := RoadRoute(roads, src.ID, se.ID); len(route) > 1 {
-			candidates = append(candidates, se.ID)
-		}
-	})
+	}
 	if len(candidates) == 0 {
 		return false
 	}
