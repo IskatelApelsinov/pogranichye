@@ -444,6 +444,7 @@ func (RoomRentSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 func RoomsView(w *core.World, e *core.Entity) []map[string]any {
 	pl := core.Place(e)
 	if pl == nil || pl.Settlement == 0 { return []map[string]any{} }
+	EnsureTavernRooms(w, w.Get(pl.Settlement))
 	var rooms []*core.Entity
 	w.Each("room", func(re *core.Entity) {
 		r := Room(re)
