@@ -2180,7 +2180,7 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("убрать из руки")) Ask("Экипировка", "equip", "item", string.Empty);
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield" })
+            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield", "purse" })
             {
                 var already = false;
                 if (worn != null)
