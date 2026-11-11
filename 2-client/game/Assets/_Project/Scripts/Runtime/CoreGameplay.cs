@@ -1643,8 +1643,8 @@ namespace Pogranichye.Client
             GUILayout.Label("СЕДЕЛЬНАЯ СУМКА: " + (string.IsNullOrEmpty(saddleLine) ? "пусто" : saddleLine));
             GUILayout.BeginHorizontal();
             foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
-                if (Count(items, item) > 0f && hand != item && GUILayout.Button("в руку: " + Name(item))) Send("equip", "item", item);
-            if (!string.IsNullOrEmpty(hand) && GUILayout.Button("убрать из руки")) Send("equip", "item", string.Empty);
+                if (Count(items, item) > 0f && hand != item && GUILayout.Button("в руку: " + Name(item))) Ask("Экипировка", "equip", "item", item);
+            if (!string.IsNullOrEmpty(hand) && GUILayout.Button("убрать из руки")) Ask("Экипировка", "equip", "item", string.Empty);
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield" })
@@ -1653,7 +1653,7 @@ namespace Pogranichye.Client
                 if (worn != null)
                     foreach (var slot in worn.Properties())
                         if (slot.Value.ToString() == item) already = true;
-                if (Count(items, item) > 0f && !already && GUILayout.Button("надеть: " + Name(item))) Send("wear", "item", item);
+                if (Count(items, item) > 0f && !already && GUILayout.Button("надеть: " + Name(item))) Ask("Одежда", "wear", "item", item);
             }
             foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
                 if (Count(items, item) > 0f && GUILayout.Button("употребить: " + Name(item))) Ask("Употребить", "use", "item", item);
