@@ -39,6 +39,66 @@ func TestCastRequiresZone(t *testing.T) {
 	}
 }
 
+// Второе приглашение не должно перезаписывать уже ожидающее приглашение игрока.
+func TestCoDrinkDoesNotOverwritePendingInvitation(t *testing.T) {
+	w := core.NewWorld("t")
+	se := w.Spawn(&core.SettlementC{Name: "С", Tavern: true, Store: map[string]float64{BeerGood: 6}})
+	tx, ty := poiByKind("tavern")
+	a := playerAt(w, tx, ty, 10, se.ID)
+	b := playerAt(w, tx+1, ty, 10, se.ID)
+	c := playerAt(w, tx+2, ty, 10, se.ID)
+
+	if ok, why := InviteCoDrink(w, a, b.ID, func(id core.ID) bool { return true }); !ok {
+		t.Fatalf("первое приглашение должно пройти: %s", why)
+	}
+	if ok, _ := InviteCoDrink(w, c, b.ID, func(id core.ID) bool { return true }); ok {
+		t.Fatal("второе приглашение не должно перезаписывать ожидающее")
+	}
+	if ok, _ := InviteCoDrink(w, a, c.ID, func(id core.ID) bool { return true }); ok {
+		t.Fatal("пригласивший с исходящим приглашением не должен создавать ещё одно")
+	}
+
+	ca, cb := CoDrink(a), CoDrink(b)
+	if ca == nil || ca.State != "out" || ca.Partner != b.ID {
+		t.Fatalf("исходное приглашение пригласившего потеряно: %+v", ca)
+	}
+	if cb == nil || cb.State != "in" || cb.Partner != a.ID {
+		t.Fatalf("исходное входящее приглашение перезаписано: %+v", cb)
+	}
+	if CoDrink(c) != nil {
+		t.Fatal("отклонённая попытка не должна создавать состояние приглашения")
+	}
+}
+
+// Принятие отклоняется, если у пригласившего больше нет встречной записи.
+func TestAcceptCoDrinkRejectsStaleInvitation(t *testing.T) {
+	w := core.NewWorld("t")
+	se := w.Spawn(&core.SettlementC{Name: "С", Tavern: true, Store: map[string]float64{BeerGood: 6}})
+	tx, ty := poiByKind("tavern")
+	a := playerAt(w, tx, ty, 10, se.ID)
+	b := playerAt(w, tx+1, ty, 10, se.ID)
+
+	if ok, why := InviteCoDrink(w, a, b.ID, func(id core.ID) bool { return true }); !ok {
+		t.Fatalf("приглашение должно пройти: %s", why)
+	}
+	CoDrink(a).State = "" // имитируем снятое/устаревшее исходящее приглашение
+	beforeBeer := core.Settle(w.Get(se.ID)).Store[BeerGood]
+	beforeA, beforeB := core.Purse(a).Coins, core.Purse(b).Coins
+
+	if ok, _ := AcceptCoDrink(w, b); ok {
+		t.Fatal("устаревшее приглашение не должно приниматься")
+	}
+	if got := core.Settle(w.Get(se.ID)).Store[BeerGood]; got != beforeBeer {
+		t.Fatalf("при отказе запас пива изменился: %.1f -> %.1f", beforeBeer, got)
+	}
+	if core.Purse(a).Coins != beforeA || core.Purse(b).Coins != beforeB {
+		t.Fatal("при отказе монеты игроков не должны меняться")
+	}
+	if c := CoDrink(b); c != nil && c.State != "" {
+		t.Fatalf("устаревшее входящее приглашение не очищено: %+v", c)
+	}
+}
+
 // Успешный co-drink поднимает монотонный social_event у обоих (клиент ловит момент тоста).
 func TestCoDrinkFiresSocialEvent(t *testing.T) {
 	w := core.NewWorld("t")

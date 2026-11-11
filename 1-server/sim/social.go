@@ -378,11 +378,19 @@ func InviteCoDrink(w *core.World, e *core.Entity, target core.ID, controlled fun
 	if p == nil || tp == nil || math.Hypot(p.X-tp.X, p.Y-tp.Y) > talkReachBar {
 		return false, "подойдите друг к другу"
 	}
-	mine := ensureCoDrink(w, e)
-	theirs := ensureCoDrink(w, tgt)
-	if theirs.State == "active" || mine.State == "active" {
-		return false, "уже за кружкой"
+	// A player may have only one pending co-drink invitation in either direction.
+	// Without this guard, a second inviter could overwrite the target's "in" state and
+	// leave the first inviter with an orphaned "out" state.
+	mine := CoDrink(e)
+	theirs := CoDrink(tgt)
+	if mine != nil && mine.State != "" {
+		return false, "у тебя уже есть приглашение или совместная кружка"
 	}
+	if theirs != nil && theirs.State != "" {
+		return false, "у игрока уже есть приглашение или совместная кружка"
+	}
+	mine = ensureCoDrink(w, e)
+	theirs = ensureCoDrink(w, tgt)
 	mine.Partner, mine.State = target, "out"
 	theirs.Partner, theirs.State = e.ID, "in"
 	return true, ""
@@ -398,6 +406,13 @@ func AcceptCoDrink(w *core.World, e *core.Entity) (bool, string) {
 	if a == nil {
 		ClearCoDrink(w, e)
 		return false, "позвавший ушёл"
+	}
+	// Accept only the still-current reciprocal invitation. This prevents stale "in"
+	// states from accepting after the inviter's pending partner has changed or cleared.
+	ac := CoDrink(a)
+	if ac == nil || ac.State != "out" || ac.Partner != e.ID {
+		ClearCoDrink(w, e)
+		return false, "приглашение уже недействительно"
 	}
 	if !atTavern(e) || !atTavern(a) {
 		return false, "оба должны быть у стойки"
