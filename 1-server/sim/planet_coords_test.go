@@ -71,7 +71,7 @@ func TestGreatCircleDistanceUsesShortestAntimeridianArc(t *testing.T) {
 	b := SurfacePoint{LatitudeDeg: 0, LongitudeDeg: -179.9}
 	got, ok := GreatCircleMeters(a, b, 6_371_000)
 	if !ok { t.Fatal("valid points rejected") }
-	want := 2 * math.Pi / 180 * 6_371_000
+	want := 0.2 * math.Pi / 180 * 6_371_000
 	if !closeEnough(got, want, 0.001) {
 		t.Fatalf("distance = %.3f, want %.3f metres", got, want)
 	}
