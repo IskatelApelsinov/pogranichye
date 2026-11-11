@@ -265,7 +265,7 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
   if(resolved){
     if(pendingMinigameAction && resolved.reqid===pendingMinigameAction.reqid){
       const pending=pendingMinigameAction; pendingMinigameAction=null;
-      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить'})[pending.buttonId]||'Повторить'; }
+      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить',bbuild:'🔨 Закрепить балку'})[pending.buttonId]||'Повторить'; }
       toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
     } else {
       toast(r.ok ? resolved.label+': подтверждено' : resolved.label+' — отказ: '+(r.reason||'сервер отказал'));
@@ -399,7 +399,7 @@ function drawLocActions(s,L){
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
  const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
    L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):
-   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith]):
+   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,me.skills&&me.skills.builder,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith,me.skills&&me.skills.builder,me.stash]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
  if(sig===locSig) return; locSig=sig; stopMinigames();
  const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
@@ -420,13 +420,15 @@ function drawLocActions(s,L){
  } else if(L.key==='smithy'){
    A.append(btn('⚔ Взять меч',()=>send({op:'take',item:'sword',reqid:rid()})));
    A.append(btn('🏹 Взять лук',()=>send({op:'take',item:'bow',reqid:rid()})));
-   A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
+   const smithBuildGame=document.createElement('div'); smithBuildGame.style.gridColumn='1 / -1'; A.append(smithBuildGame);
+   buildingGame(smithBuildGame,me);
    forgeGame(M,me);
  } else if(L.key==='granary'){
    ['cloak','boots','hat'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
    marketUI(M,s);
  } else if(L.key==='garden'){
-   A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
+   const gardenBuildGame=document.createElement('div'); gardenBuildGame.style.gridColumn='1 / -1'; A.append(gardenBuildGame);
+   buildingGame(gardenBuildGame,me);
    const fieldGame=document.createElement('div'); fieldGame.style.gridColumn='1 / -1'; A.append(fieldGame);
    fieldworkGame(fieldGame,me);
    marketUI(M,s);
@@ -444,8 +446,12 @@ function drawLocActions(s,L){
 function btn(text,fn,dis){ const b=document.createElement('button'); b.textContent=text; b.onclick=fn; b.disabled=!!dis; return b; }
 function act2(a,msg){ send({op:'act',action:a,reqid:rid()}); toast(msg); }
 // ---------- мини-игра РЫБАЛКА: подсечь, когда поплавок в зоне ----------
-let mgRAF=0;
-function stopMinigames(){ if(mgRAF){ cancelAnimationFrame(mgRAF); mgRAF=0; } }
+const mgRAF=new Set();
+function scheduleMinigameFrame(callback){
+ const id=requestAnimationFrame(()=>{ mgRAF.delete(id); callback(); });
+ mgRAF.add(id); return id;
+}
+function stopMinigames(){ for(const id of mgRAF) cancelAnimationFrame(id); mgRAF.clear(); }
 function fishingGame(M,me){
  const cfg=ActivityMinigames.fishing(me);
  M.className='mg'; M.innerHTML=`<b class="sub">Рыбалка</b>
@@ -455,7 +461,7 @@ function fishingGame(M,me){
  const zone=$('fzone'), mark=$('fmark');
  const zx=Math.random()*(100-cfg.zoneWidth), zw=cfg.zoneWidth; zone.style.left=zx+'%'; zone.style.width=zw+'%';
  let t=0;
- const loop=()=>{ t+=0.03*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ const loop=()=>{ t+=0.03*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; mark.style.left=p+'%'; mark.dataset.p=p; scheduleMinigameFrame(loop); };
  loop();
  $('fcast').onclick=()=>{ const p=parseFloat(mark.dataset.p||'0');
    if(p>=zx&&p<=zx+zw){ sendMinigameAction('fish','fcast','Улов подтверждён сервером и внесён в закрома.'); }
@@ -469,13 +475,32 @@ function choppingGame(M,me){
    <div class="track" id="ctrack"><div class="fill" id="cfill" style="width:0%"></div></div>
    <div class="acts"><button class="primary" style="width:auto" id="cchop">🪓 Бить</button></div>`;
  const fill=$('cfill'); let t=0;
- const loop=()=>{ t+=0.045*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; mgRAF=requestAnimationFrame(loop); };
+ const loop=()=>{ t+=0.045*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; scheduleMinigameFrame(loop); };
  loop();
  $('cchop').onclick=()=>{ const p=parseFloat(fill.dataset.p||'0');
    if(p>=cfg.threshold){ sendMinigameAction('chop','cchop','Рубка подтверждена сервером; древесина получена.'); }
    else toast('…слабо, бей в полную силу'); };
 }
 
+
+
+function buildingGame(M,me){
+ const cfg=ActivityMinigames.building(me);
+ const wood=Number(me&&me.stash&&me.stash.wood)||0;
+ M.className='mg';
+ M.innerHTML=`<b class="sub">Стройка — подать и закрепить балку</b>
+   <div class="sub">Навык строителя: ${Math.round(cfg.skill)} · точность удара: ${Math.round(cfg.threshold)}% · древесина: ${Math.floor(wood)} (нужно 2)</div>
+   <div class="track"><div class="fill" id="buildfill" style="width:0%"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="bbuild">🔨 Закрепить балку</button></div>`;
+ const fill=$('buildfill'); let t=0;
+ const loop=()=>{ t+=0.044*cfg.speed; const p=(Math.sin(t)*0.5+0.5)*100; fill.style.width=p+'%'; fill.dataset.p=p; scheduleMinigameFrame(loop); };
+ loop();
+ $('bbuild').onclick=()=>{
+   const p=parseFloat(fill.dataset.p||'0');
+   if(p>=cfg.threshold) sendMinigameAction('build','bbuild','Вклад в строительство подтверждён сервером.');
+   else toast('…балка не легла в паз, попробуй поймать ритм');
+ };
+}
 
 function fieldworkGame(M,me){
  const cfg=ActivityMinigames.fieldwork(me);
@@ -487,7 +512,7 @@ function fieldworkGame(M,me){
  const zx=Math.random()*(100-cfg.zoneWidth), zw=cfg.zoneWidth;
  zone.style.left=zx+'%'; zone.style.width=zw+'%';
  let t=0;
- const loop=()=>{t+=0.032*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;mark.style.left=p+'%';mark.dataset.p=p;mgRAF=requestAnimationFrame(loop);};
+ const loop=()=>{t+=0.032*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;mark.style.left=p+'%';mark.dataset.p=p;scheduleMinigameFrame(loop);};
  loop();
  $('ffarm').onclick=()=>{const p=parseFloat(mark.dataset.p||'0');
    if(p>=zx&&p<=zx+zw) sendMinigameAction('farmwork','ffarm','Работа в поле подтверждена сервером.');
@@ -500,7 +525,7 @@ function forgeGame(M,me){
    <div class="track"><div class="fill" id="forgefill" style="width:0%"></div></div>
    <div class="acts"><button class="primary" style="width:auto" id="fforge">⚒ Ударить</button></div>`;
  const fill=$('forgefill');let t=0;
- const loop=()=>{t+=0.046*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;fill.style.width=p+'%';fill.dataset.p=p;mgRAF=requestAnimationFrame(loop);};
+ const loop=()=>{t+=0.046*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;fill.style.width=p+'%';fill.dataset.p=p;scheduleMinigameFrame(loop);};
  loop();
  $('fforge').onclick=()=>{const p=parseFloat(fill.dataset.p||'0');
    if(p>=cfg.threshold) sendMinigameAction('forge','fforge','Работа у горна подтверждена сервером.');
