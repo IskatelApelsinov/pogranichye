@@ -117,7 +117,10 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			return
 		}
 		src, dst := core.Settle(w.Get(m.From)), core.Settle(w.Get(m.To))
-		if src == nil || dst == nil || m.TotalHours <= 0 {
+		if src == nil || dst == nil || m.TotalHours <= 0 ||
+			math.IsNaN(m.TotalHours) || math.IsInf(m.TotalHours, 0) ||
+			m.ProgressHours < 0 || len(m.Route) < 2 ||
+			m.Route[0] != m.From || m.Route[len(m.Route)-1] != m.To {
 			// Corrupt/missing endpoint: prefer the original settlement, otherwise the destination.
 			if pl := core.Place(e); pl != nil {
 				switch {
