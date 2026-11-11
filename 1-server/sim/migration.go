@@ -40,10 +40,6 @@ func Migration(e *core.Entity) *MigrationC {
 // startMigration moves an NPC out of settlement population while it travels.
 // One map verst per world hour is the initial simulation rate; route distance remains authoritative
 // and can be balanced later without changing the stored route or NPC identity.
-func startMigration(w *core.World, e *core.Entity, to core.ID, reason string) bool {
-	return startMigrationAt(w, e, to, reason, 0)
-}
-
 // startMigrationAt records the world hour in which transit was created. MigrationSystem
 // must not count the remainder of that same Runner.Step as a full travel hour.
 func startMigrationAt(w *core.World, e *core.Entity, to core.ID, reason string, startedAtHour int64) bool {
