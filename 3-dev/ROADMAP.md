@@ -14,7 +14,7 @@
 `3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md` и свежих comms.
 
 ## P0 — ближайшее (иммерсивность, локации, взаимодействие)
-- [ ] Физический кошель: craftable leather purse, belt slot, public character appearance; `PurseC.Coins` остаётся единственным балансом (PR in progress).
+- [x] Физический кошель — PR #344 (2026-11-11): craftable leather purse, belt slot, public server-confirmed appearance, Unity inventory controls; `PurseC.Coins` остаётся единственным балансом; Go 1.24 build/vet/test PASS.
 - [x] Карточная игра «Очко» против корчмаря — PR #340 (2026-11-11): server-only колода/рука банкира, `crypto/rand`, ставка через `PurseC`, reqid, приватный `me.card_game`, reconnect/save-load; Go 1.24 build/vet/test PASS.
 - [x] Подкидной «Дурак» против корчмаря — PR #342 (2026-11-11): server-only 36-card engine, козырь, attack/defend/take/throw-in, AI, settlement, private `me.card_game`, reqid and save/load; Go 1.24 build/vet/test PASS.
 - [x] Личная летопись игрока `me.journal` (#54, v1.9): server-authoritative вехи (знакомство/труд/корчма),
