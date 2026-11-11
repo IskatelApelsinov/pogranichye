@@ -399,7 +399,7 @@ function drawLocActions(s,L){
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
  const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
    L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):
-   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith]):
+   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
  if(sig===locSig) return; locSig=sig; stopMinigames();
  const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
@@ -427,7 +427,8 @@ function drawLocActions(s,L){
    marketUI(M,s);
  } else if(L.key==='garden'){
    A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
-   fieldworkGame(M,me);
+   const fieldGame=document.createElement('div'); fieldGame.style.gridColumn='1 / -1'; A.append(fieldGame);
+   fieldworkGame(fieldGame,me);
    marketUI(M,s);
  } else if(L.key==='market'){
    ['torch','lantern'].forEach(it=>A.append(btn('взять '+({torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
