@@ -105,6 +105,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		webDir:   webDir,
 		tickEach: 400 * time.Millisecond,
 		ctl:      map[core.ID]uint64{},
+		ochkoShuffle: shuffleOchkoDeck,
 	}
 }
 
