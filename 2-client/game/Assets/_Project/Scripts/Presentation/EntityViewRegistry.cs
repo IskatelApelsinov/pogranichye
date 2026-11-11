@@ -915,7 +915,9 @@ namespace Pogranichye.Client.Presentation
                 if (view != null) Object.Destroy(view);
             _views.Clear();
             _lastTalkEvent = string.Empty;
-            _lastSocialEvent = string.Empty;
+            _lastSocialEventSequence = 0L;
+            _socialEventOwner = 0UL;
+            _hasSocialEventBaseline = false;
             _hasPlayerMugState = false;
             _playerHadMug = false;
             _lastPlayerEquipmentSignature = string.Empty;
