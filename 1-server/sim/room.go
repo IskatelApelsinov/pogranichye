@@ -87,7 +87,7 @@ func RoomVisit(e *core.Entity) *RoomVisitC {
 }
 func InRoom(e *core.Entity) bool {
 	v := RoomVisit(e)
-	return v != nil && v.Inside
+	return v != nil && (v.Inside || v.Recovery)
 }
 
 // EnsureTavernRooms creates the two starter rooms once. IDs are stable and snapshots preserve them.
@@ -251,6 +251,7 @@ func OpenRoomChest(w *core.World, e *core.Entity, day int64, reqid string) (bool
 		}
 	}
 	if visit.Recovery && r.State != "expired" { return false, "возврат вещей пока не требуется" }
+	if visit.Recovery && !roomDoor(w, e, r) { return false, "вернись к корчмарю за вещами" }
 	visit.ChestOpen = true
 	pc.markDone(reqid)
 	return true, ""
@@ -347,6 +348,7 @@ func MoveRoomContainer(w *core.World, e *core.Entity, day int64, kind, side, key
 	}
 	if visit.Recovery {
 		if r.State != "expired" || side != "withdraw" { return false, "из хранилища возврата можно только забрать вещи" }
+		if !roomDoor(w, e, r) { return false, "вернись к корчмарю за вещами" }
 	} else if !visit.Inside || (r.State != "rented" && !(r.State == "grace" && day <= r.GraceUntilDay)) {
 		return false, "срок доступа к комнате истёк"
 	}
