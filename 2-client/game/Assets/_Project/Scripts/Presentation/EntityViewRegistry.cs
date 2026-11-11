@@ -112,9 +112,10 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
-                    // A remote participant/NPC only holds a tankard while its confirmed drink
-                    // gesture is active. The mug is presentation, not inferred inventory state.
-                    SetMug(view, motion != null && motion.IsDrinkGesturePlaying);
+                    // NPC tavern drinking is a persistent server activity code; remote player
+                    // sip gestures remain a short presentation tail. Neither state is inferred locally.
+                    SetMug(view, neighbor.ActivityCode == "drink_tavern" ||
+                        (motion != null && motion.IsDrinkGesturePlaying));
                     // v1.4 server fields are authoritative; do not infer familiarity locally.
                     var displayName = neighbor.Known ? neighbor.Name : neighbor.Description;
                     SetLabel(view, displayName);
