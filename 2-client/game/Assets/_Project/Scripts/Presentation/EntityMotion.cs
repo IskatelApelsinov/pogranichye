@@ -127,9 +127,12 @@ namespace Pogranichye.Client.Presentation
                     break;
                 case "farm_sow":
                 case "farm_reap":
-                case "farm_mend":
                 case "farm_tend":
                     _activity = "farm";
+                    break;
+                case "farm_mend":
+                    // Winter maintenance is indoor gear repair, not field work.
+                    _activity = "mend_gear";
                     break;
                 case "farm_nosow":
                 case "farm_noreap":
@@ -293,6 +296,7 @@ namespace Pogranichye.Client.Presentation
             var mendingNet = _activity == "mend_net";
             var forging = _activity == "forge";
             var farming = _activity == "farm";
+            var mendingGear = _activity == "mend_gear";
             var mining = _activity == "mine";
             var hunting = _activity == "hunt";
             var weaving = _activity == "weave";
@@ -302,7 +306,7 @@ namespace Pogranichye.Client.Presentation
             var herding = _activity == "herd";
             var tavernWork = _activity == "tavern";
             var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
-                hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet;
+                hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet || mendingGear;
             var social = _activity == "social";
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
@@ -355,6 +359,12 @@ namespace Pogranichye.Client.Presentation
                 {
                     leftArmAngle = -34f + Mathf.Sin(_phase * 1.5f) * 8f;
                     rightArmAngle = -38f + Mathf.Cos(_phase * 1.5f) * 9f;
+                }
+                else if (mendingGear)
+                {
+                    var repair = Mathf.Sin(_phase * 2.2f);
+                    leftArmAngle = -28f + repair * 5f;
+                    rightArmAngle = -46f - repair * 9f;
                 }
                 else if (hunting)
                 {
