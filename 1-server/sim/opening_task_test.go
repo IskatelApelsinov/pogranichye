@@ -108,3 +108,44 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 		t.Fatalf("после сдачи: issued nil, errand_done/worked/met true: %+v", task)
 	}
 }
+
+// Следующий шаг из comms 0084 — «гарантировать жителя-дровосека с нуждой» — на поверку оказался
+// уже выполненным механически: у НПС никогда не заводится личный закрома фоновой симуляцией
+// (`econ.Stash` наполняют только труд/охота/рынок ИГРОКА, см. actions.go/craft.go), поэтому
+// `errandNeed` видит `have=0 < errandQty` для дров у ЛЮБОГО жителя с первой секунды — включая
+// настоящего дровосека стартового ростера, без какой-либо ручной подготовки стенда. Этот тест
+// подтверждает это на РЕАЛЬНОМ жителе-дровосеке (не на синтетической сущности, как выше), без
+// подкрутки его закромов/кошеля — только то, что даёт GenerateStarter.
+func TestOpeningTaskAvailableFromRosterWoodcutterWithoutStaging(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	var woodcutter *core.Entity
+	for _, r := range residentsOf(w, se.ID) {
+		if r.ID != e.ID && core.Ident(r).Role == "woodcutter" {
+			woodcutter = r
+			break
+		}
+	}
+	if woodcutter == nil {
+		t.Fatal("в стартовом ростере Починка должен быть хотя бы один дровосек")
+	}
+	// Никакой подготовки стенда: ни Stash, ни Purse не трогаем — ровно то, что дал worldgen.
+	if st := econ.Stash(woodcutter); st != nil && st.Goods[econ.GoodWood] >= errandQty {
+		t.Fatalf("у нетронутого жителя не должно быть фонового запаса дров: %+v", st.Goods)
+	}
+	np := EnsureScenePos(w, woodcutter)
+	p := ScenePos(e)
+	np.X, np.Y = p.X+1, p.Y
+
+	StartTalk(w, e, woodcutter.ID)
+	if ok, _ := Say(w, e, "greet", "rw1"); !ok {
+		t.Fatal("знакомство должно получиться")
+	}
+	ok, reply := Say(w, e, "work", "rw2")
+	if !ok {
+		t.Fatalf("дровосек должен дать поручение без ручной подготовки: %s", reply)
+	}
+	iss, ok := OpeningTask(w, e)["issued"].(map[string]any)
+	if !ok || iss["good"] != econ.GoodWood {
+		t.Fatalf("поручение должно быть про дрова, с первой секунды: %+v", iss)
+	}
+}

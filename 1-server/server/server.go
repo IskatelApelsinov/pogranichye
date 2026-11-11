@@ -542,6 +542,12 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "gather":
 				rok, rwhy := sim.Gather(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "farmwork":
+				rok, rwhy := sim.Farmwork(s.world, e, s.runner.Clock.Season(), in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "forge":
+				rok, rwhy := sim.Forge(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()

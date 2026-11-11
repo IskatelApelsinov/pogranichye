@@ -86,6 +86,13 @@ func SeedPerField() float64 { return seedPerField }
 // SowReserve — сколько зерна община бережёт под сев (поведенческая цель, не замок движка).
 func SowReserve() float64 { return sowReserve }
 
+// AverageHarvestRatio — средний «сам-N» урожая (сам-3..сам-6), для действия игрока, у которого
+// нет доступа к костям дня (сев/жатва там идёт с разбросом через dice.Hub).
+func AverageHarvestRatio() float64 { return (yieldRatioMin + yieldRatioMax) / 2 }
+
+// MetalFromOre — выход металла из руды при плавке (та же пропорция, что у фоновой кузни).
+func MetalFromOre() float64 { return metalFromOre }
+
 // Edible сообщает, можно ли это съесть (для проверок рождений/голода снаружи пакета).
 func Edible(good string) bool {
 	for _, g := range edibles {
