@@ -201,7 +201,7 @@ func RentRoom(w *core.World, e *core.Entity, day int64, reqid string) (bool, str
 	chestEntity := w.Get(r.ContainerID)
 	chest := Container(chestEntity)
 	if chest == nil {
-		chestEntity = w.Spawn(&ContainerC{Kind: "room_chest", Capacity: RoomChestCapacity, Items: map[string]int{}, Goods: map[string]float64{}})
+		chestEntity = w.Spawn(&ContainerC{Type: "room_chest", Capacity: RoomChestCapacity, Items: map[string]int{}, Goods: map[string]float64{}})
 		chest = Container(chestEntity)
 		r.ContainerID = chestEntity.ID
 	}
