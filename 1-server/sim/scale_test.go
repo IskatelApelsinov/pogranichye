@@ -40,8 +40,27 @@ func TestFounding(t *testing.T) {
 			newSet = se.ID
 		}
 	})
+	migrants := 0
+	maxHours := 0.0
+	w.Each("migration", func(e *core.Entity) {
+		if m := Migration(e); m != nil && m.To == newSet {
+			migrants++
+			if m.TotalHours > maxHours {
+				maxHours = m.TotalHours
+			}
+		}
+	})
+	if migrants < 3 {
+		t.Fatalf("переселенцы должны отправиться в путь с сохранением личностей: %d", migrants)
+	}
+	if len(residentsOf(w, newSet)) != 0 {
+		t.Fatal("переселенцы не должны появляться в новом поселении до прибытия")
+	}
+	for h := 0; h <= int(maxHours); h++ {
+		(MigrationSystem{}).Hour(w, core.Clock{}, nil)
+	}
 	if len(residentsOf(w, newSet)) < 3 {
-		t.Fatal("в новом поселении должна быть ватага переселенцев")
+		t.Fatal("после завершения пути в новом поселении должна прибыть ватага переселенцев")
 	}
 }
 
