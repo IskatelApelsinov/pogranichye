@@ -58,6 +58,8 @@ namespace Pogranichye.Client
         private float _pendingTalkDeadline;
         private string _talkFeedback;
         private bool _talkConfirmationTimedOut;
+        private bool _drinkRequestPending;
+        private const string DrinkRequestLabelPrefix = "Совместная кружка:";
         private Vector2 _dialogueScroll;
         private GUIStyle _dialogueWhoStyle;
         private GUIStyle _dialogueLineStyle;
@@ -145,6 +147,8 @@ namespace Pogranichye.Client
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
+            if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
+                _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
             if (_input != null && _input.ToggleDiagnosticsPressed) _movementDebugVisible = !_movementDebugVisible;
             if (_input != null && _input.ToggleFullscreenPressed) ToggleFullscreen();
@@ -877,10 +881,17 @@ namespace Pogranichye.Client
                 GUI.Box(rect, "Приглашение выпить");
                 GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
                 GUILayout.Label((invite.Who ?? "Игрок") + " зовёт к стойке");
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Принять")) _ = SendDrinkResponseAsync(true);
-                if (GUILayout.Button("Отказаться")) _ = SendDrinkResponseAsync(false);
-                GUILayout.EndHorizontal();
+                if (_drinkRequestPending)
+                {
+                    GUILayout.Label("Ожидаем подтверждения сервера…");
+                }
+                else
+                {
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("Принять")) QueueDrinkRequest("accept", null, "Принятие приглашения");
+                    if (GUILayout.Button("Отказаться")) QueueDrinkRequest("declinedrink", null, "Отказ от приглашения");
+                    GUILayout.EndHorizontal();
+                }
                 GUILayout.EndArea();
             }
 
@@ -904,8 +915,11 @@ namespace Pogranichye.Client
                             ? neighbor.Name : (neighbor.Description ?? "Игрок");
                         GUILayout.BeginHorizontal();
                         GUILayout.Label(label);
+                        var previousEnabled = GUI.enabled;
+                        GUI.enabled = previousEnabled && !_drinkRequestPending;
                         if (GUILayout.Button("Позвать выпить", GUILayout.Width(130f)))
-                            _ = SendInviteDrinkAsync(neighbor.Id);
+                            QueueDrinkRequest("invite", neighbor.Id, "Приглашение отправлено");
+                        GUI.enabled = previousEnabled;
                         GUILayout.EndHorizontal();
                     }
                     GUILayout.EndArea();
@@ -997,6 +1011,16 @@ namespace Pogranichye.Client
                 _talkFeedback = outcome == RequestGate.Outcome.Accepted
                     ? "Реплика принята сервером."
                     : "Ответ жителя не принят: " + reason;
+
+            if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
+            {
+                _drinkRequestPending = false;
+                _status = outcome == RequestGate.Outcome.Accepted
+                    ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    : outcome == RequestGate.Outcome.Rejected
+                        ? "Сервер отклонил действие с кружкой: " + reason
+                        : "Нет подтверждения сервера на действие с кружкой. Можно попробовать ещё раз.";
+            }
         }
 
         private void UpdateTalkConfirmationTimeout()
@@ -1054,27 +1078,23 @@ namespace Pogranichye.Client
             catch (Exception ex) { Enqueue(() => _status = "Не удалось закончить разговор: " + ex.Message); }
         }
 
-        private async Task SendInviteDrinkAsync(string target)
+        private bool QueueDrinkRequest(string op, string target, string label)
         {
-            var socket = _socket;
-            try
-            {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendInviteDrinkAsync(target, _lifetime.Token);
-                Enqueue(() => _status = "Приглашение выпить отправлено серверу.");
-            }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось пригласить игрока: " + ex.Message); }
-        }
+            if (_drinkRequestPending || _connectionState != WorldConnectionState.Active || _core == null)
+                return false;
 
-        private async Task SendDrinkResponseAsync(bool accept)
-        {
-            var socket = _socket;
-            try
+            var queued = op == "invite"
+                ? _core.QueueRequest(DrinkRequestLabelPrefix + " " + label, op, "target", target)
+                : _core.QueueRequest(DrinkRequestLabelPrefix + " " + label, op);
+            if (!queued)
             {
-                if (socket != null) await socket.SendAcceptDrinkAsync(accept, _lifetime.Token);
+                _status = "Не удалось поставить действие с кружкой в очередь. Дождитесь ответа на предыдущее действие.";
+                return false;
             }
-            catch (Exception ex) { Enqueue(() => _status = "Не удалось ответить на приглашение: " + ex.Message); }
+
+            _drinkRequestPending = true;
+            _status = "Ожидаю подтверждения сервера: " + label.ToLowerInvariant() + "…";
+            return true;
         }
 
         private string ConnectionStateLabel()

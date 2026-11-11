@@ -613,19 +613,28 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "invite": // позвать другого ИГРОКА выпить вместе
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.InviteCoDrink(s.world, e, parseID(in.Target), func(id core.ID) bool { return s.ctl[id] != 0 })
+			rok, rwhy := sim.InviteCoDrink(s.world, e, parseID(in.Target), func(id core.ID) bool { return s.ctl[id] != 0 })
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "accept": // принять приглашение выпить
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			sim.AcceptCoDrink(s.world, e)
+			rok, rwhy := sim.AcceptCoDrink(s.world, e)
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "declinedrink": // отклонить/отменить приглашение
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
+			c := sim.CoDrink(e)
+			ok := c != nil && c.State != ""
 			sim.ClearCoDrink(s.world, e)
+			reason := ""
+			if !ok {
+				reason = "нет активного приглашения"
+			}
+			sim.SetResult(s.world, e, in.ReqID, ok, reason)
 		}
 		s.mu.Unlock()
 	default:
