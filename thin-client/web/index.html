@@ -265,7 +265,7 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
   if(resolved){
     if(pendingMinigameAction && resolved.reqid===pendingMinigameAction.reqid){
       const pending=pendingMinigameAction; pendingMinigameAction=null;
-      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=pending.buttonId==='fcast'?'🎣 Подсечь':'🪓 Бить'; }
+      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить'})[pending.buttonId]||'Повторить'; }
       toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
     } else {
       toast(r.ok ? resolved.label+': подтверждено' : resolved.label+' — отказ: '+(r.reason||'сервер отказал'));
@@ -399,6 +399,7 @@ function drawLocActions(s,L){
  // сбрасывалась бы каждым кадром, а тап попадал бы в уже заменённую кнопку
  const sig=L.key+'|'+(L.key==='tavern'?[me.mug,pl.beer,me.coins].join():L.key==='well'?((me.mana||0)<25):
    L.key==='river'?JSON.stringify([me.skills&&me.skills.fisher]):L.key==='woods'?JSON.stringify([me.skills&&me.skills.woodcutter]):
+   L.key==='garden'?JSON.stringify([me.skills&&me.skills.farmer,pl.market,me.stash,me.coins]):L.key==='smithy'?JSON.stringify([me.skills&&me.skills.smith]):
    (L.key==='market'||L.key==='granary'||L.key==='garden')?JSON.stringify([pl.market,me.stash,me.coins]):'');
  if(sig===locSig) return; locSig=sig; stopMinigames();
  const A=$('locactions'), M=$('minigame'); A.replaceChildren(); M.replaceChildren(); M.className='';
@@ -420,13 +421,14 @@ function drawLocActions(s,L){
    A.append(btn('⚔ Взять меч',()=>send({op:'take',item:'sword',reqid:rid()})));
    A.append(btn('🏹 Взять лук',()=>send({op:'take',item:'bow',reqid:rid()})));
    A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
-   A.append(btn('⚒ Помочь у горна',()=>act2('forge','Плавлю руду для села…')));
+   forgeGame(M,me);
  } else if(L.key==='granary'){
    ['cloak','boots','hat'].forEach(it=>A.append(btn('взять '+({cloak:'плащ',boots:'сапоги',hat:'шапка'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
    marketUI(M,s);
  } else if(L.key==='garden'){
    A.append(btn('🔨 Помочь строить',()=>act2('build','Строю…')));
-   A.append(btn('🌾 Помочь в поле',()=>act2('farmwork','Работаю в поле…')));
+   const fieldGame=document.createElement('div'); fieldGame.style.gridColumn='1 / -1'; A.append(fieldGame);
+   fieldworkGame(fieldGame,me);
    marketUI(M,s);
  } else if(L.key==='market'){
    ['torch','lantern'].forEach(it=>A.append(btn('взять '+({torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
@@ -472,6 +474,37 @@ function choppingGame(M,me){
  $('cchop').onclick=()=>{ const p=parseFloat(fill.dataset.p||'0');
    if(p>=cfg.threshold){ sendMinigameAction('chop','cchop','Рубка подтверждена сервером; древесина получена.'); }
    else toast('…слабо, бей в полную силу'); };
+}
+
+
+function fieldworkGame(M,me){
+ const cfg=ActivityMinigames.fieldwork(me);
+ M.className='mg'; M.innerHTML=`<b class="sub">Помощь в поле</b>
+   <div class="sub">Навык земледельца: ${Math.round(cfg.skill)} · окно работы: ${Math.round(cfg.zoneWidth)}%</div>
+   <div class="track"><div class="zone" id="farmerzone"></div><div class="mark" id="farmermark"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="ffarm">🌾 Работать</button></div>`;
+ const zone=$('farmerzone'), mark=$('farmermark');
+ const zx=Math.random()*(100-cfg.zoneWidth), zw=cfg.zoneWidth;
+ zone.style.left=zx+'%'; zone.style.width=zw+'%';
+ let t=0;
+ const loop=()=>{t+=0.032*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;mark.style.left=p+'%';mark.dataset.p=p;mgRAF=requestAnimationFrame(loop);};
+ loop();
+ $('ffarm').onclick=()=>{const p=parseFloat(mark.dataset.p||'0');
+   if(p>=zx&&p<=zx+zw) sendMinigameAction('farmwork','ffarm','Работа в поле подтверждена сервером.');
+   else toast('…не попал в рабочий ритм, попробуй ещё раз');};
+}
+function forgeGame(M,me){
+ const cfg=ActivityMinigames.forging(me);
+ M.className='mg'; M.innerHTML=`<b class="sub">Работа у горна</b>
+   <div class="sub">Навык кузнеца: ${Math.round(cfg.skill)} · порог удара: ${Math.round(cfg.threshold)}%</div>
+   <div class="track"><div class="fill" id="forgefill" style="width:0%"></div></div>
+   <div class="acts"><button class="primary" style="width:auto" id="fforge">⚒ Ударить</button></div>`;
+ const fill=$('forgefill');let t=0;
+ const loop=()=>{t+=0.046*cfg.speed;const p=(Math.sin(t)*0.5+0.5)*100;fill.style.width=p+'%';fill.dataset.p=p;mgRAF=requestAnimationFrame(loop);};
+ loop();
+ $('fforge').onclick=()=>{const p=parseFloat(fill.dataset.p||'0');
+   if(p>=cfg.threshold) sendMinigameAction('forge','fforge','Работа у горна подтверждена сервером.');
+   else toast('…удар слабоват, поймай ритм молота');};
 }
 
 // ---------- разговор / приглашение / тост ----------
