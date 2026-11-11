@@ -148,4 +148,15 @@ func TestOuterWorldSettlementsStayNearTheirOwnRegionAnchors(t *testing.T) {
 		t.Fatalf("outer settlements collapsed into %d regions, want all four generated regions", len(regions))
 	}
 }
+func TestSiteOfHandlesLegacySettlementWithoutRegion(t *testing.T) {
+	w := core.NewWorld("site-without-region")
+	settlement := w.Spawn(&core.SettlementC{Name: "Старое поселение", X: 500, Y: 500})
+	site := SiteOf(w, settlement)
+	if site == nil || site.CoordVersion != SurfaceProjectionVersion {
+		t.Fatalf("legacy settlement without region did not receive site coordinates: %+v", site)
+	}
+	if site.Terrain == "" || site.Climate == "" {
+		t.Fatalf("site defaults missing for regionless settlement: %+v", site)
+	}
+}
 
