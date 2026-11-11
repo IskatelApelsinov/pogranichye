@@ -145,12 +145,10 @@ namespace Pogranichye.Client.Networking.Protocol
     [Serializable]
     public sealed class SettlementStockFrame
     {
-        [JsonProperty("food")] public double Food { get; set; }
         [JsonProperty("wood")] public double Wood { get; set; }
         [JsonProperty("ore")] public double Ore { get; set; }
         [JsonProperty("metal")] public double Metal { get; set; }
         [JsonProperty("herb")] public double Herb { get; set; }
-        [JsonProperty("beer")] public double Beer { get; set; }
     }
 
     [Serializable]
