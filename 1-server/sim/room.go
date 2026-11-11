@@ -405,6 +405,7 @@ func (RoomRentSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 		if r == nil || r.Tenant == 0 { return }
 		chest := Container(w.Get(r.ContainerID))
 		if r.State == "expired" {
+			forceLeaveRoom(w, r)
 			if containerEmpty(chest) { releaseRoom(w, re, r) }
 			return
 		}
