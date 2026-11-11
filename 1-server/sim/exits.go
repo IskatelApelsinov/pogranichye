@@ -130,6 +130,7 @@ func StepExits(w *core.World, controlled func(core.ID) bool, hub func(core.ID) *
 
 // startPass — долгий путь через перевал между котлом и внешним миром.
 func startPass(w *core.World, e *core.Entity, to core.ID) {
+	if InRoom(e) { return }
 	pl := core.Place(e)
 	if v := core.Vitals(e); v == nil || v.Energy < 20 {
 		p := ScenePos(e)
