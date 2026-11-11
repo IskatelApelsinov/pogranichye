@@ -7,6 +7,22 @@ import (
 
 func closeEnough(a, b, tolerance float64) bool { return math.Abs(a-b) <= tolerance }
 
+
+func TestNormalizeLongitudeWrapsToHalfOpenRange(t *testing.T) {
+	cases := []struct{ input, want float64 }{
+		{0, 0}, {180, -180}, {-180, -180}, {540, -180}, {-540, -180},
+		{181, -179}, {-181, 179}, {721.5, 1.5},
+	}
+	for _, tc := range cases {
+		if got := NormalizeLongitude(tc.input); !closeEnough(got, tc.want, 1e-12) {
+			t.Errorf("NormalizeLongitude(%v) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+	if !math.IsNaN(NormalizeLongitude(math.Inf(1))) {
+		t.Fatal("infinite longitude must be rejected")
+	}
+}
+
 func TestPlanetProjectionRoundTripsAcrossAntimeridian(t *testing.T) {
 	projection := PlanetProjection{
 		Origin: SurfacePoint{LatitudeDeg: 48.2, LongitudeDeg: 179.8, ElevationM: 125},
