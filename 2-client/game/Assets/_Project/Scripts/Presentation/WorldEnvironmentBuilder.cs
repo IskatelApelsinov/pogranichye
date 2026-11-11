@@ -26,6 +26,7 @@ namespace Pogranichye.Client.Presentation
         private static Mesh _grassMesh;
         private static Mesh _ruralFieldMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
+        private static WorldAtmosphereCycle _atmosphereCycle;
 
         public static void Build(Transform root, Camera camera)
         {
@@ -44,6 +45,13 @@ namespace Pogranichye.Client.Presentation
             BuildLowlandMist(environment);
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
             cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, _mistMaterial, FindSun());
+            _atmosphereCycle = cycle;
+        }
+
+        /// <summary>Synchronizes the visual sky with the authoritative world clock.</summary>
+        public static void SetServerHour(int hour)
+        {
+            if (_atmosphereCycle != null) _atmosphereCycle.SetServerHour(hour);
         }
 
         private static void BuildSky(Transform root, Camera camera)
@@ -897,6 +905,8 @@ namespace Pogranichye.Client.Presentation
         private Material _mist;
         private Light _sun;
         private float _phase;
+        private int _serverHour;
+        private bool _hasServerHour;
 
         public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
@@ -908,9 +918,19 @@ namespace Pogranichye.Client.Presentation
             _phase = 0.28f;
         }
 
+        /// <summary>Uses server time when available; local cycle remains a preview fallback before first state frame.</summary>
+        public void SetServerHour(int hour)
+        {
+            _serverHour = ((hour % 24) + 24) % 24;
+            _hasServerHour = true;
+        }
+
         private void Update()
         {
-            _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, visualDayLengthSeconds), 1f);
+            if (_hasServerHour)
+                _phase = _serverHour / 24f;
+            else
+                _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, visualDayLengthSeconds), 1f);
             var daylight = Mathf.Clamp01((Mathf.Sin((_phase - 0.25f) * Mathf.PI * 2f) + 0.12f) * 1.8f);
             var night = 1f - daylight;
             var dusk = 1f - Mathf.Clamp01(Mathf.Abs(daylight - 0.42f) * 3.2f);

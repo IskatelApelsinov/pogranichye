@@ -429,7 +429,11 @@ namespace Pogranichye.Client
             catch (Exception) { return; }
             _me = Obj(root, "me");
             _place = Obj(root, "place");
-            if (root["hour"] != null) _hour = (int)Num(root, "hour");
+            if (root["hour"] != null)
+            {
+                _hour = (int)Num(root, "hour");
+                WorldEnvironmentBuilder.SetServerHour(_hour);
+            }
             SyncFoes(Arr(_place, "foes"));
             SyncExits(Arr(_place, "exits"));
             ApplySitePresentation();
