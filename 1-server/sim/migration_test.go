@@ -29,13 +29,13 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	}
 	m := Migration(person)
 	if m == nil || m.From != from.ID || m.To != to.ID ||
-		len(m.Route) != 2 || m.Route[0] != from.ID || m.Route[1] != to.ID || m.FoodSupply != 2 {
+		len(m.Route) != 2 || m.Route[0] != from.ID || m.Route[1] != to.ID || m.FoodSupply != 5 {
 		t.Fatalf("migration must retain the actual road route: %+v", m)
 	}
 	if core.Place(person).Settlement != 0 {
 		t.Fatal("traveller must not remain counted in the source or destination population")
 	}
-	if core.Settle(from).Store[econ.GoodBread] != 8 {
+	if core.Settle(from).Store[econ.GoodBread] != 5 {
 		t.Fatal("reserved travel food must be deducted from the source settlement stock")
 	}
 	if ScenePos(person) != nil {
@@ -63,7 +63,7 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	for h := 0; h < 25; h++ {
 		(NeedsSystem{}).Hour(loaded, core.Clock{}, nil)
 	}
-	if m.FoodSupply != 1 {
+	if m.FoodSupply != 4 {
 		t.Fatalf("traveller must consume reserved bread from the travel supply: left=%d", m.FoodSupply)
 	}
 
