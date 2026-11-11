@@ -1278,6 +1278,9 @@ namespace Pogranichye.Client.Presentation
             if (hand == null) hand = view.transform.Find("Right arm/Right hand");
             if (hand == null) return;
 
+            var heldItem = hand.Find("Held equipment item");
+            if (heldItem != null) heldItem.gameObject.SetActive(!held);
+
             var mug = hand.Find("Held tankard");
             // Avoid creating an inactive tankard for every nearby entity that is not drinking.
             if (mug == null && !held) return;
