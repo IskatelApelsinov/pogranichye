@@ -325,7 +325,36 @@
         "y": 20.5,
         "kind": "road"
       }
-    ]
+    ],
+    "life": {
+      "population": 1,
+      "working": 0,
+      "activities": {
+        "field": 0,
+        "wood": 0,
+        "forge": 0,
+        "mine": 0,
+        "fish": 0,
+        "hunt": 0,
+        "herb": 0,
+        "cook": 0,
+        "herd": 0,
+        "magic": 0,
+        "tavern": 0,
+        "rest": 1,
+        "social": 0,
+        "eating": 0,
+        "other": 0
+      },
+      "stock": {
+        "food": 466,
+        "wood": 24,
+        "ore": 8,
+        "metal": 3,
+        "herb": 5,
+        "beer": 12
+      }
+    }
   },
   "hour": 14
 }
