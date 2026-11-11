@@ -13,7 +13,8 @@ import (
 func TestFounding(t *testing.T) {
 	w := core.NewWorld("found")
 	g := dice.NewStream(42)
-	src := NewSettlement(w, g, "Исток", nil)
+	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
+	src := NewSettlement(w, g, "Исток", region)
 	// набить деревню до скученности амбициозными взрослыми
 	for i := 0; i < birthCapPop; i++ {
 		p := spawnPerson(w, g, src.ID)
