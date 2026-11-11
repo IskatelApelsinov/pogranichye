@@ -36,6 +36,7 @@ var Recipes = []Recipe{
 	{"rod", "Сладить удочку", "granary", map[string]float64{"wood": 1}, "rod", 1, false, "crafter"},
 	{"leather", "Выделать кожу", "granary", map[string]float64{"hide": 1, "wood": 1}, "leather", 1, true, "crafter"},
 	{"jerkin", "Сшить кожаную куртку", "granary", map[string]float64{"leather": 2}, "jerkin", 1, false, "crafter"},
+	{"purse", "Сшить кожаный кошель", "granary", map[string]float64{"leather": 1, "cloth": 1}, "purse", 1, false, "crafter"},
 	{"torch", "Смотать факел", "hearth", map[string]float64{"wood": 1}, "torch", 1, false, "crafter"},
 	{"bandage", "Нарезать повязок", "hearth", map[string]float64{"hide": 1}, "bandage", 2, false, "cook"},
 	{"potion", "Сварить снадобье", "hearth", map[string]float64{"herb": 2}, "potion", 1, false, "cook"},
@@ -47,6 +48,7 @@ func init() { // новые вещи: что берут в руку и что н
 	handItem["knife"] = true
 	wearSlot["jerkin"] = "armor"
 	wearSlot["shield"] = "offhand"
+	wearSlot["purse"] = "belt"
 }
 
 func recipeByID(id string) *Recipe {
