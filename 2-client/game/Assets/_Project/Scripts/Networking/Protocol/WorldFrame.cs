@@ -102,9 +102,11 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("food")] public double Food { get; set; }
         [JsonProperty("bread")] public double Bread { get; set; }
         [JsonProperty("bread_price")] public double BreadPrice { get; set; }
         [JsonProperty("tavern")] public bool Tavern { get; set; }
+        [JsonProperty("beer")] public double Beer { get; set; }
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
