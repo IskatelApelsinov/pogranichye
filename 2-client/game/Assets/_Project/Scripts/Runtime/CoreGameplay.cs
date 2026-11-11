@@ -281,14 +281,17 @@ namespace Pogranichye.Client
                 GUILayout.Label("Седло: " + (int)Num(horse, "bag_load") + " / " + (int)Num(horse, "bag_cap"));
                 if (horseHere)
                 {
-                    foreach (var packed in stash != null ? stash.Properties() : new JProperty[0])
+                    if (stash != null)
                     {
-                        if (Num(stash, packed.Name) < 1f) continue;
-                        GUILayout.BeginHorizontal();
-                        GUILayout.Label(Name(packed.Name) + " ×" + (int)Num(stash, packed.Name), GUILayout.Width(190f));
-                        if (GUILayout.Button("Уложить в седло"))
-                            Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
-                        GUILayout.EndHorizontal();
+                        foreach (var packed in stash.Properties())
+                        {
+                            if (Num(stash, packed.Name) < 1f) continue;
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Label(Name(packed.Name) + " ×" + (int)Num(stash, packed.Name), GUILayout.Width(190f));
+                            if (GUILayout.Button("Уложить в седло"))
+                                Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
+                            GUILayout.EndHorizontal();
+                        }
                     }
                     if (horseBag != null)
                     {
