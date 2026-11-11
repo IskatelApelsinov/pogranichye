@@ -145,7 +145,7 @@ func TestOpeningTaskSurfacesIssuedErrand(t *testing.T) {
 // настоящего дровосека стартового ростера, без какой-либо ручной подготовки стенда. Этот тест
 // подтверждает это на РЕАЛЬНОМ жителе-дровосеке (не на синтетической сущности, как выше), без
 // подкрутки его закромов/кошеля — только то, что даёт GenerateStarter.
-func TestOpeningTaskAvailableFromRosterWoodcutterWithoutStaging(t *testing.T) {
+func TestOpeningErrandFromRosterWoodcutterCompletesWithoutStaging(t *testing.T) {
 	w, e, se := starterPlayer(t)
 	var woodcutter *core.Entity
 	for _, r := range residentsOf(w, se.ID) {
@@ -161,6 +161,13 @@ func TestOpeningTaskAvailableFromRosterWoodcutterWithoutStaging(t *testing.T) {
 	if st := econ.Stash(woodcutter); st != nil && st.Goods[econ.GoodWood] >= errandQty {
 		t.Fatalf("у нетронутого жителя не должно быть фонового запаса дров: %+v", st.Goods)
 	}
+	if purse := core.Purse(woodcutter); purse == nil || purse.Coins < 2 {
+		t.Fatalf("реальный стартовый дровосек должен иметь собственные монеты для обещанной платы: %+v", purse)
+	}
+
+	if ok, why := GoTo(w, e, "well"); !ok {
+		t.Fatalf("подойти к колодцу: %s", why)
+	}
 	np := EnsureScenePos(w, woodcutter)
 	p := ScenePos(e)
 	np.X, np.Y = p.X+1, p.Y
@@ -169,13 +176,46 @@ func TestOpeningTaskAvailableFromRosterWoodcutterWithoutStaging(t *testing.T) {
 	if ok, _ := Say(w, e, "greet", "rw1"); !ok {
 		t.Fatal("знакомство должно получиться")
 	}
-	ok, reply := Say(w, e, "work", "rw2")
-	if !ok {
+	if ok, reply := Say(w, e, "work", "rw2"); !ok {
 		t.Fatalf("дровосек должен дать поручение без ручной подготовки: %s", reply)
 	}
-	iss, ok := OpeningTask(w, e)["issued"].(map[string]any)
-	if !ok || iss["good"] != econ.GoodWood {
-		t.Fatalf("поручение должно быть про дрова, с первой секунды: %+v", iss)
+	issued, ok := OpeningTask(w, e)["issued"].(map[string]any)
+	if !ok || issued["good"] != econ.GoodWood || issued["qty"] != errandQty ||
+		issued["coins"] != 2.0 || issued["accepted"] != true ||
+		issued["have"] != 0 || issued["ready"] != false {
+		t.Fatalf("с первой минуты должно быть принятое поручение на 2 дрова с реальной платой: %+v", issued)
+	}
+
+	playerCoinsBefore := core.Purse(e).Coins
+	giverCoinsBefore := core.Purse(woodcutter).Coins
+	if ok, why := GoTo(w, e, "woods"); !ok {
+		t.Fatalf("дойти до леса: %s", why)
+	}
+	if ok, why := ChopWood(w, e, "roster-errand-chop-1"); !ok {
+		t.Fatalf("первая настоящая рубка: %s", why)
+	}
+	if ok, why := ChopWood(w, e, "roster-errand-chop-2"); !ok {
+		t.Fatalf("вторая настоящая рубка: %s", why)
+	}
+	if ok, why := GoTo(w, e, "well"); !ok {
+		t.Fatalf("вернуться к дровосеку: %s", why)
+	}
+
+	StartTalk(w, e, woodcutter.ID)
+	if ok, why := Say(w, e, "work", "rw3"); !ok {
+		t.Fatalf("сдать поручение через повторный разговор: %s", why)
+	}
+	if got := core.Purse(e).Coins; got != playerCoinsBefore+2 {
+		t.Fatalf("игрок должен получить ровно 2 монеты из кошеля просившего, до %.1f после %.1f",
+			playerCoinsBefore, got)
+	}
+	if got := core.Purse(woodcutter).Coins; got != giverCoinsBefore-2 {
+		t.Fatalf("у дровосека должны списаться те же 2 монеты, до %.1f после %.1f",
+			giverCoinsBefore, got)
+	}
+	task := OpeningTask(w, e)
+	if task["issued"] != nil || task["errand_done"] != true || task["worked"] != true {
+		t.Fatalf("после серверного turn-in поручение очищено, а монотонная веха труда сохранена: %+v", task)
 	}
 }
 
