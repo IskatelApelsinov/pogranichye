@@ -176,6 +176,7 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
+            CoreGameplay.ApplyUiTheme();
             if (_hudCollapsed)
             {
                 if (GUI.Button(new Rect(12, 12, 150, 30), "Показать меню [F1]"))
@@ -183,9 +184,12 @@ namespace Pogranichye.Client
             }
             else
             {
-            GUI.Box(new Rect(12, 12, 430, 510), "ПОГРАНИЧЬЕ — первая деревня");
-            GUILayout.BeginArea(new Rect(24, 42, 406, 470));
-            _hudScroll = GUILayout.BeginScrollView(_hudScroll, GUILayout.Width(406), GUILayout.Height(470));
+            var panelWidth = Mathf.Min(500f, Screen.width - 24f);
+            var panelHeight = Mathf.Min(620f, Screen.height - 24f);
+            GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПОГРАНИЧЬЕ  /  ЖИВОЙ МИР");
+            GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
+            _hudScroll = GUILayout.BeginScrollView(_hudScroll,
+                GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
             if (GUILayout.Button("Свернуть панель [F1]", GUILayout.Height(26))) _hudCollapsed = true;
             if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(24))) ToggleFullscreen();
             GUILayout.Label("Сервер");
@@ -224,9 +228,9 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
+                GUILayout.Label($"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}");
                 if (_frame.Place != null)
-                    GUILayout.Label($"{_frame.Place.Name} ({_frame.Place.Tier})");
+                    GUILayout.Label($"⌖  {_frame.Place.Name}  ·  {_frame.Place.Tier}");
 
                 GUILayout.BeginHorizontal();
                 DrawHudTabButton("Персонаж", HudTab.Character);
