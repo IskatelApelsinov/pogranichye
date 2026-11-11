@@ -78,7 +78,19 @@
       "worked": false,
       "drank": false,
       "done": false,
-      "text": "Познакомься с кем-нибудь из жителей (💬)."
+      "text": "Познакомься с кем-нибудь из жителей (💬).",
+      "errand_done": false,
+      "issued": {
+        "id": "errand:42",
+        "giver": "42",
+        "giver_name": "Ждан",
+        "good": "wood",
+        "qty": 2,
+        "have": 0,
+        "ready": false,
+        "coins": 2,
+        "accepted": true
+      }
     },
     "journal": [
       {

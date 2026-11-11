@@ -285,11 +285,19 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
     lastResult=resultKey;
   }
 }
+const GOOD_RU={wood:'дрова',fish:'рыба',meat:'мясо',ore:'руда',bread:'хлеб',herb:'травы',hide:'шкуры',metal:'железо'};
 function drawTask(s){ const t=(s.me||{}).task||{};
   const steps=['познакомиться','поработать','выпить в корчме'];
   const marks=[t.met,t.worked,t.drank].map(x=>x?'✅':'▫️');
+  let issued='';
+  const q=t.issued;
+  if(q){ const good=GOOD_RU[q.good]||q.good||'';
+    const pay=q.coins>0?` · 💰 ${q.coins}`:'';
+    const mark=q.ready?'<span class="gold">✓ можно сдать</span>':`${q.have||0}/${q.qty}`;
+    issued=`<div class="sub" style="margin-top:4px">📨 поручение: <b>${q.giver_name||'житель'}</b> — ${good} ${mark}${pay}</div>`;
+  }
   $('taskcard').innerHTML=`<b class="sub">📜 первые шаги</b> ${t.done?'<span class="gold">— освоился!</span>':''}<div style="margin:4px 0">${t.text||''}</div>`+
-    `<div class="sub">${steps.map((s,i)=>marks[i]+' '+s).join(' · ')}</div>`;
+    `<div class="sub">${steps.map((s,i)=>marks[i]+' '+s).join(' · ')}</div>`+issued;
 }
 function journalKindLabel(kind){
   switch(kind){

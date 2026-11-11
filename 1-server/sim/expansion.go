@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"strings"
 
 	"pogranichye/battle"
 	"pogranichye/core"
@@ -435,15 +436,47 @@ func PublicGear(e *core.Entity) map[string]any {
 	return map[string]any{"hand": i.Hand, "worn": worn}
 }
 
-// OpeningTask — минимальная вводная задача (#80) из РЕАЛЬНОГО состояния (не по клику/goal): познакомься
-// с жителем → поработай (сруби/налови/построй/добудь) → загляни в корчму и выпей. Сервер-истина.
-func OpeningTask(e *core.Entity) map[string]any {
+// openingErrand — активное вводное поручение жителя (реальная выданная задача), если есть. Поручения
+// хранятся в QuestC (компонент персистентен → переживают reconnect), id с префиксом "errand:".
+func openingErrand(e *core.Entity) *Quest {
+	qc, _ := e.Get("quests").(*QuestC)
+	if qc == nil {
+		return nil
+	}
+	for i := range qc.Active {
+		if strings.HasPrefix(qc.Active[i].ID, "errand:") {
+			return &qc.Active[i]
+		}
+	}
+	return nil
+}
+
+// completedErrand — сдавал ли игрок хоть одно вводное поручение (серверный turn-in, не клик клиента).
+func completedErrand(e *core.Entity) bool {
+	qc, _ := e.Get("quests").(*QuestC)
+	if qc == nil {
+		return false
+	}
+	for _, id := range qc.Closed {
+		if strings.HasPrefix(id, "errand:") {
+			return true
+		}
+	}
+	return false
+}
+
+// OpeningTask — вводная задача (#80) из РЕАЛЬНОГО состояния (не по клику/goal): познакомься с жителем →
+// поработай (сруби/налови/построй/добудь) → загляни в корчму и выпей. Сервер-истина. Кроме агрегатных
+// вех (met/worked/drank/done) кадр несёт САМУ выданную задачу `issued` (поручение жителя: кто дал,
+// что принести, сколько уже есть, обещанная плата) и факт `errand_done` — это настоящая выданная/
+// принятая/сданная на сервере задача с id-гивера-наградой, а не выведенный чек-лист. Всё аддитивно.
+func OpeningTask(w *core.World, e *core.Entity) map[string]any {
 	met := false
 	if a := Acquaint(e); a != nil && len(a.Known) > 0 {
 		met = true
 	}
-	worked := false
-	if sk := core.Skills(e); sk != nil {
+	worked := completedErrand(e) // сданное поручение — серверная веха труда (turn-in, не клик)
+	if sk := core.Skills(e); !worked && sk != nil {
 		for _, s := range []string{"woodcutter", "fisher", "builder", "hunter"} {
 			if sk.Level(s) > 0 {
 				worked = true
@@ -465,5 +498,23 @@ func OpeningTask(e *core.Entity) map[string]any {
 	if done {
 		text = "Освоился! Деревня твоя — живи и промышляй."
 	}
-	return map[string]any{"stage": stage, "met": met, "worked": worked, "drank": drank, "done": done, "text": text}
+	out := map[string]any{"stage": stage, "met": met, "worked": worked, "drank": drank,
+		"done": done, "text": text, "errand_done": completedErrand(e)}
+	// Сама выданная задача: giver/id/accepted/objective/have/reward — реальная просьба жителя.
+	if q := openingErrand(e); q != nil {
+		have, ready := questProgress(w, e, *q)
+		out["issued"] = map[string]any{"id": q.ID, "giver": q.GiverID, "giver_name": q.GiverName,
+			"good": q.Good, "qty": q.Qty, "have": have, "ready": ready, "coins": q.Coins, "accepted": true}
+		if !done {
+			if ready {
+				text = "Отнеси обещанное: " + q.GiverName + " ждёт у себя."
+			} else {
+				text = q.Text
+			}
+			out["text"] = text
+		}
+	} else {
+		out["issued"] = nil
+	}
+	return out
 }
