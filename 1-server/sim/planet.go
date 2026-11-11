@@ -51,9 +51,10 @@ func (c *PlanetC) Kind() string { return "planet" }
 
 // SiteC — место поселения на планете и его характер.
 type SiteC struct {
-	Lat       float64         `json:"lat"`
-	Lon       float64         `json:"lon"`
-	Climate   string          `json:"climate"`
+	Lat          float64         `json:"lat"`
+	Lon          float64         `json:"lon"`
+	CoordVersion int             `json:"coord_version,omitempty"`
+	Climate      string          `json:"climate"`
 	State     string          `json:"state"`
 	Terrain   string          `json:"terrain"`   // river|hills|forest|plain|coast|marsh
 	Features  map[string]bool `json:"features"`  // river, woods, mine, garden
@@ -125,25 +126,27 @@ func SiteOf(w *core.World, se *core.Entity) *SiteC {
 	if se == nil || core.Settle(se) == nil {
 		return nil
 	}
-	if c, _ := se.Get("site").(*SiteC); c != nil {
-		return c
-	}
 	s := core.Settle(se)
 	p := EnsurePlanet(w)
-	g := dice.NewStream(dice.Seed64(w.Seed, "site", s.Name, sid(se.ID)))
-	r := core.Region(w.Get(s.Region))
-	c := &SiteC{Features: map[string]bool{}}
-	// положение на планете: карта мира (единицы) → километры → градусы вокруг котла
-	dxKm, dyKm := (s.X-500)*p.KmPerUnit, (s.Y-500)*p.KmPerUnit
-	c.Lat = math.Round((p.CauldronLat+dyKm/111)*100) / 100
-	c.Lon = math.Round((p.CauldronLon+dxKm/(111*math.Max(0.2, math.Cos(p.CauldronLat*math.Pi/180))))*100) / 100
-	c.Climate = climateAt(c.Lat)
-	c.Cauldron = r != nil && !r.Outer
-	best := math.MaxFloat64
-	for _, st := range p.States { // держава — ближайшая столица
-		if d := math.Hypot(st.Lat-c.Lat, (st.Lon-c.Lon)*0.7); d < best {
-			best, c.State = d, st.Name
+	var r *core.RegionC
+	if regionEntity := w.Get(s.Region); regionEntity != nil {
+		r = core.Region(regionEntity)
+	}
+	if c, _ := se.Get("site").(*SiteC); c != nil {
+		// Сохранённые v0 SiteC содержат прежнюю плоскую аппроксимацию. Пересчитываем только
+		// координатные поля из неизменных SettlementC.X/Y; рельеф, угодья и специализация остаются.
+		if c.CoordVersion < SurfaceProjectionVersion {
+			if applySiteCoordinates(c, s, p) {
+				c.CoordVersion = SurfaceProjectionVersion
+			}
 		}
+		return c
+	}
+	g := dice.NewStream(dice.Seed64(w.Seed, "site", s.Name, sid(se.ID)))
+	c := &SiteC{Features: map[string]bool{}}
+	c.Cauldron = r != nil && !r.Outer
+	if applySiteCoordinates(c, s, p) {
+		c.CoordVersion = SurfaceProjectionVersion
 	}
 	biome := "plain"
 	if r != nil && r.Biome != "" {
@@ -181,6 +184,48 @@ func SiteOf(w *core.World, se *core.Entity) *SiteC {
 	return c
 }
 
+// applySiteCoordinates converts the legacy world-map offsets around the cauldron into a true
+// spherical geodetic position. SettlementC.X/Y remain the authoritative legacy map coordinates.
+func applySiteCoordinates(site *SiteC, settlement *core.SettlementC, planet *PlanetC) bool {
+	if site == nil || settlement == nil || planet == nil || planet.KmPerUnit <= 0 || planet.RadiusKm <= 0 {
+		return false
+	}
+	projection := PlanetProjection{
+		Origin: SurfacePoint{LatitudeDeg: planet.CauldronLat, LongitudeDeg: planet.CauldronLon},
+		RadiusMeters: planet.RadiusKm * 1000,
+	}
+	local := LocalMeters{
+		East:  (settlement.X - 500) * planet.KmPerUnit * 1000,
+		North: (settlement.Y - 500) * planet.KmPerUnit * 1000,
+	}
+	point, ok := projection.Inverse(local)
+	if !ok {
+		return false
+	}
+	site.Lat = math.Round(point.LatitudeDeg*100) / 100
+	site.Lon = math.Round(point.LongitudeDeg*100) / 100
+	site.Climate = climateAt(site.Lat)
+	site.State = nearestState(planet, point)
+	return true
+}
+
+// nearestState uses persisted rounded geodetic coordinates (LatR/LonR), not transient Lat/Lon
+// fields that are intentionally excluded from JSON. Distance is spherical and antimeridian-safe.
+func nearestState(planet *PlanetC, point SurfacePoint) string {
+	if planet == nil {
+		return ""
+	}
+	best := math.MaxFloat64
+	name := ""
+	for _, state := range planet.States {
+		candidate := SurfacePoint{LatitudeDeg: state.LatR, LongitudeDeg: state.LonR}
+		distance, ok := GreatCircleMeters(point, candidate, planet.RadiusKm*1000)
+		if ok && distance < best {
+			best, name = distance, state.Name
+		}
+	}
+	return name
+}
 // siteLacks — нет ли в поселении игрока нужного места (реки, леса, рудника, полей). Пустая причина — есть.
 func siteLacks(w *core.World, e *core.Entity, feature string) string {
 	site := SiteOf(w, settlementEnt(w, e))

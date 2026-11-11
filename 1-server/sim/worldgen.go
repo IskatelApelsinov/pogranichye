@@ -236,8 +236,12 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 	if region != nil {
 		if r := core.Region(region); r != nil {
 			biome = r.Biome
-			x = clampf(r.X+g.Uniform(-110, 110), 0, mapSize) // кучкуемся вокруг центра края
-			y = clampf(r.Y+g.Uniform(-110, 110), 0, mapSize)
+			x = r.X + g.Uniform(-110, 110) // внешний мир продолжает общую плоскость за пределами стартового квадрата
+			y = r.Y + g.Uniform(-110, 110)
+			if !r.Outer { // только стартовая область ограничена своим legacy map square
+				x = clampf(x, 0, mapSize)
+				y = clampf(y, 0, mapSize)
+			}
 			if r.Mana > 0 {
 				mana = clampf(r.Mana*g.Uniform(0.8, 1.2), 0.3, 2.2) // место наследует ману края с разбросом
 			}
