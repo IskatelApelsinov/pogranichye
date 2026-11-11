@@ -197,14 +197,14 @@ function sendRaw(o){
 }
 function expectsResult(o){
  if(o.reqid) return true;
- if(['buy','consume','trade','take','craft','use','equip','wear','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
+ if(['buy','consume','trade','take','craft','use','equip','wear','unwear','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say'].includes(o.op)) return true;
  return o.op==='goto' && !!o.target;
 }
 function actionLabel(o){
- const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',
+ const labels={buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',unwear:'Одежда',
    weave:'Плетение',attack:'Удар',dodge:'Уворот',stance:'Стойка',trick:'Хитрость',quest:'Просьба',journey:'Путешествие',
    party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти'};
- if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд',farmwork:'Помощь в поле',forge:'Помощь в кузнице'})[o.action]||'Действие';
+ if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд',farmwork:'Помощь в поле',forge:'Помощь в кузнице',apiary:'Пасека'})[o.action]||'Действие';
  return labels[o.op]||'Действие';
 }
 const resultGate=new PogranichyeRequestGate(sendRaw,6,15000);
@@ -265,7 +265,7 @@ function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal
   if(resolved){
     if(pendingMinigameAction && resolved.reqid===pendingMinigameAction.reqid){
       const pending=pendingMinigameAction; pendingMinigameAction=null;
-      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить',bbuild:'🔨 Закрепить балку',mmine:'⛏ Ударить по жиле',hforage:'🌿 Срезать травы'})[pending.buttonId]||'Повторить'; }
+      const button=$(pending.buttonId); if(button){ button.disabled=false; button.textContent=({fcast:'🎣 Подсечь',cchop:'🪓 Бить',ffarm:'🌾 Работать',fforge:'⚒ Ударить',bbuild:'🔨 Закрепить балку',mmine:'⛏ Ударить по жиле',hforage:'🌿 Срезать травы',bhive:'🍯 Вынуть рамку'})[pending.buttonId]||'Повторить'; }
       toast(r.ok ? '✓ '+pending.successText : '⚠ '+(r.reason||'Сервер отказал в действии.'));
     } else {
       toast(r.ok ? resolved.label+': подтверждено' : resolved.label+' — отказ: '+(r.reason||'сервер отказал'));
@@ -435,6 +435,8 @@ function drawLocActions(s,L){
    fieldworkGame(fieldGame,me);
    const forageGame=document.createElement('div'); forageGame.style.gridColumn='1 / -1'; A.append(forageGame);
    foragingGame(forageGame,me);
+   const hiveGame=document.createElement('div'); hiveGame.style.gridColumn='1 / -1'; A.append(hiveGame);
+   apiaryGame(hiveGame,me);
    marketUI(M,s);
  } else if(L.key==='market'){
    ['torch','lantern'].forEach(it=>A.append(btn('взять '+({torch:'факел',lantern:'фонарь'})[it],()=>send({op:'take',item:it,reqid:rid()}))));
@@ -510,6 +512,10 @@ function zoneTimingGame(M,cfg,title,skillLabel,buttonId,buttonText,action,succes
 function miningGame(M,me){
  const cfg=ActivityMinigames.mining(me);
  zoneTimingGame(M,cfg,'Добыча руды','Навык рудокопа','mmine','⛏ Ударить по жиле','mine','Добыча руды подтверждена сервером.','…удар пришёлся мимо жилы, попробуй ещё раз');
+}
+function apiaryGame(M,me){
+ const cfg=ActivityMinigames.beekeeping(me);
+ zoneTimingGame(M,cfg,'Пасека','Навык травника-бортника','bhive','🍯 Вынуть рамку','apiary','Мёд вынут и снесён в общий склад.','…пчёлы всполошились — дай дыму и попробуй ещё раз');
 }
 function foragingGame(M,me){
  const cfg=ActivityMinigames.foraging(me);

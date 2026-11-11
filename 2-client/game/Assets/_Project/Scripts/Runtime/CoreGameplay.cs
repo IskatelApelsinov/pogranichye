@@ -215,10 +215,8 @@ namespace Pogranichye.Client
                         if (slot.Value.ToString() == item) equipped = true;
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                GUI.enabled = !equipped;
-                if (GUILayout.Button(equipped ? "Надето" : "Надеть"))
-                    Ask("Одежда", "wear", "item", item);
-                GUI.enabled = true;
+                if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
+                    Ask("Одежда", equipped ? "unwear" : "wear", "item", item);
                 GUILayout.EndHorizontal();
             }
             GUILayout.EndVertical();
@@ -1771,6 +1769,7 @@ namespace Pogranichye.Client
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) Ask("Работа в поле", "act", "action", "farmwork");
+            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) Ask("Пасека", "act", "action", "apiary");
             if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) Ask("Работа у горна", "act", "action", "forge");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
@@ -1862,6 +1861,7 @@ namespace Pogranichye.Client
                     foreach (var slot in worn.Properties())
                         if (slot.Value.ToString() == item) already = true;
                 if (Count(items, item) > 0f && !already && GUILayout.Button("надеть: " + Name(item))) Ask("Одежда", "wear", "item", item);
+                if (already && GUILayout.Button("снять: " + Name(item))) Ask("Одежда", "unwear", "item", item);
             }
             foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
                 if (Count(items, item) > 0f && GUILayout.Button("употребить: " + Name(item))) Ask("Употребить", "use", "item", item);

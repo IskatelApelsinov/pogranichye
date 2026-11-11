@@ -46,5 +46,11 @@ const expertForage=Activity.foraging({skills:{herbalist:100}});
 assert.equal(noviceForage.zoneWidth,20);
 assert.equal(expertForage.zoneWidth,42);
 assert.ok(expertForage.speed<noviceForage.speed);
+const noviceBee=Activity.beekeeping({skills:{herbalist:0}});
+const expertBee=Activity.beekeeping({skills:{herbalist:100}});
+assert.equal(noviceBee.zoneWidth,14);
+assert.equal(expertBee.zoneWidth,42);
+assert.ok(noviceBee.zoneWidth<noviceForage.zoneWidth);
+assert.ok(expertBee.speed<noviceBee.speed);
 
 console.log('activity-minigames: skill scaling checks passed');

@@ -45,17 +45,19 @@ const (
 	hayPerAnimalWinter = 0.4 // сена на голову в зимний день; не хватит — падёж
 	cheeseFromMilk     = 0.5 // 2 молока → 1 сыр
 	cookCheeseDay      = 10.0
-	clothFromWool      = 0.6 // шерсть → сукно
-	leatherFromHide    = 0.7 // шкура → кожа
-	weaveDay           = 8.0 // сырья на ткача в день
-	linenFromFlax      = 0.6 // лён → холст
-	flaxPerFarmerDay   = 2.0 // льна-волокна на землепашца в день
-	herbPerDay         = 3.0 // трав на знахаря в день
-	honeyPerDay        = 3.0 // мёда на бортника в день (лето)
-	remedyDay          = 4.0 // трав в снадобье в день
-	remedyFromHerb     = 0.5 // травы → снадобье
-	meadBrewDay        = 6.0 // мёда в варку в день
-	meadFromHoney      = 0.8 // мёд → медовуха
+	clothFromWool      = 0.6  // шерсть → сукно
+	leatherFromHide    = 0.7  // шкура → кожа
+	weaveDay           = 8.0  // сырья на ткача в день
+	linenFromFlax      = 0.6  // лён → холст
+	flaxPerFarmerDay   = 2.0  // льна-волокна на землепашца в день
+	herbPerDay         = 3.0  // трав на знахаря в день
+	honeyPerDay        = 3.0  // мёда на бортника в день (лето)
+	hiveFlowDay        = 6.0  // мёда в день приносят пчёлы всей пасеки (лето) — потолок выработки
+	hiveCap            = 30.0 // столько невынутого мёда держат соты; сверх — взяток пропадает
+	remedyDay          = 4.0  // трав в снадобье в день
+	remedyFromHerb     = 0.5  // травы → снадобье
+	meadBrewDay        = 6.0  // мёда в варку в день
+	meadFromHoney      = 0.8  // мёд → медовуха
 
 	// износ изделий на душу в день — реальный спрос на ремесло (и повод для торговли)
 	clothWearPerCap   = 0.02
@@ -92,6 +94,9 @@ func AverageHarvestRatio() float64 { return (yieldRatioMin + yieldRatioMax) / 2 
 
 // MetalFromOre — выход металла из руды при плавке (та же пропорция, что у фоновой кузни).
 func MetalFromOre() float64 { return metalFromOre }
+
+// HiveCap — сколько невынутого мёда держат соты пасеки (потолок запаса улья).
+func HiveCap() float64 { return hiveCap }
 
 // Edible сообщает, можно ли это съесть (для проверок рождений/голода снаружи пакета).
 func Edible(good string) bool {
@@ -287,9 +292,18 @@ func (EconomySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				st[GoodHerb] += float64(l.byRole["herbalist"]) * herbPerDay
 			}
 		case NodeApiary:
-			// пасека: мёд берут летом (взяток)
-			if season == core.Summer && l.byRole["herbalist"] > 0 {
-				st[GoodHoney] += float64(l.byRole["herbalist"]) * honeyPerDay
+			// пасека: мёд носят ПЧЁЛЫ, а не бортник. Летом (взяток) улья наполняются сами —
+			// n.Stock; бортник лишь ВЫНИМАЕТ готовое (не больше, чем успеет за день). Зимой
+			// семья доедает то, что осталось в сотах. Так мёд не берётся из воздуха, а игрок
+			// (sim.Apiary) снимает тот же запас, что и фоновые бортники, — без задвоения.
+			switch season {
+			case core.Summer:
+				n.Stock = min(hiveCap, n.Stock+hiveFlowDay)
+				pull := min(n.Stock, float64(l.byRole["herbalist"])*honeyPerDay)
+				n.Stock -= pull
+				st[GoodHoney] += pull
+			case core.Winter:
+				n.Stock = 0
 			}
 		case NodeHerd:
 			tendHerd(n, l, st, se, season)
