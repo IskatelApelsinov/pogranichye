@@ -9,8 +9,9 @@ import (
 
 func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 	w := core.NewWorld("npc-road-migration")
-	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0})
-	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 50, Y: 0})
+	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain"})
+	from := w.Spawn(&core.SettlementC{Name: "Исток", X: 0, Y: 0, Region: region.ID})
+	to := w.Spawn(&core.SettlementC{Name: "Перевал", X: 50, Y: 0, Region: region.ID})
 	person := w.Spawn(
 		&core.IdentC{Name: "Странник", Role: "farmer"},
 		&core.VitalsC{Age: 25, Health: 100, Hunger: 10, Energy: 80},
