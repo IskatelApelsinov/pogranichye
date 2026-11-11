@@ -61,8 +61,9 @@ namespace Pogranichye.Client
             { "tavern", new Vector2(-33f, 12f) }, { "smithy", new Vector2(29f, 14f) },
             { "granary", new Vector2(-2f, 28f) }, { "market", new Vector2(1f, 4f) },
             { "well", new Vector2(0f, -4f) }, { "hearth", new Vector2(33f, -32f) },
-            { "garden", new Vector2(70f, -20f) }, { "river", new Vector2(0f, -74f) },
-            { "woods", new Vector2(-95f, 10f) }, { "mine", new Vector2(90f, 40f) }
+            { "garden", new Vector2(70f, -20f) }, { "apiary", new Vector2(73.6f, -20.9f) },
+            { "river", new Vector2(0f, -74f) }, { "woods", new Vector2(-95f, 10f) },
+            { "mine", new Vector2(90f, 40f) }
         };
 
         private static readonly Dictionary<string, string> TakeAt = new Dictionary<string, string>
@@ -1994,7 +1995,7 @@ namespace Pogranichye.Client
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) Ask("Работа в поле", "act", "action", "farmwork");
-            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) Ask("Пасека", "act", "action", "apiary");
+            if (HasFeature("garden") && Near("apiary", 5f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) Ask("Пасека", "act", "action", "apiary");
             if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) Ask("Работа у горна", "act", "action", "forge");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
