@@ -60,6 +60,7 @@ namespace Pogranichye.Client
         private bool _talkConfirmationTimedOut;
         private bool _drinkRequestPending;
         private const string DrinkRequestLabelPrefix = "Совместная кружка:";
+        private const string InventoryRequestLabelPrefix = "Инвентарь:";
         private const string WorldActionLabelPrefix = "Действие мира:";
         private Vector2 _dialogueScroll;
         private GUIStyle _dialogueWhoStyle;
@@ -706,12 +707,12 @@ namespace Pogranichye.Client
                     if (IsHandEquipment(item.Key) && !string.Equals(inventory.Hand, item.Key, StringComparison.Ordinal))
                     {
                         if (GUILayout.Button("В руку", GUILayout.Width(86f)))
-                            _ = SendInventoryItemIntentAsync("equip", item.Key);
+                            QueueInventoryItemIntent("equip", item.Key);
                     }
                     if (IsWearableEquipment(item.Key))
                     {
                         if (GUILayout.Button("Надеть", GUILayout.Width(86f)))
-                            _ = SendInventoryItemIntentAsync("wear", item.Key);
+                            QueueInventoryItemIntent("wear", item.Key);
                     }
                     GUILayout.EndHorizontal();
                 }
@@ -741,29 +742,16 @@ namespace Pogranichye.Client
             return item == "cloak" || item == "boots" || item == "hat";
         }
 
-        private async Task SendInventoryItemIntentAsync(string op, string item)
+        private void QueueInventoryItemIntent(string op, string item)
         {
-            var socket = _socket;
-            try
+            if (_connectionState != WorldConnectionState.Active || _core == null ||
+                !_core.QueueRequest(InventoryRequestLabelPrefix + " " + op + " " + item, op, "item", item))
             {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendItemIntentAsync(op, item, _lifetime.Token);
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Отправлено действие с предметом: " + op + " / " + item
-                            + ". Ожидаю подтверждение сервера.";
-                });
+                _status = "Не удалось поставить действие с предметом в очередь. Проверьте соединение и дождитесь предыдущего ответа.";
+                return;
             }
-            catch (Exception ex)
-            {
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Не удалось выполнить действие с предметом: " + ex.Message;
-                });
-            }
+
+            _status = "Ожидаю подтверждения сервера: " + op + " / " + item + "…";
         }
 
         private void UpdateDialogueChoiceInput()
@@ -1020,6 +1008,13 @@ namespace Pogranichye.Client
                         ? "Сервер отклонил действие с кружкой: " + reason
                         : "Нет подтверждения сервера на действие с кружкой. Можно попробовать ещё раз.";
             }
+
+            if (label != null && label.StartsWith(InventoryRequestLabelPrefix, StringComparison.Ordinal))
+                _status = outcome == RequestGate.Outcome.Accepted
+                    ? label.Substring(InventoryRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    : outcome == RequestGate.Outcome.Rejected
+                        ? "Сервер отклонил действие с предметом: " + reason
+                        : "Нет подтверждения сервера на действие с предметом. Можно попробовать ещё раз.";
 
             if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
