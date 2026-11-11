@@ -14,7 +14,7 @@ type SurfacePoint struct {
 	ElevationM   float64
 }
 
-// LocalMeters is a point in a settlement/region tangent plane. East and North are metres.
+// LocalMeters is a point in a settlement/region azimuthal plane. East and North are metres.
 type LocalMeters struct {
 	East  float64
 	North float64
