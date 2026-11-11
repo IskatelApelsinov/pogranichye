@@ -1595,7 +1595,7 @@ namespace Pogranichye.Client.Presentation
         public static GameObject CreateActivityToolView(Transform hand, string activity)
         {
             if (hand == null || _woodMaterial == null || _metalMaterial == null) return null;
-            if (activity != "chop" && activity != "mine" && activity != "forge" &&
+            if (activity != "eat" && activity != "chop" && activity != "mine" && activity != "forge" &&
                 activity != "farm" && activity != "fish" && activity != "hunt" &&
                 activity != "weave" && activity != "study" && activity != "cook" &&
                 activity != "brew" && activity != "forage" && activity != "herd" &&
@@ -1614,6 +1614,15 @@ namespace Pogranichye.Client.Presentation
 
             switch (activity)
             {
+                case "eat":
+                {
+                    // The server's meal activity is authoritative; this bread is only a hand prop.
+                    var bread = CreateMeshPart("Tool • bread for meal", tool, BuildBreadLoafMesh(), _produceMaterial);
+                    bread.transform.localPosition = new Vector3(0f, 0.38f, 0.015f);
+                    bread.transform.localScale = new Vector3(0.11f, 0.10f, 0.11f);
+                    bread.transform.localRotation = Quaternion.Euler(0f, -18f, 0f);
+                    break;
+                }
                 case "chop":
                 {
                     var axeBlade = CreatePrimitive("Tool • axe iron blade", PrimitiveType.Cube, tool,
