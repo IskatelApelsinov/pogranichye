@@ -423,6 +423,56 @@ namespace Pogranichye.Client.Presentation
                         new Vector3(0.08f, 0.06f, 0.08f), _mugWoodMaterial);
                 }
             }
+
+            // Keep the authored detail inexpensive: one combined renderer per chest material.
+            CombineStorageChestMeshes(chest);
+        }
+
+        private static void CombineStorageChestMeshes(Transform chest)
+        {
+            var sources = new System.Collections.Generic.List<GameObject>();
+            var groups = new System.Collections.Generic.Dictionary<Material,
+                System.Collections.Generic.List<CombineInstance>>();
+
+            for (var i = 0; i < chest.childCount; i++)
+            {
+                var source = chest.GetChild(i).gameObject;
+                var filter = source.GetComponent<MeshFilter>();
+                var renderer = source.GetComponent<MeshRenderer>();
+                if (filter == null || filter.sharedMesh == null || renderer == null ||
+                    renderer.sharedMaterial == null) continue;
+
+                if (!groups.TryGetValue(renderer.sharedMaterial, out var instances))
+                {
+                    instances = new System.Collections.Generic.List<CombineInstance>();
+                    groups.Add(renderer.sharedMaterial, instances);
+                }
+
+                instances.Add(new CombineInstance
+                {
+                    mesh = filter.sharedMesh,
+                    transform = chest.worldToLocalMatrix * source.transform.localToWorldMatrix
+                });
+                sources.Add(source);
+            }
+
+            foreach (var group in groups)
+            {
+                var mesh = new Mesh { name = "Household chest • " + group.Key.name };
+                mesh.CombineMeshes(group.Value.ToArray(), true, true);
+                mesh.RecalculateBounds();
+
+                var combined = new GameObject("Chest combined • " + group.Key.name).transform;
+                combined.SetParent(chest, false);
+                combined.localPosition = Vector3.zero;
+                combined.localRotation = Quaternion.identity;
+                combined.localScale = Vector3.one;
+                combined.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+                combined.gameObject.AddComponent<MeshRenderer>().sharedMaterial = group.Key;
+                if (!_generatedMeshes.Contains(mesh)) _generatedMeshes.Add(mesh);
+            }
+
+            foreach (var source in sources) Object.Destroy(source);
         }
 
         private static void BuildCottageGables(Transform house)
