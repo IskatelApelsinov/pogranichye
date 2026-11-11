@@ -2016,15 +2016,17 @@ namespace Pogranichye.Client
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("КАРТА КРАЯ", GUILayout.ExpandWidth(true));
-            GUI.enabled = _regionMapZoom > 1f;
+            var previousGuiEnabled = GUI.enabled;
+            GUI.enabled = previousGuiEnabled && _regionMapZoom > 1f;
             if (GUILayout.Button("−", GUILayout.Width(34f)))
                 _regionMapZoom = Mathf.Max(1f, _regionMapZoom - 0.5f);
-            GUI.enabled = _regionMapZoom < 4f;
+            GUI.enabled = previousGuiEnabled && _regionMapZoom < 4f;
             if (GUILayout.Button("+", GUILayout.Width(34f)))
                 _regionMapZoom = Mathf.Min(4f, _regionMapZoom + 0.5f);
-            GUI.enabled = true;
+            GUI.enabled = previousGuiEnabled && _regionMapZoom > 1f;
             if (GUILayout.Button("Весь край", GUILayout.Width(88f)))
                 _regionMapZoom = 1f;
+            GUI.enabled = previousGuiEnabled;
             GUILayout.EndHorizontal();
             GUILayout.Label(_regionMapZoom <= 1f
                 ? "Все известные места и дороги"
