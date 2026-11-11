@@ -123,21 +123,28 @@ namespace Pogranichye.Client.Presentation
                     _activity = "chop";
                     break;
                 case "farm_sow":
-                case "farm_nosow":
                 case "farm_reap":
                 case "farm_mend":
                 case "farm_tend":
                     _activity = "farm";
                     break;
+                case "farm_nosow":
+                case "farm_noreap":
+                    // The server reports these as blocked/no-op states, not active field work.
+                    _activity = "wait";
+                    break;
                 case "smith_forge":
                     _activity = "forge";
                     break;
                 case "mine_ore":
-                case "mine_spent":
                     _activity = "mine";
                     break;
-                case "hunt_wild":
+                case "mine_spent":
                 case "hunter_empty":
+                    // No resource/target remains; don't animate a productive action.
+                    _activity = "wait";
+                    break;
+                case "hunt_wild":
                     _activity = "hunt";
                     break;
                 case "cook_hearth":
@@ -166,6 +173,8 @@ namespace Pogranichye.Client.Presentation
                     _activity = "study";
                     break;
                 case "smith_cold":
+                    _activity = "wait";
+                    break;
                 case "work":
                     _activity = "work";
                     break;
