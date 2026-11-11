@@ -60,16 +60,16 @@ func TestNPCMigrationUsesRoadAndPreservesIdentityAcrossSaveLoad(t *testing.T) {
 		t.Fatalf("transit state and stable entity identity must survive save/load: %+v", m)
 	}
 
-	for h := 0; h < 25; h++ {
-		(NeedsSystem{}).Hour(loaded, core.Clock{}, nil)
-	}
-	if m.FoodSupply != 4 {
-		t.Fatalf("traveller must consume reserved bread from the travel supply: left=%d", m.FoodSupply)
-	}
-
 	total := int(m.TotalHours)
 	for h := 0; h < total-1; h++ {
+		(NeedsSystem{}).Hour(loaded, core.Clock{}, nil)
 		(MigrationSystem{}).Hour(loaded, core.Clock{}, nil)
+		if h == 24 && m.FoodSupply != 4 {
+			t.Fatalf("traveller must consume reserved bread from the travel supply: left=%d", m.FoodSupply)
+		}
+	}
+	if m.FoodSupply != 0 {
+		t.Fatalf("hourly travel needs must consume the calculated rations, left=%d", m.FoodSupply)
 	}
 	if Migration(person) == nil || core.Place(person).Settlement != 0 {
 		t.Fatal("NPC must remain in transit until the full route duration elapses")
