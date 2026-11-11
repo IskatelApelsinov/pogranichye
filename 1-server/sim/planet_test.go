@@ -124,4 +124,28 @@ func TestSiteCoordinatesMigrateLegacySiteAndUsePersistedStateCoords(t *testing.T
 		t.Fatal("site migration was not idempotent")
 	}
 }
+func TestOuterWorldSettlementsStayNearTheirOwnRegionAnchors(t *testing.T) {
+	w, _ := GenerateStarter("outer-region-coordinates")
+	regions := map[core.ID]bool{}
+	outerSettlements := 0
+	w.Each("settlement", func(e *core.Entity) {
+		settlement := core.Settle(e)
+		region := core.Region(w.Get(settlement.Region))
+		if region == nil || !region.Outer {
+			return
+		}
+		outerSettlements++
+		regions[settlement.Region] = true
+		if math.Abs(settlement.X-region.X) > 110.000001 || math.Abs(settlement.Y-region.Y) > 110.000001 {
+			t.Errorf("outer settlement %s at (%.1f, %.1f) escaped region anchor (%.1f, %.1f)",
+				settlement.Name, settlement.X, settlement.Y, region.X, region.Y)
+		}
+	})
+	if outerSettlements < 20 {
+		t.Fatalf("expected generated outer villages and cities, got %d settlements", outerSettlements)
+	}
+	if len(regions) < 4 {
+		t.Fatalf("outer settlements collapsed into %d regions, want all four generated regions", len(regions))
+	}
+}
 
