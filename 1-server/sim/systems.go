@@ -46,6 +46,10 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if v == nil {
 			return
 		}
+		// A traveller does not spend food or energy in the partial tick in which transit begins.
+		if migration := Migration(e); migration != nil && clock.TotalHours <= migration.StartedAtHour {
+			return
+		}
 		// LoD по «температуре» области (heat.go): далёким от игроков нужды считаем реже, но одним
 		// шагом на k часов — итог тот же, работы меньше. k==0 — не его очередь в этот час.
 		k := lodStep(w, e, clock.TotalHours)
