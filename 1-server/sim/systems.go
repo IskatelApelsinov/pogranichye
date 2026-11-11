@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"sort"
 	"strconv"
 
 	"pogranichye/arcane"
@@ -610,7 +611,8 @@ func relocate(w *core.World, e *core.Entity, s *dice.Stream) bool {
 	if len(candidates) == 0 {
 		return false
 	}
-	// World.Each order is stable, and the named mind stream chooses only among reachable places.
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i] < candidates[j] })
+	// Stable candidate order + named mind stream make the destination reproducible.
 	dest := candidates[s.Intn(len(candidates))]
 	return startMigration(w, e, dest, "seeking_better_life")
 }
