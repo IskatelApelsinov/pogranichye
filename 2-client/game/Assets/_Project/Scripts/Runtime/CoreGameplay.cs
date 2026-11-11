@@ -1719,9 +1719,32 @@ namespace Pogranichye.Client
 
         private void DrawQuestTracker()
         {
-            var active = Arr(Obj(_me, "quests"), "active");
-            if (active == null || active.Count == 0 || _menuOpen) return;
+            if (_me == null || _menuOpen) return;
             var y = 14f;
+            var task = Obj(_me, "task");
+            var issued = Obj(task, "issued");
+            if (issued != null && !Flag(task, "errand_done"))
+            {
+                var good = Str(issued, "good");
+                var have = Mathf.Max(0f, Num(issued, "have"));
+                var qty = Mathf.Max(0f, Num(issued, "qty"));
+                var ready = Flag(issued, "ready");
+                var giver = Str(issued, "giver_name");
+                var title = string.IsNullOrEmpty(giver) ? "Поручение" : "Поручение · " + giver;
+                var objective = "Принести: " + Name(good) + " · " +
+                    Mathf.Min((int)have, (int)qty) + "/" + (int)qty;
+                var previous = GUI.color;
+                GUI.color = ready ? new Color(0.91f, 0.74f, 0.4f) : Color.white;
+                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 22f), title);
+                y += 20f;
+                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 22f),
+                    ready ? objective + " · можно сдавать" : objective);
+                GUI.color = previous;
+                y += 26f;
+            }
+
+            var active = Arr(Obj(_me, "quests"), "active");
+            if (active == null || active.Count == 0) return;
             foreach (var quest in active)
             {
                 var kind = Str(quest, "kind");
