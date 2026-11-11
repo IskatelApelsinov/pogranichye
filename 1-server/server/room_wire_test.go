@@ -49,6 +49,12 @@ func TestRoomIntentChestPersistenceAndFrame(t *testing.T) {
 	} else {
 		core.Purse(e).Coins = 20
 	}
+	if sim.Inv(e) == nil {
+		s.world.Attach(e, &sim.InventoryC{Items: map[string]int{}, Worn: map[string]string{}})
+	}
+	if econ.Stash(e) == nil {
+		s.world.Attach(e, &econ.StashC{Goods: map[string]float64{}})
+	}
 	core.Settle(s.world.Get(core.Place(e).Settlement)).Tavern = true
 	if ok, why := sim.GoTo(s.world, e, "tavern"); !ok {
 		t.Fatalf("подойти к корчме: %s", why)
