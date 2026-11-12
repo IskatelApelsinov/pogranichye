@@ -213,8 +213,8 @@ namespace Pogranichye.Client
             UpdateTalkConfirmationTimeout();
             if (_connectionState != WorldConnectionState.Active)
                 SetChatOpen(false);
-            else if (_input != null && _input.ChatPressed)
-                SetChatOpen(!_chatOpen);
+            else if (!_chatOpen && _input != null && _input.ChatPressed)
+                SetChatOpen(true);
             else if (_chatOpen && _input != null && _input.CancelPressed)
                 SetChatOpen(false);
 
@@ -471,11 +471,6 @@ namespace Pogranichye.Client
                 SetChatOpen(false);
                 return;
             }
-            if (_chatFocusPending)
-            {
-                GUI.FocusControl("PogranichyeChatInput");
-                _chatFocusPending = false;
-            }
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, rect.height - 38f));
             _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(Mathf.Max(80f, rect.height - 150f)));
             var first = Mathf.Max(0, _chatHistory.Count - 40);
@@ -485,6 +480,11 @@ namespace Pogranichye.Client
             GUILayout.BeginHorizontal();
             GUI.SetNextControlName("PogranichyeChatInput");
             _chatInput = GUILayout.TextField(_chatInput, GUILayout.MinWidth(100f), GUILayout.Height(28f));
+            if (_chatFocusPending)
+            {
+                GUI.FocusControl("PogranichyeChatInput");
+                _chatFocusPending = false;
+            }
             var canSend = !string.IsNullOrWhiteSpace(_chatInput) && !_busy;
             GUI.enabled = canSend;
             if (GUILayout.Button("Отправить", GUILayout.Width(92f), GUILayout.Height(28f)))
