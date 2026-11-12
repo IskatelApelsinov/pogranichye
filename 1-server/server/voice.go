@@ -15,6 +15,13 @@ const (
 	voiceMaxSignalBytes = 64 * 1024
 )
 
+func voiceRoom(e *core.Entity) string {
+	if e == nil { return "" }
+	p := core.Place(e)
+	if p == nil || p.Settlement == 0 { return "" }
+	return eid(p.Settlement)
+}
+
 func voiceNearby(a, b *core.Entity) bool {
 	if a == nil || b == nil { return false }
 	ap, bp := core.Place(a), core.Place(b)
@@ -56,6 +63,8 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	sender := s.world.Get(from)
 	peer := s.chatPeers[from]
 	if sender == nil || peer == nil { return }
+	spl := core.Place(sender)
+	if spl == nil || spl.Settlement == 0 { return }
 	now := time.Now()
 
 	if action == "join" {
@@ -74,7 +83,7 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = false
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"room":eid(core.Place(sender).Settlement),"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"room":voiceRoom(sender),"sent_at":now.UnixMilli()})
 		}
 		return
 	}
