@@ -10,6 +10,13 @@ namespace Pogranichye.Client
     /// </summary>
     public sealed class ClientInput : MonoBehaviour
     {
+        // High-polling mice can enqueue more raw events than the Input System's small default
+        // per-update budget. When that budget is exceeded Unity discards the remaining events,
+        // which is perceived as missed clicks/keys. Keep the limit configurable and raise it
+        // once, before enabling the action map; this is a safety margin, not a substitute for
+        // fixing main-thread stalls.
+        [SerializeField, Min(65536)] private int maxInputEventBytes = 1048576;
+
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _interact;
         private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
@@ -51,6 +58,11 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
+            // InputSettings is shared by the Input System. Never lower a project's existing
+            // setting; only raise the budget enough to absorb high-frequency device bursts.
+            if (InputSystem.settings != null && InputSystem.settings.maxEventBytes < maxInputEventBytes)
+                InputSystem.settings.maxEventBytes = maxInputEventBytes;
+
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
             _move.AddCompositeBinding("2DVector")
