@@ -1113,13 +1113,18 @@ namespace Pogranichye.Client
 
             if (_input != null && _input.SecondaryPressed && !PointerOverHud())
             {
+                _viewsPlayerGesture("guard");
                 Send("guard", "on", true);
                 _guardSent = true;
             }
             if (_input != null && _input.SecondaryReleased) ReleaseGuard();
 
             if (_input != null && _input.ToggleHintsPressed) _showHints = !_showHints;
-            if (_input != null && _input.DodgePressed) Send("dodge");
+            if (_input != null && _input.DodgePressed)
+            {
+                _viewsPlayerGesture("dodge");
+                Send("dodge");
+            }
             if (_input != null && _input.QuickAttackPressed) Attack(0f, true);
             if (_input != null && _input.TrickSandPressed) Send("trick", "trick", "sand");
             if (_input != null && _input.TrickShovePressed) Send("trick", "trick", "shove");
@@ -1186,8 +1191,15 @@ namespace Pogranichye.Client
             return false;
         }
 
+        private void _viewsPlayerGesture(string action)
+        {
+            var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.PlayActionGesture(action);
+        }
+
         private void Attack(float held, bool thrust)
         {
+            _viewsPlayerGesture("attack");
             var combat = Obj(_me, "combat");
             var ranged = Str(combat, "weapon") == "bow";
             CoreFoeView foe;
