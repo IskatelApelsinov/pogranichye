@@ -43,6 +43,7 @@ func TestLocalChatIsSpatialAndWhisperIsPrivate(t *testing.T) {
 	}
 	select { case got:=<-queues[2]: t.Fatalf("out-of-range resident received local chat: %s",got); default: }
 
+	s.mu.Lock(); s.chatPeers[ids[0]].lastSent = time.Now().Add(-time.Second); s.mu.Unlock()
 	s.sendChat(ids[0], "whisper", "Только тебе", eid(ids[1]))
 	wa, wb := read(queues[0]), read(queues[1])
 	if wa["channel"]!="whisper" || wb["channel"]!="whisper" || wb["text"]!="Только тебе" {
