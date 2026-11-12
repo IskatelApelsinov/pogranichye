@@ -299,6 +299,7 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 	}
 	if f.Stun > 0 {
 		f.Windup = 0
+		f.State = "stun"
 		f.Stun -= dt
 		return
 	}
@@ -348,6 +349,7 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 	if f.Species == "wolf" && f.HP < f.Max*0.25 { // подранок уходит
 		hunting = false
 		if nd < 20 {
+			f.Windup = 0
 			f.State = "flee"
 			moveFoe(f, f.X-(pp.X-f.X), f.Y-(pp.Y-f.Y), speed*dt)
 			return
@@ -361,6 +363,7 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 	}
 	f.Aware, f.Target, f.State = true, near.ID, "chase"
 	if f.Blind > 0 { // ослеплён — мечется
+		f.Windup = 0
 		moveFoe(f, f.X+s.Uniform(-1, 1), f.Y+s.Uniform(-1, 1), speed*0.5*dt)
 		return
 	}
