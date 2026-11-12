@@ -23,8 +23,6 @@ namespace Pogranichye.Client
         private WebRTCPeerManager _manager;
         private PogranichyeVoiceTransport _transport;
         private AudioSender _sender;
-        private AudioReceiver _receiver;
-        private AudioSource _microphoneSource;
         private bool _joined;
         private bool _microphoneEnabled;
 
@@ -96,18 +94,18 @@ namespace Pogranichye.Client
 
                 var microphoneObject = new GameObject("Microphone input");
                 microphoneObject.transform.SetParent(_voiceRoot.transform, false);
-                _microphoneSource = microphoneObject.AddComponent<AudioSource>();
-                _microphoneSource.playOnAwake = false;
-                _microphoneSource.loop = true;
+                var microphoneSource = microphoneObject.AddComponent<AudioSource>();
+                microphoneSource.playOnAwake = false;
+                microphoneSource.loop = true;
 
                 _sender = _voiceRoot.AddComponent<AudioSender>();
-                _sender.AudioSource = _microphoneSource;
+                _sender.AudioSource = microphoneSource;
                 _sender.UseMicrophone = true;
                 var playLocally = typeof(AudioSender).GetField("playLocally",
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 if (playLocally != null) playLocally.SetValue(_sender, false);
 
-                _receiver = _voiceRoot.AddComponent<AudioReceiver>();
+                _voiceRoot.AddComponent<AudioReceiver>();
                 _manager.SignalingStateChanged.AddListener(OnSignalingStateChanged);
                 _manager.PeerConnected.AddListener(OnPeerConnected);
                 _manager.PeerLeft.AddListener(OnPeerLeft);
@@ -183,8 +181,6 @@ namespace Pogranichye.Client
             _manager = null;
             _transport = null;
             _sender = null;
-            _receiver = null;
-            _microphoneSource = null;
             Status = "Голос отключён.";
         }
 
