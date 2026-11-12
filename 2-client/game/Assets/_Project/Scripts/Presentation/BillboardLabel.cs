@@ -8,7 +8,7 @@ namespace Pogranichye.Client.Presentation
     /// </summary>
     public sealed class BillboardLabel : MonoBehaviour
     {
-        private const int HitCapacity = 24;
+        private const int HitCapacity = 32;
         private readonly RaycastHit[] _hits = new RaycastHit[HitCapacity];
         private Camera _camera;
         private Renderer _renderer;
@@ -59,13 +59,54 @@ namespace Pogranichye.Client.Presentation
                 if (collider == null) continue;
                 var hitTransform = collider.transform;
                 // Ignore the character's own capsule/body; only external world geometry occludes it.
-                if (_entityRoot != null &&
-                    (hitTransform == _entityRoot || hitTransform.IsChildOf(_entityRoot)))
+                if (IsOwnCollider(hitTransform))
                     continue;
                 blocked = true;
                 break;
             }
+
+            // RaycastNonAlloc does not guarantee which hits fit when the buffer is full.
+            // In a dense street, the wall may be omitted behind many nearby colliders.
+            // Only in that saturated case, walk through the owner's own colliders with
+            // allocation-free single-hit casts until the first real occluder is found.
+            if (!blocked && count >= _hits.Length)
+            {
+                var rayOrigin = _camera.transform.position;
+                var remaining = distance - 0.04f;
+                var resolved = false;
+                for (var skip = 0; skip < 16 && remaining > 0.02f; skip++)
+                {
+                    RaycastHit nearest;
+                    if (!Physics.Raycast(rayOrigin, direction, out nearest, remaining,
+                        Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                    {
+                        resolved = true;
+                        break;
+                    }
+
+                    if (!IsOwnCollider(nearest.collider))
+                    {
+                        blocked = true;
+                        resolved = true;
+                        break;
+                    }
+
+                    var advance = nearest.distance + 0.025f;
+                    rayOrigin += direction * advance;
+                    remaining -= advance;
+                }
+
+                // Fail closed if an unusually complex owner could not be traversed safely.
+                if (!resolved) blocked = true;
+            }
+
             _renderer.enabled = !blocked;
+        }
+
+        private bool IsOwnCollider(Transform hitTransform)
+        {
+            return hitTransform != null && _entityRoot != null &&
+                (hitTransform == _entityRoot || hitTransform.IsChildOf(_entityRoot));
         }
     }
 }
