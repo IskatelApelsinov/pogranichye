@@ -751,7 +751,7 @@ namespace Pogranichye.Client.Presentation
             var shader = FindParticleShader();
             if (shader == null) return;
 
-            var mistColor = new Color(0.72f, 0.79f, 0.82f, 0.075f);
+            var mistColor = new Color(0.72f, 0.79f, 0.82f, 0.11f);
             _mistMaterial = CreateTransparentMaterial(shader, "Lowland mist • translucent", mistColor);
             if (_mistMaterial == null) return;
             if (_mistMaterial.HasProperty("_BaseColor")) _mistMaterial.SetColor("_BaseColor", mistColor);
@@ -768,15 +768,15 @@ namespace Pogranichye.Client.Presentation
             main.playOnAwake = false;
             main.loop = true;
             main.duration = 32f;
-            main.maxParticles = 24;
+            main.maxParticles = 36;
             main.startLifetime = new ParticleSystem.MinMaxCurve(18f, 32f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.012f, 0.035f);
-            main.startSize = new ParticleSystem.MinMaxCurve(3.5f, 7f);
+            main.startSize = new ParticleSystem.MinMaxCurve(4.5f, 9f);
             main.startColor = mistColor;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.scalingMode = ParticleSystemScalingMode.Hierarchy;
             var emission = particles.emission;
-            emission.rateOverTime = 0.8f;
+            emission.rateOverTime = 1.15f;
             var shape = particles.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
             shape.scale = new Vector3(48f, 0.16f, 48f);
@@ -920,7 +920,7 @@ namespace Pogranichye.Client.Presentation
             // the hard edge of the local playable landscape. The sky itself remains procedural.
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.0018f;
+            RenderSettings.fogDensity = 0.0042f;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         }
 
@@ -972,10 +972,12 @@ namespace Pogranichye.Client.Presentation
             }
             RenderSettings.ambientLight = Color.Lerp(new Color(0.10f, 0.13f, 0.22f), new Color(0.58f, 0.61f, 0.64f), daylight);
             RenderSettings.fogColor = Color.Lerp(new Color(0.10f, 0.14f, 0.23f), new Color(0.61f, 0.70f, 0.73f), daylight);
+            // Stronger atmospheric perspective at night and dawn; daylight remains clearer near the player.
+            RenderSettings.fogDensity = Mathf.Lerp(0.0052f, 0.0032f, daylight) + dusk * 0.0012f;
             if (_mist != null)
             {
                 // Mist gathers around dawn and dusk, then thins during bright daylight.
-                var mistAmount = Mathf.Lerp(0.95f, 0.35f, daylight);
+                var mistAmount = Mathf.Lerp(1.25f, 0.62f, daylight);
                 mistAmount = Mathf.Max(mistAmount, dusk * 0.9f);
                 var color = new Color(0.72f, 0.79f, 0.82f, 0.075f * mistAmount);
                 if (_mist.HasProperty("_BaseColor")) _mist.SetColor("_BaseColor", color);
