@@ -99,6 +99,49 @@ func TestJourneyHeatsDestinationAndCoolsSource(t *testing.T) {
 	})
 }
 
+
+func TestUpdateHeatBatchesMultipleCooledSettlements(t *testing.T) {
+	w := core.NewWorld("heat-batch")
+	var settlements []*core.Entity
+	for i := 0; i < 3; i++ {
+		se := w.Spawn(&core.SettlementC{Name: "village"}, &HeatC{Level: 2})
+		settlements = append(settlements, se)
+		for j := 0; j < 4; j++ {
+			e := w.Spawn(
+				&core.IdentC{Name: "villager", Role: "farmer"},
+				&core.MindC{Goal: "work"},
+				&core.PlaceC{Settlement: se.ID},
+			)
+			x, y := SpawnSpot(uint64(e.ID))
+			w.Attach(e, &ScenePosC{X: x, Y: y, Facing: 90, Stam: 1})
+		}
+		w.Spawn(&FoeC{Species: "wolf", Settlement: se.ID, HP: 10, Max: 10, State: "roam"})
+	}
+	// An already-cold settlement must remain unaffected.
+	cold := w.Spawn(&core.SettlementC{Name: "already cold"}, &HeatC{Level: 0})
+	coldResident := w.Spawn(&core.IdentC{Name: "quiet", Role: "farmer"}, &core.PlaceC{Settlement: cold.ID})
+	UpdateHeat(w, func(core.ID) bool { return false })
+
+	for _, se := range settlements {
+		if heatLevel(w, se.ID) != 0 {
+			t.Fatalf("settlement %d should cool", se.ID)
+		}
+		for _, resident := range residentsOf(w, se.ID) {
+			if ScenePos(resident) != nil {
+				t.Fatalf("resident %d retained a scene body after cooling", resident.ID)
+			}
+		}
+	}
+	foes := 0
+	w.Each("foe", func(*core.Entity) { foes++ })
+	if foes != 0 {
+		t.Fatalf("all foes from cooled settlements must be removed in one batch; got %d", foes)
+	}
+	if coldResident == nil || heatLevel(w, cold.ID) != 0 || ScenePos(coldResident) != nil {
+		t.Fatal("already-cold settlement must remain untouched")
+	}
+}
+
 // Два игрока в разных поселениях: горячи оба, уход одного не трогает сцену другого.
 func TestTwoPlayersInDifferentSettlements(t *testing.T) {
 	w, a, se := starterPlayer(t)
