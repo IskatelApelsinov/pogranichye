@@ -11,6 +11,8 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _oneShot;
         private AudioSource _fire;
         private AudioClip _step, _run, _combat, _magic, _beer, _fireLoop;
+        private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
+        private int _nearbyVoiceCursor;
         private float _nextStepAt;
 
         public void Initialize()
@@ -45,6 +47,22 @@ namespace Pogranichye.Client.Presentation
             _fire.dopplerLevel = 0f;
             _fire.volume = 0.42f;
             _fire.Play();
+            for (var i = 0; i < _nearbyVoices.Length; i++)
+            {
+                var voiceObject = new GameObject("Nearby entity SFX voice " + (i + 1));
+                voiceObject.transform.SetParent(transform, false);
+                var voice = voiceObject.AddComponent<AudioSource>();
+                voice.playOnAwake = false;
+                voice.spatialBlend = 1f;
+                voice.minDistance = 2f;
+                voice.maxDistance = 24f;
+                voice.dopplerLevel = 0f;
+                voice.rolloffMode = AudioRolloffMode.Linear;
+                voice.priority = 160;
+                _nearbyVoices[i] = voice;
+            }
+            EntityMotion.NearbyFootstep += OnNearbyFootstep;
+            EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
         }
 
         public void SetPlayerPosition(Vector3 position)
@@ -62,6 +80,25 @@ namespace Pogranichye.Client.Presentation
         public void Combat() { if (_oneShot != null) _oneShot.PlayOneShot(_combat, 0.72f); }
         public void Magic() { if (_oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
         public void DrinkBeer() { if (_oneShot != null) _oneShot.PlayOneShot(_beer, 0.9f); }
+
+        private void OnNearbyFootstep(Vector3 position, bool running)
+        {
+            PlayNearby(position, running ? _run : _step, running ? 0.62f : 0.48f);
+        }
+
+        private void OnNearbyMagicCast(Vector3 position)
+        {
+            PlayNearby(position, _magic, 0.64f);
+        }
+
+        private void PlayNearby(Vector3 position, AudioClip clip, float volume)
+        {
+            if (clip == null || _nearbyVoices.Length == 0) return;
+            var voice = _nearbyVoices[_nearbyVoiceCursor++ % _nearbyVoices.Length];
+            voice.transform.position = position;
+            voice.Stop();
+            voice.PlayOneShot(clip, volume);
+        }
 
         private static AudioClip MakeNoise(string name, float amplitude, float duration, float decay, int seconds = 1)
         {
@@ -100,6 +137,8 @@ namespace Pogranichye.Client.Presentation
 
         private void OnDestroy()
         {
+            EntityMotion.NearbyFootstep -= OnNearbyFootstep;
+            EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
             DestroyClip(_step); DestroyClip(_run); DestroyClip(_combat);
             DestroyClip(_magic); DestroyClip(_beer); DestroyClip(_fireLoop);
         }
