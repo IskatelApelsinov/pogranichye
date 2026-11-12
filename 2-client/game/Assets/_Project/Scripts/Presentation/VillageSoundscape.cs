@@ -20,25 +20,25 @@ namespace Pogranichye.Client.Presentation
         {
             if (_wind != null) return;
 
-            _wind = CreateSource("Ambience • soft meadow wind", false, 0f, 0f, 1f);
+            _wind = CreateSource("Ambience • soft meadow wind", 0f, 0f, 1f);
             _wind.clip = CreateWindLoop();
             _wind.volume = 0.16f;
             _wind.Play();
 
-            _birds = CreateSource("Ambience • distant birds", true, 0.78f, 8f, 72f);
+            _birds = CreateSource("Ambience • distant birds", 0.78f, 8f, 72f);
             _birds.transform.localPosition = new Vector3(12f, 5f, 18f);
             _birds.clip = CreateBirdLoop();
             _birds.volume = 0.20f;
             _birds.Play();
 
-            _water = CreateSource("Ambience • creek and reeds", true, 0.86f, 5f, 58f);
+            _water = CreateSource("Ambience • creek and reeds", 0.86f, 5f, 58f);
             _water.transform.localPosition = new Vector3(0f, 1.2f, -108f);
             _water.clip = CreateWaterLoop();
             _water.volume = 0.22f;
             _water.Play();
         }
 
-        private AudioSource CreateSource(string sourceName, bool spatial, float blend, float minDistance, float maxDistance)
+        private AudioSource CreateSource(string sourceName, float blend, float minDistance, float maxDistance)
         {
             var child = new GameObject(sourceName);
             child.transform.SetParent(transform, false);
