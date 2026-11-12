@@ -14,6 +14,8 @@ namespace Pogranichye.Client.Presentation
         private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
         private int _nearbyVoiceCursor;
         private float _nextStepAt;
+        private float _sfxVolume = 0.9f;
+        private float _ambienceVolume = 0.75f;
 
         public void Initialize()
         {
@@ -28,6 +30,7 @@ namespace Pogranichye.Client.Presentation
             _oneShot.dopplerLevel = 0f;
             _oneShot.rolloffMode = AudioRolloffMode.Linear;
             _oneShot.priority = 64;
+            _oneShot.volume = _sfxVolume;
             _step = MakeNoise("Soft footsteps on earth", 0.12f, 0.085f, 0.12f);
             _run = MakeNoise("Running footsteps", 0.20f, 0.065f, 0.17f);
             _combat = MakeNoise("Steel combat impact", 0.32f, 0.11f, 0.24f);
@@ -45,7 +48,7 @@ namespace Pogranichye.Client.Presentation
             _fire.minDistance = 2f;
             _fire.maxDistance = 18f;
             _fire.dopplerLevel = 0f;
-            _fire.volume = 0.42f;
+            _fire.volume = 0.42f * _ambienceVolume;
             _fire.Play();
             for (var i = 0; i < _nearbyVoices.Length; i++)
             {
@@ -59,10 +62,21 @@ namespace Pogranichye.Client.Presentation
                 voice.dopplerLevel = 0f;
                 voice.rolloffMode = AudioRolloffMode.Linear;
                 voice.priority = 160;
+                voice.volume = _sfxVolume;
                 _nearbyVoices[i] = voice;
             }
             EntityMotion.NearbyFootstep += OnNearbyFootstep;
             EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
+        }
+
+        public void SetVolumes(float sfx, float ambience)
+        {
+            _sfxVolume = Mathf.Clamp01(sfx);
+            _ambienceVolume = Mathf.Clamp01(ambience);
+            if (_oneShot != null) _oneShot.volume = _sfxVolume;
+            if (_fire != null) _fire.volume = 0.42f * _ambienceVolume;
+            for (var i = 0; i < _nearbyVoices.Length; i++)
+                if (_nearbyVoices[i] != null) _nearbyVoices[i].volume = _sfxVolume;
         }
 
         public void SetPlayerPosition(Vector3 position)
