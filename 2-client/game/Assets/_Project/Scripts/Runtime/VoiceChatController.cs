@@ -2,10 +2,11 @@ using System;
 using System.Reflection;
 using System.Threading;
 using Pogranichye.Client.Networking;
+using Pogranichye.Client.Networking;
 using SimpleWebRTC;
 using UnityEngine;
 
-namespace Pogranichye.Client.Runtime
+namespace Pogranichye.Client
 {
     /// <summary>
     /// Two-person proximity voice for the demo. Joining voice never opens the microphone;
