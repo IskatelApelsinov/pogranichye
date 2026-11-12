@@ -1311,7 +1311,11 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
-            if (action == "cast" || action == "weave") _audioDirector?.Magic();
+            if (action == "cast" || action == "weave")
+            {
+                _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
+                _audioDirector?.Magic();
+            }
             var gesture = action == "chop" ? "chop" : action == "fish" ? "fish_reel" : action;
             _views?.PlayPlayerActionGesture(gesture);
         }
@@ -1503,7 +1507,11 @@ namespace Pogranichye.Client
             if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
             {
                 _drinkRequestPending = false;
-                if (outcome == RequestGate.Outcome.Accepted) _audioDirector?.DrinkBeer();
+                if (outcome == RequestGate.Outcome.Accepted)
+                {
+                    _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
+                    _audioDirector?.DrinkBeer();
+                }
                 _status = outcome == RequestGate.Outcome.Accepted
                     ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
                     : outcome == RequestGate.Outcome.Rejected
@@ -1968,6 +1976,7 @@ namespace Pogranichye.Client
         {
             var player = _views != null ? _views.PlayerTransform : null;
             if (player == null || _socket == null || !_socket.IsConnected || _frame?.Me?.Position == null) return;
+            _audioDirector?.SetPlayerPosition(player.position);
 
             // The shared Input System Move action currently binds keyboard layouts only.
             // Gamepad/stick support will be added as an explicit, tested binding rather than
