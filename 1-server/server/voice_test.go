@@ -74,3 +74,35 @@ func TestVoiceSignalingRejectsOutOfRangeAndUnjoinedSender(t *testing.T) {
 	s.signalVoice(ids[0],"offer",eid(ids[1]),"v=0","","",0)
 	select{case <-q2:t.Fatal("out-of-range SDP relayed");default:}
 }
+
+func TestVoiceSessionEndsWhenPlayersLeaveProximity(t *testing.T) {
+	s:=NewStarter("voice-prune-test","",[]byte("secret"),"")
+	ids:=make([]core.ID,0,2)
+	s.world.Each("place",func(e *core.Entity){if len(ids)<2&&core.Mind(e)!=nil{ids=append(ids,e.ID)}})
+	if len(ids)!=2{t.Fatal("need two residents")}
+	base:=core.Place(s.world.Get(ids[0])).Settlement
+	for i,id:=range ids{e:=s.world.Get(id);core.Place(e).Settlement=base;p:=sim.EnsureScenePos(s.world,e);p.X=float64(i*5);p.Y=0}
+	q1,q2:=s.registerChat(ids[0]),s.registerChat(ids[1])
+	s.mu.Lock()
+	s.chatPeers[ids[0]].voice=true
+	s.chatPeers[ids[1]].voice=true
+	sim.EnsureScenePos(s.world,s.world.Get(ids[1])).X=80
+	s.pruneVoicePeersLocked()
+	if s.chatPeers[ids[0]].voice || !s.chatPeers[ids[1]].voice {
+		s.mu.Unlock()
+		t.Fatalf("only the soul outside its peer's radius should leave voice")
+	}
+	s.mu.Unlock()
+	read:=func(ch <-chan string) map[string]any {
+		t.Helper()
+		select {
+		case raw:=<-ch:
+			var event map[string]any
+			if err:=json.Unmarshal([]byte(raw),&event);err!=nil{t.Fatalf("bad event: %v",err)}
+			return event
+		case <-time.After(100*time.Millisecond):t.Fatal("peer_left event missing");return nil
+		}
+	}
+	if e:=read(q2);e["action"]!="peer_left"||e["from_id"]!=eid(ids[0]){t.Fatalf("near peer not notified: %v",e)}
+	if e:=read(q1);e["action"]!="peer_left"||e["from_id"]!=eid(ids[1]){t.Fatalf("leaving peer not notified: %v",e)}
+}
