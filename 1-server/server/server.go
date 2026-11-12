@@ -381,8 +381,8 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrade(w, r)
 	if err != nil { s.release(cid, sid); return }
 	defer conn.Close()
-	defer s.unregisterChat(cid)
 	defer s.release(cid, sid)
+	defer s.unregisterChat(cid)
 	chatEvents := s.registerChat(cid)
 	done := make(chan struct{})
 	go func() {
