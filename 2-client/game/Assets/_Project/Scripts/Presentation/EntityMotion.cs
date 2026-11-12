@@ -37,7 +37,9 @@ namespace Pogranichye.Client.Presentation
         private float _actionGestureRemaining;
         private string _actionGesture = string.Empty;
         private bool _workGestureLoop;
+        private bool _workGestureStopRequested;
         private float _workGesturePhase;
+        private float _workGestureMinimumRemaining;
         private bool _guarding;
         private Transform _attentionTarget;
         private Transform _focusTarget;
@@ -267,14 +269,30 @@ namespace Pogranichye.Client.Presentation
                 action != "trade") return;
             PlayActionGesture(action);
             _workGestureLoop = true;
+            _workGestureStopRequested = false;
             _workGesturePhase = 0f;
+            _workGestureMinimumRemaining = 0.85f;
             _actionGestureRemaining = 1f;
         }
 
         public void StopWorkGesture()
         {
             if (!_workGestureLoop) return;
+            _workGestureStopRequested = true;
+            if (_workGestureMinimumRemaining <= 0f) EndWorkGesture();
+        }
+
+        /// <summary>Immediately cancels the work pose, e.g. when movement or scene teardown begins.</summary>
+        public void CancelWorkGesture()
+        {
+            if (_workGestureLoop) EndWorkGesture();
+        }
+
+        private void EndWorkGesture()
+        {
             _workGestureLoop = false;
+            _workGestureStopRequested = false;
+            _workGestureMinimumRemaining = 0f;
             _actionGestureRemaining = 0f;
             _actionGesture = string.Empty;
         }
@@ -328,7 +346,7 @@ namespace Pogranichye.Client.Presentation
             if (_body == null) return;
             _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
-            if (_workGestureLoop && walking) StopWorkGesture();
+            if (_workGestureLoop && walking) CancelWorkGesture();
             _phase += Time.deltaTime * (walking
                 ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
                 : (_isPlayer ? 2.2f : _idleRate));
@@ -340,7 +358,12 @@ namespace Pogranichye.Client.Presentation
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
             if (_workGestureLoop)
+            {
                 _workGesturePhase += Time.deltaTime * 5.2f;
+                _workGestureMinimumRemaining = Mathf.Max(0f, _workGestureMinimumRemaining - Time.deltaTime);
+                if (_workGestureStopRequested && _workGestureMinimumRemaining <= 0f)
+                    EndWorkGesture();
+            }
             if (!_workGestureLoop && _actionGestureRemaining > 0f)
                 _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - Time.deltaTime);
 
