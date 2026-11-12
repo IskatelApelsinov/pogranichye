@@ -14,6 +14,8 @@ namespace Pogranichye.Client.Presentation
         private Renderer _renderer;
         private Transform _entityRoot;
         private float _nextOcclusionCheck;
+        private const float OcclusionCheckInterval = 0.20f;
+        private const float MaxLabelDistance = 90f;
 
         private void OnEnable()
         {
@@ -38,11 +40,23 @@ namespace Pogranichye.Client.Presentation
             transform.rotation = Quaternion.LookRotation(-towardCamera.normalized, Vector3.up);
 
             if (_renderer == null) _renderer = GetComponent<Renderer>();
-            if (_renderer == null || Time.unscaledTime < _nextOcclusionCheck) return;
-            _nextOcclusionCheck = Time.unscaledTime + 0.08f;
+            if (_renderer == null) return;
 
+            // Avoid physics queries for labels outside the view or beyond the useful
+            // settlement reading distance. This matters because every nearby resident
+            // owns a world-space label.
+            var viewport = _camera.WorldToViewportPoint(transform.position);
             var toLabel = transform.position - _camera.transform.position;
             var distance = toLabel.magnitude;
+            if (viewport.z <= 0f || viewport.x < -0.08f || viewport.x > 1.08f ||
+                viewport.y < -0.08f || viewport.y > 1.08f || distance > MaxLabelDistance)
+            {
+                _renderer.enabled = false;
+                return;
+            }
+
+            if (Time.unscaledTime < _nextOcclusionCheck) return;
+            _nextOcclusionCheck = Time.unscaledTime + OcclusionCheckInterval;
             if (distance <= 0.05f)
             {
                 _renderer.enabled = true;
