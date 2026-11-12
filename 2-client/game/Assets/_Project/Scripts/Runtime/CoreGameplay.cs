@@ -179,6 +179,7 @@ namespace Pogranichye.Client
         private readonly List<FeedLine> _feed = new List<FeedLine>();
         private readonly List<Floater> _floaters = new List<Floater>();
         private readonly RaycastHit[] _visibilityHits = new RaycastHit[24];
+        private readonly RaycastHit[] _aimHits = new RaycastHit[48];
         private RequestGate _gate;
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
@@ -1194,11 +1195,27 @@ namespace Pogranichye.Client
             var ray = _firstPerson || Cursor.lockState == CursorLockMode.Locked
                 ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f))
                 : cam.ScreenPointToRay(_input != null ? _input.PointerPosition : Vector2.zero);
-            var hits = Physics.RaycastAll(ray, 140f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-            if (hits == null || hits.Length == 0) return false;
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            foreach (var hit in hits)
+            var count = Physics.RaycastNonAlloc(ray, _aimHits, 140f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            if (count <= 0) return false;
+
+            // RaycastNonAlloc does not guarantee hit order. Insertion sort the small fixed buffer
+            // without allocating a temporary array or comparison delegate on every attack.
+            for (var i = 1; i < count; i++)
             {
+                var hit = _aimHits[i];
+                var j = i - 1;
+                while (j >= 0 && _aimHits[j].distance > hit.distance)
+                {
+                    _aimHits[j + 1] = _aimHits[j];
+                    j--;
+                }
+                _aimHits[j + 1] = hit;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var hit = _aimHits[i];
                 if (_player != null && hit.collider.transform.IsChildOf(_player)) continue; // own body
                 var foe = hit.collider.GetComponentInParent<CoreFoeView>();
                 if (foe == null) return false; // a wall or a villager is in the way
