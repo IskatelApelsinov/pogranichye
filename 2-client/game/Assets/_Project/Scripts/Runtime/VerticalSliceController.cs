@@ -44,6 +44,7 @@ namespace Pogranichye.Client
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
         private bool _showMainSettings;
+        private Vector2 _mainMenuScroll;
         private float _masterVolume = 0.85f;
         private float _sfxVolume = 0.9f;
         private float _ambienceVolume = 0.75f;
@@ -339,7 +340,7 @@ namespace Pogranichye.Client
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = new Color(0.11f, 0.09f, 0.07f, 0.94f);
             var panelWidth = Mathf.Min(560f, Screen.width - 36f);
-            var panelHeight = Mathf.Min(_showMainSettings ? 500f : 590f, Screen.height - 36f);
+            var panelHeight = Mathf.Min(_showMainSettings ? 760f : 590f, Screen.height - 36f);
             var panel = new Rect((Screen.width - panelWidth) * 0.5f, (Screen.height - panelHeight) * 0.5f,
                 panelWidth, panelHeight);
             GUI.Box(panel, GUIContent.none);
@@ -351,6 +352,7 @@ namespace Pogranichye.Client
             GUI.Label(new Rect(panel.x + 20f, panel.y + 94f, panel.width - 40f, 30f), "Жизнь на краю известного мира", subtitle);
 
             GUILayout.BeginArea(new Rect(panel.x + 42f, panel.y + 142f, panel.width - 84f, panel.height - 164f));
+            _mainMenuScroll = GUILayout.BeginScrollView(_mainMenuScroll, GUILayout.ExpandHeight(true));
             if (_showMainSettings)
             {
                 GUILayout.Label("НАСТРОЙКИ");
@@ -399,6 +401,7 @@ namespace Pogranichye.Client
             GUILayout.Label(_status, GUILayout.MinHeight(34f));
             if (_connectionState == WorldConnectionState.Connecting || _connectionState == WorldConnectionState.AwaitingSnapshot)
                 GUILayout.Label(_connectionState == WorldConnectionState.Connecting ? "Устанавливаем связь…" : "Получаем состояние мира…");
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.color = previousColor;
             GUI.enabled = previousEnabled;
