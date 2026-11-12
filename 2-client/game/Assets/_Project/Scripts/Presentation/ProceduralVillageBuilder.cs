@@ -2167,7 +2167,7 @@ namespace Pogranichye.Client.Presentation
             }
 
             CreatePrimitive("Smithy work stool", PrimitiveType.Cylinder, smithy,
-                new Vector3(0.18f, 0.30f, -0.35f), new Vector3(0.24f, 0.12f, 0.24f), _woodMaterial);
+                new Vector3(0.18f, 0.45f, -0.35f), new Vector3(0.24f, 0.12f, 0.24f), _woodMaterial);
             CreatePrimitive("Forge glow", PrimitiveType.Sphere, smithy,
                 new Vector3(-1.1f, 1.02f, -1.45f), new Vector3(0.48f, 0.32f, 0.22f), _fireMaterial);
 
