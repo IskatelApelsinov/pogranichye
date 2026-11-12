@@ -166,6 +166,7 @@ func TestTwoPlayersShareOneWorld(t *testing.T) {
 	}
 	a := wsDial(t, ts.URL, "/ws?token="+login("player-a"))
 	defer a.Close()
+	_ = readServerFrame(t, a) // A's initial frame is sent before B joins.
 	b := wsDial(t, ts.URL, "/ws?token="+login("player-b"))
 	defer b.Close()
 
@@ -177,7 +178,8 @@ func TestTwoPlayersShareOneWorld(t *testing.T) {
 		}
 		return frame
 	}
-	af, bf := read(a), read(b)
+	bf := read(b) // B's first frame is built after A is already present.
+	af := read(a) // A's next full frame includes B.
 	ame, _ := af["me"].(map[string]any)
 	bme, _ := bf["me"].(map[string]any)
 	if ame == nil || bme == nil || ame["id"] == bme["id"] {
