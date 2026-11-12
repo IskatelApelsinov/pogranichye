@@ -583,6 +583,28 @@ namespace Pogranichye.Client.Presentation
             var tavern = new GameObject("Tutorial Tavern").transform;
             tavern.SetParent(root, false);
             tavern.position = position;
+
+            // A compact indoor acoustic zone gives footsteps, voices and action sounds
+            // a warmer, slightly more enclosed character while the player is under the roof.
+            // The tavern remains an open-front presentation shell; this is not a gameplay trigger.
+            var reverbObject = new GameObject("Tavern interior acoustics");
+            reverbObject.transform.SetParent(tavern, false);
+            reverbObject.transform.localPosition = new Vector3(0f, 1.15f, 0.35f);
+            var reverb = reverbObject.AddComponent<AudioReverbZone>();
+            reverb.enabled = true;
+            reverb.minDistance = 2.2f;
+            reverb.maxDistance = 7.5f;
+            reverb.room = -130;
+            reverb.roomHF = -520;
+            reverb.decayTime = 0.82f;
+            reverb.decayHFRatio = 0.72f;
+            reverb.reflections = -650;
+            reverb.reflectionsDelay = 0.018f;
+            reverb.reverb = -420;
+            reverb.reverbDelay = 0.025f;
+            reverb.hfReference = 5000f;
+            reverb.lfReference = 250f;
+            reverb.roomLF = -180;
             CreateCameraObstacle(tavern, "Camera collision • back wall", new Vector3(0, 1.35f, 1.95f), new Vector3(5.2f, 2.7f, 0.18f));
             CreateCameraObstacle(tavern, "Camera collision • left wall", new Vector3(-2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f));
             CreateCameraObstacle(tavern, "Camera collision • right wall", new Vector3(2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f));
