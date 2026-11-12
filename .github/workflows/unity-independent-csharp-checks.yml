@@ -7,6 +7,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
       - '2-client/game/Tests/RequestGateCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
+      - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -29,3 +31,8 @@ jobs:
         run: |
           mcs -out:/tmp/movement-queue.exe Tests/MovementIntentQueuePolicyCheck.cs Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs
           mono /tmp/movement-queue.exe
+      - name: NPC activity sound mapping regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
+          mono /tmp/npc-activity-sound.exe
