@@ -117,15 +117,18 @@ func (s *Server) pruneVoicePeersLocked() {
 	for id, peer := range s.chatPeers {
 		if peer == nil || !peer.voice { continue }
 		e := s.world.Get(id)
+		outOfRange := false
 		for otherID, other := range s.chatPeers {
-			if otherID <= id || other == nil || !other.voice { continue }
-			if voiceNearby(e, s.world.Get(otherID)) { continue }
-			peer.voice = false
-			other.voice = false
-			now := time.Now().UnixMilli()
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(otherID),"room":voiceRoom(e),"sent_at":now})
+			if otherID == id || other == nil || !other.voice { continue }
+			if !voiceNearby(e, s.world.Get(otherID)) { outOfRange = true; break }
+		}
+		if !outOfRange { continue }
+		peer.voice = false
+		now := time.Now().UnixMilli()
+		for otherID, other := range s.chatPeers {
+			if otherID == id || other == nil || !other.voice { continue }
 			s.queueVoiceLocked(otherID, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(id),"room":voiceRoom(s.world.Get(otherID)),"sent_at":now})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(otherID),"room":voiceRoom(e),"sent_at":now})
 		}
 	}
 }
-
