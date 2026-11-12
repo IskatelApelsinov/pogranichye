@@ -37,6 +37,7 @@ namespace Pogranichye.Client.Presentation
         private float _actionGestureRemaining;
         private string _actionGesture = string.Empty;
         private bool _workGestureLoop;
+        private float _workGesturePhase;
         private bool _guarding;
         private Transform _attentionTarget;
         private Transform _focusTarget;
@@ -266,6 +267,7 @@ namespace Pogranichye.Client.Presentation
                 action != "trade") return;
             PlayActionGesture(action);
             _workGestureLoop = true;
+            _workGesturePhase = 0f;
             _actionGestureRemaining = 1f;
         }
 
@@ -280,7 +282,7 @@ namespace Pogranichye.Client.Presentation
         private float ActionProgress(float duration)
         {
             return _workGestureLoop
-                ? Mathf.Repeat(_phase * 0.72f, 1f)
+                ? Mathf.Repeat(_workGesturePhase / (Mathf.PI * 2f), 1f)
                 : 1f - _actionGestureRemaining / duration;
         }
 
@@ -337,6 +339,8 @@ namespace Pogranichye.Client.Presentation
                 _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
+            if (_workGestureLoop)
+                _workGesturePhase += Time.deltaTime * 5.2f;
             if (!_workGestureLoop && _actionGestureRemaining > 0f)
                 _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - Time.deltaTime);
 
