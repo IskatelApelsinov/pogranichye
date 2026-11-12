@@ -98,6 +98,7 @@ namespace Pogranichye.Client
             public string State;
             public float Punch; // seconds of the "got hit" squash
             public ProceduralGait Gait;
+            public Transform Telegraph;
         }
 
         private const float PendingTimeout = 6f;
@@ -716,6 +717,7 @@ namespace Pogranichye.Client
                     rec.Max = Mathf.Max(1f, Num(token, "max"));
                     rec.Aware = Flag(token, "aware");
                     rec.State = Str(token, "state");
+                    if (rec.Telegraph != null) rec.Telegraph.gameObject.SetActive(rec.State == "windup");
                     if (rec.Gait != null)
                     {
                         rec.Gait.Dead = rec.State == "dead";
@@ -841,6 +843,12 @@ namespace Pogranichye.Client
             var root = new GameObject("Foe " + kind + " " + id);
             root.transform.SetParent(_foeRoot, false);
             var view = root.AddComponent<CoreFoeView>();
+            var telegraph = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.025f, 0f),
+                new Vector3(1.35f, 0.018f, 1.35f), new Color(0.82f, 0.12f, 0.055f));
+            var telegraphCollider = telegraph.GetComponent<Collider>();
+            if (telegraphCollider != null) Destroy(telegraphCollider);
+            telegraph.gameObject.name = "Attack wind-up warning";
+            telegraph.gameObject.SetActive(false);
             view.FoeId = id;
             view.Kind = kind;
             view.DisplayName = string.IsNullOrEmpty(displayName) ? kind : displayName;
@@ -910,7 +918,7 @@ namespace Pogranichye.Client
                 gait.Tail = Part(root.transform, PrimitiveType.Cube, new Vector3(0f, leg + height * 0.42f, -len * 0.5f - tailLength * 0.5f), new Vector3(width * 0.2f, width * 0.2f, tailLength), tailColor);
             }
 
-            return new FoeRec { Root = root, View = view, Gait = root.GetComponent<ProceduralGait>() };
+            return new FoeRec { Root = root, View = view, Gait = root.GetComponent<ProceduralGait>(), Telegraph = telegraph };
         }
 
         private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
@@ -989,6 +997,11 @@ namespace Pogranichye.Client
                     : Quaternion.Euler(0f, rec.Yaw, 0f);
                 t.rotation = Quaternion.Slerp(t.rotation, target, blend);
                 rec.Punch = Mathf.Max(0f, rec.Punch - Time.deltaTime);
+                if (rec.Telegraph != null && rec.Telegraph.gameObject.activeSelf)
+                {
+                    var pulse = 1f + Mathf.Sin(Time.unscaledTime * 15f) * 0.12f;
+                    rec.Telegraph.localScale = new Vector3(1.35f * pulse, 0.018f, 1.35f * pulse);
+                }
                 var squash = 1f - Mathf.Sin(Mathf.Clamp01(rec.Punch / 0.2f) * Mathf.PI) * 0.18f;
                 t.localScale = new Vector3(1f / squash, squash, 1f / squash);
             }
