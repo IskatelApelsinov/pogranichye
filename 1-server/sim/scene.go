@@ -19,8 +19,9 @@ func init() {
 }
 
 const (
-	walkSpeed = 1.4  // м/с шагом
-	runSpeed  = 3.2  // м/с бегом (пока есть силы)
+	walkSpeed = 1.4 // м/с обычная ходьба — не меняем
+	jogSpeed  = 2.5 // м/с лёгкий бег (Alt)
+	runSpeed  = 4.8 // м/с быстрый бег (Shift)
 	moveMaxDt = 0.25 // ограничение шага интегрирования (с) — защита от рывков/читерских dt
 	stamDrain = 0.10 // трата запала в секунду бега (около 10 с непрерывного бега)
 	stamRegen = 0.10 // восстановление запала в секунду не-бега
@@ -60,7 +61,7 @@ func EnsureScenePos(w *core.World, e *core.Entity) *ScenePosC {
 // ApplyMove — АВТОРИТЕТНОЕ применение ввода движения: нормализует направление, считает скорость
 // (бег тратит запал, без запала — только шаг), интегрирует за ограниченный dt, держит в границах
 // площадки, ставит взгляд и запоминает seq. Клиент не телепортируется — только задаёт намерение.
-func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64, seq int64) {
+func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64, seq int64, fastMode ...bool) {
 	if p == nil {
 		return
 	}
@@ -86,7 +87,10 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 			run = false // с тяжёлой ношей не бегают
 		}
 		if run && p.Stam > 0 {
-			speed = runSpeed
+			speed = jogSpeed
+			if len(fastMode) > 0 && fastMode[0] {
+				speed = runSpeed
+			}
 			if p.Mult > 1 {
 				speed *= p.Mult
 			}
