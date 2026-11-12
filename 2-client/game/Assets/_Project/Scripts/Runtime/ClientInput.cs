@@ -18,7 +18,7 @@ namespace Pogranichye.Client
         [SerializeField, Min(65536)] private int maxInputEventBytes = 1048576;
 
         private InputActionMap _actions;
-        private InputAction _move, _look, _zoom, _jump, _sprint, _interact;
+        private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
         private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
@@ -32,6 +32,7 @@ namespace Pogranichye.Client
         public Vector2 PointerPosition => Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
         public bool JumpPressed => _jump.WasPressedThisFrame();
         public bool SprintHeld => _sprint.IsPressed();
+        public bool JogHeld => _jog.IsPressed();
         public bool InteractPressed => _interact.WasPressedThisFrame();
         public bool ToggleHudPressed => _toggleHud.WasPressedThisFrame();
         public bool ToggleDiagnosticsPressed => _toggleDiagnostics.WasPressedThisFrame();
@@ -76,6 +77,8 @@ namespace Pogranichye.Client
             _jump = Button("Jump", "<Keyboard>/space");
             _sprint = Button("Sprint", "<Keyboard>/leftShift");
             _sprint.AddBinding("<Keyboard>/rightShift");
+            _jog = Button("Jog", "<Keyboard>/leftAlt");
+            _jog.AddBinding("<Keyboard>/rightAlt");
             _interact = Button("Interact", "<Keyboard>/e");
             _toggleHud = Button("ToggleHud", "<Keyboard>/f1");
             _toggleDiagnostics = Button("ToggleDiagnostics", "<Keyboard>/f3");
@@ -138,6 +141,7 @@ namespace Pogranichye.Client
                 if (keyboard.downArrowKey.isPressed) keys.Add("↓");
                 if (keyboard.rightArrowKey.isPressed) keys.Add("→");
                 if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed) keys.Add("Shift");
+                if (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed) keys.Add("Alt");
                 if (keyboard.spaceKey.isPressed) keys.Add("Space");
                 if (keyboard.eKey.isPressed) keys.Add("E");
                 if (keyboard.tabKey.isPressed) keys.Add("Tab");
