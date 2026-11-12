@@ -1252,7 +1252,7 @@ namespace Pogranichye.Client
                 if (_chopSwings >= 3)
                 {
                     _chopSwings = 0;
-                    AskActivity("Рубка", "chop");
+                    Ask("Рубка", "act", "action", "chop");
                 }
                 else Toast("Тюк… (" + _chopSwings + "/3)", 0.8f);
                 return;
@@ -2240,7 +2240,7 @@ namespace Pogranichye.Client
             if (HasFeature("garden") && Near("apiary", 5f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) AskActivity("Пасека", "apiary");
             if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) AskActivity("Работа у горна", "forge");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) AskActivity("Созерцание", "meditate");
-            if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
+            if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
             foreach (var pair in TakeAt)
                 if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
