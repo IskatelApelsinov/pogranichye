@@ -182,6 +182,8 @@ namespace Pogranichye.Client
         private void OnGUI()
         {
             CoreGameplay.ApplyUiTheme();
+            if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive)
+                DrawTitleLoadingBackdrop();
             if (_hudCollapsed)
             {
                 if (GUI.Button(new Rect(12, 12, 150, 30), "Показать меню [F1]"))
@@ -278,6 +280,44 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+        }
+
+        // Opaque title/loading screen hides the local fallback village while the authoritative
+        // layout and first world snapshot are being fetched. It is drawn before the login panel.
+        private void DrawTitleLoadingBackdrop()
+        {
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.055f, 0.047f, 0.038f, 1f);
+            GUI.Box(new Rect(0f, 0f, Screen.width, Screen.height), GUIContent.none);
+            GUI.color = new Color(0.72f, 0.58f, 0.38f, 1f);
+            var title = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.Clamp(Screen.height / 13, 28, 58),
+                fontStyle = FontStyle.Bold
+            };
+            GUI.Label(new Rect(0f, Screen.height * 0.16f, Screen.width, 76f), "ПОГРАНИЧЬЕ", title);
+            GUI.color = new Color(0.78f, 0.73f, 0.64f, 1f);
+            var subtitle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.Clamp(Screen.height / 48, 13, 20)
+            };
+            GUI.Label(new Rect(0f, Screen.height * 0.16f + 72f, Screen.width, 34f),
+                "Жизнь на краю известного мира", subtitle);
+            if (_connectionState == WorldConnectionState.Connecting || _connectionState == WorldConnectionState.AwaitingSnapshot)
+            {
+                var loading = new GUIStyle(subtitle) { fontSize = 16, fontStyle = FontStyle.Italic };
+                var message = _connectionState == WorldConnectionState.Connecting
+                    ? "Связываемся с сервером и загружаем карту…" : "Получаем состояние мира…";
+                GUI.Label(new Rect(0f, Screen.height * 0.78f, Screen.width, 36f), message, loading);
+            }
+            else if (string.IsNullOrEmpty(_token))
+            {
+                GUI.Label(new Rect(0f, Screen.height * 0.78f, Screen.width, 36f),
+                    "Войдите или создайте учётную запись, чтобы продолжить", subtitle);
+            }
+            GUI.color = previousColor;
         }
 
         private static void ToggleFullscreen()
