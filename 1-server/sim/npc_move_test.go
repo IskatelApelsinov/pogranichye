@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"pogranichye/core"
+	"pogranichye/dice"
 )
 
 // villager собирает минимального жителя в поселении с заданной ролью и целью.
@@ -14,6 +15,42 @@ func villager(w *core.World, role, goal string, set core.ID) *core.Entity {
 		&core.MindC{Goal: goal},
 		&core.PlaceC{Settlement: set},
 	)
+}
+
+
+func TestHotMovementUsesMaterializedBodiesOnly(t *testing.T) {
+	w := core.NewWorld("hot-index")
+	hot := w.Spawn(&core.SettlementC{Name: "hot"}, &HeatC{Level: 2})
+	cold := w.Spawn(&core.SettlementC{Name: "cold"}, &HeatC{Level: 0})
+	active := villager(w, "smith", "work", hot.ID)
+	w.Attach(active, &ScenePosC{X: -24, Y: -20, Facing: 90, Stam: 1})
+	inactive := villager(w, "smith", "work", cold.ID)
+	before := *ScenePos(active)
+
+	// Большая холодная популяция не должна попадать в горячий movement pass.
+	for i := 0; i < 2000; i++ {
+		villager(w, "farmer", "work", cold.ID)
+	}
+	if !w.HasKind("heat") {
+		t.Fatal("серверный мир должен распознавать индекс HeatC")
+	}
+	StepNPCMovement(w, 0.1, nil)
+	if ScenePos(inactive) != nil {
+		t.Fatal("холодный житель не должен материализоваться/двигаться")
+	}
+	p := ScenePos(active)
+	if p == nil || (p.X == before.X && p.Y == before.Y) {
+		t.Fatal("материализованный житель горячего поселения должен двигаться")
+	}
+}
+
+func TestBirthInHotSettlementGetsSceneBody(t *testing.T) {
+	w := core.NewWorld("hot-birth")
+	se := w.Spawn(&core.SettlementC{Name: "hot"}, &HeatC{Level: 2})
+	born := spawnPerson(w, dice.NewStream(17), se.ID)
+	if ScenePos(born) == nil {
+		t.Fatal("новорождённый NPC в горячем поселении должен сразу получить тело сцены")
+	}
 }
 
 // Житель с целью work (кузнец) идёт к кузнице и со временем доходит до своего места у неё.
