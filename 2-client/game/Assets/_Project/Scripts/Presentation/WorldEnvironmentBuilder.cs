@@ -733,6 +733,8 @@ namespace Pogranichye.Client.Presentation
             var shape = particles.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = 23f;
+            var windDrift = holder.AddComponent<WindDrivenParticleDrift>();
+            windDrift.Initialize(particles, 0.025f, 0.018f);
             var noise = particles.noise;
             noise.enabled = true;
             noise.strength = 0.12f;
