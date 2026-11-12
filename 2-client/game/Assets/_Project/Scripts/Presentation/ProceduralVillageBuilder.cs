@@ -1779,7 +1779,7 @@ namespace Pogranichye.Client.Presentation
             // Only long-handled tools need a haft. Food, documents, net repair and small
             // hand props must not inherit a wooden rod through their center.
             if (activity == "chop" || activity == "mine" || activity == "forge" ||
-                activity == "farm" || activity == "fish" || activity == "hunt" || activity == "herd")
+                activity == "farm" || activity == "hunt")
             {
                 // These objects move with the hand, so they must remain dynamic (not marked static).
                 CreatePrimitive("Tool • wooden haft", PrimitiveType.Cylinder, tool,
