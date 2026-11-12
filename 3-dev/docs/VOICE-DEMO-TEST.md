@@ -18,7 +18,7 @@
 3. Speak from A. Client B should hear A; B's microphone remains muted by default.
 4. Enable B's microphone and verify two-way audio.
 5. Mute A and confirm B stops hearing A while B→A still works.
-6. Move one player beyond 35 m or to another settlement and verify new signaling is rejected. Existing P2P audio may persist until the session is closed; range-triggered voice teardown is a follow-up.
+6. Move one player beyond 35 m or to another settlement. The server prunes the P2P link on fast-frame generation and sends peer_left to both clients; the out-of-range player must rejoin after returning.
 7. Click "Выйти из голоса" on either client; the other should receive peer-left and stop receiving audio.
 8. Disconnect one client from the world; the server should release the voice peer and the same soul should return to A-Life.
 
