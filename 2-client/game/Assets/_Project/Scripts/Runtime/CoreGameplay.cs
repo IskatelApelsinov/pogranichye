@@ -536,7 +536,7 @@ namespace Pogranichye.Client
 
         public void Clear()
         {
-            _stopPlayerWorkGesture();
+            _cancelPlayerWorkGesture();
             foreach (var pair in _foes)
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
             _foes.Clear();
@@ -692,6 +692,12 @@ namespace Pogranichye.Client
         {
             var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
             if (motion != null) motion.StopWorkGesture();
+        }
+
+        private void _cancelPlayerWorkGesture()
+        {
+            var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.CancelWorkGesture();
         }
 
         private void ReadResult()
