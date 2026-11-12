@@ -2,7 +2,6 @@ package sim
 
 import (
 	"math"
-	"sort"
 
 	"pogranichye/core"
 )
@@ -43,11 +42,14 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		return
 	}
 	type mover struct {
-		e      *core.Entity
-		bx, by float64 // центр POI текущей цели
+		e         *core.Entity
+		bx, by    float64 // центр POI текущей цели
+		rank      int
 	}
 	var movers []mover
-	groups := map[[2]float64][]core.ID{} // POI -> жители, идущие к нему
+	// Each iterates IDs in ascending order, so this counter assigns the same
+	// deterministic per-POI rank as the former collect→sort→rank multi-pass.
+	nextRank := make(map[[2]float64]int)
 	collect := func(e *core.Entity) {
 		if controlled != nil && controlled(e.ID) {
 			return // игрок сам ведёт это тело
@@ -66,8 +68,9 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		}
 		bx, by := targetForGoal(id.Role, m.Goal)
 		key := [2]float64{bx, by}
-		groups[key] = append(groups[key], e.ID)
-		movers = append(movers, mover{e: e, bx: bx, by: by})
+		rank := nextRank[key]
+		nextRank[key] = rank + 1
+		movers = append(movers, mover{e: e, bx: bx, by: by, rank: rank})
 	}
 	// In a server world HeatC exists for every settlement. Only residents with a
 	// materialized scene body can move, so iterate that compact index rather than
@@ -78,16 +81,8 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 	} else {
 		w.Each("mind", collect)
 	}
-	// ранг жителя в его POI-группе: сорт по ID → стабильно, не зависит от порядка обхода мира.
-	rank := make(map[core.ID]int, len(movers))
-	for _, ids := range groups {
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-		for r, id := range ids {
-			rank[id] = r
-		}
-	}
 	for _, mv := range movers {
-		stepMover(w, dt, mv.e, mv.bx, mv.by, rank[mv.e.ID])
+		stepMover(w, dt, mv.e, mv.bx, mv.by, mv.rank)
 	}
 }
 
