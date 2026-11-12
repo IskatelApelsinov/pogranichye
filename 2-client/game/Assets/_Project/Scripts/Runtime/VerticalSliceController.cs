@@ -57,6 +57,7 @@ namespace Pogranichye.Client
         private readonly List<string> _chatHistory = new List<string>();
         private string _chatInput = "";
         private Vector2 _chatScroll;
+        private VoiceChatController _voiceChat;
         private string _token;
         private string _goalToSend;
         private WorldFrame _frame;
@@ -145,6 +146,8 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
+            _voiceChat = GetComponent<VoiceChatController>();
+            if (_voiceChat == null) _voiceChat = gameObject.AddComponent<VoiceChatController>();
             _input = GetComponent<ClientInput>();
             if (_input == null) _input = gameObject.AddComponent<ClientInput>();
             _presentationRoot = new GameObject("PresentationWorld").transform;
@@ -386,6 +389,16 @@ namespace Pogranichye.Client
             }
             GUI.enabled = true;
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUI.enabled = _voiceChat != null && _connectionState == WorldConnectionState.Active;
+            if (GUILayout.Button(_voiceChat != null && _voiceChat.IsJoined ? "Выйти из голоса" : "Войти в голос", GUILayout.Height(28f)))
+                _voiceChat.ToggleVoice();
+            if (_voiceChat != null && _voiceChat.IsJoined &&
+                GUILayout.Button(_voiceChat.IsMicrophoneEnabled ? "Выключить микрофон" : "Включить микрофон", GUILayout.Height(28f)))
+                _voiceChat.ToggleMicrophone();
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+            if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
             GUILayout.EndArea();
         }
 
@@ -1745,6 +1758,7 @@ namespace Pogranichye.Client
             // A delayed close from an older socket must not tear down a newer session.
             if (!ReferenceEquals(_socket, socket)) return;
 
+            _voiceChat?.StopVoice();
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
@@ -1788,6 +1802,7 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
                     UpdateTutorialIntroduction(frame);
