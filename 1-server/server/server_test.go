@@ -144,3 +144,57 @@ func writeClientFrame(t *testing.T, c net.Conn, s string) {
 		t.Fatalf("write frame: %v", err)
 	}
 }
+
+
+// TestTwoPlayersShareOneWorld verifies the minimum multiplayer demo contract:
+// two independent accounts own different bodies and each receives the other
+// player in the same settlement's live neighbor view.
+func TestTwoPlayersShareOneWorld(t *testing.T) {
+	s := NewStarter("two-player-demo", "", []byte("secret"), "")
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+
+	login := func(name string) string {
+		t.Helper()
+		if r := post(t, ts.URL+"/api/register", `{"login":"`+name+`","pass":"secret1"}`); !r["ok"].(bool) {
+			t.Fatalf("register %s failed: %v", name, r)
+		}
+		r := post(t, ts.URL+"/api/login", `{"login":"`+name+`","pass":"secret1"}`)
+		token, _ := r["token"].(string)
+		if token == "" { t.Fatalf("login %s returned no token: %v", name, r) }
+		return token
+	}
+	a := wsDial(t, ts.URL, "/ws?token="+login("player-a"))
+	defer a.Close()
+	b := wsDial(t, ts.URL, "/ws?token="+login("player-b"))
+	defer b.Close()
+
+	read := func(c net.Conn) map[string]any {
+		t.Helper()
+		var frame map[string]any
+		if err := json.Unmarshal(readServerFrame(t, c), &frame); err != nil {
+			t.Fatalf("invalid player frame: %v", err)
+		}
+		return frame
+	}
+	af, bf := read(a), read(b)
+	ame, _ := af["me"].(map[string]any)
+	bme, _ := bf["me"].(map[string]any)
+	if ame == nil || bme == nil || ame["id"] == bme["id"] {
+		t.Fatalf("players must control distinct bodies: A=%v B=%v", ame, bme)
+	}
+	aid, _ := ame["id"].(string)
+	bid, _ := bme["id"].(string)
+	containsPlayer := func(frame map[string]any, wanted string) bool {
+		place, _ := frame["place"].(map[string]any)
+		neighbors, _ := place["neighbors"].([]any)
+		for _, item := range neighbors {
+			n, _ := item.(map[string]any)
+			if n["id"] == wanted && n["player"] == true { return true }
+		}
+		return false
+	}
+	if !containsPlayer(af, bid) || !containsPlayer(bf, aid) {
+		t.Fatalf("players must see each other as players in shared settlement: A sees B=%v, B sees A=%v", containsPlayer(af, bid), containsPlayer(bf, aid))
+	}
+}
