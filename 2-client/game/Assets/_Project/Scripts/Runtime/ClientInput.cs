@@ -61,8 +61,8 @@ namespace Pogranichye.Client
         {
             // InputSettings is shared by the Input System. Never lower a project's existing
             // setting; only raise the budget enough to absorb high-frequency device bursts.
-            if (InputSystem.settings != null && InputSystem.settings.maxEventBytes < maxInputEventBytes)
-                InputSystem.settings.maxEventBytes = maxInputEventBytes;
+            if (InputSystem.settings != null && InputSystem.settings.maxEventBytesPerUpdate < maxInputEventBytes)
+                InputSystem.settings.maxEventBytesPerUpdate = maxInputEventBytes;
 
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
