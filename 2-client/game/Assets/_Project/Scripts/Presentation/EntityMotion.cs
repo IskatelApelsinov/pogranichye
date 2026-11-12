@@ -34,6 +34,7 @@ namespace Pogranichye.Client.Presentation
         private float _clinkGestureRemaining;
         private float _actionGestureRemaining;
         private string _actionGesture = string.Empty;
+        private bool _guarding;
         private Transform _attentionTarget;
         private Transform _focusTarget;
         private Quaternion _headTargetRotation;
@@ -235,11 +236,18 @@ namespace Pogranichye.Client.Presentation
         public void PlayActionGesture(string action)
         {
             if (action != "chop" && action != "fish_cast" && action != "fish_reel" &&
-                action != "attack" && action != "dodge" && action != "guard" && action != "apiary" &&
-                action != "farmwork" && action != "forge" && action != "mine" && action != "gather") return;
+                action != "attack" && action != "heavy_attack" && action != "thrust" &&
+                action != "bow_shot" && action != "dodge" && action != "guard" &&
+                action != "apiary" && action != "farmwork" && action != "forge" &&
+                action != "mine" && action != "gather" && action != "meditate" &&
+                action != "hunt" && action != "cook" && action != "herd" &&
+                action != "build" && action != "craft" && action != "trade") return;
             _actionGesture = action;
-            _actionGestureRemaining = action == "chop" || action == "attack" ? 0.62f : 0.78f;
+            _actionGestureRemaining = action == "chop" || action == "attack" ||
+                action == "heavy_attack" || action == "thrust" ? 0.62f : 0.78f;
         }
+
+        public void SetGuarding(bool guarding) { _guarding = guarding; }
 
         public void PlayTalkGesture(Transform observer)
         {
@@ -420,6 +428,11 @@ namespace Pogranichye.Client.Presentation
 
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
             if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
+            if (_guarding)
+            {
+                rightArmAngle = -82f;
+                leftArmAngle = -72f;
+            }
             if (_talkGestureRemaining > 0f && !walking)
             {
                 var emphasis = Mathf.Sin((1.25f - _talkGestureRemaining) * 8f);
@@ -460,6 +473,29 @@ namespace Pogranichye.Client.Presentation
                 var strike = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
                 rightArmAngle = Mathf.Lerp(-102f, 24f, strike);
                 rightArmYaw = -22f + strike * 38f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "heavy_attack")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.62f;
+                var strike = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
+                rightArmAngle = Mathf.Lerp(-138f, 32f, strike);
+                rightArmYaw = -34f + strike * 48f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "thrust")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.62f;
+                var extension = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
+                rightArmAngle = -74f - extension * 42f;
+                rightArmYaw = -8f;
+                _body.localPosition += new Vector3(0f, 0f, extension * 0.10f);
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "bow_shot")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var draw = progress < 0.58f ? progress / 0.58f : 1f - (progress - 0.58f) / 0.42f;
+                leftArmAngle = -62f;
+                rightArmAngle = -72f - Mathf.Clamp01(draw) * 38f;
+                rightArmYaw = -24f;
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "guard")
             {
