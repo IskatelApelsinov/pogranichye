@@ -330,6 +330,9 @@ namespace Pogranichye.Client.Presentation
             var tavernWork = _activity == "tavern";
             var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
                 hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet || mendingGear;
+            // A restrained torso/hip response makes long-running NPC jobs readable at a distance;
+            // it is derived only from the replicated activity code, never from outcome text.
+            var workBodyBob = 0f;
             var social = _activity == "social";
             var eating = _activity.Contains("eat") || _activity.Contains("ест") || _activity.Contains("ед");
             var drinking = _drinkGestureRemaining > 0f || _activity.Contains("drink") || _activity.Contains("пив") || _activity.Contains("пь");
@@ -360,11 +363,14 @@ namespace Pogranichye.Client.Presentation
                     var strike = Mathf.Max(0f, Mathf.Sin(_phase * 2.8f));
                     leftArmAngle = -18f + Mathf.Sin(_phase * 1.4f) * 5f;
                     rightArmAngle = -78f + strike * 82f;
+                    workBodyBob = strike * 0.045f;
                 }
                 else if (fishing)
                 {
-                    leftArmAngle = -24f + Mathf.Sin(_phase * 0.65f) * 4f;
+                    var lineTension = Mathf.Sin(_phase * 0.65f);
+                    leftArmAngle = -24f + lineTension * 4f;
                     rightArmAngle = -48f + Mathf.Sin(_phase * 0.65f + 0.5f) * 7f;
+                    workBodyBob = Mathf.Max(0f, lineTension) * 0.012f;
                 }
                 else if (mendingNet)
                 {
@@ -377,11 +383,14 @@ namespace Pogranichye.Client.Presentation
                     var hammer = Mathf.Max(0f, Mathf.Sin(_phase * 3.1f));
                     leftArmAngle = -22f + Mathf.Sin(_phase * 1.1f) * 5f;
                     rightArmAngle = -88f + hammer * 78f;
+                    workBodyBob = hammer * 0.035f;
                 }
                 else if (farming)
                 {
+                    var hoeStroke = Mathf.Max(0f, Mathf.Sin(_phase * 1.5f));
                     leftArmAngle = -34f + Mathf.Sin(_phase * 1.5f) * 8f;
                     rightArmAngle = -38f + Mathf.Cos(_phase * 1.5f) * 9f;
+                    workBodyBob = hoeStroke * 0.025f;
                 }
                 else if (mendingGear)
                 {
@@ -426,6 +435,9 @@ namespace Pogranichye.Client.Presentation
                     rightArmAngle = -32f + Mathf.Sin(_phase * 1.8f) * 10f;
                 }
             }
+
+            if (workBodyBob > 0f && !walking)
+                _body.localPosition += new Vector3(0f, workBodyBob, 0f);
 
             if (eating) rightArmAngle = Mathf.Sin(_phase * 1.8f) * 34f - 28f;
             if (drinking) rightArmAngle = Mathf.Sin(_phase * 1.15f) * 10f - 62f;
