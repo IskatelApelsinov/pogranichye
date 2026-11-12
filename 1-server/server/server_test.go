@@ -10,9 +10,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"pogranichye/core"
-	"strings"
 	"testing"
 )
 
