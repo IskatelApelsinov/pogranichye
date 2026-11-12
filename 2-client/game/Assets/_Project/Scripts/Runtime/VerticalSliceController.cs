@@ -140,6 +140,7 @@ namespace Pogranichye.Client
             public float Mx;
             public float My;
             public bool Run;
+            public bool Fast;
             public float Face;
             public float DeltaTime;
         }
@@ -981,7 +982,7 @@ namespace Pogranichye.Client
                 SetCameraMode(!_firstPerson);
             GUILayout.Space(6f);
             GUILayout.Label("Управление");
-            GUILayout.Label("WASD — движение · Shift — бег · Space — прыжок\nМышь — обзор · E — взаимодействие\nF1 — скрыть интерфейс · F3 — диагностика · F11 — экран");
+            GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие\nF1 — скрыть интерфейс · F3 — диагностика · F11 — экран");
             GUILayout.Label("Бой и ремесло (v1.10)\nЛКМ — удар/выстрел (зажать — тяжёлый удар/натяг лука) · ПКМ — блок\nQ — уворот · F — укол · R (держать) — плетение мышью\nZ песок · X толчок · V финт · B приманка · C красться · T стойка\nTab — дела: ремесло, просьбы, рынок, дороги, отряд\nВ первом лице сверни панель [F1] — мышь захватится для прицела.");
             GUILayout.Label("Диагностика ввода: " + (_movementDebugVisible ? "включена" : "выключена"));
             if (GUILayout.Button(_movementDebugVisible ? "Скрыть диагностику [F3]" : "Показать диагностику [F3]"))
@@ -1238,6 +1239,8 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
+            var gesture = action == "chop" ? "chop" : action == "fish" ? "fish_reel" : action;
+            _views?.PlayPlayerActionGesture(gesture);
         }
 
         private void StartActivityMiniGame(ActivityMiniGame game)
@@ -1925,9 +1928,10 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            var runRequested = moving && _input != null && _input.SprintHeld;
+            var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
+            var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
-            var speed = canRun ? 3.2f : 1.4f;
+            var speed = canRun ? (fastRequested ? 4.8f : 2.5f) : 1.4f;
 
             if (moving)
             {
@@ -1971,6 +1975,7 @@ namespace Pogranichye.Client
                 Mx = worldMove.x,
                 My = worldMove.z,
                 Run = runRequested,
+                Fast = fastRequested,
                 Face = facingDegrees,
                 DeltaTime = elapsed
             };
@@ -2061,7 +2066,7 @@ namespace Pogranichye.Client
             {
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
-                var speed = canRun ? 3.2f : 1.4f;
+                var speed = canRun ? (intent.Fast ? 4.8f : 2.5f) : 1.4f;
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
 
@@ -2095,7 +2100,7 @@ namespace Pogranichye.Client
             Exception failure = null;
             try
             {
-                await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Face,
+                await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Fast, intent.Face,
                     intent.DeltaTime, intent.Sequence, _lifetime.Token);
             }
             catch (Exception ex)
