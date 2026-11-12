@@ -51,6 +51,8 @@ namespace Pogranichye.Client
         private float _mouseSensitivity = 0.035f;
         private bool _invertMouseY;
         private float _shadowDistance = 120f;
+        private float _lodBias = 1f;
+        private int _antiAliasing = 2;
         private bool _vSync = true;
         private int _targetFrameRate = 60;
         private WorldAudioDirector _audioDirector;
@@ -180,6 +182,8 @@ namespace Pogranichye.Client
             _mouseSensitivity = PlayerPrefs.GetFloat("Pogranichye.MouseSensitivity", 0.035f);
             _invertMouseY = PlayerPrefs.GetInt("Pogranichye.InvertMouseY", 0) != 0;
             _shadowDistance = PlayerPrefs.GetFloat("Pogranichye.ShadowDistance", 120f);
+            _lodBias = PlayerPrefs.GetFloat("Pogranichye.LodBias", 1f);
+            _antiAliasing = PlayerPrefs.GetInt("Pogranichye.AntiAliasing", 2);
             _vSync = PlayerPrefs.GetInt("Pogranichye.VSync", 1) != 0;
             _targetFrameRate = PlayerPrefs.GetInt("Pogranichye.TargetFrameRate", 60);
             ApplyGraphicsSettings();
@@ -1051,10 +1055,13 @@ namespace Pogranichye.Client
                 PlayerPrefs.DeleteKey("Pogranichye.MouseSensitivity");
                 PlayerPrefs.DeleteKey("Pogranichye.InvertMouseY");
                 PlayerPrefs.DeleteKey("Pogranichye.ShadowDistance");
+                PlayerPrefs.DeleteKey("Pogranichye.LodBias");
+                PlayerPrefs.DeleteKey("Pogranichye.AntiAliasing");
                 PlayerPrefs.DeleteKey("Pogranichye.VSync");
                 PlayerPrefs.DeleteKey("Pogranichye.TargetFrameRate");
                 _masterVolume = 0.85f; _sfxVolume = 0.9f; _ambienceVolume = 0.75f;
                 _mouseSensitivity = 0.035f; _invertMouseY = false; _shadowDistance = 120f;
+                _lodBias = 1f; _antiAliasing = 2;
                 _vSync = true; _targetFrameRate = 60;
                 AudioListener.volume = _masterVolume;
                 _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
@@ -1068,7 +1075,6 @@ namespace Pogranichye.Client
         {
             GUILayout.Label("ЗВУК");
             DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
-            if (GUI.changed) AudioListener.volume = _masterVolume;
             DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
             DrawVolumeSlider("Окружение: ветер, костры", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
             _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
@@ -1091,6 +1097,26 @@ namespace Pogranichye.Client
                 _shadowDistance = shadows;
                 QualitySettings.shadowDistance = shadows;
                 SaveFloat("Pogranichye.ShadowDistance", shadows);
+            }
+            GUILayout.Label("Детализация объектов (LOD): " + _lodBias.ToString("0.0") + "×");
+            var lod = GUILayout.HorizontalSlider(_lodBias, 0.5f, 2.5f);
+            if (!Mathf.Approximately(lod, _lodBias))
+            {
+                _lodBias = lod;
+                QualitySettings.lodBias = lod;
+                SaveFloat("Pogranichye.LodBias", lod);
+            }
+            GUILayout.Label("Сглаживание краёв");
+            var aaOptions = new[] { 0, 2, 4, 8 };
+            var aaLabels = new[] { "Выкл.", "2×", "4×", "8×" };
+            var aaIndex = Array.IndexOf(aaOptions, _antiAliasing);
+            if (aaIndex < 0) aaIndex = 0;
+            var nextAa = GUILayout.SelectionGrid(aaIndex, aaLabels, 4, GUILayout.MinHeight(30f));
+            if (nextAa != aaIndex && nextAa >= 0 && nextAa < aaOptions.Length)
+            {
+                _antiAliasing = aaOptions[nextAa];
+                QualitySettings.antiAliasing = _antiAliasing;
+                SaveInt("Pogranichye.AntiAliasing", _antiAliasing);
             }
             var sync = GUILayout.Toggle(_vSync, "Вертикальная синхронизация");
             if (sync != _vSync)
@@ -1163,6 +1189,8 @@ namespace Pogranichye.Client
         private void ApplyGraphicsSettings()
         {
             QualitySettings.shadowDistance = _shadowDistance;
+            QualitySettings.lodBias = _lodBias;
+            QualitySettings.antiAliasing = _antiAliasing;
             QualitySettings.vSyncCount = _vSync ? 1 : 0;
             Application.targetFrameRate = _targetFrameRate == 0 ? -1 : _targetFrameRate;
         }
