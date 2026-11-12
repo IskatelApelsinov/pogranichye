@@ -180,6 +180,7 @@ namespace Pogranichye.Client
         private readonly List<Floater> _floaters = new List<Floater>();
         private readonly RaycastHit[] _visibilityHits = new RaycastHit[24];
         private readonly RaycastHit[] _aimHits = new RaycastHit[48];
+        private bool _aimHitBufferSaturated;
         private RequestGate _gate;
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
@@ -1217,6 +1218,7 @@ namespace Pogranichye.Client
 
         private bool AimFoe(out CoreFoeView view, out string part, out float accuracy, out float distance)
         {
+            _aimHitBufferSaturated = false;
             view = null;
             part = "torso";
             accuracy = 0f;
@@ -1228,6 +1230,13 @@ namespace Pogranichye.Client
                 : cam.ScreenPointToRay(_input != null ? _input.PointerPosition : Vector2.zero);
             var count = Physics.RaycastNonAlloc(ray, _aimHits, 140f,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            // A full NonAlloc buffer may contain an arbitrary subset, not necessarily the
+            // nearest hits. Never select a foe when an omitted wall could be in front of it.
+            if (count >= _aimHits.Length)
+            {
+                _aimHitBufferSaturated = true;
+                return false;
+            }
             if (count <= 0) return false;
 
             // RaycastNonAlloc does not guarantee hit order. Insertion sort the small fixed buffer
@@ -1290,6 +1299,11 @@ namespace Pogranichye.Client
             string part;
             float accuracy, distance;
             var aimed = AimFoe(out foe, out part, out accuracy, out distance);
+            if (_aimHitBufferSaturated)
+            {
+                Toast("Слишком много объектов на линии прицела", 1.1f);
+                return;
+            }
             var weapon = Str(combat, "weapon");
             var pos = Obj(_me, "pos");
             if (!aimed && weapon == "axe" && pos != null && (Num(pos, "x") <= -70f || Near("woods", 8f)))
