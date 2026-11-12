@@ -2105,12 +2105,26 @@ namespace Pogranichye.Client.Presentation
             smithy.SetParent(root, false);
             smithy.position = position;
             CreateCameraObstacle(smithy, "Camera collision • smithy", new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f));
-            CreatePrimitive("Smithy walls", PrimitiveType.Cube, smithy,
-                new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f), _woodMaterial);
+            // Open-front workshop: the forge and anvil remain visible from the lane,
+            // rather than being hidden behind a solid placeholder box.
+            CreatePrimitive("Smithy rear wall", PrimitiveType.Cube, smithy,
+                new Vector3(0f, 1.1f, 1.42f), new Vector3(3.8f, 2.2f, 0.16f), _woodMaterial);
+            CreatePrimitive("Smithy left side wall", PrimitiveType.Cube, smithy,
+                new Vector3(-1.82f, 1.1f, 0.12f), new Vector3(0.16f, 2.2f, 2.75f), _woodMaterial);
+            CreatePrimitive("Smithy right side wall", PrimitiveType.Cube, smithy,
+                new Vector3(1.82f, 1.1f, 0.12f), new Vector3(0.16f, 2.2f, 2.75f), _woodMaterial);
+            CreatePrimitive("Smithy front roof beam", PrimitiveType.Cube, smithy,
+                new Vector3(0f, 2.18f, -1.38f), new Vector3(3.85f, 0.18f, 0.18f), _woodMaterial);
             CreatePrimitive("Smithy roof", PrimitiveType.Cube, smithy,
                 new Vector3(0, 2.35f, 0), new Vector3(4.2f, 0.35f, 3.4f), _roofMaterial);
             CreatePrimitive("Forge", PrimitiveType.Cube, smithy,
                 new Vector3(-1.1f, 0.65f, -1.6f), new Vector3(1.0f, 1.3f, 0.8f), _stoneMaterial);
+            CreatePrimitive("Forge coal bed", PrimitiveType.Cube, smithy,
+                new Vector3(-1.1f, 1.22f, -1.48f), new Vector3(0.62f, 0.10f, 0.44f), _metalMaterial);
+            CreatePrimitive("Smithy chimney", PrimitiveType.Cube, smithy,
+                new Vector3(-1.1f, 2.10f, 0.85f), new Vector3(0.62f, 1.45f, 0.62f), _stoneMaterial);
+            CreatePrimitive("Smithy chimney cap", PrimitiveType.Cube, smithy,
+                new Vector3(-1.1f, 2.86f, 0.85f), new Vector3(0.82f, 0.12f, 0.82f), _roofMaterial);
             CreatePrimitive("Anvil", PrimitiveType.Cube, smithy,
                 new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _metalMaterial);
             CreatePrimitive("Anvil horn", PrimitiveType.Cylinder, smithy,
