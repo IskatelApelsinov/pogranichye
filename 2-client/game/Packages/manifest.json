@@ -5,6 +5,9 @@
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.unity.render-pipelines.universal": "17.6.0",
     "com.unity.modules.physics": "1.0.0",
-    "com.unity.modules.unitywebrequest": "1.0.0"
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.fdgs.webrtc": "https://github.com/FireDragonGameStudio/com.unity.webrtc.fdgs.git#v3.2.1",
+    "com.fdgs.simplewebrtc": "https://github.com/FireDragonGameStudio/SimpleWebRTC.git?path=/Packages/com.fdgs.simplewebrtc#09f99e90a18064c705837c157abd6fb4c9d8649f",
+    "com.unity.ugui": "2.0.0"
   }
 }
