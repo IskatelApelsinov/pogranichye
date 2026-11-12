@@ -45,6 +45,10 @@ type Server struct {
 	ochkoShuffle func([]sim.OchkoCard) error
 	durakShuffle func([]sim.DurakCard) error
 
+	// Cached player-driven heat topology: Update runs every 100 ms, but settlement heat only
+	// needs reconciliation when controlled players/targets or settlement population changes.
+	heatTracker sim.HeatTracker
+
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
 	lastStepMs      float64
@@ -253,7 +257,7 @@ func (s *Server) tickLoop() {
 // поселений, враги и бой, путники, мана. Вынесен отдельно — его же зовут тесты.
 func (s *Server) fastStep(dt float64) {
 	ctl := func(id core.ID) bool { return s.ctl[id] != 0 }
-	s.hot, s.warm, s.cold = sim.UpdateHeat(s.world, ctl)
+	s.hot, s.warm, s.cold = s.heatTracker.Update(s.world, ctl)
 	// тела под управлением игроков пропускаем (их ведёт сам игрок)
 	sim.StepNPCMovement(s.world, dt, ctl)
 	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
