@@ -144,3 +144,63 @@ func writeClientFrame(t *testing.T, c net.Conn, s string) {
 		t.Fatalf("write frame: %v", err)
 	}
 }
+
+
+// TestControllerLeaseReturnsSameSoulToAIMakesDisconnectAControlChange verifies that
+// disconnect releases only the controller lease: the body and its persistent
+// identity/state remain in the world and can be reclaimed by the same account.
+func TestControllerLeaseReturnsSameSoulToAI(t *testing.T) {
+	s := NewStarter("soul-handoff", "", []byte("secret"), "")
+	if r := post(t, "http://unused/api/register", `{"login":"soul-owner","pass":"secret1"}`); r != nil {
+		// Registration is performed directly below; this branch is intentionally unreachable.
+	}
+	if _, err := s.acc.Register("soul-owner", "secret1"); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	token, _, err := s.acc.Login("soul-owner", "secret1")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	uid, err := s.acc.Validate(token)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+
+	firstID, firstSID, status := s.reserveBody(uid)
+	if status != "ok" || firstID == 0 || firstSID == 0 {
+		t.Fatalf("first reserve = (%d,%d,%q), want ok", firstID, firstSID, status)
+	}
+	e := s.world.Get(firstID)
+	if e == nil || core.Ident(e) == nil || core.Mind(e) == nil || core.Vitals(e) == nil {
+		t.Fatal("reserved soul is missing its ordinary identity/mind/body components")
+	}
+	ident := *core.Ident(e)
+	vitals := *core.Vitals(e)
+	mind := core.Mind(e)
+	mind.Goal = "work"
+	mind.LastAct = "куёт"
+	mind.GoalUntil = 12345
+
+	s.release(firstID, firstSID)
+	if s.ctl[firstID] != 0 {
+		t.Fatal("disconnect must release controller lease")
+	}
+	if s.world.Get(firstID) != e {
+		t.Fatal("disconnect must not replace or destroy the soul entity")
+	}
+	if mind.Goal != "work" || mind.LastAct != "куёт" || mind.GoalUntil != 0 {
+		t.Fatalf("disconnect must preserve identity of thought but let AI reconsider: %+v", mind)
+	}
+
+	secondID, secondSID, status := s.reserveBody(uid)
+	if status != "ok" || secondID != firstID || secondSID == firstSID {
+		t.Fatalf("reconnect reserve = (%d,%d,%q), want same body %d and new lease", secondID, secondSID, status, firstID)
+	}
+	if got := core.Ident(s.world.Get(secondID)); got == nil || *got != ident {
+		t.Fatalf("identity changed across controller handoff: got %+v want %+v", got, ident)
+	}
+	if got := core.Vitals(s.world.Get(secondID)); got == nil || *got != vitals {
+		t.Fatalf("vitals changed across controller handoff: got %+v want %+v", got, vitals)
+	}
+	s.release(secondID, secondSID)
+}
