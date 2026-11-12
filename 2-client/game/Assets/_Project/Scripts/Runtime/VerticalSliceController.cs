@@ -62,6 +62,11 @@ namespace Pogranichye.Client
         private const string DrinkRequestLabelPrefix = "Совместная кружка:";
         private const string InventoryRequestLabelPrefix = "Инвентарь:";
         private const string WorldActionLabelPrefix = "Действие мира:";
+        private enum ActivityMiniGame { None, Woodcutting, Fishing }
+        private ActivityMiniGame _activityMiniGame;
+        private float _activityMiniGameStartedAt;
+        private int _woodcuttingGoodHits;
+        private string _activityMiniGameFeedback;
         private Vector2 _dialogueScroll;
         private GUIStyle _dialogueWhoStyle;
         private GUIStyle _dialogueLineStyle;
@@ -352,10 +357,11 @@ namespace Pogranichye.Client
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
             GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("🪓 Рубить")) QueueWorldAction("chop");
-            if (GUILayout.Button("🎣 Рыбачить")) QueueWorldAction("fish");
+            if (GUILayout.Button("🪓 Рубка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+            if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
             if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
             GUILayout.EndHorizontal();
+            DrawActivityMiniGame();
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
         }
 
@@ -1098,6 +1104,115 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
+        }
+
+        private void StartActivityMiniGame(ActivityMiniGame game)
+        {
+            if (_connectionState != WorldConnectionState.Active || _core == null)
+            {
+                _activityMiniGameFeedback = "Сначала подключитесь к миру.";
+                return;
+            }
+            _activityMiniGame = game;
+            _activityMiniGameStartedAt = Time.realtimeSinceStartup;
+            _woodcuttingGoodHits = 0;
+            _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
+                ? "Трижды нажмите «Ударить», когда метка окажется в светлой зоне."
+                : "Следите за поплавком. Когда появится поклёвка, быстро нажмите «Подсечь».";
+        }
+
+        private void DrawActivityMiniGame()
+        {
+            if (_activityMiniGame == ActivityMiniGame.None)
+            {
+                if (!string.IsNullOrEmpty(_activityMiniGameFeedback))
+                    GUILayout.Label(_activityMiniGameFeedback);
+                return;
+            }
+
+            var elapsed = Mathf.Max(0f, Time.realtimeSinceStartup - _activityMiniGameStartedAt);
+            GUILayout.BeginVertical(GUI.skin.box);
+            if (_activityMiniGame == ActivityMiniGame.Woodcutting)
+            {
+                GUILayout.Label("РУБКА · РИТМ УДАРОВ");
+                var phase = Mathf.PingPong(elapsed * 0.85f, 1f);
+                GUILayout.Label("Точные удары: " + _woodcuttingGoodHits + " / 3");
+                DrawTimingTrack(phase, 0.40f, 0.18f);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Ударить", GUILayout.Height(34f)))
+                {
+                    if (Mathf.Abs(phase - 0.40f) <= 0.09f)
+                    {
+                        _woodcuttingGoodHits++;
+                        _activityMiniGameFeedback = "Точный удар!";
+                        if (_woodcuttingGoodHits >= 3)
+                        {
+                            _activityMiniGame = ActivityMiniGame.None;
+                            _activityMiniGameFeedback = "Ритм выдержан. Сервер проверяет инструмент, место и результат…";
+                            QueueWorldAction("chop");
+                        }
+                    }
+                    else _activityMiniGameFeedback = "Удар пришёлся мимо ритма. Попробуйте ещё раз.";
+                }
+                if (GUILayout.Button("Отойти", GUILayout.Width(90f)))
+                {
+                    _activityMiniGame = ActivityMiniGame.None;
+                    _activityMiniGameFeedback = "Работа прервана.";
+                }
+                GUILayout.EndHorizontal();
+            }
+            else
+            {
+                GUILayout.Label("РЫБАЛКА · ПОКЛЁВКА");
+                const float biteAt = 2.0f;
+                const float biteDuration = 2.6f;
+                if (elapsed < biteAt)
+                {
+                    GUILayout.Label("Поплавок спокойно покачивается…");
+                    GUILayout.HorizontalSlider(Mathf.Clamp01(elapsed / biteAt), 0f, 1f);
+                    GUILayout.Label("Ждите поклёвку.");
+                }
+                else if (elapsed <= biteAt + biteDuration)
+                {
+                    GUILayout.Label("ПОКЛЁВКА! Подсекайте!");
+                    GUILayout.HorizontalSlider((biteAt + biteDuration - elapsed) / biteDuration, 0f, 1f);
+                    if (GUILayout.Button("Подсечь!", GUILayout.Height(38f)))
+                    {
+                        _activityMiniGame = ActivityMiniGame.None;
+                        _activityMiniGameFeedback = "Подсечка выполнена. Сервер проверяет водоём, снасти и улов…";
+                        QueueWorldAction("fish");
+                    }
+                }
+                else
+                {
+                    GUILayout.Label("Рыба ушла. Попробуйте забросить снова.");
+                    if (GUILayout.Button("Новый заброс"))
+                        StartActivityMiniGame(ActivityMiniGame.Fishing);
+                }
+                if (GUILayout.Button("Свернуть рыбалку"))
+                {
+                    _activityMiniGame = ActivityMiniGame.None;
+                    _activityMiniGameFeedback = "Вы смотали леску.";
+                }
+            }
+            if (!string.IsNullOrEmpty(_activityMiniGameFeedback))
+                GUILayout.Label(_activityMiniGameFeedback);
+            GUILayout.EndVertical();
+        }
+
+        private static void DrawTimingTrack(float marker, float targetCenter, float targetWidth)
+        {
+            var rect = GUILayoutUtility.GetRect(220f, 22f, GUILayout.ExpandWidth(true));
+            var previous = GUI.color;
+            GUI.color = new Color(0.20f, 0.26f, 0.19f, 1f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = new Color(0.77f, 0.68f, 0.42f, 1f);
+            GUI.DrawTexture(new Rect(rect.x + rect.width * (targetCenter - targetWidth * 0.5f),
+                rect.y, rect.width * targetWidth, rect.height), Texture2D.whiteTexture);
+            GUI.color = new Color(0.90f, 0.92f, 0.78f, 1f);
+            GUI.DrawTexture(new Rect(rect.x + rect.width * marker - 2f, rect.y - 3f,
+                4f, rect.height + 6f), Texture2D.whiteTexture);
+            GUI.color = previous;
         }
 
         private void SendCorePayload(Dictionary<string, object> payload)
