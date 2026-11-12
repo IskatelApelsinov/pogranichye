@@ -771,6 +771,8 @@ namespace Pogranichye.Client.Presentation
             velocity.x = new ParticleSystem.MinMaxCurve(-0.035f, 0.035f);
             velocity.y = new ParticleSystem.MinMaxCurve(0.22f, 0.38f);
             velocity.z = new ParticleSystem.MinMaxCurve(-0.025f, 0.025f);
+            var windDrift = holder.AddComponent<WindDrivenParticleDrift>();
+            windDrift.Initialize(particles, 0.035f, 0.025f);
             var noise = particles.noise;
             noise.enabled = true;
             noise.strength = 0.08f;

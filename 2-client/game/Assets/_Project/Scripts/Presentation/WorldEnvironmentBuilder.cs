@@ -785,6 +785,8 @@ namespace Pogranichye.Client.Presentation
             velocity.x = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
             velocity.y = new ParticleSystem.MinMaxCurve(0f, 0f);
             velocity.z = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
+            var windDrift = holder.AddComponent<WindDrivenParticleDrift>();
+            windDrift.Initialize(particles, 0.08f, 0.05f);
             var noise = particles.noise;
             noise.enabled = true;
             noise.strength = 0.18f;
@@ -1044,6 +1046,43 @@ namespace Pogranichye.Client.Presentation
                 _vertices[index] = vertex;
             }
             _mesh.vertices = _vertices;
+        }
+    }
+
+    /// <summary>
+    /// Applies the shared visual wind to a small ambient particle system at a low update rate.
+    /// This is presentation-only and deliberately does not touch authoritative weather or gameplay.
+    /// </summary>
+    public sealed class WindDrivenParticleDrift : MonoBehaviour
+    {
+        private const float UpdateInterval = 0.25f;
+        private ParticleSystem _particles;
+        private float _baseX;
+        private float _baseZ;
+        private float _nextUpdateAt;
+
+        public void Initialize(ParticleSystem particles, float baseX, float baseZ)
+        {
+            _particles = particles;
+            _baseX = Mathf.Abs(baseX);
+            _baseZ = Mathf.Abs(baseZ);
+            ApplyWind();
+        }
+
+        private void Update()
+        {
+            if (_particles == null || Time.time < _nextUpdateAt) return;
+            _nextUpdateAt = Time.time + UpdateInterval;
+            ApplyWind();
+        }
+
+        private void ApplyWind()
+        {
+            if (_particles == null) return;
+            var wind = WorldAtmosphereCycle.WindStrength;
+            var velocity = _particles.velocityOverLifetime;
+            velocity.x = new ParticleSystem.MinMaxCurve(-_baseX * wind, _baseX * wind);
+            velocity.z = new ParticleSystem.MinMaxCurve(-_baseZ * wind, _baseZ * wind);
         }
     }
 
