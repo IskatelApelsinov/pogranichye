@@ -11,6 +11,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
+      - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -38,3 +40,8 @@ jobs:
         run: |
           mcs -out:/tmp/input-event-debug.exe Tests/InputEventDebugStateCheck.cs Assets/_Project/Scripts/Runtime/InputEventDebugState.cs
           mono /tmp/input-event-debug.exe
+      - name: NPC activity sound mapping regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
+          mono /tmp/npc-activity-sound.exe

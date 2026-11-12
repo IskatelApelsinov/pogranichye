@@ -8,9 +8,11 @@ namespace Pogranichye.Client.Presentation
     public sealed class WorldAudioDirector : MonoBehaviour
     {
         private const int Rate = 22050;
+        private const float NearbyVoiceMaxDistance = 24f;
         private AudioSource _oneShot;
         private AudioSource _fire;
         private AudioClip _step, _run, _combat, _magic, _beer, _fireLoop;
+        private AudioClip _npcWoodcut, _npcForge, _npcFishing, _npcFieldwork, _npcMining, _npcHearth, _npcHerding;
         private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
         private int _nearbyVoiceCursor;
         private float _nextStepAt;
@@ -37,6 +39,13 @@ namespace Pogranichye.Client.Presentation
             _magic = MakeTone("Magic cast shimmer", 0.38f, 0.42f, 0.19f);
             _beer = MakeNoise("Beer sip and mug", 0.15f, 0.24f, 0.13f);
             _fireLoop = MakeNoise("Village campfire crackle", 0.055f, 0.18f, 0.08f, 4);
+            _npcWoodcut = MakeNoise("Nearby NPC axe and wood", 0.22f, 0.13f, 0.055f);
+            _npcForge = MakeMetalTap("Nearby NPC forge hammer", 690f, 0.18f);
+            _npcFishing = MakeNoise("Nearby NPC fishing splash", 0.10f, 0.16f, 0.07f);
+            _npcFieldwork = MakeNoise("Nearby NPC hoe in soil", 0.12f, 0.12f, 0.06f);
+            _npcMining = MakeMetalTap("Nearby NPC mining pick", 430f, 0.15f);
+            _npcHearth = MakeNoise("Nearby NPC hearth tending", 0.075f, 0.12f, 0.055f);
+            _npcHerding = MakeNoise("Nearby NPC livestock handling", 0.065f, 0.15f, 0.08f);
             var fireObject = new GameObject("Ambience • campfire crackle");
             fireObject.transform.SetParent(transform, false);
             fireObject.transform.localPosition = new Vector3(-3.5f, 0.8f, 4.5f);
@@ -58,7 +67,7 @@ namespace Pogranichye.Client.Presentation
                 voice.playOnAwake = false;
                 voice.spatialBlend = 1f;
                 voice.minDistance = 2f;
-                voice.maxDistance = 24f;
+                voice.maxDistance = NearbyVoiceMaxDistance;
                 voice.dopplerLevel = 0f;
                 voice.rolloffMode = AudioRolloffMode.Linear;
                 voice.priority = 160;
@@ -67,6 +76,7 @@ namespace Pogranichye.Client.Presentation
             }
             EntityMotion.NearbyFootstep += OnNearbyFootstep;
             EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
+            EntityMotion.NearbyWorkAction += OnNearbyWorkAction;
         }
 
         public void SetVolumes(float sfx, float ambience)
@@ -105,9 +115,59 @@ namespace Pogranichye.Client.Presentation
             PlayNearby(position, _magic, 0.64f);
         }
 
+        private void OnNearbyWorkAction(Vector3 position, NpcActivitySoundKind kind)
+        {
+            AudioClip clip = null;
+            var volume = 0.5f;
+            switch (kind)
+            {
+                case NpcActivitySoundKind.Woodcut:
+                    clip = _npcWoodcut;
+                    volume = 0.66f;
+                    break;
+                case NpcActivitySoundKind.Forge:
+                    clip = _npcForge;
+                    volume = 0.62f;
+                    break;
+                case NpcActivitySoundKind.Fishing:
+                    clip = _npcFishing;
+                    volume = 0.48f;
+                    break;
+                case NpcActivitySoundKind.Fieldwork:
+                    clip = _npcFieldwork;
+                    volume = 0.46f;
+                    break;
+                case NpcActivitySoundKind.Mining:
+                    clip = _npcMining;
+                    volume = 0.58f;
+                    break;
+                case NpcActivitySoundKind.Hearth:
+                    clip = _npcHearth;
+                    volume = 0.42f;
+                    break;
+                case NpcActivitySoundKind.Drinking:
+                    clip = _beer;
+                    volume = 0.56f;
+                    break;
+                case NpcActivitySoundKind.Herding:
+                    clip = _npcHerding;
+                    volume = 0.36f;
+                    break;
+            }
+
+            PlayNearby(position, clip, volume);
+        }
+
         private void PlayNearby(Vector3 position, AudioClip clip, float volume)
         {
-            if (clip == null || _nearbyVoices.Length == 0) return;
+            if (_oneShot == null || clip == null || _nearbyVoices.Length == 0) return;
+            // Remote entities are replicated as a bounded nearest-neighbor set, but some may
+            // still be outside hearing range. Cull before taking a voice so distant activity
+            // cannot steal one of the six audible slots from a nearby character.
+            var listenerPosition = _oneShot.transform.position;
+            if ((position - listenerPosition).sqrMagnitude >
+                NearbyVoiceMaxDistance * NearbyVoiceMaxDistance) return;
+
             var voice = _nearbyVoices[_nearbyVoiceCursor++ % _nearbyVoices.Length];
             voice.transform.position = position;
             voice.Stop();
@@ -149,12 +209,38 @@ namespace Pogranichye.Client.Presentation
             return clip;
         }
 
+        private static AudioClip MakeMetalTap(string name, float fundamental, float amplitude)
+        {
+            const float duration = 0.22f;
+            var length = Mathf.CeilToInt(Rate * duration);
+            var data = new float[length];
+            var random = new System.Random(name.GetHashCode());
+            for (var i = 0; i < length; i++)
+            {
+                var t = i / (float)Rate;
+                var decay = Mathf.Exp(-t * 23f);
+                var partials = Mathf.Sin(2f * Mathf.PI * fundamental * t)
+                    + 0.38f * Mathf.Sin(2f * Mathf.PI * fundamental * 2.17f * t)
+                    + 0.16f * Mathf.Sin(2f * Mathf.PI * fundamental * 3.41f * t);
+                var transient = ((float)random.NextDouble() * 2f - 1f) * Mathf.Exp(-t * 105f) * 0.22f;
+                data[i] = (partials * 0.62f + transient) * decay * amplitude;
+            }
+
+            var clip = AudioClip.Create(name, data.Length, 1, Rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
         private void OnDestroy()
         {
             EntityMotion.NearbyFootstep -= OnNearbyFootstep;
             EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
+            EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;
             DestroyClip(_step); DestroyClip(_run); DestroyClip(_combat);
             DestroyClip(_magic); DestroyClip(_beer); DestroyClip(_fireLoop);
+            DestroyClip(_npcWoodcut); DestroyClip(_npcForge); DestroyClip(_npcFishing);
+            DestroyClip(_npcFieldwork); DestroyClip(_npcMining); DestroyClip(_npcHearth);
+            DestroyClip(_npcHerding);
         }
 
         private static void DestroyClip(AudioClip clip) { if (clip != null) Destroy(clip); }
