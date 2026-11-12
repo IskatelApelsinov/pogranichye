@@ -105,6 +105,9 @@ namespace Pogranichye.Client
                 if (playLocally != null) playLocally.SetValue(_sender, false);
 
                 _receiver = _voiceRoot.AddComponent<AudioReceiver>();
+                _manager.SignalingStateChanged.AddListener(OnSignalingStateChanged);
+                _manager.PeerConnected.AddListener(OnPeerConnected);
+                _manager.PeerLeft.AddListener(OnPeerLeft);
                 _manager.Connect();
                 _joined = true;
                 _microphoneEnabled = false;
@@ -115,6 +118,22 @@ namespace Pogranichye.Client
                 Status = "Не удалось запустить голос: " + ex.Message;
                 StopVoice();
             }
+        }
+
+        private void OnSignalingStateChanged(SignalingState state)
+        {
+            if (state == SignalingState.Disconnected && _joined)
+                Status = "Голосовая связь потеряна. Попробуйте переподключиться.";
+        }
+
+        private void OnPeerConnected(string peerId)
+        {
+            Status = "Голосовая связь установлена.";
+        }
+
+        private void OnPeerLeft(string peerId)
+        {
+            Status = "Собеседник отключился от голосового канала.";
         }
 
         public void StopVoice()
