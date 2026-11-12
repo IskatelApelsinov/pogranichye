@@ -109,6 +109,7 @@ namespace Pogranichye.Client
             public string Text;
             public float At;
             public bool Hurt;
+            public Transform OwnerRoot;
         }
 
         private sealed class FeedLine
@@ -177,6 +178,7 @@ namespace Pogranichye.Client
 
         private readonly List<FeedLine> _feed = new List<FeedLine>();
         private readonly List<Floater> _floaters = new List<Floater>();
+        private readonly RaycastHit[] _visibilityHits = new RaycastHit[24];
         private RequestGate _gate;
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
@@ -968,7 +970,8 @@ namespace Pogranichye.Client
                     var hurtsMe = kind == "hurt";
                     var anchor = hurtsMe && _player != null ? _player.position + Vector3.up * 1.4f
                         : struck.Root.transform.position + Vector3.up * (struck.View.Height + 0.2f);
-                    _floaters.Add(new Floater { World = anchor, Text = (hurtsMe ? "-" : "") + Mathf.RoundToInt(damage), At = Time.unscaledTime, Hurt = hurtsMe });
+                    _floaters.Add(new Floater { World = anchor, Text = (hurtsMe ? "-" : "") + Mathf.RoundToInt(damage), At = Time.unscaledTime, Hurt = hurtsMe,
+                        OwnerRoot = hurtsMe ? _player : struck.Root.transform });
                     if (!hurtsMe) struck.Punch = 0.2f;
                     else if (struck.Gait != null) struck.Gait.Lunge(); // the server confirmed this foe's hit
                 }
@@ -1786,6 +1789,26 @@ namespace Pogranichye.Client
                 Ask(title, "act", "action", secondaryAction);
         }
 
+        private bool IsWorldPointOccluded(Camera cam, Vector3 point, Transform ownerRoot)
+        {
+            if (cam == null) return false;
+            var offset = point - cam.transform.position;
+            var distance = offset.magnitude;
+            if (distance <= 0.05f) return false;
+            var count = Physics.RaycastNonAlloc(cam.transform.position, offset / distance, _visibilityHits,
+                distance - 0.04f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                var collider = _visibilityHits[i].collider;
+                if (collider == null) continue;
+                var hit = collider.transform;
+                if (ownerRoot != null && (hit == ownerRoot || hit.IsChildOf(ownerRoot))) continue;
+                if (_player != null && (hit == _player || hit.IsChildOf(_player))) continue;
+                return true;
+            }
+            return false;
+        }
+
         private void DrawFoeLabels()
         {
             var cam = Camera.main;
@@ -1795,7 +1818,9 @@ namespace Pogranichye.Client
                 var rec = pair.Value;
                 if (rec.Root == null || rec.View.Dead) continue;
                 if (!rec.Aware && rec.Hp >= rec.Max) continue;
-                var screen = cam.WorldToScreenPoint(rec.Root.transform.position + Vector3.up * (rec.View.Height + 0.35f));
+                var labelPoint = rec.Root.transform.position + Vector3.up * (rec.View.Height + 0.35f);
+                if (IsWorldPointOccluded(cam, labelPoint, rec.Root.transform)) continue;
+                var screen = cam.WorldToScreenPoint(labelPoint);
                 if (screen.z <= 0f || screen.z > 60f) continue;
                 var rect = new Rect(screen.x - 50f, Screen.height - screen.y - 22f, 100f, 20f);
                 GUI.Label(rect, rec.View.DisplayName);
@@ -1815,7 +1840,9 @@ namespace Pogranichye.Client
             foreach (var floater in _floaters)
             {
                 var age = Time.unscaledTime - floater.At;
-                var screen = cam.WorldToScreenPoint(floater.World + Vector3.up * (age * 0.9f));
+                var worldPoint = floater.World + Vector3.up * (age * 0.9f);
+                if (IsWorldPointOccluded(cam, worldPoint, floater.OwnerRoot)) continue;
+                var screen = cam.WorldToScreenPoint(worldPoint);
                 if (screen.z <= 0f) continue;
                 var previous = GUI.color;
                 var color = floater.Hurt ? new Color(1f, 0.45f, 0.4f) : new Color(1f, 0.88f, 0.5f);
