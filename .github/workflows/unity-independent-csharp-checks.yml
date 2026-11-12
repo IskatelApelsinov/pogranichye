@@ -7,6 +7,10 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
       - '2-client/game/Tests/RequestGateCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
+      - '2-client/game/Tests/InputEventDebugStateCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -29,3 +33,8 @@ jobs:
         run: |
           mcs -out:/tmp/movement-queue.exe Tests/MovementIntentQueuePolicyCheck.cs Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs
           mono /tmp/movement-queue.exe
+      - name: Input event diagnostics regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/input-event-debug.exe Tests/InputEventDebugStateCheck.cs Assets/_Project/Scripts/Runtime/InputEventDebugState.cs
+          mono /tmp/input-event-debug.exe
