@@ -1130,7 +1130,7 @@ namespace Pogranichye.Client
 
             if (_input != null && _input.SecondaryPressed && !PointerOverHud())
             {
-                _viewsPlayerGesture("guard");
+                _viewsPlayerGuard(true);
                 Send("guard", "on", true);
                 _guardSent = true;
             }
@@ -1160,7 +1160,14 @@ namespace Pogranichye.Client
         {
             if (!_guardSent) return;
             _guardSent = false;
+            _viewsPlayerGuard(false);
             Send("guard", "on", false);
+        }
+
+        private void _viewsPlayerGuard(bool guarding)
+        {
+            var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.SetGuarding(guarding);
         }
 
         private bool AimFoe(out CoreFoeView view, out string part, out float accuracy, out float distance)
@@ -1216,9 +1223,9 @@ namespace Pogranichye.Client
 
         private void Attack(float held, bool thrust)
         {
-            _viewsPlayerGesture("attack");
             var combat = Obj(_me, "combat");
             var ranged = Str(combat, "weapon") == "bow";
+            _viewsPlayerGesture(ranged ? "bow_shot" : thrust ? "thrust" : held > 0.55f ? "heavy_attack" : "attack");
             CoreFoeView foe;
             string part;
             float accuracy, distance;
