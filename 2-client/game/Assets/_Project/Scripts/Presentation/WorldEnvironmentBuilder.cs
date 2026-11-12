@@ -908,6 +908,9 @@ namespace Pogranichye.Client.Presentation
         private int _serverHour;
         private bool _hasServerHour;
 
+        /// <summary>Shared presentation-only night factor for village lamps and windows (0 = day, 1 = night).</summary>
+        public static float NightAmount { get; private set; }
+
         public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
             _sky = sky;
@@ -939,6 +942,7 @@ namespace Pogranichye.Client.Presentation
                 _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, visualDayLengthSeconds), 1f);
             var daylight = Mathf.Clamp01((Mathf.Sin((_phase - 0.25f) * Mathf.PI * 2f) + 0.12f) * 1.8f);
             var night = 1f - daylight;
+            NightAmount = night;
             var dusk = 1f - Mathf.Clamp01(Mathf.Abs(daylight - 0.42f) * 3.2f);
             var daySky = new Color(0.72f, 0.83f, 0.94f);
             var duskSky = new Color(0.88f, 0.48f, 0.32f);
