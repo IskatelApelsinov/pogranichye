@@ -220,6 +220,7 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			}
 			returnMigrationFood(w, returnTo, m.FoodSupply)
 			w.Detach(e, "migration")
+			ensureHotResidentBody(w, e)
 			return
 		}
 		// A migration created by a system earlier in this same Runner.Step has not
@@ -256,6 +257,7 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		returnMigrationFood(w, to, m.FoodSupply)
 		chronicle.Record(w, clock.Day(), "прибытие", "переселенец прибыл в "+core.Settle(w.Get(to)).Name)
 		w.Detach(e, "migration")
+		ensureHotResidentBody(w, e)
 	}
 }
 
