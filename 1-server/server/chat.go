@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	chatQueueSize = 32
+	chatQueueSize = 64
 	chatLocalRange = 35.0
 	chatWhisperRange = 8.0
 	chatMinInterval = 700 * time.Millisecond
@@ -20,6 +20,8 @@ const (
 type chatPeer struct {
 	events chan string
 	lastSent time.Time
+	voice bool
+	lastVoiceSignal time.Time
 }
 
 func (s *Server) registerChat(id core.ID) <-chan string {
