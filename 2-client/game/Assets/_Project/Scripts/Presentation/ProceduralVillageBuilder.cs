@@ -2137,6 +2137,37 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _metalMaterial);
             CreatePrimitive("Anvil horn", PrimitiveType.Cylinder, smithy,
                 new Vector3(1.55f, 0.92f, -1.7f), new Vector3(0.16f, 0.12f, 0.16f), _metalMaterial);
+
+            // A compact quenching trough and a few unfinished billets make the open
+            // workshop read as a working smithy even when no NPC is currently forging.
+            CreatePrimitive("Quenching trough • timber body", PrimitiveType.Cube, smithy,
+                new Vector3(1.34f, 0.28f, -0.72f), new Vector3(0.72f, 0.42f, 0.48f), _woodMaterial);
+            CreatePrimitive("Quenching trough • water", PrimitiveType.Cube, smithy,
+                new Vector3(1.34f, 0.50f, -0.72f), new Vector3(0.61f, 0.025f, 0.37f), _waterMaterial);
+            CreatePrimitive("Quenching trough • rim front", PrimitiveType.Cube, smithy,
+                new Vector3(1.34f, 0.52f, -0.96f), new Vector3(0.78f, 0.07f, 0.055f), _woodMaterial);
+            CreatePrimitive("Quenching trough • rim rear", PrimitiveType.Cube, smithy,
+                new Vector3(1.34f, 0.52f, -0.48f), new Vector3(0.78f, 0.07f, 0.055f), _woodMaterial);
+            CreatePrimitive("Unfinished iron billet", PrimitiveType.Cube, smithy,
+                new Vector3(0.20f, 0.24f, -1.05f), new Vector3(0.38f, 0.07f, 0.12f), _metalMaterial);
+            CreatePrimitive("Unfinished iron billet • second", PrimitiveType.Cube, smithy,
+                new Vector3(0.28f, 0.32f, -1.08f), new Vector3(0.32f, 0.07f, 0.10f), _metalMaterial);
+
+            // Wall-mounted hand tools add a clear blacksmith silhouette without new
+            // lights, animators, particles or per-frame scripts.
+            CreatePrimitive("Smithy tool rack", PrimitiveType.Cube, smithy,
+                new Vector3(0.72f, 1.48f, 1.30f), new Vector3(1.18f, 0.12f, 0.08f), _woodMaterial);
+            for (var i = 0; i < 3; i++)
+            {
+                var toolX = 0.30f + i * 0.40f;
+                CreatePrimitive("Smithy hanging tool • handle", PrimitiveType.Cylinder, smithy,
+                    new Vector3(toolX, 1.16f, 1.23f), new Vector3(0.025f, 0.28f, 0.025f), _woodMaterial);
+                CreatePrimitive("Smithy hanging tool • iron head", PrimitiveType.Cube, smithy,
+                    new Vector3(toolX, 0.91f, 1.23f), new Vector3(0.20f, 0.07f, 0.07f), _metalMaterial);
+            }
+
+            CreatePrimitive("Smithy work stool", PrimitiveType.Cylinder, smithy,
+                new Vector3(0.18f, 0.30f, -0.35f), new Vector3(0.24f, 0.12f, 0.24f), _woodMaterial);
             CreatePrimitive("Forge glow", PrimitiveType.Sphere, smithy,
                 new Vector3(-1.1f, 1.02f, -1.45f), new Vector3(0.48f, 0.32f, 0.22f), _fireMaterial);
 
