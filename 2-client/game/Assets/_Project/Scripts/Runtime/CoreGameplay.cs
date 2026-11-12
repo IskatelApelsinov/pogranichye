@@ -138,6 +138,14 @@ namespace Pogranichye.Client
             { "hat", "granary" }
         };
 
+        // Keep presentation prices aligned with the server's itemPrice table.
+        // The server remains authoritative and revalidates every purchase.
+        private static readonly Dictionary<string, int> TakePrice = new Dictionary<string, int>
+        {
+            { "axe", 8 }, { "rod", 6 }, { "sword", 18 }, { "bow", 15 },
+            { "torch", 2 }, { "lantern", 6 }, { "cloak", 8 }, { "boots", 6 }, { "hat", 3 }
+        };
+
         private static readonly Dictionary<string, string> Ru = new Dictionary<string, string>
         {
             { "axe", "топор" }, { "sword", "меч" }, { "bow", "лук" }, { "rod", "удочка" }, { "torch", "факел" },
@@ -2305,8 +2313,14 @@ namespace Pogranichye.Client
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
             foreach (var pair in TakeAt)
-                if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
-                    Ask("Взять", "take", "item", pair.Key);
+            {
+                if (!Near(pair.Value, 10f) || Count(items, pair.Key) >= 1f) continue;
+                var price = TakePrice.TryGetValue(pair.Key, out var itemPrice) ? itemPrice : int.MaxValue;
+                GUI.enabled = price != int.MaxValue && coins >= price;
+                if (GUILayout.Button("Купить: " + Name(pair.Key) + " · " + (price == int.MaxValue ? "цена не задана" : price + " мон.")))
+                    Ask("Покупка", "take", "item", pair.Key);
+                GUI.enabled = true;
+            }
 
             var recipes = Arr(_me, "recipes");
             if (recipes != null)
