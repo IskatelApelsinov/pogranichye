@@ -3943,6 +3943,7 @@ namespace Pogranichye.Client.Presentation
             label.SetParent(parent, false);
             label.localPosition = localPosition;
             label.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            label.gameObject.AddComponent<SignFaceVisibility>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
