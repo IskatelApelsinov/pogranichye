@@ -62,8 +62,8 @@ namespace Pogranichye.Client.Presentation
             if (skyShader != null)
             {
                 _skyMaterial = new Material(skyShader) { name = "Pogranichye • procedural sky" };
-                _skyMaterial.SetFloat("_SunSize", 0.035f);
-                _skyMaterial.SetFloat("_AtmosphereThickness", 1.15f);
+                _skyMaterial.SetFloat("_SunSize", 0.028f);
+                _skyMaterial.SetFloat("_AtmosphereThickness", 1.28f);
                 _skyMaterial.SetColor("_SkyTint", new Color(0.72f, 0.82f, 0.92f));
                 _skyMaterial.SetColor("_GroundColor", new Color(0.34f, 0.37f, 0.31f));
                 _skyMaterial.SetFloat("_Exposure", 1.1f);
@@ -916,6 +916,12 @@ namespace Pogranichye.Client.Presentation
             _mist = mist;
             _sun = sun;
             _phase = 0.28f;
+            // A restrained atmospheric falloff keeps distant hills readable while softening
+            // the hard edge of the local playable landscape. The sky itself remains procedural.
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = 0.0018f;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         }
 
         /// <summary>Uses server time when available; local cycle remains a preview fallback before first state frame.</summary>

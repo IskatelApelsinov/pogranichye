@@ -49,6 +49,7 @@ namespace Pogranichye.Client.Presentation
             var village = new GameObject("PrototypeVillage").transform;
             village.SetParent(root, false);
             var ambientMotion = village.gameObject.AddComponent<VillageAmbientMotion>();
+            village.gameObject.AddComponent<VillageSoundscape>().Initialize();
 
             _groundMaterial = CreateMaterial("Ground • moss", Color.white);
             _groundTexture = MakeGroundTexture();
@@ -3973,6 +3974,29 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(Mathf.Cos(angle) * 0.72f, -0.60f, Mathf.Sin(angle) * 0.72f),
                     new Vector3(0.45f, 1.25f, 0.45f), _leafMaterial);
             }
+
+            // LOD0 keeps the complete canopy; LOD1 drops the five hanging foliage clumps;
+            // LOD2 uses one inexpensive crown proxy. All renderers share the same materials.
+            var lodGroup = tree.gameObject.AddComponent<LODGroup>();
+            var trunkRenderer = tree.Find("Trunk").GetComponent<Renderer>();
+            var detailedCanopy = crown.GetComponentsInChildren<Renderer>(true);
+            var lodProxy = CreatePrimitive("Tree crown • distant LOD proxy", PrimitiveType.Sphere, tree,
+                new Vector3(0f, 2.55f, 0f), new Vector3(1.65f, 1.55f, 1.6f), _leafMaterial);
+            lodProxy.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var lod0Renderers = new Renderer[detailedCanopy.Length + 1];
+            lod0Renderers[0] = trunkRenderer;
+            for (var i = 0; i < detailedCanopy.Length; i++) lod0Renderers[i + 1] = detailedCanopy[i];
+            var lod1Renderers = new Renderer[] { trunkRenderer, crown.Find("Canopy").GetComponent<Renderer>() };
+            var lod2Renderers = new Renderer[] { trunkRenderer, lodProxy.GetComponent<Renderer>() };
+            lodGroup.SetLODs(new[]
+            {
+                new LOD(0.24f, lod0Renderers),
+                new LOD(0.075f, lod1Renderers),
+                new LOD(0.018f, lod2Renderers)
+            });
+            lodGroup.fadeMode = LODFadeMode.CrossFade;
+            lodGroup.animateCrossFading = true;
+            lodGroup.RecalculateBounds();
 
             var ambient = root.GetComponent<VillageAmbientMotion>();
             if (ambient != null)
