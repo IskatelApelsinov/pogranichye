@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+
+	"pogranichye/core"
 	"strings"
 	"testing"
 )
@@ -151,9 +153,6 @@ func writeClientFrame(t *testing.T, c net.Conn, s string) {
 // identity/state remain in the world and can be reclaimed by the same account.
 func TestControllerLeaseReturnsSameSoulToAI(t *testing.T) {
 	s := NewStarter("soul-handoff", "", []byte("secret"), "")
-	if r := post(t, "http://unused/api/register", `{"login":"soul-owner","pass":"secret1"}`); r != nil {
-		// Registration is performed directly below; this branch is intentionally unreachable.
-	}
 	if _, err := s.acc.Register("soul-owner", "secret1"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
