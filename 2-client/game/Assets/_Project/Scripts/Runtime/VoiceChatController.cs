@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using System.Threading;
 using Pogranichye.Client.Networking;
@@ -59,6 +60,21 @@ namespace Pogranichye.Client
                 Status = "Микрофон выключен. Вы слышите собеседников.";
                 return;
             }
+#if UNITY_ANDROID
+            if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone))
+            {
+                UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Microphone);
+                Status = "Разрешите доступ к микрофону и нажмите кнопку ещё раз.";
+                return;
+            }
+#endif
+#if UNITY_IOS
+            if (!Application.HasUserAuthorization(UserAuthorization.Microphone))
+            {
+                StartCoroutine(RequestIOSMicrophonePermission());
+                return;
+            }
+#endif
             if (Microphone.devices == null || Microphone.devices.Length == 0)
             {
                 Status = "Микрофон не найден или запрещён системой.";
@@ -67,6 +83,14 @@ namespace Pogranichye.Client
             _sender.StartStreaming();
             _microphoneEnabled = true;
             Status = "Микрофон включён. Нажмите ещё раз, чтобы заглушить.";
+        }
+
+        private IEnumerator RequestIOSMicrophonePermission()
+        {
+            yield return Application.RequestUserAuthorization(UserAuthorization.Microphone);
+            Status = Application.HasUserAuthorization(UserAuthorization.Microphone)
+                ? "Разрешение получено. Нажмите включение микрофона ещё раз."
+                : "Доступ к микрофону запрещён.";
         }
 
         private void StartVoice()
