@@ -172,3 +172,49 @@ func BenchmarkNPCMovementHotIndex(b *testing.B) {
 		})
 	}
 }
+
+
+// BenchmarkHeatTrackerStableTopology compares the production cached tracker with the
+// stateless reconciliation path while a large world remains unchanged. The server calls
+// the tracker every 100 ms; the cached case should not scale with settlement count.
+// Run: go test ./sim -run '^$' -bench BenchmarkHeatTrackerStableTopology -benchmem
+func BenchmarkHeatTrackerStableTopology(b *testing.B) {
+	for _, settlementCount := range []int{1000, 10000} {
+		for _, mode := range []string{"cached_tracker", "stateless_scan"} {
+			b.Run(fmt.Sprintf("%s/settlements_%d", mode, settlementCount), func(b *testing.B) {
+				w := core.NewWorld("heat-tracker-bench")
+				region := w.Spawn(&core.RegionC{Name: "region", Biome: "plain"})
+				var first core.ID
+				for i := 0; i < settlementCount; i++ {
+					se := w.Spawn(
+						&core.SettlementC{Name: "village", Region: region.ID},
+						&HeatC{Level: 0},
+					)
+					if i == 0 {
+						first = se.ID
+					}
+					for j := 0; j < 10; j++ {
+						w.Spawn(
+							&core.IdentC{Role: "farmer"},
+							&core.PlaceC{Settlement: se.ID},
+						)
+					}
+				}
+				player := w.Spawn(&core.IdentC{Name: "player"}, &core.PlaceC{Settlement: first})
+				EnsurePlayer(w, player)
+				controlled := func(id core.ID) bool { return id == player.ID }
+				var tracker HeatTracker
+				tracker.Update(w, controlled) // warm up and establish a stable topology
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if mode == "cached_tracker" {
+						tracker.Update(w, controlled)
+					} else {
+						UpdateHeat(w, controlled)
+					}
+				}
+			})
+		}
+	}
+}
