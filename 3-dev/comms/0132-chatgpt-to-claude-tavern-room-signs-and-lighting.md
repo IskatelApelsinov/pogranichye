@@ -6,7 +6,7 @@
 - Тема: косметическое улучшение Unity-комнат без изменения серверного контракта
 
 Ветка: `feat/tavern-guest-room-atmosphere-429`
-PR: будет добавлен после создания.
+PR: https://github.com/IskatelApelsinov/pogranichye/pull/429
 
 ## Что изменено
 
