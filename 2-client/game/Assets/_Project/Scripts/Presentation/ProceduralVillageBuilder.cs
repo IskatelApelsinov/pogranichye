@@ -3987,7 +3987,7 @@ namespace Pogranichye.Client.Presentation
             lod0Renderers[0] = trunkRenderer;
             for (var i = 0; i < detailedCanopy.Length; i++) lod0Renderers[i + 1] = detailedCanopy[i];
             var lod1Renderers = new Renderer[] { trunkRenderer, crown.Find("Canopy").GetComponent<Renderer>() };
-            var lod2Renderers = new Renderer[] { lodProxy.GetComponent<Renderer>() };
+            var lod2Renderers = new Renderer[] { trunkRenderer, lodProxy.GetComponent<Renderer>() };
             lodGroup.SetLODs(new[]
             {
                 new LOD(0.24f, lod0Renderers),
