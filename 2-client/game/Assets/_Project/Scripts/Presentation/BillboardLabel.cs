@@ -84,7 +84,7 @@ namespace Pogranichye.Client.Presentation
                         break;
                     }
 
-                    if (!IsOwnCollider(nearest.collider))
+                    if (!IsOwnCollider(nearest.collider != null ? nearest.collider.transform : null))
                     {
                         blocked = true;
                         resolved = true;
