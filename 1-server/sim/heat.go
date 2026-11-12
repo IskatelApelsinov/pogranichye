@@ -1,8 +1,6 @@
 package sim
 
 import (
-	"sort"
-
 	"pogranichye/core"
 )
 
@@ -118,20 +116,30 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 			cold++
 		}
 	})
-	for _, sid := range heated {
-		materialize(w, sid, controlled)
-	}
-	for _, sid := range cooled {
-		archive(w, sid)
+	// Build the resident grouping at most once for the whole heat transition.
+	// Each() is stable by entity ID, so every per-settlement slice is already ordered.
+	// Previously materialize/archive each called residentsOf(), rescanning every PlaceC
+	// for every settlement that changed heat in this update.
+	if len(heated)+len(cooled) > 0 {
+		bySettlement := residentIndex(w)
+		for _, sid := range heated {
+			materializeResidents(w, bySettlement[sid], controlled)
+		}
+		for _, sid := range cooled {
+			archiveResidents(w, bySettlement[sid])
+		}
 	}
 	return
 }
 
-// materialize — «разархивация»: жители поселения получают тела в сцене там, где им положено быть по
-// текущему занятию (POI цели + личный слот), а не идут туда от точки появления.
+// materialize — «разархивация»: жители поселения получают вычисленные позиции по текущей цели.
 func materialize(w *core.World, settlement core.ID, controlled func(core.ID) bool) {
-	res := residentsOf(w, settlement)
-	sort.Slice(res, func(i, j int) bool { return res[i].ID < res[j].ID })
+	materializeResidents(w, residentsOf(w, settlement), controlled)
+}
+
+// materializeResidents consumes a pre-grouped, ID-sorted resident slice. UpdateHeat passes
+// slices from one residentIndex build, avoiding one global PlaceC scan per transitioned village.
+func materializeResidents(w *core.World, res []*core.Entity, controlled func(core.ID) bool) {
 	rank := map[[2]float64]int{}
 	for _, e := range res {
 		if Player(e) != nil && controlled != nil && controlled(e.ID) {
@@ -183,7 +191,13 @@ func ensureHotResidentBody(w *core.World, e *core.Entity) {
 // archive — «архивация»: поселение остыло, тела жителей и враги сцены снимаются (остаётся расписание
 // и поголовье угодий — из них всё восстановится).
 func archive(w *core.World, settlement core.ID) {
-	for _, e := range residentsOf(w, settlement) {
+	archiveResidents(w, residentsOf(w, settlement))
+	dropFoes(w, settlement)
+}
+
+// archiveResidents removes physical scene state from a pre-grouped resident slice.
+func archiveResidents(w *core.World, residents []*core.Entity) {
+	for _, e := range residents {
 		if Player(e) != nil {
 			continue
 		}
@@ -194,5 +208,4 @@ func archive(w *core.World, settlement core.ID) {
 			w.Detach(e, "nav")
 		}
 	}
-	dropFoes(w, settlement)
 }
