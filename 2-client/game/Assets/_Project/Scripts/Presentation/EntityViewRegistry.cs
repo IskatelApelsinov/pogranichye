@@ -30,6 +30,8 @@ namespace Pogranichye.Client.Presentation
         private bool _firstPersonArmsAttached;
         private bool _hasPlayerMugState;
         private bool _playerHadMug;
+        private ulong _playerMugOwner;
+        private bool _hasPlayerMugOwner;
         private string _lastPlayerEquipmentSignature = string.Empty;
         private string _lastTalkEvent = string.Empty;
         private long _lastSocialEventSequence;
@@ -67,6 +69,17 @@ namespace Pogranichye.Client.Presentation
                 player.transform.position = ToUnityPosition(frame.Me.Position);
                 player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
+            // Mug transitions belong to one controlled body. A reconnect may bind this
+            // registry to a different server entity without an explicit Clear() first.
+            // Re-baseline silently so the previous body's held mug cannot trigger a false sip.
+            if (!_hasPlayerMugOwner || _playerMugOwner != playerId)
+            {
+                _playerMugOwner = playerId;
+                _hasPlayerMugOwner = true;
+                _hasPlayerMugState = false;
+                _playerHadMug = false;
+            }
+
             var playerMotion = player.GetComponent<EntityMotion>();
             if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug && playerMotion != null)
                 playerMotion.PlayDrinkGesture();
@@ -927,6 +940,8 @@ namespace Pogranichye.Client.Presentation
             _hasSocialEventBaseline = false;
             _hasPlayerMugState = false;
             _playerHadMug = false;
+            _playerMugOwner = 0UL;
+            _hasPlayerMugOwner = false;
             _lastPlayerEquipmentSignature = string.Empty;
             PlayerTransform = null;
         }
