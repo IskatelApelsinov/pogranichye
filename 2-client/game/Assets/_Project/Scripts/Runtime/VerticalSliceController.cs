@@ -203,7 +203,8 @@ namespace Pogranichye.Client
         {
             while (_mainThread.TryDequeue(out var action)) action();
             // Keep F3 diagnostics live even on the title/login screen, before movement starts.
-            if (_input != null) _pressedKeysDebug = _input.BuildPressedKeysDebug();
+            if (_movementDebugVisible && _input != null)
+                _pressedKeysDebug = _input.BuildPressedKeysDebug();
             if (_core != null)
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
