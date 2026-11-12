@@ -43,6 +43,20 @@ namespace Pogranichye.Client
         private string _login = "";
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
+        [Serializable] private sealed class ChatEventData
+        {
+            public string type;
+            public long seq;
+            public long sent_at;
+            public string channel;
+            public string from_id;
+            public string from_name;
+            public string from_desc;
+            public string text;
+        }
+        private readonly List<string> _chatHistory = new List<string>();
+        private string _chatInput = "";
+        private Vector2 _chatScroll;
         private string _token;
         private string _goalToSend;
         private WorldFrame _frame;
@@ -280,6 +294,7 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+            DrawChatOverlay();
         }
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
@@ -325,6 +340,72 @@ namespace Pogranichye.Client
             var enable = !Screen.fullScreen;
             Screen.fullScreenMode = enable ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
             Screen.fullScreen = enable;
+        }
+
+        private void OnSocketChatMessage(WorldSocketClient socket, string json)
+        {
+            ChatEventData message;
+            try { message = JsonUtility.FromJson<ChatEventData>(json); }
+            catch { return; }
+            if (message == null || message.type != "chat" || string.IsNullOrEmpty(message.text)) return;
+            Enqueue(() =>
+            {
+                if (!ReferenceEquals(_socket, socket)) return;
+                var who = !string.IsNullOrEmpty(message.from_name) ? message.from_name :
+                    (!string.IsNullOrEmpty(message.from_desc) ? message.from_desc : "Незнакомец");
+                var prefix = message.channel == "whisper" ? "Шёпот · " : "";
+                _chatHistory.Add(prefix + who + ": " + message.text);
+                while (_chatHistory.Count > 80) _chatHistory.RemoveAt(0);
+                _chatScroll.y = float.MaxValue;
+            });
+        }
+
+        private void DrawChatOverlay()
+        {
+            if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive) return;
+            var width = Mathf.Min(360f, Screen.width - 24f);
+            var height = Mathf.Min(236f, Screen.height - 24f);
+            var rect = new Rect(Screen.width - width - 12f, Screen.height - height - 12f, width, height);
+            GUI.Box(rect, "Чат поблизости");
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, rect.height - 38f));
+            _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(rect.height - 86f));
+            var first = Mathf.Max(0, _chatHistory.Count - 40);
+            for (var i = first; i < _chatHistory.Count; i++)
+                GUILayout.Label(_chatHistory[i], GUILayout.MinHeight(20f));
+            GUILayout.EndScrollView();
+            GUILayout.BeginHorizontal();
+            GUI.SetNextControlName("PogranichyeChatInput");
+            _chatInput = GUILayout.TextField(_chatInput, GUILayout.MinWidth(100f), GUILayout.Height(28f));
+            var canSend = !string.IsNullOrWhiteSpace(_chatInput) && !_busy;
+            GUI.enabled = canSend;
+            if (GUILayout.Button("Отправить", GUILayout.Width(92f), GUILayout.Height(28f)))
+            {
+                var text = _chatInput.Trim();
+                _chatInput = "";
+                _ = SendChatMessageAsync(text);
+            }
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+        }
+
+        private async Task SendChatMessageAsync(string text)
+        {
+            var socket = _socket;
+            try
+            {
+                if (socket == null || _connectionState != WorldConnectionState.Active)
+                    throw new InvalidOperationException("Чат доступен после подключения к миру.");
+                await socket.SendChatAsync("local", text, null, _lifetime.Token);
+            }
+            catch (Exception ex)
+            {
+                Enqueue(() =>
+                {
+                    if (ReferenceEquals(_socket, socket))
+                        _status = "Не удалось отправить сообщение: " + ex.Message;
+                });
+            }
         }
 
         private void DrawMovementDebugOverlay()
@@ -1623,6 +1704,7 @@ namespace Pogranichye.Client
             var socket = new WorldSocketClient();
             _socket = socket;
             socket.MessageReceived += json => OnSocketMessage(socket, json);
+            socket.ChatReceived += json => OnSocketChatMessage(socket, json);
             socket.Closed += reason => Enqueue(() => HandleSocketClosed(socket, reason));
 
             try
