@@ -63,8 +63,9 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = true
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(id),"offerer":uint64(from)<uint64(id),"sent_at":now.UnixMilli()})
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(from),"offerer":uint64(id)<uint64(from),"sent_at":now.UnixMilli()})
+			room := eid(spl.Settlement)
+			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","signaling_type":"welcome","from_id":eid(id),"room":room,"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","signaling_type":"join","from_id":eid(from),"room":room,"sent_at":now.UnixMilli()})
 		}
 		return
 	}
@@ -73,7 +74,7 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = false
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"room":eid(core.Place(sender).Settlement),"sent_at":now.UnixMilli()})
 		}
 		return
 	}
@@ -84,7 +85,7 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	if targetID == 0 || target == nil || targetPeer == nil || !targetPeer.voice || !voiceNearby(sender, target) { return }
 
 	event := map[string]any{
-		"type":"voice_signal", "action":action, "from_id":eid(from), "sent_at":now.UnixMilli(),
+		"type":"voice_signal", "action":action, "from_id":eid(from), "room":eid(spl.Settlement), "sent_at":now.UnixMilli(),
 	}
 	switch action {
 	case "offer", "answer":
