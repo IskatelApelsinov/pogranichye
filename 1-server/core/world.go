@@ -103,6 +103,10 @@ func (w *World) Remove(id ID) {
 // It is O(1) and lets hot-path systems choose the appropriate indexed population.
 func (w *World) HasKind(kind string) bool { return len(w.byKindIDs[kind]) != 0 }
 
+// CountKind returns the number of entities carrying kind using the maintained index.
+// It is O(1) and is safe for hot-path change detection.
+func (w *World) CountKind(kind string) int { return len(w.byKindIDs[kind]) }
+
 // Count — сколько всего сущностей.
 func (w *World) Count() int { return len(w.entities) }
 
