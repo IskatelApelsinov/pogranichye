@@ -42,7 +42,7 @@ go run ./cmd/pogserver -starter -web ../thin-client/web   # сервер на :8
 |---|---|---|
 | Локальный текстовый чат: одно поселение, 35 м, ограничение частоты/длины, скрытие незнакомого имени, backpressure | PASS (`TestLocalChatIsSpatialAndWhisperIsPrivate`, `TestChatRejectsOversizeAndSlowPeerDoesNotBlock`) | Код Unity + thin-client слит; Unity Editor и браузерный ручной прогон pending |
 | Личные сообщения (шёпот): активный адресат, то же поселение, 8 м | PASS (тот же серверный тест) | API Unity есть; UI выбора адресата ещё не сделан |
-| Пространственный голос WebRTC | НЕТ | НЕТ |
+| WebRTC signaling: authenticated join/offer/answer/ICE, same settlement + 35 m | PASS (server tests) | Unity PTT/mute source added; real mic/NAT/Unity Editor run pending |
 
 ## 3.1. Текущая двухигровая приёмка
 
