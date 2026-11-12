@@ -2104,7 +2104,14 @@ namespace Pogranichye.Client.Presentation
             var smithy = new GameObject("Blacksmith workshop").transform;
             smithy.SetParent(root, false);
             smithy.position = position;
-            CreateCameraObstacle(smithy, "Camera collision • smithy", new Vector3(0, 1.1f, 0), new Vector3(3.8f, 2.2f, 3f));
+            // Match camera collision to the three physical walls. A full enclosing box
+            // would silently seal the open front and push the camera out of the workshop.
+            CreateCameraObstacle(smithy, "Camera collision • smithy rear", new Vector3(0f, 1.1f, 1.42f),
+                new Vector3(3.8f, 2.2f, 0.16f));
+            CreateCameraObstacle(smithy, "Camera collision • smithy left", new Vector3(-1.82f, 1.1f, 0.12f),
+                new Vector3(0.16f, 2.2f, 2.75f));
+            CreateCameraObstacle(smithy, "Camera collision • smithy right", new Vector3(1.82f, 1.1f, 0.12f),
+                new Vector3(0.16f, 2.2f, 2.75f));
             // Open-front workshop: the forge and anvil remain visible from the lane,
             // rather than being hidden behind a solid placeholder box.
             CreatePrimitive("Smithy rear wall", PrimitiveType.Cube, smithy,
