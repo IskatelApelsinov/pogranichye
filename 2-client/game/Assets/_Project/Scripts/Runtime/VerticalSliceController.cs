@@ -386,6 +386,11 @@ namespace Pogranichye.Client
                     GUI.enabled = !_busy && _connectionState == WorldConnectionState.Closed;
                     if (GUILayout.Button("ВОЙТИ В МИР", GUILayout.Height(48f))) _ = ConnectAsync();
                     GUI.enabled = previousEnabled;
+                    if (_connectionState == WorldConnectionState.Connecting || _connectionState == WorldConnectionState.AwaitingSnapshot)
+                    {
+                        if (GUILayout.Button("Отменить подключение", GUILayout.Height(34f)))
+                            DisconnectWorld("Подключение отменено.");
+                    }
                     if (GUILayout.Button("Выйти из аккаунта", GUILayout.Height(32f))) Logout();
                 }
                 GUILayout.Space(8f);
