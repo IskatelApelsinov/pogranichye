@@ -1035,7 +1035,7 @@ namespace Pogranichye.Client.Presentation
                 _tipIndices[tip++] = i;
 
             var bounds = _mesh.bounds;
-            bounds.Expand(new Vector3(0.12f, 0f, 0f));
+            bounds.Expand(new Vector3(0.12f, 0f, 0.12f));
             _mesh.bounds = bounds;
         }
 
@@ -1046,11 +1046,16 @@ namespace Pogranichye.Client.Presentation
             _nextUpdateAt = Time.time + UpdateInterval;
 
             var time = Time.time * 1.15f;
+            var wind = WorldAtmosphereCycle.WindStrength;
+            var direction = WorldAtmosphereCycle.WindDirection;
             for (var i = 0; i < _tipIndices.Length; i++)
             {
                 var index = _tipIndices[i];
                 var vertex = _rest[index];
-                vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f * WorldAtmosphereCycle.WindStrength;
+                var phase = time + (vertex.x * direction.x + vertex.z * direction.y) * 0.27f;
+                var sway = Mathf.Sin(phase) * 0.055f * wind;
+                vertex.x += direction.x * sway;
+                vertex.z += direction.y * sway;
                 _vertices[index] = vertex;
             }
             _mesh.vertices = _vertices;
@@ -1107,7 +1112,9 @@ namespace Pogranichye.Client.Presentation
         public void Initialize(float speed) { _speed = speed; }
         private void Update()
         {
-            transform.position += Vector3.right * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
+            var direction = WorldAtmosphereCycle.WindDirection;
+            var drift = new Vector3(direction.x, 0f, direction.y);
+            transform.position += drift * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
             if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
         }
     }
