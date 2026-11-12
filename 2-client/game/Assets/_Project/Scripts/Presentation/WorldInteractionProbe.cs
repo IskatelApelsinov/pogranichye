@@ -62,8 +62,12 @@ namespace Pogranichye.Client.Presentation
             var ray = _camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             var count = Physics.RaycastNonAlloc(ray, _hits, interactRange,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-            SortHits(count);
 
+            // Unity may return an arbitrary subset when a NonAlloc buffer is full. If
+            // we sorted that subset and selected a target, a nearer wall could be missing.
+            // Fail closed rather than allowing E to interact through dense geometry.
+            if (count >= _hits.Length) return;
+            SortHits(count);
             if (FindTargetBeforeObstacle(count, out poi, out npc)) return;
 
             // A small, bounded sphere sweep makes E interaction forgiving for narrow NPC
@@ -71,6 +75,7 @@ namespace Pogranichye.Client.Presentation
             if (aimAssistRadius <= 0f) return;
             count = Physics.SphereCastNonAlloc(ray, aimAssistRadius, _hits, interactRange,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            if (count >= _hits.Length) return;
             SortHits(count);
             FindTargetBeforeObstacle(count, out poi, out npc);
         }
