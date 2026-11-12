@@ -1227,7 +1227,6 @@ namespace Pogranichye.Client
         {
             var combat = Obj(_me, "combat");
             var ranged = Str(combat, "weapon") == "bow";
-            _viewsPlayerGesture(ranged ? "bow_shot" : thrust ? "thrust" : held > 0.55f ? "heavy_attack" : "attack");
             CoreFoeView foe;
             string part;
             float accuracy, distance;
@@ -1236,7 +1235,8 @@ namespace Pogranichye.Client
             var pos = Obj(_me, "pos");
             if (!aimed && weapon == "axe" && pos != null && (Num(pos, "x") <= -70f || Near("woods", 8f)))
             {
-                // Three swings fell a log; the server still checks place and strength for the real outcome.
+                // Each local swing gets immediate tool feedback; the server still validates the completed action.
+                _viewsPlayerGesture("chop");
                 _chopSwings++;
                 if (_chopSwings >= 3)
                 {
@@ -1250,12 +1250,14 @@ namespace Pogranichye.Client
             {
                 if (_fishPhase == 0)
                 {
+                    _viewsPlayerGesture("fish_cast");
                     _fishPhase = 1;
                     _fishAt = Time.unscaledTime + UnityEngine.Random.Range(1.8f, 5f);
                     Toast("Заброс… жди поклёвки", 1.6f);
                 }
                 else if (_fishPhase == 2)
                 {
+                    _viewsPlayerGesture("fish_reel");
                     _fishPhase = 0;
                     Ask("Подсечка", "act", "action", "fish");
                 }
@@ -1266,6 +1268,7 @@ namespace Pogranichye.Client
                 }
                 return;
             }
+            _viewsPlayerGesture(ranged ? "bow_shot" : thrust ? "thrust" : held > 0.55f ? "heavy_attack" : "attack");
             var style = ranged ? (held < 0.35f ? "snap" : "drawn") : thrust ? "thrust" : held > 0.55f ? "heavy" : "slash";
             var reach = ranged ? 50f : 3.0f;
 
