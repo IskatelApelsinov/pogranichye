@@ -911,6 +911,9 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Shared presentation-only night factor for village lamps and windows (0 = day, 1 = night).</summary>
         public static float NightAmount { get; private set; }
 
+        /// <summary>Shared visual wind intensity. It is atmospheric motion only, not authoritative weather.</summary>
+        public static float WindStrength { get; private set; } = 1f;
+
         public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
             _sky = sky;
@@ -943,6 +946,11 @@ namespace Pogranichye.Client.Presentation
             var daylight = Mathf.Clamp01((Mathf.Sin((_phase - 0.25f) * Mathf.PI * 2f) + 0.12f) * 1.8f);
             var night = 1f - daylight;
             NightAmount = night;
+            // Slow, layered gusts keep the environment from moving at a mechanical constant rate.
+            // This is deliberately a client-side visual wind field, not a claim about server weather.
+            var gustA = Mathf.Sin(Time.time * 0.075f + 0.4f);
+            var gustB = Mathf.Sin(Time.time * 0.19f + 2.1f);
+            WindStrength = Mathf.Clamp(1f + gustA * 0.22f + gustB * 0.10f, 0.68f, 1.32f);
             var dusk = 1f - Mathf.Clamp01(Mathf.Abs(daylight - 0.42f) * 3.2f);
             var daySky = new Color(0.72f, 0.83f, 0.94f);
             var duskSky = new Color(0.88f, 0.48f, 0.32f);
@@ -1032,7 +1040,7 @@ namespace Pogranichye.Client.Presentation
             {
                 var index = _tipIndices[i];
                 var vertex = _rest[index];
-                vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f;
+                vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f * WorldAtmosphereCycle.WindStrength;
                 _vertices[index] = vertex;
             }
             _mesh.vertices = _vertices;
@@ -1054,7 +1062,11 @@ namespace Pogranichye.Client.Presentation
     {
         private float _degreesPerSecond;
         public void Initialize(float degreesPerSecond) { _degreesPerSecond = degreesPerSecond; }
-        private void Update() { transform.Rotate(0f, 0f, _degreesPerSecond * Time.deltaTime, Space.Self); }
+        private void Update()
+        {
+            var wind = Mathf.Lerp(0.72f, 1.28f, (WorldAtmosphereCycle.WindStrength - 0.68f) / 0.64f);
+            transform.Rotate(0f, 0f, _degreesPerSecond * wind * Time.deltaTime, Space.Self);
+        }
     }
 
     public sealed class WorldSkyFollowCamera : MonoBehaviour
