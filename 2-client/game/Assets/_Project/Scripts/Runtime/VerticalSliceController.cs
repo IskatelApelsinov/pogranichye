@@ -204,6 +204,10 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            // Keep spatial player SFX and remote-voice range checks anchored to the
+            // authoritative local body, not the scene origin where the director was created.
+            _audioDirector?.SetPlayerPosition(_views != null && _views.PlayerTransform != null
+                ? _views.PlayerTransform.position : transform.position);
             // Keep F3 diagnostics live even on the title/login screen, before movement starts.
             if (_movementDebugVisible && _input != null)
                 _pressedKeysDebug = _input.BuildPressedKeysDebug();
@@ -2476,6 +2480,15 @@ namespace Pogranichye.Client
                 go.tag = "MainCamera";
                 camera = go.AddComponent<Camera>();
             }
+
+            // Runtime-created cameras do not receive Unity's default AudioListener.
+            // Without one, every AudioSource in the village is effectively inaudible.
+            var listener = camera.GetComponent<AudioListener>();
+            if (listener == null) listener = camera.gameObject.AddComponent<AudioListener>();
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+            for (var i = 0; i < listeners.Length; i++)
+                if (listeners[i] != null && listeners[i] != listener)
+                    listeners[i].enabled = false;
 
             camera.transform.position = new Vector3(0, 22, -28);
             camera.transform.rotation = Quaternion.Euler(35, 0, 0);
