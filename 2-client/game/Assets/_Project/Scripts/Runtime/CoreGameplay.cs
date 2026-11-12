@@ -536,6 +536,7 @@ namespace Pogranichye.Client
 
         public void Clear()
         {
+            _stopPlayerWorkGesture();
             foreach (var pair in _foes)
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
             _foes.Clear();
