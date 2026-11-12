@@ -116,8 +116,20 @@ namespace Pogranichye.Client
             _inputDebugState.Record(
                 action != null ? action.name : null,
                 control != null ? control.displayName : null,
-                context.phase.ToString(),
+                PhaseName(context.phase),
                 Time.unscaledTime);
+        }
+
+        private static string PhaseName(InputActionPhase phase)
+        {
+            switch (phase)
+            {
+                case InputActionPhase.Started: return "Started";
+                case InputActionPhase.Performed: return "Performed";
+                case InputActionPhase.Canceled: return "Canceled";
+                case InputActionPhase.Waiting: return "Waiting";
+                default: return "Disabled";
+            }
         }
 
         private InputAction Button(string name, string path)
