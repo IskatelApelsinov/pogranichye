@@ -241,7 +241,8 @@ namespace Pogranichye.Client.Presentation
                 action != "apiary" && action != "farmwork" && action != "forge" &&
                 action != "mine" && action != "gather" && action != "meditate" &&
                 action != "hunt" && action != "cook" && action != "herd" &&
-                action != "build" && action != "craft" && action != "trade") return;
+                action != "build" && action != "craft" && action != "trade" &&
+                action != "fish") return;
             _actionGesture = action;
             _actionGestureRemaining = action == "chop" || action == "attack" ||
                 action == "heavy_attack" || action == "thrust" ? 0.62f : 0.78f;
@@ -508,6 +509,64 @@ namespace Pogranichye.Client.Presentation
                 _body.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(progress * Mathf.PI) * 18f);
                 rightArmAngle = -35f;
                 leftArmAngle = 42f;
+            }
+            else if (_actionGestureRemaining > 0f &&
+                (_actionGesture == "forge" || _actionGesture == "mine" || _actionGesture == "craft" || _actionGesture == "build"))
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var strike = Mathf.Max(0f, Mathf.Sin(progress * Mathf.PI * 2f));
+                rightArmAngle = -116f + strike * 108f;
+                rightArmYaw = -12f + strike * 8f;
+                leftArmAngle = -32f + Mathf.Sin(progress * Mathf.PI * 2f + 0.5f) * 5f;
+                _body.localRotation = Quaternion.Euler(-3f - strike * 5f, 0f, 0f);
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "farmwork")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var hoe = Mathf.Max(0f, Mathf.Sin(progress * Mathf.PI * 2f));
+                rightArmAngle = -74f + hoe * 62f;
+                leftArmAngle = -54f + hoe * 28f;
+                _body.localRotation = Quaternion.Euler(8f + hoe * 5f, 0f, 0f);
+            }
+            else if (_actionGestureRemaining > 0f && (_actionGesture == "gather" || _actionGesture == "apiary"))
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var reach = Mathf.Sin(progress * Mathf.PI);
+                rightArmAngle = -28f - reach * 42f;
+                leftArmAngle = -18f - reach * 22f;
+                _body.localRotation = Quaternion.Euler(12f + reach * 5f, 0f, 0f);
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "meditate")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var breathe = Mathf.Sin(progress * Mathf.PI * 2f);
+                rightArmAngle = -54f + breathe * 4f;
+                leftArmAngle = -54f - breathe * 4f;
+                rightArmYaw = 18f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "hunt")
+            {
+                rightArmAngle = -72f;
+                leftArmAngle = -62f;
+                rightArmYaw = -20f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "cook")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                rightArmAngle = -52f + Mathf.Sin(progress * Mathf.PI * 4f) * 18f;
+                leftArmAngle = -42f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "herd")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                rightArmAngle = -38f + Mathf.Sin(progress * Mathf.PI * 2f) * 24f;
+                leftArmAngle = -12f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "trade")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                rightArmAngle = -32f - Mathf.Sin(progress * Mathf.PI) * 26f;
+                leftArmAngle = -18f;
             }
             else if (_actionGestureRemaining > 0f)
             {
