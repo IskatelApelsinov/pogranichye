@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -5,6 +6,8 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Lightweight procedural locomotion and social gestures for the first scene.</summary>
     public sealed class EntityMotion : MonoBehaviour
     {
+        public static event Action<Vector3, bool> NearbyFootstep;
+        public static event Action<Vector3> NearbyMagicCast;
         private Transform _body;
         private Transform _head;
         private Transform _leftArm;
@@ -28,6 +31,7 @@ namespace Pogranichye.Client.Presentation
         private Vector3 _networkPositionVelocity;
         private Quaternion _networkTargetRotation;
         private float _lastNetworkTargetAt;
+        private float _nextFootstepSoundAt;
         private float _greetingRemaining;
         private float _drinkGestureRemaining;
         private Transform _heldTankard;
@@ -200,6 +204,7 @@ namespace Pogranichye.Client.Presentation
 
             if (previousActivity == _activity) return;
             RefreshActivityTool();
+            if (_activity == "weave") NearbyMagicCast?.Invoke(transform.position);
         }
 
         /// <summary>
@@ -346,6 +351,12 @@ namespace Pogranichye.Client.Presentation
             if (_body == null) return;
             _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
+            if (!_isPlayer && walking && Time.unscaledTime >= _nextFootstepSoundAt)
+            {
+                var running = _locomotion >= 0.72f;
+                _nextFootstepSoundAt = Time.unscaledTime + (running ? 0.34f : 0.52f);
+                NearbyFootstep?.Invoke(transform.position, running);
+            }
             if (_workGestureLoop && walking) CancelWorkGesture();
             _phase += Time.deltaTime * (walking
                 ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
