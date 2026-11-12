@@ -2125,6 +2125,7 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(-1.1f, 2.10f, 0.85f), new Vector3(0.62f, 1.45f, 0.62f), _stoneMaterial);
             CreatePrimitive("Smithy chimney cap", PrimitiveType.Cube, smithy,
                 new Vector3(-1.1f, 2.86f, 0.85f), new Vector3(0.82f, 0.12f, 0.82f), _roofMaterial);
+            BuildChimneySmoke(smithy, new Vector3(-1.1f, 2.98f, 0.85f));
             CreatePrimitive("Anvil", PrimitiveType.Cube, smithy,
                 new Vector3(1.0f, 0.9f, -1.7f), new Vector3(0.9f, 0.25f, 0.5f), _metalMaterial);
             CreatePrimitive("Anvil horn", PrimitiveType.Cylinder, smithy,
