@@ -11,6 +11,8 @@ namespace Pogranichye.Client.Presentation
         private Transform _rightArm;
         private Transform _rightHand;
         private GameObject _activityTool;
+        private Vector3 _activityToolRestPosition;
+        private Quaternion _activityToolRestRotation;
         private bool _suppressActivityTool;
         private Transform _leftLeg;
         private Transform _rightLeg;
@@ -214,6 +216,11 @@ namespace Pogranichye.Client.Presentation
             _activityTool = _suppressActivityTool
                 ? null
                 : ProceduralVillageBuilder.CreateActivityToolView(_rightHand, _activity);
+            if (_activityTool != null)
+            {
+                _activityToolRestPosition = _activityTool.transform.localPosition;
+                _activityToolRestRotation = _activityTool.transform.localRotation;
+            }
         }
 
         /// <summary>Plays a brief drink gesture after the server confirms the mug was consumed.</summary>
@@ -330,6 +337,48 @@ namespace Pogranichye.Client.Presentation
             var tavernWork = _activity == "tavern";
             var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
                 hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet || mendingGear;
+
+            // Animate the held prop independently from the arm pose: this makes a hammer,
+            // axe, hoe, rod or ladle visibly move through its work cycle without spawning objects.
+            if (_activityTool != null)
+            {
+                var toolBeat = Mathf.Sin(_phase * 2.8f);
+                var toolAngle = 0f;
+                var toolOffset = Vector3.zero;
+                if (!walking && (chopping || mining || forging))
+                {
+                    toolAngle = Mathf.Max(0f, toolBeat) * (forging ? 20f : 27f);
+                    toolOffset.y = Mathf.Max(0f, toolBeat) * 0.018f;
+                }
+                else if (!walking && farming)
+                {
+                    toolAngle = Mathf.Sin(_phase * 1.5f) * 10f;
+                    toolOffset.y = Mathf.Sin(_phase * 1.5f) * 0.012f;
+                }
+                else if (!walking && (fishing || mendingNet))
+                {
+                    toolAngle = Mathf.Sin(_phase * 0.65f) * (fishing ? 4f : 9f);
+                    toolOffset.x = Mathf.Sin(_phase * 0.65f) * 0.008f;
+                }
+                else if (!walking && cooking)
+                {
+                    toolAngle = Mathf.Sin(_phase * 2.1f) * 14f;
+                    toolOffset.x = Mathf.Cos(_phase * 2.1f) * 0.01f;
+                }
+                else if (!walking && weaving)
+                {
+                    toolAngle = Mathf.Sin(_phase * 3.2f) * 12f;
+                    toolOffset.x = Mathf.Sin(_phase * 3.2f) * 0.012f;
+                }
+                else if (!walking && (foraging || tavernWork))
+                {
+                    toolAngle = Mathf.Sin(_phase * 1.8f) * 7f;
+                }
+
+                var toolTransform = _activityTool.transform;
+                toolTransform.localPosition = _activityToolRestPosition + toolOffset;
+                toolTransform.localRotation = _activityToolRestRotation * Quaternion.Euler(0f, 0f, toolAngle);
+            }
             // A restrained torso/hip response makes long-running NPC jobs readable at a distance;
             // it is derived only from the replicated activity code, never from outcome text.
             var workBodyBob = 0f;
