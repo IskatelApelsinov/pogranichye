@@ -1115,6 +1115,7 @@ namespace Pogranichye.Client
             }
             _activityMiniGame = game;
             _activityMiniGameStartedAt = Time.realtimeSinceStartup;
+            if (game == ActivityMiniGame.Fishing) _views?.PlayPlayerActionGesture("fish_cast");
             _woodcuttingGoodHits = 0;
             _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
                 ? "Трижды нажмите «Ударить», когда метка окажется в светлой зоне."
@@ -1141,6 +1142,7 @@ namespace Pogranichye.Client
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Ударить", GUILayout.Height(34f)))
                 {
+                    _views?.PlayPlayerActionGesture("chop");
                     if (Mathf.Abs(phase - 0.40f) <= 0.09f)
                     {
                         _woodcuttingGoodHits++;
@@ -1178,6 +1180,7 @@ namespace Pogranichye.Client
                     GUILayout.HorizontalSlider((biteAt + biteDuration - elapsed) / biteDuration, 0f, 1f);
                     if (GUILayout.Button("Подсечь!", GUILayout.Height(38f)))
                     {
+                        _views?.PlayPlayerActionGesture("fish_reel");
                         _activityMiniGame = ActivityMiniGame.None;
                         _activityMiniGameFeedback = "Подсечка выполнена. Сервер проверяет водоём, снасти и улов…";
                         QueueWorldAction("fish");
