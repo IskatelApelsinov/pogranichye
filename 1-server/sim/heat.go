@@ -125,8 +125,23 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 		for _, sid := range heated {
 			materializeResidents(w, bySettlement[sid], controlled)
 		}
-		for _, sid := range cooled {
-			archiveResidents(w, bySettlement[sid])
+		if len(cooled) > 0 {
+			cooledSet := make(map[core.ID]bool, len(cooled))
+			for _, sid := range cooled {
+				cooledSet[sid] = true
+				archiveResidents(w, bySettlement[sid])
+			}
+			// Foes are also scene-local. Remove all cooled-settlement foes in one pass,
+			// instead of rescanning the global foe index once for every cooled settlement.
+			var removeFoes []core.ID
+			w.Each("foe", func(fe *core.Entity) {
+				if foe := Foe(fe); foe != nil && cooledSet[foe.Settlement] {
+					removeFoes = append(removeFoes, fe.ID)
+				}
+			})
+			for _, id := range removeFoes {
+				w.Remove(id)
+			}
 		}
 	}
 	return
