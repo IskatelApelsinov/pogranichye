@@ -172,8 +172,17 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 				ctx.FoodDays = foodDays[pl.Settlement]
 			}
 			g, hold := mind.Decide(e, ctx, pstream)
+			if g != m.Goal || m.RoutinePhase == "complete" {
+				m.RoutineGoal, m.RoutinePhase = "", ""
+				m.RoutineSince, m.RoutineProgress = 0, 0
+			}
 			m.Goal = g
 			m.GoalUntil = clock.TotalHours + hold
+		}
+		// FSM исполняет выбранную цель фазами: подготовка → действие → прерывание/завершение.
+		// При завершении разум пересматривает цель на следующем игровом часу.
+		if _, completed := mind.AdvanceRoutine(e, clock.TotalHours, hour); completed {
+			m.GoalUntil = clock.TotalHours
 		}
 		// уточняем цель до КОНКРЕТНОГО занятия по профессии/сезону/часу/доступным ресурсам
 		role := ""
