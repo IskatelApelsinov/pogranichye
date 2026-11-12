@@ -35,8 +35,8 @@ func TestVoiceSignalingRequiresNearbyActivePeers(t *testing.T) {
 	s.signalVoice(ids[0],"join","","","","",0)
 	s.signalVoice(ids[1],"join","","","","",0)
 	aJoined,bJoined:=read(queues[0]),read(queues[1])
-	if aJoined["type"]!="voice_signal" || aJoined["action"]!="peer_joined" || aJoined["from_id"]!=eid(ids[1]) ||
-		bJoined["action"]!="peer_joined" || bJoined["from_id"]!=eid(ids[0]) {
+	if aJoined["type"]!="voice_signal" || aJoined["action"]!="peer_joined" || aJoined["from_id"]!=eid(ids[1]) || aJoined["offerer"] != (uint64(ids[0]) < uint64(ids[1])) ||
+		bJoined["action"]!="peer_joined" || bJoined["from_id"]!=eid(ids[0]) || bJoined["offerer"] != (uint64(ids[1]) < uint64(ids[0])) {
 		t.Fatalf("join discovery mismatch: A=%v B=%v",aJoined,bJoined)
 	}
 	s.signalVoice(ids[0],"offer",eid(ids[1]),"v=0\r\no=demo","","",0)
@@ -48,6 +48,10 @@ func TestVoiceSignalingRequiresNearbyActivePeers(t *testing.T) {
 	s.signalVoice(ids[1],"answer",eid(ids[0]),"v=0\r\no=answer","","",0)
 	answer:=read(queues[0])
 	if answer["action"]!="answer" || answer["from_id"]!=eid(ids[1]) { t.Fatalf("answer not relayed: %v",answer) }
+	s.mu.Lock(); s.chatPeers[ids[0]].lastVoiceSignal=time.Now().Add(-time.Second); s.mu.Unlock()
+	s.signalVoice(ids[0],"ice_complete",eid(ids[1]),"","","audio",0)
+	complete:=read(queues[1])
+	if complete["action"]!="ice_complete" || complete["sdp_mid"]!="audio" { t.Fatalf("ICE completion not relayed: %v",complete) }
 	s.signalVoice(ids[1],"leave","","","","",0)
 	left:=read(queues[0])
 	if left["action"]!="peer_left" || left["from_id"]!=eid(ids[1]) { t.Fatalf("leave not broadcast: %v",left) }
