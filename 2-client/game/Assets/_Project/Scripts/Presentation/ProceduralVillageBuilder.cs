@@ -1602,7 +1602,7 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(roomX, 0.81f, 0.20f), new Vector3(0.68f, 0.07f, 0.58f), _foamMaterial);
                 CreatePrimitive("Guest room • pillow", PrimitiveType.Cube, tavern,
                     new Vector3(roomX, 0.84f, 1.03f), new Vector3(0.42f, 0.08f, 0.25f), _foamMaterial);
-                BuildStorageChest(tavern, new Vector3(roomX, 0.58f, -1.05f));
+                BuildStorageChest(tavern, new Vector3(roomX + side * 0.42f, 0.58f, -0.22f));
                 CreatePrimitive("Guest room • wash stand", PrimitiveType.Cube, tavern,
                     new Vector3(roomX, 0.48f, 1.55f), new Vector3(0.52f, 0.10f, 0.40f), _woodMaterial);
                 CreatePrimitive("Guest room • wash bowl", PrimitiveType.Cylinder, tavern,
