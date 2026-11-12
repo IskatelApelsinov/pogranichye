@@ -62,6 +62,11 @@ type MindC struct {
 	GoalUntil int64  `json:"goal_until"` // час мира, до которого цель в силе
 	LastAct   string `json:"last_act"`   // человекочитаемый ИСХОД последнего действия (для показа)
 	ActCode   string `json:"act_code"`   // СТАБИЛЬНЫЙ машинный код подтверждённого занятия (для анимаций клиента)
+	// Внутреннее состояние A-Life FSM. Не входит напрямую в wire-кадр; сохраняется в снимке мира.
+	RoutineGoal string `json:"routine_goal,omitempty"`
+	RoutinePhase string `json:"routine_phase,omitempty"` // prepare | perform | break | complete
+	RoutineSince int64 `json:"routine_since,omitempty"`
+	RoutineProgress int64 `json:"routine_progress,omitempty"`
 }
 
 func (c *MindC) Kind() string { return "mind" }
