@@ -48,7 +48,7 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 	}
 	var movers []mover
 	groups := map[[2]float64][]core.ID{} // POI -> жители, идущие к нему
-	w.Each("mind", func(e *core.Entity) {
+	collect := func(e *core.Entity) {
 		if controlled != nil && controlled(e.ID) {
 			return // игрок сам ведёт это тело
 		}
@@ -68,7 +68,16 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 		key := [2]float64{bx, by}
 		groups[key] = append(groups[key], e.ID)
 		movers = append(movers, mover{e: e, bx: bx, by: by})
-	})
+	}
+	// In a server world HeatC exists for every settlement. Only residents with a
+	// materialized scene body can move, so iterate that compact index rather than
+	// scanning every MindC in the planet. Worlds without heat (small unit fixtures
+	// and tools) retain the legacy behavior and lazily create their first body.
+	if w.HasKind("heat") {
+		w.Each("scenepos", collect)
+	} else {
+		w.Each("mind", collect)
+	}
 	// ранг жителя в его POI-группе: сорт по ID → стабильно, не зависит от порядка обхода мира.
 	rank := make(map[core.ID]int, len(movers))
 	for _, ids := range groups {
