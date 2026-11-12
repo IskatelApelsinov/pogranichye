@@ -1,4 +1,4 @@
-# Asset Store art integration (Unity 6 / URP)
+# Optional Asset Store art — disabled for the demo (Unity 6 / URP)
 
 ## Source packages received
 
@@ -18,16 +18,13 @@ The source archive supplied for the demo contains these Unity packages:
 
 The original .unitypackage files are not committed to this repository. Keep third-party package binaries in the local Unity project / Asset Store download cache and observe the publishers' current licenses.
 
-## Import and install
+## Current decision
 
-1. Import **Slavic Medieval Village Free Modular Environment Kit** into 2-client/game through Unity Package Manager / Asset Store's My Assets.
-2. Wait for Unity to finish importing and compiling.
-3. Run **Pogranichye → Art → Install Slavic Village Prefabs**.
-4. The installer copies selected prefab variants into Assets/_Project/Resources/PogranichyeArt/ while leaving the publisher's source assets untouched.
-5. Enter Play Mode. WorldLayoutPresentationBuilder will use the imported village house prefabs for server-owned building footprints. If the package or generated Resources prefabs are absent, the current procedural facade remains as fallback.
-6. Import the remaining packages individually. Do not import their sample scenes as the game's startup scene.
+The imported Slavic village building prefabs are **not used by the demo runtime**. Their pivots, scale and visual composition did not match the authoritative village footprints and made the settlement look inconsistent. `WorldLayoutPresentationBuilder` now uses its native procedural facades only.
 
-The installer currently prepares VillageHouse01..03, Tree01..03, Bush01, Grass01, Bench01, Barrel01, Mug01 and Cup01. Trees, foliage and props are staged for subsequent integration; the first runtime pass replaces building facades only.
+Do not import or run the prefab installer for the current demo. Existing downloaded source packages may remain in the local Asset Store cache; they are not required by a clean clone and are not referenced by the runtime building path.
+
+The installer and source package are retained temporarily for possible later, individually reviewed prop/animation extraction. No imported building prefab should be re-enabled without a screenshot review and explicit fit test against Layout v2.
 
 ## Contract and scene safety
 

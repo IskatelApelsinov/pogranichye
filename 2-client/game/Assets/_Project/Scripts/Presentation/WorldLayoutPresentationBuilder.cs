@@ -600,11 +600,10 @@ namespace Pogranichye.Client.Presentation
             root.SetParent(parent, false);
             root.localPosition = center;
 
-            // Prefer the imported Slavic village prefab when present. The existing
-            // procedural facade remains the fallback for clean clones without paid/
-            // optional Asset Store content. Server footprint and collision are unchanged.
-            if (SlavicVillageAssetLibrary.TryBuildBuilding(root, building.Kind, width, depth))
-                return;
+            // Use the native procedural facade consistently. The optional imported
+            // Slavic pack produced mismatched scale, pivots and composition in the live
+            // village; it is deliberately excluded until each building is art-directed
+            // and validated individually. Server footprint/collision remain authoritative.
 
             var isMarket = building.Kind == "market";
             var wallHeight = isMarket ? 2.8f : 3.8f;

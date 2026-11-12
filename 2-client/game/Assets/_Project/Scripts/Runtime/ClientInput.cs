@@ -22,6 +22,7 @@ namespace Pogranichye.Client
         private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
+        private InputAction _chat;
         private InputAction _trickFeint, _trickBait, _trickSneak, _cycleStance;
         private readonly InputAction[] _weaveNodes = new InputAction[6];
         private readonly InputAction[] _journeyChoices = new InputAction[9];
@@ -40,6 +41,7 @@ namespace Pogranichye.Client
         public bool ToggleFullscreenPressed => _toggleFullscreen.WasPressedThisFrame();
         public bool MenuPressed => _menu.WasPressedThisFrame();
         public bool CancelPressed => _cancel.WasPressedThisFrame();
+        public bool ChatPressed => _chat.WasPressedThisFrame();
         public bool WeavePressed => _weaveHold.WasPressedThisFrame();
         public bool WeaveReleased => _weaveHold.WasReleasedThisFrame();
         public bool WeaveHeld => _weaveHold.IsPressed();
@@ -86,6 +88,7 @@ namespace Pogranichye.Client
             _toggleFullscreen = Button("ToggleFullscreen", "<Keyboard>/f11");
             _menu = Button("Menu", "<Keyboard>/tab");
             _cancel = Button("Cancel", "<Keyboard>/escape");
+            _chat = Button("Chat", "<Keyboard>/t");
             _weaveHold = Button("WeaveHold", "<Keyboard>/r");
             _weaveRemove = Button("WeaveRemove", "<Keyboard>/backspace");
             _primary = Button("Primary", "<Mouse>/leftButton");

@@ -70,6 +70,8 @@ namespace Pogranichye.Client
         }
         private readonly List<string> _chatHistory = new List<string>();
         private string _chatInput = "";
+        private bool _chatOpen;
+        private bool _chatFocusPending;
         private Vector2 _chatScroll;
         private VoiceChatController _voiceChat;
         private string _token;
@@ -202,6 +204,10 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            // Keep spatial player SFX and remote-voice range checks anchored to the
+            // authoritative local body, not the scene origin where the director was created.
+            _audioDirector?.SetPlayerPosition(_views != null && _views.PlayerTransform != null
+                ? _views.PlayerTransform.position : transform.position);
             // Keep F3 diagnostics live even on the title/login screen, before movement starts.
             if (_movementDebugVisible && _input != null)
                 _pressedKeysDebug = _input.BuildPressedKeysDebug();
@@ -209,6 +215,18 @@ namespace Pogranichye.Client
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             UpdateTalkConfirmationTimeout();
+            if (_connectionState != WorldConnectionState.Active)
+                SetChatOpen(false);
+            else if (!_chatOpen && _input != null && _input.ChatPressed)
+                SetChatOpen(true);
+            else if (_chatOpen && _input != null && _input.CancelPressed)
+                SetChatOpen(false);
+
+            // The title screen and chat are pointer-driven modes: never feed mouse delta
+            // into the camera while either is active.
+            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
@@ -217,7 +235,7 @@ namespace Pogranichye.Client
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
-            if (_connectionState == WorldConnectionState.Active)
+            if (_connectionState == WorldConnectionState.Active && !_chatOpen)
             {
                 UpdateJump();
                 UpdateMovement();
@@ -337,7 +355,10 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
-            DrawChatOverlay();
+            if (_chatOpen)
+                DrawChatOverlay();
+            else if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
+                SetChatOpen(true);
         }
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
@@ -449,6 +470,11 @@ namespace Pogranichye.Client
             var height = Mathf.Min(300f, Screen.height - 24f);
             var rect = new Rect(Screen.width - width - 12f, Screen.height - height - 12f, width, height);
             GUI.Box(rect, "Чат поблизости");
+            if (GUI.Button(new Rect(rect.xMax - 30f, rect.y + 3f, 24f, 22f), "×"))
+            {
+                SetChatOpen(false);
+                return;
+            }
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, rect.height - 38f));
             _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(Mathf.Max(80f, rect.height - 150f)));
             var first = Mathf.Max(0, _chatHistory.Count - 40);
@@ -458,6 +484,11 @@ namespace Pogranichye.Client
             GUILayout.BeginHorizontal();
             GUI.SetNextControlName("PogranichyeChatInput");
             _chatInput = GUILayout.TextField(_chatInput, GUILayout.MinWidth(100f), GUILayout.Height(28f));
+            if (_chatFocusPending)
+            {
+                GUI.FocusControl("PogranichyeChatInput");
+                _chatFocusPending = false;
+            }
             var canSend = !string.IsNullOrWhiteSpace(_chatInput) && !_busy;
             GUI.enabled = canSend;
             if (GUILayout.Button("Отправить", GUILayout.Width(92f), GUILayout.Height(28f)))
@@ -479,6 +510,17 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
             if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
             GUILayout.EndArea();
+        }
+
+        private void SetChatOpen(bool open)
+        {
+            if (_chatOpen == open) return;
+            _chatOpen = open;
+            _chatFocusPending = open;
+            if (_cameraRig != null)
+                _cameraRig.SetMouseGestureCapture(open || _connectionState != WorldConnectionState.Active);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = open || _connectionState != WorldConnectionState.Active;
         }
 
         private async Task SendChatMessageAsync(string text)
@@ -2399,7 +2441,12 @@ namespace Pogranichye.Client
             _confirmedTalkTargetId = null;
             _talkFeedback = null;
             _talkConfirmationTimedOut = false;
-            if (_cameraRig != null) _cameraRig.SetTarget(null);
+            if (_cameraRig != null)
+            {
+                _cameraRig.SetTarget(null);
+                _cameraRig.SetMouseGestureCapture(true);
+            }
+            SetChatOpen(false);
             if (_firstPerson) SetCameraMode(false);
             socket?.Dispose();
             _status = status;
@@ -2433,6 +2480,15 @@ namespace Pogranichye.Client
                 go.tag = "MainCamera";
                 camera = go.AddComponent<Camera>();
             }
+
+            // Runtime-created cameras do not receive Unity's default AudioListener.
+            // Without one, every AudioSource in the village is effectively inaudible.
+            var listener = camera.GetComponent<AudioListener>();
+            if (listener == null) listener = camera.gameObject.AddComponent<AudioListener>();
+            var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+            for (var i = 0; i < listeners.Length; i++)
+                if (listeners[i] != null && listeners[i] != listener)
+                    listeners[i].enabled = false;
 
             camera.transform.position = new Vector3(0, 22, -28);
             camera.transform.rotation = Quaternion.Euler(35, 0, 0);
@@ -2480,7 +2536,13 @@ namespace Pogranichye.Client
             WorldNpc.Selected -= OnNpcSelected;
             _voiceChat?.StopVoice();
             _lifetime.Cancel();
-            if (_cameraRig != null) _cameraRig.SetTarget(null);
+            if (_cameraRig != null)
+            {
+                _cameraRig.SetTarget(null);
+                _cameraRig.SetMouseGestureCapture(true);
+            }
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             if (_createdCameraRig && _cameraRig != null)
                 Destroy(_cameraRig);
             _socket?.Dispose();
