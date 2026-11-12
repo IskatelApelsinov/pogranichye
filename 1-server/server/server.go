@@ -452,7 +452,6 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Quest  string   `json:"quest"`  // id просьбы
 		ChatChannel string `json:"channel"`
 		ChatText string `json:"text"`
-		VoiceAction string `json:"action"`
 		VoiceSDP string `json:"sdp"`
 		VoiceCandidate string `json:"candidate"`
 		VoiceSDPMid string `json:"sdp_mid"`
@@ -466,7 +465,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "chat":
 		s.sendChat(cid, in.ChatChannel, in.ChatText, in.Target)
 	case "voice":
-		s.signalVoice(cid, in.VoiceAction, in.Target, in.VoiceSDP, in.VoiceCandidate, in.VoiceSDPMid, in.VoiceSDPMLine)
+		s.signalVoice(cid, in.Action, in.Target, in.VoiceSDP, in.VoiceCandidate, in.VoiceSDPMid, in.VoiceSDPMLine)
 	case "goal":
 		if in.Goal == "" {
 			return
