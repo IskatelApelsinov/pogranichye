@@ -182,7 +182,7 @@ namespace Pogranichye.Client.Networking
             finally { _sendGate.Release(); }
         }
 
-        public async Task SendMoveAsync(float mx, float my, bool run, float face, float dt,
+        public async Task SendMoveAsync(float mx, float my, bool run, bool fast, float face, float dt,
             long sequence, CancellationToken cancellationToken)
         {
             if (!IsConnected)
@@ -195,6 +195,7 @@ namespace Pogranichye.Client.Networking
                 mx,
                 my,
                 run,
+                fast,
                 face,
                 dt,
                 seq = sequence
