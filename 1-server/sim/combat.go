@@ -73,6 +73,7 @@ type FoeC struct {
 	HomeY      float64 `json:"hy"`
 	CD         float64 `json:"cd"`
 	Stun       float64 `json:"stun"`
+	Windup     float64 `json:"windup"` // читаемая пауза перед атакой: даёт игроку окно на реакцию
 	Blind      float64 `json:"blind"`
 	Bait       float64 `json:"bait"`
 	Slow       bool    `json:"slow"`
@@ -297,10 +298,12 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		}
 	}
 	if f.Stun > 0 {
+		f.Windup = 0
 		f.Stun -= dt
 		return
 	}
 	if f.Bait > 0 { // жрёт приманку — не до тебя
+		f.Windup = 0
 		f.Bait -= dt
 		f.State = "eat"
 		return
@@ -351,6 +354,7 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		}
 	}
 	if !hunting {
+		f.Windup = 0
 		f.Aware, f.Target = false, 0
 		wanderFoe(f, dt, s)
 		return
@@ -361,13 +365,24 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		return
 	}
 	if nd > st.reach {
+		f.Windup = 0 // цель успела выйти из радиуса — атака сорвана
 		moveFoe(f, pp.X, pp.Y, math.Min(speed*dt, nd-st.reach*0.8))
 		return
 	}
 	f.Facing = facingDeg(pp.X-f.X, pp.Y-f.Y, f.Facing)
+	if f.Windup > 0 {
+		f.State = "windup"
+		f.Windup = math.Max(0, f.Windup-dt)
+		if f.Windup <= 0 {
+			f.CD = st.cd
+			foeStrike(w, fe, f, near, s)
+		}
+		return
+	}
 	if f.CD <= 0 {
-		f.CD = st.cd
-		foeStrike(w, fe, f, near, s)
+		// Не бьём мгновенно при входе в радиус: показываем явный замах.
+		f.Windup = 0.45
+		f.State = "windup"
 	}
 }
 
@@ -925,6 +940,7 @@ func FoesView(w *core.World, settlement core.ID) []map[string]any {
 			"x": round1x(f.X), "y": round1x(f.Y), "facing": math.Round(f.Facing),
 			"hp": math.Round(math.Max(0, f.HP)), "max": f.Max, "state": f.State, "aware": f.Aware,
 			"slow": f.Slow, "weak": f.Weak, "blind": f.Blind > 0, "stun": f.Stun > 0,
+			"windup": round1x(f.Windup),
 		})
 	})
 	sort.Slice(out, func(i, j int) bool { return out[i]["id"].(string) < out[j]["id"].(string) })
