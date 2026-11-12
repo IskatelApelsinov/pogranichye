@@ -1931,7 +1931,7 @@ namespace Pogranichye.Client
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
-            var speed = canRun ? (fastRequested ? 4.8f : 2.5f) : 1.4f;
+            var speed = canRun ? (fastRequested ? 6.0f : 3.2f) : 1.4f;
 
             if (moving)
             {
@@ -2066,7 +2066,7 @@ namespace Pogranichye.Client
             {
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
-                var speed = canRun ? (intent.Fast ? 4.8f : 2.5f) : 1.4f;
+                var speed = canRun ? (intent.Fast ? 6.0f : 3.2f) : 1.4f;
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
 
