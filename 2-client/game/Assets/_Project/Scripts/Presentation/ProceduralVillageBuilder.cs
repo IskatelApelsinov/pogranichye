@@ -1583,6 +1583,11 @@ namespace Pogranichye.Client.Presentation
                     CreatePrimitive("Guest room doorway • jamb", PrimitiveType.Cube, tavern,
                         new Vector3(partitionX, 1.30f, -0.72f + zSide * 0.40f),
                         new Vector3(0.18f, 2.45f, 0.12f), _roofMaterial);
+
+                // Small numbered plaques make the two rentable rooms readable from the common room.
+                CreateSign(tavern, side < 0 ? "КОМНАТА I" : "КОМНАТА II",
+                    new Vector3(partitionX, 2.12f, -0.72f), 0.34f);
+
                 var door = CreatePrimitive("Guest room • ajar door", PrimitiveType.Cube, tavern,
                     new Vector3(partitionX + side * 0.20f, 0.92f, -0.72f),
                     new Vector3(0.07f, 1.82f, 0.72f), _roofMaterial);
@@ -1590,6 +1595,9 @@ namespace Pogranichye.Client.Presentation
                 CreatePrimitive("Guest room • iron latch", PrimitiveType.Sphere, tavern,
                     new Vector3(partitionX + side * 0.24f, 0.92f, -0.92f),
                     new Vector3(0.045f, 0.045f, 0.045f), _metalMaterial);
+                CreatePrimitive("Guest room • hinge strap", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX + side * 0.20f, 1.34f, -0.43f),
+                    new Vector3(0.025f, 0.42f, 0.035f), _metalMaterial);
 
                 var roomX = side * 1.62f;
                 CreatePrimitive("Guest room • plank floor", PrimitiveType.Cube, tavern,
@@ -1607,9 +1615,24 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(roomX, 0.48f, 1.55f), new Vector3(0.52f, 0.10f, 0.40f), _woodMaterial);
                 CreatePrimitive("Guest room • wash bowl", PrimitiveType.Cylinder, tavern,
                     new Vector3(roomX, 0.60f, 1.55f), new Vector3(0.36f, 0.08f, 0.30f), _stoneMaterial);
+                CreatePrimitive("Guest room • candle bracket", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX + side * 0.16f, 1.58f, 0.95f),
+                    new Vector3(0.10f, 0.045f, 0.22f), _metalMaterial);
                 CreatePrimitive("Guest room • wall candle", PrimitiveType.Cylinder, tavern,
                     new Vector3(partitionX + side * 0.12f, 1.72f, 0.95f),
                     new Vector3(0.045f, 0.16f, 0.045f), _foamMaterial);
+                CreatePrimitive("Guest room • candle flame", PrimitiveType.Sphere, tavern,
+                    new Vector3(partitionX + side * 0.12f, 1.91f, 0.95f),
+                    new Vector3(0.035f, 0.075f, 0.035f), _fireCoreMaterial);
+                var roomLightObject = new GameObject("Guest room • warm candle light");
+                roomLightObject.transform.SetParent(tavern, false);
+                roomLightObject.transform.localPosition =
+                    new Vector3(partitionX + side * 0.20f, 1.86f, 0.82f);
+                var roomLight = roomLightObject.AddComponent<Light>();
+                roomLight.type = LightType.Point;
+                roomLight.range = 2.8f;
+                roomLight.intensity = 0.38f;
+                roomLight.color = new Color(1f, 0.62f, 0.32f);
                 CreatePrimitive("Guest room • wall shelf", PrimitiveType.Cube, tavern,
                     new Vector3(roomX, 1.55f, 1.78f), new Vector3(0.92f, 0.10f, 0.24f), _woodMaterial);
             }
