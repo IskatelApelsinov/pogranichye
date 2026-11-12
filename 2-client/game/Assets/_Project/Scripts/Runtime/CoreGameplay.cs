@@ -1007,7 +1007,11 @@ namespace Pogranichye.Client
                         : struck.Root.transform.position + Vector3.up * (struck.View.Height + 0.2f);
                     _floaters.Add(new Floater { World = anchor, Text = (hurtsMe ? "-" : "") + Mathf.RoundToInt(damage), At = Time.unscaledTime, Hurt = hurtsMe,
                         OwnerRoot = hurtsMe ? _player : struck.Root.transform });
-                    if (!hurtsMe) struck.Punch = 0.2f;
+                    if (!hurtsMe)
+                    {
+                        struck.Punch = 0.2f;
+                        if (struck.Gait != null) struck.Gait.HitReact(); // server-confirmed damage to this foe
+                    }
                     else if (struck.Gait != null) struck.Gait.Lunge(); // the server confirmed this foe's hit
                 }
             }
