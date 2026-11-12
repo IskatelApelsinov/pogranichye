@@ -35,8 +35,8 @@ func TestVoiceSignalingRequiresNearbyActivePeers(t *testing.T) {
 	s.signalVoice(ids[0],"join","","","","",0)
 	s.signalVoice(ids[1],"join","","","","",0)
 	aJoined,bJoined:=read(queues[0]),read(queues[1])
-	if aJoined["type"]!="voice_signal" || aJoined["action"]!="peer_joined" || aJoined["from_id"]!=eid(ids[1]) || aJoined["offerer"] != (uint64(ids[0]) < uint64(ids[1])) ||
-		bJoined["action"]!="peer_joined" || bJoined["from_id"]!=eid(ids[0]) || bJoined["offerer"] != (uint64(ids[1]) < uint64(ids[0])) {
+	if aJoined["type"]!="voice_signal" || aJoined["action"]!="peer_joined" || aJoined["from_id"]!=eid(ids[1]) || aJoined["signaling_type"]!="join" ||
+		bJoined["action"]!="peer_joined" || bJoined["from_id"]!=eid(ids[0]) || bJoined["signaling_type"]!="welcome" {
 		t.Fatalf("join discovery mismatch: A=%v B=%v",aJoined,bJoined)
 	}
 	s.signalVoice(ids[0],"offer",eid(ids[1]),"v=0\r\no=demo","","",0)
