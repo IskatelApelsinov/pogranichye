@@ -20,6 +20,12 @@ func TestApplyMovePaceSpeeds(t *testing.T) {
 	if walk.X < 0.27 || walk.X > 0.29 {
 		t.Fatalf("walking speed changed unexpectedly: %.3f m", walk.X)
 	}
+	if math.Abs(jog.X-0.64) > 1e-6 {
+		t.Fatalf("light run should be 3.2 m/s: %.3f m in 0.2 s", jog.X)
+	}
+	if math.Abs(sprint.X-1.2) > 1e-6 {
+		t.Fatalf("fast run should be 6.0 m/s: %.3f m in 0.2 s", sprint.X)
+	}
 }
 
 func TestApplyMoveWalks(t *testing.T) {
