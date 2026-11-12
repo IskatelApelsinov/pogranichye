@@ -993,9 +993,12 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Subtle vertex sway for the combined meadow mesh; no per-blade GameObjects are created.</summary>
     public sealed class MeadowGrassWind : MonoBehaviour
     {
+        private const float UpdateInterval = 1f / 20f;
         private Mesh _mesh;
         private Vector3[] _rest;
         private Vector3[] _vertices;
+        private int[] _tipIndices;
+        private float _nextUpdateAt;
 
         public void Initialize(Mesh mesh)
         {
@@ -1004,6 +1007,15 @@ namespace Pogranichye.Client.Presentation
             _rest = _mesh.vertices;
             _vertices = new Vector3[_rest.Length];
             Array.Copy(_rest, _vertices, _rest.Length);
+
+            // Grass is emitted as independent three-vertex blades. Cache only the tips,
+            // avoiding a modulo test and trigonometry for every stationary base vertex.
+            var tipCount = (_rest.Length + 2) / 3;
+            _tipIndices = new int[tipCount];
+            var tip = 0;
+            for (var i = 2; i < _rest.Length; i += 3)
+                _tipIndices[tip++] = i;
+
             var bounds = _mesh.bounds;
             bounds.Expand(new Vector3(0.12f, 0f, 0f));
             _mesh.bounds = bounds;
@@ -1011,14 +1023,17 @@ namespace Pogranichye.Client.Presentation
 
         private void Update()
         {
-            if (_mesh == null || _rest == null) return;
+            if (_mesh == null || _rest == null || _tipIndices == null) return;
+            if (Time.time < _nextUpdateAt) return;
+            _nextUpdateAt = Time.time + UpdateInterval;
+
             var time = Time.time * 1.15f;
-            for (var i = 0; i < _rest.Length; i++)
+            for (var i = 0; i < _tipIndices.Length; i++)
             {
-                var vertex = _rest[i];
-                if (i % 3 == 2)
-                    vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f;
-                _vertices[i] = vertex;
+                var index = _tipIndices[i];
+                var vertex = _rest[index];
+                vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f;
+                _vertices[index] = vertex;
             }
             _mesh.vertices = _vertices;
         }
