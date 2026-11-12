@@ -40,6 +40,13 @@ namespace Pogranichye.Client.Presentation
 
         public EntityViewRegistry(Transform root) { _root = root; }
 
+        public void PlayPlayerActionGesture(string action)
+        {
+            if (PlayerTransform == null) return;
+            var motion = PlayerTransform.GetComponent<EntityMotion>();
+            if (motion != null) motion.PlayActionGesture(action);
+        }
+
         public void SetPlayerPresentationOffset(Vector3 localOffset)
         {
             if (_playerVisualRoot != null) _playerVisualRoot.localPosition = localOffset;
