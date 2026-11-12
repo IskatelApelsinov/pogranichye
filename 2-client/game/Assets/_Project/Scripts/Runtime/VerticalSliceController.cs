@@ -862,7 +862,7 @@ namespace Pogranichye.Client
             {
                 case "tavern": return "Корчма";
                 case "smithy": return "Кузница";
-                case "granary": return "Конюшня / амбар";
+                case "granary": return "Конюшня";
                 case "market": return "Рынок";
                 case "well": return "Колодец";
                 case "hearth": return "Очаг";
