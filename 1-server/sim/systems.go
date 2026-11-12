@@ -181,7 +181,8 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		// FSM исполняет выбранную цель фазами: подготовка → действие → прерывание/завершение.
 		// При завершении разум пересматривает цель на следующем игровом часу.
-		if _, completed := mind.AdvanceRoutine(e, clock.TotalHours, hour); completed {
+		phase, completed := mind.AdvanceRoutine(e, clock.TotalHours, hour)
+		if completed {
 			m.GoalUntil = clock.TotalHours
 		}
 		// уточняем цель до КОНКРЕТНОГО занятия по профессии/сезону/часу/доступным ресурсам
@@ -195,7 +196,16 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		act := chooseActivity(role, m.Goal, season, hour, lr)
 		m.ActCode = act.code // стабильный код подтверждённого занятия — для анимаций клиента (#23)
-		execGoal(w, e, m, v, clock, st, pstream, act.label)
+		switch phase {
+		case "prepare":
+			m.LastAct = "собирается: " + act.label
+		case "perform":
+			execGoal(w, e, m, v, clock, st, pstream, act.label)
+		case "complete":
+			m.LastAct = "завершил: " + act.label
+		default:
+			m.LastAct = act.label
+		}
 	})
 }
 
