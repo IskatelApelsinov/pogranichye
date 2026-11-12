@@ -88,9 +88,9 @@ func TestVoiceSessionEndsWhenPlayersLeaveProximity(t *testing.T) {
 	s.chatPeers[ids[1]].voice=true
 	sim.EnsureScenePos(s.world,s.world.Get(ids[1])).X=80
 	s.pruneVoicePeersLocked()
-	if s.chatPeers[ids[0]].voice || !s.chatPeers[ids[1]].voice {
+	if s.chatPeers[ids[0]].voice || s.chatPeers[ids[1]].voice {
 		s.mu.Unlock()
-		t.Fatalf("only the soul outside its peer's radius should leave voice")
+		t.Fatalf("both ends of the out-of-range voice link should leave")
 	}
 	s.mu.Unlock()
 	read:=func(ch <-chan string) map[string]any {
