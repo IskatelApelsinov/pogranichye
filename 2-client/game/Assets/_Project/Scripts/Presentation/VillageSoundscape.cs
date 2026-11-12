@@ -115,6 +115,14 @@ namespace Pogranichye.Client.Presentation
 
         private static AudioClip MakeLoop(string clipName, float[] samples)
         {
+            // Fade the loop boundaries to avoid a hard discontinuity/click on repeat.
+            var fadeSamples = Mathf.Min(SampleRate / 6, samples.Length / 4);
+            for (var i = 0; i < fadeSamples; i++)
+            {
+                var gain = i / (float)fadeSamples;
+                samples[i] *= gain;
+                samples[samples.Length - 1 - i] *= gain;
+            }
             var clip = AudioClip.Create(clipName, samples.Length, 1, SampleRate, false);
             clip.SetData(samples, 0);
             return clip;
