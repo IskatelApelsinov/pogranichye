@@ -36,6 +36,8 @@ namespace Pogranichye.Client.Presentation
         private float _clinkGestureRemaining;
         private float _actionGestureRemaining;
         private string _actionGesture = string.Empty;
+        private bool _workGestureLoop;
+        private float _workGesturePhase;
         private bool _guarding;
         private Transform _attentionTarget;
         private Transform _focusTarget;
@@ -255,6 +257,35 @@ namespace Pogranichye.Client.Presentation
                 action == "heavy_attack" || action == "thrust" ? 0.62f : 0.78f;
         }
 
+        /// <summary>Starts a sustained, presentation-only work cycle while a result-bearing action is pending.</summary>
+        public void SetWorkGesture(string action)
+        {
+            if (action != "chop" && action != "forge" && action != "mine" &&
+                action != "farmwork" && action != "gather" && action != "apiary" &&
+                action != "meditate" && action != "hunt" && action != "cook" &&
+                action != "herd" && action != "build" && action != "craft" &&
+                action != "trade") return;
+            PlayActionGesture(action);
+            _workGestureLoop = true;
+            _workGesturePhase = 0f;
+            _actionGestureRemaining = 1f;
+        }
+
+        public void StopWorkGesture()
+        {
+            if (!_workGestureLoop) return;
+            _workGestureLoop = false;
+            _actionGestureRemaining = 0f;
+            _actionGesture = string.Empty;
+        }
+
+        private float ActionProgress(float duration)
+        {
+            return _workGestureLoop
+                ? Mathf.Repeat(_workGesturePhase / (Mathf.PI * 2f), 1f)
+                : 1f - _actionGestureRemaining / duration;
+        }
+
         public void SetGuarding(bool guarding) { _guarding = guarding; }
 
         public void PlayTalkGesture(Transform observer)
@@ -297,6 +328,7 @@ namespace Pogranichye.Client.Presentation
             if (_body == null) return;
             _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
+            if (_workGestureLoop && walking) StopWorkGesture();
             _phase += Time.deltaTime * (walking
                 ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
                 : (_isPlayer ? 2.2f : _idleRate));
@@ -307,7 +339,9 @@ namespace Pogranichye.Client.Presentation
                 _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
-            if (_actionGestureRemaining > 0f)
+            if (_workGestureLoop)
+                _workGesturePhase += Time.deltaTime * 5.2f;
+            if (!_workGestureLoop && _actionGestureRemaining > 0f)
                 _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - Time.deltaTime);
 
             if (_heldTankard != null)
@@ -512,14 +546,14 @@ namespace Pogranichye.Client.Presentation
             var rightArmYaw = 0f;
             if (_actionGestureRemaining > 0f && _actionGesture == "chop")
             {
-                var progress = 1f - _actionGestureRemaining / 0.62f;
+                var progress = ActionProgress(0.62f);
                 var strike = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
                 rightArmAngle = Mathf.Lerp(-118f, 8f, strike);
                 rightArmYaw = -10f + strike * 8f;
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "fish_cast")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 rightArmAngle = Mathf.Lerp(-112f, -18f, Mathf.SmoothStep(0f, 1f, progress));
                 rightArmYaw = Mathf.Sin(progress * Mathf.PI) * 24f;
             }

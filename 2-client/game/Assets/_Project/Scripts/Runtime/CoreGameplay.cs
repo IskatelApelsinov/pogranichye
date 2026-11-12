@@ -536,6 +536,7 @@ namespace Pogranichye.Client
 
         public void Clear()
         {
+            _stopPlayerWorkGesture();
             foreach (var pair in _foes)
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
             _foes.Clear();
@@ -674,7 +675,23 @@ namespace Pogranichye.Client
                 Toast("Не всё сразу: дождись ответа на прошлые действия", 1.6f);
                 return;
             }
-            _viewsPlayerGesture(action == "fish" ? "fish_cast" : action);
+
+            if (action == "fish")
+                _viewsPlayerGesture("fish_cast");
+            else
+                _viewsPlayerWorkGesture(action);
+        }
+
+        private void _viewsPlayerWorkGesture(string action)
+        {
+            var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.SetWorkGesture(action);
+        }
+
+        private void _stopPlayerWorkGesture()
+        {
+            var motion = _player != null ? _player.GetComponent<EntityMotion>() : null;
+            if (motion != null) motion.StopWorkGesture();
         }
 
         private void ReadResult()
@@ -685,7 +702,10 @@ namespace Pogranichye.Client
             var reason = Str(result, "reason");
             var outcome = _gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item);
             if (outcome == RequestGate.Outcome.Accepted || outcome == RequestGate.Outcome.Rejected)
+            {
+                _stopPlayerWorkGesture();
                 RequestResolved?.Invoke(item.Label, outcome, reason);
+            }
             switch (outcome)
             {
                 case RequestGate.Outcome.Accepted:
@@ -703,6 +723,7 @@ namespace Pogranichye.Client
             RequestGate.Item item;
             if (_gate.Tick(Time.unscaledTime, out item) == RequestGate.Outcome.TimedOut)
             {
+                _stopPlayerWorkGesture();
                 RequestResolved?.Invoke(item.Label, RequestGate.Outcome.TimedOut, "сервер не ответил");
                 Toast(item.Label + ": сервер не ответил", 2.2f);
             }
