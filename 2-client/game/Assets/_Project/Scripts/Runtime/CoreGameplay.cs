@@ -799,6 +799,7 @@ namespace Pogranichye.Client
             labelObject.transform.SetParent(root.transform, false);
             labelObject.transform.localPosition = new Vector3(0f, 3.35f, 0.08f);
             var mesh = labelObject.AddComponent<TextMesh>();
+            labelObject.AddComponent<BillboardLabel>();
             mesh.text = "Тракт";
             mesh.fontSize = 48;
             mesh.characterSize = 0.075f;
