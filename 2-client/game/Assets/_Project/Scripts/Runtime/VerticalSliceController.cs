@@ -647,7 +647,11 @@ namespace Pogranichye.Client
                     var residentName = neighbor.Controlled
                         ? "Игрок"
                         : neighbor.Known && !string.IsNullOrWhiteSpace(neighbor.Name) ? neighbor.Name : "Житель";
-                    GUI.Label(new Rect(position.x + 5f, position.y - 7f, 90f, 14f), residentName, _mapPoiLabelStyle);
+                    var activity = MapActivityName(neighbor.ActivityCode);
+                    var residentLabel = string.IsNullOrEmpty(activity)
+                        ? residentName
+                        : residentName + " · " + activity;
+                    GUI.Label(new Rect(position.x + 5f, position.y - 7f, 128f, 14f), residentLabel, _mapPoiLabelStyle);
                 }
             }
 
@@ -744,6 +748,44 @@ namespace Pogranichye.Client
                 case "woods": return "Л";
                 case "mine": return "Ш";
                 default: return "·";
+            }
+        }
+
+        private static string MapActivityName(string activityCode)
+        {
+            // Use the stable server activity registry, never localized "last" prose or guessed goals.
+            switch (activityCode)
+            {
+                case "sleep": return "спит";
+                case "rest_idle": return "отдыхает";
+                case "meal": return "ест";
+                case "drink_tavern": return "пьёт";
+                case "visit_neighbors": return "общается";
+                case "chop_wood": return "рубит лес";
+                case "fish_river": return "рыбачит";
+                case "farm_sow": return "сеет";
+                case "farm_reap": return "жнёт";
+                case "farm_tend": return "ухаживает за полем";
+                case "smith_forge": return "куёт";
+                case "cook_hearth": return "готовит";
+                case "mine_ore": return "добывает руду";
+                case "hunt_wild": return "на промысле";
+                case "forage_herbs": return "собирает травы";
+                case "brew_remedy": return "варит снадобье";
+                case "weave": return "ткёт";
+                case "herd_graze": return "пасёт скот";
+                case "herd_barn": return "ухаживает за скотом";
+                case "keep_tavern": return "за стойкой";
+                case "study_mana": return "изучает плетения";
+                case "fisher_mend": return "чинит сети";
+                case "farm_mend": return "чинит снасти";
+                case "farm_nosow":
+                case "farm_noreap":
+                case "smith_cold":
+                case "mine_spent":
+                case "hunter_empty":
+                case "weaver_wait": return "ожидает дела";
+                default: return string.Empty;
             }
         }
 
