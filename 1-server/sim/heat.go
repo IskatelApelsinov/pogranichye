@@ -161,6 +161,25 @@ func materialize(w *core.World, settlement core.ID, controlled func(core.ID) boo
 	}
 }
 
+// ensureHotResidentBody materializes a single NPC created or arrived after its settlement
+// was already heated. UpdateHeat only performs the bulk pass on cold→hot transitions;
+// without this hook, births and migration arrivals would remain invisible/stationary.
+func ensureHotResidentBody(w *core.World, e *core.Entity) {
+	if w == nil || e == nil || Player(e) != nil || ScenePos(e) != nil || Migration(e) != nil {
+		return
+	}
+	pl := core.Place(e)
+	if pl == nil || pl.Settlement == 0 {
+		return
+	}
+	h := heatOf(w.Get(pl.Settlement))
+	if h == nil || h.Level < 2 {
+		return
+	}
+	sx, sy := SpawnSpot(uint64(e.ID))
+	w.Attach(e, &ScenePosC{X: sx, Y: sy, Facing: 90, Stam: 1})
+}
+
 // archive — «архивация»: поселение остыло, тела жителей и враги сцены снимаются (остаётся расписание
 // и поголовье угодий — из них всё восстановится).
 func archive(w *core.World, settlement core.ID) {

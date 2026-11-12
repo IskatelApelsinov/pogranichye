@@ -99,6 +99,10 @@ func (w *World) Remove(id ID) {
 	delete(w.entities, id)
 }
 
+// HasKind reports whether the world currently contains at least one entity with kind.
+// It is O(1) and lets hot-path systems choose the appropriate indexed population.
+func (w *World) HasKind(kind string) bool { return len(w.byKindIDs[kind]) != 0 }
+
 // Count — сколько всего сущностей.
 func (w *World) Count() int { return len(w.entities) }
 
