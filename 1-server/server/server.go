@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"pogranichye/dice"
 	"pogranichye/memory"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -936,33 +935,48 @@ const neighborCap = 24
 
 // nearest — до n ближайших к игроку жителей его поселения (не в пути), по расстоянию в сцене.
 func (s *Server) nearest(e *core.Entity, settlement core.ID, n int) []*core.Entity {
+	if n <= 0 || e == nil {
+		return nil
+	}
 	px, py, _ := neighborPos(e)
 	type row struct {
 		e *core.Entity
 		d float64
 	}
-	var rows []row
+	// Keep only the nearest n while scanning. The old implementation retained every
+	// resident and sorted the entire settlement for every player frame (up to 10 Hz).
+	// This bounded insertion list uses O(n) memory and O(population*n) comparisons,
+	// with n normally 24, instead of O(population) memory + O(population log population).
+	rows := make([]row, 0, n)
 	s.world.Each("place", func(o *core.Entity) {
 		if o.ID == e.ID || sim.OnRoad(o) {
 			return
 		}
-		if p := core.Place(o); p != nil && p.Settlement == settlement && core.Ident(o) != nil {
-			x, y, _ := neighborPos(o)
-			rows = append(rows, row{o, (x-px)*(x-px) + (y-py)*(y-py)})
+		p := core.Place(o)
+		if p == nil || p.Settlement != settlement || core.Ident(o) == nil {
+			return
 		}
-	})
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].d != rows[j].d {
-			return rows[i].d < rows[j].d
+		x, y, _ := neighborPos(o)
+		candidate := row{o, (x-px)*(x-px) + (y-py)*(y-py)}
+		at := len(rows)
+		for i := range rows {
+			if candidate.d < rows[i].d || (candidate.d == rows[i].d && candidate.e.ID < rows[i].e.ID) {
+				at = i
+				break
+			}
 		}
-		return rows[i].e.ID < rows[j].e.ID
+		if at >= n {
+			return
+		}
+		if len(rows) < n {
+			rows = append(rows, row{})
+		}
+		copy(rows[at+1:], rows[at:])
+		rows[at] = candidate
 	})
-	if len(rows) > n {
-		rows = rows[:n]
-	}
 	out := make([]*core.Entity, len(rows))
-	for i, r := range rows {
-		out[i] = r.e
+	for i := range rows {
+		out[i] = rows[i].e
 	}
 	return out
 }
