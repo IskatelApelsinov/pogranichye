@@ -74,10 +74,14 @@ func (s *Server) Close() {
 // первого лица был отзывчивым. Игровой час (нужды/экономика) идёт своим темпом tickEach.
 const fastEach = 100 * time.Millisecond
 
+// defaultWorldTick keeps the persistent world at 1.4x real time: one game hour
+// lasts 42m51.429s, so one game day lasts about 17h08m34s in real time.
+const defaultWorldTick = 2571429 * time.Millisecond
+
 // New создаёт сервер: генерирует мир и службу аккаунтов.
-// SetTick задаёт темп мира (сколько реального времени на один игровой час). Для демо-профиля можно
-// замедлить, чтобы время суток читалось; ≤0 — оставить как есть. Движение НПС/мана считаются от этого
-// же dt, так что ходьба остаётся в реальном времени.
+// SetTick задаёт темп мира (сколько реального времени на один игровой час). По умолчанию
+// мир идёт в 1.4x реального времени; ≤0 оставляет этот темп. Движение НПС/мана считаются от
+// того же dt, поэтому при изменении темпа меняется и скорость симуляции их перемещения.
 func (s *Server) SetTick(d time.Duration) {
 	if d > 0 {
 		s.tickEach = d
@@ -91,7 +95,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		world: w, runner: r,
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
-		tickEach: time.Minute, // игровой час за минуту: сутки за 24 реальных минуты
+		tickEach: defaultWorldTick,
 		ctl:      map[core.ID]uint64{},
 		chatPeers: map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
@@ -107,7 +111,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		world: w, runner: r,
 		acc:      accounts.NewStore(accPath, secret),
 		webDir:   webDir,
-		tickEach: time.Minute,
+		tickEach: defaultWorldTick,
 		ctl:      map[core.ID]uint64{},
 		chatPeers: map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
