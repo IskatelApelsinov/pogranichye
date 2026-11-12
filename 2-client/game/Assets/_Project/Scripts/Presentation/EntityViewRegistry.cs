@@ -62,8 +62,8 @@ namespace Pogranichye.Client.Presentation
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
 
-            var playerExisted = _views.TryGetValue(playerId, out var existingPlayer);
-            var player = playerExisted ? existingPlayer : GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true);
+            var playerExisted = _views.ContainsKey(playerId);
+            var player = GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true, true);
             if (!playerExisted && frame.Me.Position != null)
             {
                 player.transform.position = ToUnityPosition(frame.Me.Position);
@@ -115,7 +115,7 @@ namespace Pogranichye.Client.Presentation
                     var position = neighbor.Position != null
                         ? ToUnityPosition(neighbor.Position)
                         : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
-                    var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, false);
+                    var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, neighbor.Controlled, false);
                     SetActivityCode(view, neighbor.ActivityCode);
                     ApplyNeighborGearAppearance(view, neighbor.Gear, id);
                     ApplyControlledPlayerMarker(view, neighbor.Controlled);
@@ -165,11 +165,19 @@ namespace Pogranichye.Client.Presentation
         /// Marks server-confirmed player-controlled neighbors with a subtle cloth armband.
         /// This is presentation only: the Controlled flag comes from the authoritative frame.
         /// </summary>
+        private static Transform GetEntityVisualRoot(GameObject view)
+        {
+            if (view == null) return null;
+            var playerRoot = view.transform.Find("PlayerVisualRoot");
+            return playerRoot != null ? playerRoot : view.transform;
+        }
+
         private void ApplyControlledPlayerMarker(GameObject view, bool controlled)
         {
             if (view == null) return;
 
-            var arm = view.transform.Find("Left arm");
+            var visualRoot = GetEntityVisualRoot(view);
+            var arm = visualRoot.Find("Left arm");
             if (arm == null) return;
 
             var marker = arm.Find("Controlled player armband");
@@ -209,6 +217,7 @@ namespace Pogranichye.Client.Presentation
             var belt = GetWornItem(worn, "belt");
             var signature = (gear == null ? "legacy" : "public") + "|" + handItem + "|" + head + "|" + body + "|" + feet + "|" + armor + "|" + offhand + "|" + belt;
 
+            var visualRoot = GetEntityVisualRoot(view);
             var motion = view.GetComponent<EntityMotion>();
             var supportedHandItem = IsSupportedHandItem(handItem) ? handItem : string.Empty;
             if (motion != null) motion.SetEquippedHandItem(supportedHandItem, false);
@@ -217,19 +226,19 @@ namespace Pogranichye.Client.Presentation
                 return;
             _neighborEquipmentSignatures[entityId] = signature;
 
-            var oldWorn = view.transform.Find("Worn equipment");
+            var oldWorn = visualRoot.Find("Worn equipment");
             if (oldWorn != null) Object.Destroy(oldWorn.gameObject);
             var wornRoot = new GameObject("Worn equipment").transform;
-            wornRoot.SetParent(view.transform, false);
+            wornRoot.SetParent(visualRoot, false);
             if (head == "hat") BuildWornHat(wornRoot);
             if (body == "cloak") BuildWornCloak(wornRoot);
             if (feet == "boots") BuildWornBoots(wornRoot);
             if (armor == "jerkin") BuildWornJerkin(wornRoot);
             if (belt == "purse") BuildWornPurse(wornRoot);
-            var leftArm = view.transform.Find("Left arm");
+            var leftArm = visualRoot.Find("Left arm");
             BuildWornShield(leftArm, offhand == "shield");
 
-            var hand = view.transform.Find("Right arm/Right hand");
+            var hand = visualRoot.Find("Right arm/Right hand");
             if (hand == null) return;
             var oldHeld = hand.Find("Held equipment item");
             if (oldHeld != null) Object.Destroy(oldHeld.gameObject);
@@ -946,9 +955,24 @@ namespace Pogranichye.Client.Presentation
             PlayerTransform = null;
         }
 
-        private GameObject GetOrCreate(ulong id, string displayName, string role, Vector3 position, bool isPlayer)
+        private GameObject GetOrCreate(ulong id, string displayName, string role, Vector3 position,
+            bool isPlayer, bool isLocalPlayer)
         {
-            if (_views.TryGetValue(id, out var existing)) return existing;
+            if (_views.TryGetValue(id, out var existing))
+            {
+                var existingIsPlayer = existing.GetComponent<WorldNpc>() == null;
+                var existingIsLocalPlayer = PlayerTransform == existing.transform;
+                if (existingIsPlayer == isPlayer && existingIsLocalPlayer == isLocalPlayer)
+                    return existing;
+
+                // Presence can change while the entity remains in this client's neighbor set.
+                // Rebuild only when its semantic kind changes; never leave a live player with
+                // an NPC component or vice versa.
+                Object.Destroy(existing);
+                _views.Remove(id);
+                _neighborEquipmentSignatures.Remove(id);
+                if (existingIsLocalPlayer) _playerVisualRoot = null;
+            }
 
             var go = new GameObject($"EntityView_{id}_{displayName}");
             go.transform.SetParent(_root, false);
@@ -960,7 +984,7 @@ namespace Pogranichye.Client.Presentation
                 var visualObject = new GameObject("PlayerVisualRoot");
                 visualObject.transform.SetParent(go.transform, false);
                 visualRoot = visualObject.transform;
-                _playerVisualRoot = visualRoot;
+                if (isLocalPlayer) _playerVisualRoot = visualRoot;
             }
 
             var body = CreatePart("Body", PrimitiveType.Capsule, visualRoot,
@@ -1024,15 +1048,18 @@ namespace Pogranichye.Client.Presentation
             text.color = Color.white;
             text.richText = false;
 
-            if (!isPlayer)
+            if (!isLocalPlayer)
             {
                 var hitbox = go.AddComponent<CapsuleCollider>();
                 hitbox.direction = 1;
                 hitbox.center = new Vector3(0f, 0.92f, 0f);
                 hitbox.height = 1.84f;
                 hitbox.radius = 0.30f;
-                var npc = go.AddComponent<WorldNpc>();
-                npc.Initialize(id, displayName, body.GetComponent<Renderer>(), tunic);
+                if (!isPlayer)
+                {
+                    var npc = go.AddComponent<WorldNpc>();
+                    npc.Initialize(id, displayName, body.GetComponent<Renderer>(), tunic);
+                }
             }
 
             _views.Add(id, go);
