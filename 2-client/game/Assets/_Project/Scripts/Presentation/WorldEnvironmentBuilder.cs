@@ -1053,7 +1053,7 @@ namespace Pogranichye.Client.Presentation
         public void Initialize(float speed) { _speed = speed; }
         private void Update()
         {
-            transform.position += Vector3.right * (_speed * Time.deltaTime);
+            transform.position += Vector3.right * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
             if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
         }
     }
