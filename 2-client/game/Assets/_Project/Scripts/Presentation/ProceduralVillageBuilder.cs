@@ -3913,7 +3913,6 @@ namespace Pogranichye.Client.Presentation
             label.SetParent(marker, false);
             label.localPosition = new Vector3(0, 0.75f, 0);
             label.gameObject.AddComponent<BillboardLabel>();
-            label.gameObject.AddComponent<SignFaceVisibility>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
@@ -3944,6 +3943,7 @@ namespace Pogranichye.Client.Presentation
             label.SetParent(parent, false);
             label.localPosition = localPosition;
             label.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            label.gameObject.AddComponent<SignFaceVisibility>();
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
