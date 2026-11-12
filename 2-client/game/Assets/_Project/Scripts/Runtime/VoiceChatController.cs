@@ -4,6 +4,7 @@ using System.Threading;
 using Pogranichye.Client.Networking;
 using SimpleWebRTC;
 using UnityEngine;
+using Unity.WebRTC;
 
 namespace Pogranichye.Client
 {
@@ -14,6 +15,7 @@ namespace Pogranichye.Client
     public sealed class VoiceChatController : MonoBehaviour
     {
         private const string Room = "pogranichye-nearby";
+        private static bool _webRtcInitialized;
         private WorldSocketClient _socket;
         private CancellationToken _cancellationToken;
         private string _entityId;
@@ -79,6 +81,7 @@ namespace Pogranichye.Client
 
             try
             {
+                EnsureWebRTCInitialized();
                 _voiceRoot = new GameObject("[Pogranichye] Voice");
                 _transport = _voiceRoot.AddComponent<PogranichyeVoiceTransport>();
                 _transport.Bind(_socket, _entityId, _cancellationToken);
@@ -118,6 +121,27 @@ namespace Pogranichye.Client
                 Status = "Не удалось запустить голос: " + ex.Message;
                 StopVoice();
             }
+        }
+
+        private static void EnsureWebRTCInitialized()
+        {
+            if (_webRtcInitialized) return;
+            // FDGS keeps the native bootstrap internal. Initialize it before the peer manager
+            // creates RTCPeerConnection; WebRTCPeerManager owns the per-frame Update runner.
+            var webRtcType = typeof(RTCPeerConnection).Assembly.GetType("Unity.WebRTC.WebRTC");
+            var initialize = webRtcType?.GetMethod("InitializeInternal",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            if (initialize == null)
+                throw new InvalidOperationException("WebRTC package has no InitializeInternal bootstrap.");
+            try
+            {
+                initialize.Invoke(null, new object[] { true, false, NativeLoggingSeverity.Info });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException)
+            {
+                // Another subsystem already initialized the shared native context.
+            }
+            _webRtcInitialized = true;
         }
 
         private void OnSignalingStateChanged(SignalingState state)
