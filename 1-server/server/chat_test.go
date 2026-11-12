@@ -21,7 +21,7 @@ func TestLocalChatIsSpatialAndWhisperIsPrivate(t *testing.T) {
 		e := s.world.Get(id)
 		core.Place(e).Settlement = base
 		p := sim.EnsureScenePos(s.world, e)
-		switch i { case 0: p.X,p.Y=0,0; case 1: p.X,p.Y=10,0; case 2: p.X,p.Y=60,0 }
+		switch i { case 0: p.X,p.Y=0,0; case 1: p.X,p.Y=5,0; case 2: p.X,p.Y=60,0 }
 	}
 	queues := make([]<-chan string, 3)
 	for i,id := range ids { queues[i] = s.registerChat(id) }
