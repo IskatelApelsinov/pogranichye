@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"testing"
 
 	"pogranichye/core"
@@ -133,5 +134,41 @@ func TestPlagueFromCrowdingNotSeason(t *testing.T) {
 	rs.Run(wSmall, 500*core.HoursPerDay)
 	if popOf(wSmall) < s0 {
 		t.Fatalf("малая деревня без скученности болеть не должна (было %d, стало %d)", s0, popOf(wSmall))
+	}
+}
+
+
+// BenchmarkNPCMovementHotIndex measures the 100 ms locomotion pass while the planet's
+// cold population grows. Only hot residents have ScenePosC; cold residents retain MindC
+// but no scene body. Runtime should scale with hot bodies, not total planetary population.
+// Run: go test ./sim -run '^$' -bench BenchmarkNPCMovementHotIndex -benchmem
+func BenchmarkNPCMovementHotIndex(b *testing.B) {
+	for _, coldCount := range []int{1000, 10000, 100000} {
+		b.Run(fmt.Sprintf("cold_%d", coldCount), func(b *testing.B) {
+			w := core.NewWorld("npc-movement-bench")
+			hot := w.Spawn(&core.SettlementC{Name: "hot"}, &HeatC{Level: 2})
+			cold := w.Spawn(&core.SettlementC{Name: "cold"}, &HeatC{Level: 0})
+			for i := 0; i < 64; i++ {
+				e := w.Spawn(
+					&core.IdentC{Role: "farmer"},
+					&core.MindC{Goal: "work"},
+					&core.PlaceC{Settlement: hot.ID},
+				)
+				x, y := SpawnSpot(uint64(e.ID))
+				w.Attach(e, &ScenePosC{X: x, Y: y, Facing: 90, Stam: 1})
+			}
+			for i := 0; i < coldCount; i++ {
+				w.Spawn(
+					&core.IdentC{Role: "farmer"},
+					&core.MindC{Goal: "work"},
+					&core.PlaceC{Settlement: cold.ID},
+				)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				StepNPCMovement(w, 0.1, nil)
+			}
+		})
 	}
 }
