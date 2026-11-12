@@ -114,6 +114,8 @@ namespace Pogranichye.Client.Presentation
 
             BuildHouse(village, "North cottage", new Vector3(-34, 0, -25), 0.2f);
             BuildHouse(village, "Stable & granary", new Vector3(-2, 0, 28), -0.12f);
+            // A large facade sign makes the stable readable from the central lane, not just from the map.
+            CreateSign(village, "КОНЮШНЯ", new Vector3(-2f, 2.05f, 26.35f), 0.92f);
             CreatePoiMarker(village, "Конюшня • лошади и конюх", new Vector3(-2f, 0.08f, 28f),
                 new Color(0.62f, 0.43f, 0.25f), null, null);
             BuildHouse(village, "East cottage", new Vector3(12, 0, -31), -0.25f);
@@ -1226,6 +1228,8 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0, 1.45f, 0), new Vector3(0.09f, 1.45f, 0.09f), _woodMaterial);
             CreateSign(signpost, "КОРЧМА  ←", new Vector3(-0.58f, 2.25f, -0.07f), 0.52f);
             CreateSign(signpost, "КУЗНЕЦ  →", new Vector3(0.55f, 1.92f, -0.07f), 0.48f);
+            CreateSign(signpost, "КОНЮШНЯ  ↑", new Vector3(0f, 1.42f, -0.07f), 0.62f);
+            CreateSign(signpost, "РЫНОК  ↓", new Vector3(0f, 0.88f, -0.07f), 0.56f);
 
             // Warm lanterns break up the long empty road and provide a visual path at dusk.
             BuildStreetLantern(root, ambient, new Vector3(-2.1f, 0, -8.4f));
