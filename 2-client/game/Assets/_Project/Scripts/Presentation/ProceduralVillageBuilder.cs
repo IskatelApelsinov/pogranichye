@@ -1776,9 +1776,15 @@ namespace Pogranichye.Client.Presentation
             tool.localRotation = Quaternion.identity;
             tool.localScale = Vector3.one * 3f;
 
-            // These objects move with the hand, so they must remain dynamic (not marked static).
-            CreatePrimitive("Tool • wooden haft", PrimitiveType.Cylinder, tool,
-                new Vector3(0f, 0.20f, 0f), new Vector3(0.022f, 0.22f, 0.022f), _woodMaterial);
+            // Only long-handled tools need a haft. Food, documents, net repair and small
+            // hand props must not inherit a wooden rod through their center.
+            if (activity == "chop" || activity == "mine" || activity == "forge" ||
+                activity == "farm" || activity == "fish" || activity == "hunt" || activity == "herd")
+            {
+                // These objects move with the hand, so they must remain dynamic (not marked static).
+                CreatePrimitive("Tool • wooden haft", PrimitiveType.Cylinder, tool,
+                    new Vector3(0f, 0.20f, 0f), new Vector3(0.022f, 0.22f, 0.022f), _woodMaterial);
+            }
 
             switch (activity)
             {
