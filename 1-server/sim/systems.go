@@ -186,6 +186,12 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		}
 		act := chooseActivity(role, m.Goal, season, hour, lr)
 		m.ActCode = act.code // стабильный код подтверждённого занятия — для анимаций клиента (#23)
+		// Track routine phase without delaying existing authoritative effects; this keeps
+		// current quests, migration timing and demo rewards behavior-compatible.
+		if _, done := mind.AdvanceRoutine(e, clock.TotalHours, hour); done {
+			m.RoutineGoal, m.RoutinePhase = "", ""
+			m.RoutineSince, m.RoutineProgress = 0, 0
+		}
 		execGoal(w, e, m, v, clock, st, pstream, act.label)
 	})
 }
