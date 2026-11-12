@@ -631,7 +631,7 @@ namespace Pogranichye.Client.Presentation
             else if (_actionGestureRemaining > 0f &&
                 (_actionGesture == "forge" || _actionGesture == "mine" || _actionGesture == "craft" || _actionGesture == "build"))
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 var strike = Mathf.Max(0f, Mathf.Sin(progress * Mathf.PI * 2f));
                 rightArmAngle = -116f + strike * 108f;
                 rightArmYaw = -12f + strike * 8f;
@@ -640,7 +640,7 @@ namespace Pogranichye.Client.Presentation
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "farmwork")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 var hoe = Mathf.Max(0f, Mathf.Sin(progress * Mathf.PI * 2f));
                 rightArmAngle = -74f + hoe * 62f;
                 leftArmAngle = -54f + hoe * 28f;
@@ -648,7 +648,7 @@ namespace Pogranichye.Client.Presentation
             }
             else if (_actionGestureRemaining > 0f && (_actionGesture == "gather" || _actionGesture == "apiary"))
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 var reach = Mathf.Sin(progress * Mathf.PI);
                 rightArmAngle = -28f - reach * 42f;
                 leftArmAngle = -18f - reach * 22f;
@@ -656,7 +656,7 @@ namespace Pogranichye.Client.Presentation
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "meditate")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 var breathe = Mathf.Sin(progress * Mathf.PI * 2f);
                 rightArmAngle = -54f + breathe * 4f;
                 leftArmAngle = -54f - breathe * 4f;
@@ -670,19 +670,19 @@ namespace Pogranichye.Client.Presentation
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "cook")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 rightArmAngle = -52f + Mathf.Sin(progress * Mathf.PI * 4f) * 18f;
                 leftArmAngle = -42f;
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "herd")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 rightArmAngle = -38f + Mathf.Sin(progress * Mathf.PI * 2f) * 24f;
                 leftArmAngle = -12f;
             }
             else if (_actionGestureRemaining > 0f && _actionGesture == "trade")
             {
-                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var progress = ActionProgress(0.78f);
                 rightArmAngle = -32f - Mathf.Sin(progress * Mathf.PI) * 26f;
                 leftArmAngle = -18f;
             }
