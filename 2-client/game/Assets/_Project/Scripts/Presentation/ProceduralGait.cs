@@ -24,12 +24,14 @@ namespace Pogranichye.Client.Presentation
 
         private readonly List<Vector3> _legRest = new List<Vector3>();
         private Vector3 _bodyRest;
+        private Quaternion _bodyRestRotation;
         private Vector3 _headRest;
         private Quaternion _headRestRotation;
         private Vector3 _lastPosition;
         private float _speed;
         private float _phase;
         private float _lunge;
+        private float _hitReact;
         private bool _captured;
         private float _motionSeed;
 
@@ -39,12 +41,22 @@ namespace Pogranichye.Client.Presentation
             _lunge = 1f;
         }
 
+        /// <summary>Plays a brief recoil when the server confirms this creature took damage.</summary>
+        public void HitReact()
+        {
+            _hitReact = 1f;
+        }
+
         private void Capture()
         {
             _captured = true;
             _legRest.Clear();
             foreach (var leg in Legs) _legRest.Add(leg != null ? leg.localPosition : Vector3.zero);
-            if (Body != null) _bodyRest = Body.localPosition;
+            if (Body != null)
+            {
+                _bodyRest = Body.localPosition;
+                _bodyRestRotation = Body.localRotation;
+            }
             if (Head != null)
             {
                 _headRest = Head.localPosition;
@@ -96,17 +108,23 @@ namespace Pogranichye.Client.Presentation
             }
 
             _lunge = Mathf.Max(0f, _lunge - dt * 3.5f);
+            _hitReact = Mathf.Max(0f, _hitReact - dt * 4.8f);
             var lunge = Mathf.Sin(_lunge * Mathf.PI) * 0.35f;
+            var recoil = Mathf.Sin((1f - _hitReact) * Mathf.PI);
             var breathe = Mathf.Sin(Time.time * 1.6f + _motionSeed) * 0.012f;
             var bob = Mathf.Abs(Mathf.Sin(_phase)) * 0.05f * moving * LegLength * 2f;
-            if (Body != null) Body.localPosition = _bodyRest + new Vector3(0f, bob + breathe, lunge);
+            if (Body != null)
+            {
+                Body.localPosition = _bodyRest + new Vector3(0f, bob + breathe, lunge - recoil * 0.075f);
+                Body.localRotation = _bodyRestRotation * Quaternion.Euler(-5f * recoil, 0f, 8f * recoil);
+            }
 
             if (Head != null)
             {
                 var nod = Mathf.Sin(_phase * 2f) * 3f * moving;
                 var drop = Eating ? 55f : Chasing ? 14f : 0f;
                 var look = moving < 0.1f && !Eating ? Mathf.Sin(Time.time * 0.5f + _motionSeed) * 12f : 0f;
-                Head.localRotation = _headRestRotation * Quaternion.Euler(drop + nod, look, 0f);
+                Head.localRotation = _headRestRotation * Quaternion.Euler(drop + nod + 5f * recoil, look, -5f * recoil);
                 Head.localPosition = _headRest + new Vector3(0f, bob - (Eating ? LegLength * 0.6f : 0f), lunge);
             }
 
