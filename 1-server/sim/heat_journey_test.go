@@ -142,6 +142,52 @@ func TestUpdateHeatBatchesMultipleCooledSettlements(t *testing.T) {
 	}
 }
 
+
+func TestHeatTrackerCachesAndInvalidatesTopology(t *testing.T) {
+	w := core.NewWorld("heat-tracker")
+	r1 := w.Spawn(&core.RegionC{Name: "near"})
+	r2 := w.Spawn(&core.RegionC{Name: "far"})
+	s1 := w.Spawn(&core.SettlementC{Name: "one", Region: r1.ID})
+	s2 := w.Spawn(&core.SettlementC{Name: "two", Region: r1.ID})
+	s3 := w.Spawn(&core.SettlementC{Name: "far", Region: r2.ID})
+	player := w.Spawn(&core.IdentC{Name: "player", Role: "farmer"}, &core.PlaceC{Settlement: s1.ID})
+	EnsurePlayer(w, player)
+	controlled := func(id core.ID) bool { return id == player.ID }
+	var tracker HeatTracker
+
+	hot, warm, cold := tracker.Update(w, controlled)
+	if hot != 1 || warm != 1 || cold != 1 {
+		t.Fatalf("initial heat: got %d/%d/%d, want 1/1/1", hot, warm, cold)
+	}
+	// Same controlled-player topology: cached counts must remain stable.
+	hot, warm, cold = tracker.Update(w, controlled)
+	if hot != 1 || warm != 1 || cold != 1 {
+		t.Fatalf("stable heat: got %d/%d/%d", hot, warm, cold)
+	}
+
+	// Newly generated settlements invalidate the cache even if no player moved.
+	r3 := w.Spawn(&core.RegionC{Name: "new frontier"})
+	s4 := w.Spawn(&core.SettlementC{Name: "new", Region: r3.ID})
+	hot, warm, cold = tracker.Update(w, controlled)
+	if hot != 1 || warm != 1 || cold != 2 || heatLevel(w, s4.ID) != 0 {
+		t.Fatalf("new settlement must be initialized cold: counts=%d/%d/%d level=%d", hot, warm, cold, heatLevel(w, s4.ID))
+	}
+
+	// Player movement to another settlement changes the hot set; old location cools.
+	core.Place(player).Settlement = s2.ID
+	hot, warm, cold = tracker.Update(w, controlled)
+	if hot != 1 || warm != 1 || cold != 2 || heatLevel(w, s1.ID) != 1 || heatLevel(w, s2.ID) != 2 {
+		t.Fatalf("player relocation not reconciled: counts=%d/%d/%d", hot, warm, cold)
+	}
+	_ = s3
+
+	// Disconnecting the final controller cools the last hot region.
+	hot, warm, cold = tracker.Update(w, func(core.ID) bool { return false })
+	if hot != 0 || warm != 0 || cold != 4 {
+		t.Fatalf("disconnect heat: got %d/%d/%d, want 0/0/4", hot, warm, cold)
+	}
+}
+
 // Два игрока в разных поселениях: горячи оба, уход одного не трогает сцену другого.
 func TestTwoPlayersInDifferentSettlements(t *testing.T) {
 	w, a, se := starterPlayer(t)

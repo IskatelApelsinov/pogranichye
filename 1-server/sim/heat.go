@@ -65,8 +65,65 @@ func lodStep(w *core.World, e *core.Entity, totalHours int64) float64 {
 // (hot, warm, cold) для диагностики. При нагреве жители получают вычисленные места, при остывании —
 // сцена снимается.
 func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold int) {
+	hotSet, warmRegion := heatTargets(w, controlled)
+	return applyHeatTargets(w, hotSet, warmRegion, controlled)
+}
+
+// HeatTracker caches the last player-driven heat topology. The server calls this from
+// fastStep (10 Hz); while players remain in the same settlements, scanning every settlement
+// and recalculating all heat levels is redundant. Player/target changes or settlement/heat
+// population changes invalidate the cache and trigger one full reconciliation.
+type HeatTracker struct {
+	initialized     bool
+	hotSet          map[core.ID]bool
+	warmRegion      map[core.ID]bool
+	settlementCount int
+	heatCount       int
+	hot, warm, cold int
+}
+
+// Update returns cached heat counts when neither the controlled players' target settlements
+// nor the settlement/heat component populations have changed.
+func (t *HeatTracker) Update(w *core.World, controlled func(core.ID) bool) (hot, warm, cold int) {
+	if w == nil {
+		return 0, 0, 0
+	}
+	hotSet, warmRegion := heatTargets(w, controlled)
+	settlementCount := w.CountKind("settlement")
+	heatCount := w.CountKind("heat")
+	if t.initialized &&
+		t.settlementCount == settlementCount &&
+		t.heatCount == heatCount &&
+		sameIDSet(t.hotSet, hotSet) &&
+		sameIDSet(t.warmRegion, warmRegion) {
+		return t.hot, t.warm, t.cold
+	}
+	t.hot, t.warm, t.cold = applyHeatTargets(w, hotSet, warmRegion, controlled)
+	t.hotSet, t.warmRegion = hotSet, warmRegion
+	t.settlementCount = settlementCount
+	t.heatCount = w.CountKind("heat")
+	t.initialized = true
+	return t.hot, t.warm, t.cold
+}
+
+func sameIDSet(a, b map[core.ID]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for id := range a {
+		if !b[id] {
+			return false
+		}
+	}
+	return true
+}
+
+func heatTargets(w *core.World, controlled func(core.ID) bool) (map[core.ID]bool, map[core.ID]bool) {
 	hotSet := map[core.ID]bool{}
 	warmRegion := map[core.ID]bool{}
+	if w == nil {
+		return hotSet, warmRegion
+	}
 	w.Each("player", func(e *core.Entity) {
 		if controlled != nil && !controlled(e.ID) {
 			return
@@ -78,13 +135,16 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 			}
 		}
 		if j := journeyOf(e); j != nil {
-			// Путник уже не в сцене исходного поселения: греем только то, КУДА он идёт (там его встретят
-			// жители на местах), а откуда ушёл — остывает, если там больше никого.
+			// Путник уже не в сцене исходного поселения: греем только то, КУДА он идёт.
 			mark(j.To)
 		} else if pl := core.Place(e); pl != nil {
 			mark(pl.Settlement)
 		}
 	})
+	return hotSet, warmRegion
+}
+
+func applyHeatTargets(w *core.World, hotSet, warmRegion map[core.ID]bool, controlled func(core.ID) bool) (hot, warm, cold int) {
 	var heated, cooled []core.ID
 	w.Each("settlement", func(se *core.Entity) {
 		s := core.Settle(se)
@@ -116,10 +176,6 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 			cold++
 		}
 	})
-	// Build the resident grouping at most once for the whole heat transition.
-	// Each() is stable by entity ID, so every per-settlement slice is already ordered.
-	// Previously materialize/archive each called residentsOf(), rescanning every PlaceC
-	// for every settlement that changed heat in this update.
 	if len(heated)+len(cooled) > 0 {
 		bySettlement := residentIndex(w)
 		for _, sid := range heated {
@@ -131,8 +187,6 @@ func UpdateHeat(w *core.World, controlled func(core.ID) bool) (hot, warm, cold i
 				cooledSet[sid] = true
 				archiveResidents(w, bySettlement[sid])
 			}
-			// Foes are also scene-local. Remove all cooled-settlement foes in one pass,
-			// instead of rescanning the global foe index once for every cooled settlement.
 			var removeFoes []core.ID
 			w.Each("foe", func(fe *core.Entity) {
 				if foe := Foe(fe); foe != nil && cooledSet[foe.Settlement] {
