@@ -52,6 +52,12 @@
  .toast{color:#ffe1a0;font-size:14px;min-height:20px;margin-top:6px}
  .journal-entry{padding:8px 0;border-bottom:1px solid var(--line)}
  .journal-entry:last-child{border:0}
+ .chatlog{max-height:190px;overflow:auto;background:#26251f;border:1px solid var(--line);border-radius:7px;padding:8px;margin:8px 0}
+ .chat-entry{padding:3px 0;border-bottom:1px solid #66533c66;overflow-wrap:anywhere;font-size:14px}
+ .chat-entry:last-child{border:0}
+ .chat-compose{display:flex;gap:7px;align-items:center}
+ .chat-compose input{flex:1;min-width:0;margin:0}
+ .chat-compose button{white-space:nowrap;padding:8px 12px}
  .journal-entry .meta{color:var(--sub);font-size:12px}
 </style>
 </head>
@@ -136,6 +142,13 @@
   </div>
  </div>
 
+ <div class="card" id="chatcard">
+  <div class="row between"><b class="sub">💬 Разговоры поблизости</b><span class="sub">35 м · одно поселение</span></div>
+  <div class="chatlog" id="chatlog" aria-live="polite"><div class="sub">Здесь будут сообщения других игроков рядом.</div></div>
+  <div class="chat-compose"><input id="chattext" maxlength="500" placeholder="Написать соседям…" autocomplete="off"><button id="chatsend">Отправить</button></div>
+  <div class="sub" id="chatstatus" style="margin-top:5px">Имя собеседника откроется после знакомства.</div>
+ </div>
+
  <button id="leave" style="width:100%;margin-bottom:24px">Выйти (тело вернётся под управление мира)</button>
 </div>
 
@@ -167,7 +180,12 @@ function connect(){
  const proto=location.protocol==='https:'?'wss':'ws';
  const socket=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
  ws=socket;
- socket.onmessage=e=>{ if(ws===socket) render(JSON.parse(e.data)); };
+ socket.onmessage=e=>{
+   if(ws!==socket) return;
+   const message=JSON.parse(e.data);
+   if(message && message.type==='chat'){ receiveChat(message); return; }
+   render(message);
+ };
  socket.onclose=()=>{
    if(ws!==socket || !token) return;
    resultGate.disconnect();
@@ -255,6 +273,34 @@ document.querySelectorAll('.map-hotspot').forEach(button=>{
  button.addEventListener('click',()=>goTo(button.dataset.location));
 });
 function toast(t){ $('toast').textContent=t; }
+let lastChatSentAt=0;
+function receiveChat(message){
+ const log=$('chatlog');
+ if(!log) return;
+ const empty=log.querySelector('.sub'); if(empty) empty.remove();
+ const line=document.createElement('div');
+ line.className='chat-entry';
+ const who=message.from_name || message.from_desc || 'Незнакомец';
+ const prefix=message.channel==='whisper'?'Шёпот · ':'';
+ line.textContent=prefix+who+': '+(message.text||'');
+ log.appendChild(line);
+ while(log.children.length>80) log.removeChild(log.firstChild);
+ log.scrollTop=log.scrollHeight;
+}
+function sendChat(){
+ const input=$('chattext'), status=$('chatstatus');
+ const text=input.value.trim();
+ if(!text) return;
+ if([...text].length>500){status.textContent='Не больше 500 символов.';return;}
+ if(!ws || ws.readyState!==WebSocket.OPEN){status.textContent='Нет соединения с миром.';return;}
+ const now=Date.now();
+ if(now-lastChatSentAt<700){status.textContent='Подожди немного перед следующим сообщением.';return;}
+ if(!sendRaw({op:'chat',channel:'local',text})){status.textContent='Сообщение не отправлено.';return;}
+ lastChatSentAt=now; input.value=''; status.textContent='Сообщение отправлено в эфир поблизости.';
+}
+$('chatsend').onclick=sendChat;
+$('chattext').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat();}});
+
 
 let lastResult='';
 let journalSeen=false, journalEntries=[];
