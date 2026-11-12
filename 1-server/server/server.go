@@ -562,6 +562,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "apiary":
 				rok, rwhy := sim.Apiary(s.world, e, s.runner.Clock.Season(), in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "study":
+				rok, rwhy := sim.StudyWeave(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 		}
 		s.mu.Unlock()
