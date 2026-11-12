@@ -15,6 +15,15 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _wind;
         private AudioSource _birds;
         private AudioSource _water;
+        private float _ambienceVolume = 0.75f;
+
+        public void SetAmbienceVolume(float volume)
+        {
+            _ambienceVolume = Mathf.Clamp01(volume);
+            if (_wind != null) _wind.volume = 0.16f * _ambienceVolume;
+            if (_birds != null) _birds.volume = 0.20f * _ambienceVolume;
+            if (_water != null) _water.volume = 0.22f * _ambienceVolume;
+        }
 
         public void Initialize()
         {
@@ -22,19 +31,19 @@ namespace Pogranichye.Client.Presentation
 
             _wind = CreateSource("Ambience • soft meadow wind", 0f, 0f, 1f);
             _wind.clip = CreateWindLoop();
-            _wind.volume = 0.16f;
+            _wind.volume = 0.16f * _ambienceVolume;
             _wind.Play();
 
             _birds = CreateSource("Ambience • distant birds", 0.78f, 8f, 72f);
             _birds.transform.localPosition = new Vector3(12f, 5f, 18f);
             _birds.clip = CreateBirdLoop();
-            _birds.volume = 0.20f;
+            _birds.volume = 0.20f * _ambienceVolume;
             _birds.Play();
 
             _water = CreateSource("Ambience • creek and reeds", 0.86f, 5f, 58f);
             _water.transform.localPosition = new Vector3(0f, 1.2f, -108f);
             _water.clip = CreateWaterLoop();
-            _water.volume = 0.22f;
+            _water.volume = 0.22f * _ambienceVolume;
             _water.Play();
         }
 
