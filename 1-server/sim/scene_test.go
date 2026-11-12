@@ -7,6 +7,21 @@ import (
 
 // Шаг на восток за один тик сдвигает на walkSpeed*dt; взгляд и seq обновляются.
 // dt клампится до moveMaxDt (защита от читерских dt), поэтому сверяемся именно с ним.
+func TestApplyMovePaceSpeeds(t *testing.T) {
+	walk := &ScenePosC{Stam: 1}
+	jog := &ScenePosC{Stam: 1}
+	sprint := &ScenePosC{Stam: 1}
+	ApplyMove(walk, 1, 0, false, 0, 0.2, 1)
+	ApplyMove(jog, 1, 0, true, 0, 0.2, 1)
+	ApplyMove(sprint, 1, 0, true, 0, 0.2, 1, true)
+	if !(walk.X < jog.X && jog.X < sprint.X) {
+		t.Fatalf("expected walk < jog < sprint, got %.3f, %.3f, %.3f", walk.X, jog.X, sprint.X)
+	}
+	if walk.X < 0.27 || walk.X > 0.29 {
+		t.Fatalf("walking speed changed unexpectedly: %.3f m", walk.X)
+	}
+}
+
 func TestApplyMoveWalks(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
 	ApplyMove(p, 1, 0, false, 45, moveMaxDt, 1)

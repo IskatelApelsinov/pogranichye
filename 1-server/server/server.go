@@ -428,6 +428,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		MX   float64 `json:"mx"`
 		MY   float64 `json:"my"`
 		Run  bool    `json:"run"`
+		Fast bool    `json:"fast"` // быстрый бег; отсутствие поля у старых клиентов = лёгкий бег
 		Face float64 `json:"face"`
 		Dt   float64 `json:"dt"`
 		Seq  int64   `json:"seq"`
@@ -491,7 +492,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			if !sim.OnRoad(e) {
 				p := sim.EnsureScenePos(s.world, e)
-				sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq)
+				sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq, in.Fast)
 			}
 		}
 		s.mu.Unlock()

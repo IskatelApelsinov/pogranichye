@@ -234,9 +234,11 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Short presentation-only hand/tool motion for a deliberate player action.</summary>
         public void PlayActionGesture(string action)
         {
-            if (action != "chop" && action != "fish_cast" && action != "fish_reel") return;
+            if (action != "chop" && action != "fish_cast" && action != "fish_reel" &&
+                action != "attack" && action != "dodge" && action != "guard" && action != "apiary" &&
+                action != "farmwork" && action != "forge" && action != "mine" && action != "gather") return;
             _actionGesture = action;
-            _actionGestureRemaining = action == "chop" ? 0.62f : 0.78f;
+            _actionGestureRemaining = action == "chop" || action == "attack" ? 0.62f : 0.78f;
         }
 
         public void PlayTalkGesture(Transform observer)
@@ -451,6 +453,32 @@ namespace Pogranichye.Client.Presentation
                 var progress = 1f - _actionGestureRemaining / 0.78f;
                 rightArmAngle = -68f + Mathf.Sin(progress * Mathf.PI * 4f) * 12f;
                 rightArmYaw = Mathf.Sin(progress * Mathf.PI * 4f) * 9f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "attack")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.62f;
+                var strike = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
+                rightArmAngle = Mathf.Lerp(-102f, 24f, strike);
+                rightArmYaw = -22f + strike * 38f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "guard")
+            {
+                rightArmAngle = -82f;
+                leftArmAngle = -72f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "dodge")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                _body.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(progress * Mathf.PI) * 18f);
+                rightArmAngle = -35f;
+                leftArmAngle = 42f;
+            }
+            else if (_actionGestureRemaining > 0f)
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                var workBeat = Mathf.Sin(progress * Mathf.PI * 2f);
+                rightArmAngle = -48f + workBeat * 30f;
+                leftArmAngle = -24f - workBeat * 12f;
             }
             if (greeting)
             {
