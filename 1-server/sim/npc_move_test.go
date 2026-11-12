@@ -23,7 +23,8 @@ func TestHotMovementUsesMaterializedBodiesOnly(t *testing.T) {
 	hot := w.Spawn(&core.SettlementC{Name: "hot"}, &HeatC{Level: 2})
 	cold := w.Spawn(&core.SettlementC{Name: "cold"}, &HeatC{Level: 0})
 	active := villager(w, "smith", "work", hot.ID)
-	w.Attach(active, &ScenePosC{X: -24, Y: -20, Facing: 90, Stam: 1})
+	sx, sy := SpawnSpot(uint64(active.ID))
+	w.Attach(active, &ScenePosC{X: sx, Y: sy, Facing: 90, Stam: 1})
 	inactive := villager(w, "smith", "work", cold.ID)
 	before := *ScenePos(active)
 
