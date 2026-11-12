@@ -591,10 +591,10 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0, 0.08f, 0), new Vector3(5.0f, 0.16f, 4.0f), _pathMaterial);
             CreatePrimitive("Tavern back wall", PrimitiveType.Cube, tavern,
                 new Vector3(0, 1.35f, 1.95f), new Vector3(5.2f, 2.7f, 0.18f), _woodMaterial);
-            CreatePrimitive("Tavern left wall", PrimitiveType.Cube, tavern,
-                new Vector3(-2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f), _woodMaterial);
-            CreatePrimitive("Tavern right wall", PrimitiveType.Cube, tavern,
-                new Vector3(2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f), _woodMaterial);
+            // Side walls are split around real window openings instead of painting dark
+            // rectangles over an unbroken wall. Camera-only obstacle shells remain continuous.
+            BuildTavernSideWall(tavern, -1);
+            BuildTavernSideWall(tavern, 1);
             CreatePrimitive("Tavern front left", PrimitiveType.Cube, tavern,
                 new Vector3(-2.0f, 1.15f, -1.95f), new Vector3(1.2f, 2.3f, 0.18f), _woodMaterial);
             CreatePrimitive("Tavern front right", PrimitiveType.Cube, tavern,
@@ -613,10 +613,8 @@ namespace Pogranichye.Client.Presentation
             var door = CreatePrimitive("Tavern open door", PrimitiveType.Cube, tavern,
                 new Vector3(-0.53f, 0.9f, -1.92f), new Vector3(0.9f, 1.8f, 0.12f), _roofMaterial);
             door.transform.localRotation = Quaternion.Euler(0, -32f, 0);
-            CreatePrimitive("Tavern window left", PrimitiveType.Cube, tavern,
-                new Vector3(-1.65f, 1.65f, -2.08f), new Vector3(0.55f, 0.65f, 0.08f), _stoneMaterial);
-            CreatePrimitive("Tavern window right", PrimitiveType.Cube, tavern,
-                new Vector3(1.65f, 1.65f, -2.08f), new Vector3(0.55f, 0.65f, 0.08f), _stoneMaterial);
+            BuildTavernFrontWindow(tavern, -1.65f);
+            BuildTavernFrontWindow(tavern, 1.65f);
             CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.12f), 0.9f);
             CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
@@ -659,8 +657,10 @@ namespace Pogranichye.Client.Presentation
                 CreateBeerMug(tavern, new Vector3(x, 1.34f, 0.92f));
             }
 
-            BuildTavernTable(tavern, new Vector3(-1.15f, 0, -0.25f));
-            BuildTavernTable(tavern, new Vector3(1.25f, 0, -0.15f), true);
+            // The central common room stays open; two side guest rooms now hold
+            // beds, wash bowls and personal chests. Their props remain presentation-only.
+            BuildTavernGuestRooms(tavern);
+            BuildTavernTable(tavern, new Vector3(0f, 0, -0.35f));
             BuildTavernKitchen(tavern);
             // The server blocks the whole tavern footprint; keep the bench fully outside
             // its south edge so the POI approach remains physically reachable.
@@ -1507,6 +1507,111 @@ namespace Pogranichye.Client.Presentation
                         new Vector3(0.035f, 0.16f, 0.045f), _grassMaterial);
                     sprig.transform.localRotation = Quaternion.Euler(0f, 0f, (leaf - 2) * 12f);
                 }
+            }
+        }
+
+        private static void BuildTavernSideWall(Transform tavern, int side)
+        {
+            var x = side * 2.52f;
+            CreatePrimitive("Tavern side wall • front pier", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.35f, -1.48f), new Vector3(0.18f, 2.7f, 1.04f), _woodMaterial);
+            CreatePrimitive("Tavern side wall • rear pier", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.35f, 1.38f), new Vector3(0.18f, 2.7f, 1.24f), _woodMaterial);
+            CreatePrimitive("Tavern side wall • window breast", PrimitiveType.Cube, tavern,
+                new Vector3(x, 0.55f, -0.05f), new Vector3(0.18f, 1.10f, 1.0f), _woodMaterial);
+            CreatePrimitive("Tavern side wall • window header", PrimitiveType.Cube, tavern,
+                new Vector3(x, 2.36f, -0.05f), new Vector3(0.18f, 0.68f, 1.0f), _woodMaterial);
+
+            var faceX = side * 2.405f;
+            CreatePrimitive("Tavern side window • dark recess", PrimitiveType.Cube, tavern,
+                new Vector3(faceX, 1.55f, -0.05f), new Vector3(0.025f, 0.78f, 0.88f), _metalMaterial);
+            for (var zSide = -1; zSide <= 1; zSide += 2)
+            {
+                CreatePrimitive("Tavern side window • jamb", PrimitiveType.Cube, tavern,
+                    new Vector3(faceX - side * 0.035f, 1.55f, -0.05f + zSide * 0.51f),
+                    new Vector3(0.12f, 0.92f, 0.10f), _roofMaterial);
+                var shutter = CreatePrimitive("Tavern side window • open shutter", PrimitiveType.Cube, tavern,
+                    new Vector3(faceX - side * 0.10f, 1.55f, -0.05f + zSide * 0.66f),
+                    new Vector3(0.10f, 0.76f, 0.30f), _woodMaterial);
+                shutter.transform.localRotation = Quaternion.Euler(0f, side * zSide * 24f, 0f);
+            }
+            CreatePrimitive("Tavern side window • sill", PrimitiveType.Cube, tavern,
+                new Vector3(faceX - side * 0.06f, 1.08f, -0.05f),
+                new Vector3(0.34f, 0.10f, 1.12f), _roofMaterial);
+            CreatePrimitive("Tavern side window • lintel", PrimitiveType.Cube, tavern,
+                new Vector3(faceX - side * 0.04f, 2.02f, -0.05f),
+                new Vector3(0.25f, 0.10f, 1.12f), _roofMaterial);
+            CreatePrimitive("Tavern side window • mullion", PrimitiveType.Cube, tavern,
+                new Vector3(faceX - side * 0.04f, 1.55f, -0.05f),
+                new Vector3(0.08f, 0.78f, 0.055f), _woodMaterial);
+        }
+
+        private static void BuildTavernFrontWindow(Transform tavern, float x)
+        {
+            CreatePrimitive("Tavern front window • dark recess", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.65f, -2.065f), new Vector3(0.46f, 0.54f, 0.035f), _metalMaterial);
+            CreatePrimitive("Tavern front window • sill", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.32f, -2.10f), new Vector3(0.72f, 0.10f, 0.20f), _roofMaterial);
+            CreatePrimitive("Tavern front window • lintel", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.98f, -2.10f), new Vector3(0.72f, 0.10f, 0.16f), _roofMaterial);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                CreatePrimitive("Tavern front window • jamb", PrimitiveType.Cube, tavern,
+                    new Vector3(x + side * 0.29f, 1.65f, -2.10f),
+                    new Vector3(0.09f, 0.72f, 0.16f), _roofMaterial);
+                var shutter = CreatePrimitive("Tavern front window • open shutter", PrimitiveType.Cube, tavern,
+                    new Vector3(x + side * 0.43f, 1.65f, -2.02f),
+                    new Vector3(0.20f, 0.60f, 0.10f), _woodMaterial);
+                shutter.transform.localRotation = Quaternion.Euler(0f, side * 24f, 0f);
+            }
+            CreatePrimitive("Tavern front window • crossbar", PrimitiveType.Cube, tavern,
+                new Vector3(x, 1.65f, -2.12f), new Vector3(0.48f, 0.045f, 0.045f), _woodMaterial);
+        }
+
+        private static void BuildTavernGuestRooms(Transform tavern)
+        {
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var partitionX = side * 0.78f;
+                CreatePrimitive("Guest room partition • front", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX, 1.28f, -1.40f), new Vector3(0.12f, 2.55f, 0.60f), _woodMaterial);
+                CreatePrimitive("Guest room partition • rear", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX, 1.28f, 0.78f), new Vector3(0.12f, 2.55f, 1.85f), _woodMaterial);
+                CreatePrimitive("Guest room doorway • lintel", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX, 2.45f, -0.72f), new Vector3(0.18f, 0.22f, 0.78f), _roofMaterial);
+                for (var zSide = -1; zSide <= 1; zSide += 2)
+                    CreatePrimitive("Guest room doorway • jamb", PrimitiveType.Cube, tavern,
+                        new Vector3(partitionX, 1.30f, -0.72f + zSide * 0.40f),
+                        new Vector3(0.18f, 2.45f, 0.12f), _roofMaterial);
+                var door = CreatePrimitive("Guest room • ajar door", PrimitiveType.Cube, tavern,
+                    new Vector3(partitionX + side * 0.20f, 0.92f, -0.72f),
+                    new Vector3(0.07f, 1.82f, 0.72f), _roofMaterial);
+                door.transform.localRotation = Quaternion.Euler(0f, side * 18f, 0f);
+                CreatePrimitive("Guest room • iron latch", PrimitiveType.Sphere, tavern,
+                    new Vector3(partitionX + side * 0.24f, 0.92f, -0.92f),
+                    new Vector3(0.045f, 0.045f, 0.045f), _metalMaterial);
+
+                var roomX = side * 1.62f;
+                CreatePrimitive("Guest room • plank floor", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.20f, 0.18f), new Vector3(1.58f, 0.10f, 3.25f), _woodMaterial);
+                CreatePrimitive("Guest room • narrow bed frame", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.54f, 0.55f), new Vector3(0.72f, 0.28f, 1.42f), _roofMaterial);
+                CreatePrimitive("Guest room • straw mattress", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.72f, 0.55f), new Vector3(0.68f, 0.12f, 1.34f), _clothMaterial);
+                CreatePrimitive("Guest room • folded blanket", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.81f, 0.20f), new Vector3(0.68f, 0.07f, 0.58f), _foamMaterial);
+                CreatePrimitive("Guest room • pillow", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.84f, 1.03f), new Vector3(0.42f, 0.08f, 0.25f), _foamMaterial);
+                BuildStorageChest(tavern, new Vector3(roomX + side * 0.42f, 0.58f, -0.22f));
+                CreatePrimitive("Guest room • wash stand", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 0.48f, 1.55f), new Vector3(0.52f, 0.10f, 0.40f), _woodMaterial);
+                CreatePrimitive("Guest room • wash bowl", PrimitiveType.Cylinder, tavern,
+                    new Vector3(roomX, 0.60f, 1.55f), new Vector3(0.36f, 0.08f, 0.30f), _stoneMaterial);
+                CreatePrimitive("Guest room • wall candle", PrimitiveType.Cylinder, tavern,
+                    new Vector3(partitionX + side * 0.12f, 1.72f, 0.95f),
+                    new Vector3(0.045f, 0.16f, 0.045f), _foamMaterial);
+                CreatePrimitive("Guest room • wall shelf", PrimitiveType.Cube, tavern,
+                    new Vector3(roomX, 1.55f, 1.78f), new Vector3(0.92f, 0.10f, 0.24f), _woodMaterial);
             }
         }
 
