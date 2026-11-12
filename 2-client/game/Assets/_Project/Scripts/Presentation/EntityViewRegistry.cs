@@ -62,7 +62,9 @@ namespace Pogranichye.Client.Presentation
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
 
-            var playerExisted = _views.ContainsKey(playerId);
+            var playerExisted = _views.TryGetValue(playerId, out var existingPlayer) &&
+                existingPlayer != null && existingPlayer.GetComponent<WorldNpc>() == null &&
+                PlayerTransform == existingPlayer.transform;
             var player = GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true, true);
             if (!playerExisted && frame.Me.Position != null)
             {
