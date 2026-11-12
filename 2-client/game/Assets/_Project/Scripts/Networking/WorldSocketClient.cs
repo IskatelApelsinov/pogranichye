@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Pogranichye.Client.Networking
 {
@@ -224,8 +223,9 @@ namespace Pogranichye.Client.Networking
                         var json = StrictUtf8.GetString(message.GetBuffer(), 0, checked((int)message.Length));
                         // Chat uses a separate event envelope, not a world snapshot.
                         // Route it before strict frame parsing so it cannot invalidate the world view.
-                        var root = JObject.Parse(json);
-                        if (string.Equals((string)root["type"], "chat", StringComparison.Ordinal))
+                        // Server emits compact JSON. A cheap discriminator avoids parsing every
+                        // 8 Hz combat/snapshot frame into a second object graph (and extra GC).
+                        if (json.IndexOf("\"type\":\"chat\"", StringComparison.Ordinal) >= 0)
                         {
                             ChatReceived?.Invoke(json);
                             continue;
