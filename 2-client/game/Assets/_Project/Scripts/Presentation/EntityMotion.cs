@@ -32,6 +32,8 @@ namespace Pogranichye.Client.Presentation
         private Quaternion _heldTankardRestRotation;
         private float _talkGestureRemaining;
         private float _clinkGestureRemaining;
+        private float _actionGestureRemaining;
+        private string _actionGesture = string.Empty;
         private Transform _attentionTarget;
         private Transform _focusTarget;
         private Quaternion _headTargetRotation;
@@ -229,6 +231,14 @@ namespace Pogranichye.Client.Presentation
             _drinkGestureRemaining = 1.35f;
         }
 
+        /// <summary>Short presentation-only hand/tool motion for a deliberate player action.</summary>
+        public void PlayActionGesture(string action)
+        {
+            if (action != "chop" && action != "fish_cast" && action != "fish_reel") return;
+            _actionGesture = action;
+            _actionGestureRemaining = action == "chop" ? 0.62f : 0.78f;
+        }
+
         public void PlayTalkGesture(Transform observer)
         {
             _talkGestureRemaining = 1.25f;
@@ -279,6 +289,8 @@ namespace Pogranichye.Client.Presentation
                 _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
             if (_clinkGestureRemaining > 0f)
                 _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
+            if (_actionGestureRemaining > 0f)
+                _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - Time.deltaTime);
 
             if (_heldTankard != null)
             {
@@ -421,6 +433,25 @@ namespace Pogranichye.Client.Presentation
             if (resting) { leftArmAngle = 8f; rightArmAngle = -8f; }
 
             var rightArmYaw = 0f;
+            if (_actionGestureRemaining > 0f && _actionGesture == "chop")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.62f;
+                var strike = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
+                rightArmAngle = Mathf.Lerp(-118f, 8f, strike);
+                rightArmYaw = -10f + strike * 8f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "fish_cast")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                rightArmAngle = Mathf.Lerp(-112f, -18f, Mathf.SmoothStep(0f, 1f, progress));
+                rightArmYaw = Mathf.Sin(progress * Mathf.PI) * 24f;
+            }
+            else if (_actionGestureRemaining > 0f && _actionGesture == "fish_reel")
+            {
+                var progress = 1f - _actionGestureRemaining / 0.78f;
+                rightArmAngle = -68f + Mathf.Sin(progress * Mathf.PI * 4f) * 12f;
+                rightArmYaw = Mathf.Sin(progress * Mathf.PI * 4f) * 9f;
+            }
             if (greeting)
             {
                 var wave = Mathf.Sin((1.65f - _greetingRemaining) * 15f);
