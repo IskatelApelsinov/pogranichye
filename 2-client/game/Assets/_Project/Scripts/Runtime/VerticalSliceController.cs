@@ -56,6 +56,7 @@ namespace Pogranichye.Client
         private bool _vSync = true;
         private int _targetFrameRate = 60;
         private WorldAudioDirector _audioDirector;
+        private VillageSoundscape _villageSoundscape;
         [Serializable] private sealed class ChatEventData
         {
             public string type;
@@ -173,6 +174,7 @@ namespace Pogranichye.Client
             WorldNpc.Selected += OnNpcSelected;
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
+            _villageSoundscape = _presentationRoot.GetComponentInChildren<VillageSoundscape>();
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _audioDirector = _presentationRoot.gameObject.AddComponent<WorldAudioDirector>();
             _audioDirector.Initialize();
@@ -190,6 +192,7 @@ namespace Pogranichye.Client
             _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
             AudioListener.volume = _masterVolume;
             _audioDirector.SetVolumes(_sfxVolume, _ambienceVolume);
+            _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
             _core = gameObject.AddComponent<CoreGameplay>();
             _core.Bind(SendCorePayload);
             _core.BindInput(_input);
@@ -1065,6 +1068,7 @@ namespace Pogranichye.Client
                 _vSync = true; _targetFrameRate = 60;
                 AudioListener.volume = _masterVolume;
                 _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
+                _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
                 _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
                 ApplyGraphicsSettings();
                 PlayerPrefs.Save();
@@ -1076,8 +1080,9 @@ namespace Pogranichye.Client
             GUILayout.Label("ЗВУК");
             DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
             DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
-            DrawVolumeSlider("Окружение: ветер, костры", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
+            DrawVolumeSlider("Окружение: ветер, птицы, вода, костёр", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
             _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
+            _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
 
             GUILayout.Space(8f);
             GUILayout.Label("ГРАФИКА");
