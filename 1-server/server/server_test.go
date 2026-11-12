@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"pogranichye/core"
 )
 
 // Сквозной тест сетевого слоя: регистрация → вход → websocket → кадр состояния → намерение.
@@ -199,4 +201,49 @@ func TestTwoPlayersShareOneWorld(t *testing.T) {
 	if !containsPlayer(af, bid) || !containsPlayer(bf, aid) {
 		t.Fatalf("players must see each other as players in shared settlement: A sees B=%v, B sees A=%v", containsPlayer(af, bid), containsPlayer(bf, aid))
 	}
+}
+
+
+// TestControllerLeaseReturnsSameSoulToAI verifies disconnect releases only the
+// controller lease; the entity and its persistent identity/state survive.
+func TestControllerLeaseReturnsSameSoulToAI(t *testing.T) {
+	s := NewStarter("soul-handoff", "", []byte("secret"), "")
+	if _, err := s.acc.Register("soul-owner", "secret1"); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	token, _, err := s.acc.Login("soul-owner", "secret1")
+	if err != nil { t.Fatalf("login: %v", err) }
+	uid, err := s.acc.Validate(token)
+	if err != nil { t.Fatalf("validate: %v", err) }
+
+	firstID, firstSID, status := s.reserveBody(uid)
+	if status != "ok" || firstID == 0 || firstSID == 0 {
+		t.Fatalf("first reserve = (%d,%d,%q), want ok", firstID, firstSID, status)
+	}
+	e := s.world.Get(firstID)
+	if e == nil || core.Ident(e) == nil || core.Mind(e) == nil || core.Vitals(e) == nil {
+		t.Fatal("reserved soul is missing identity/mind/vitals")
+	}
+	ident := *core.Ident(e)
+	vitals := *core.Vitals(e)
+	mind := core.Mind(e)
+	mind.Goal, mind.LastAct, mind.GoalUntil = "work", "куёт", 12345
+
+	s.release(firstID, firstSID)
+	if s.ctl[firstID] != 0 { t.Fatal("disconnect must release controller lease") }
+	if s.world.Get(firstID) != e { t.Fatal("disconnect must not destroy or replace the soul") }
+	if mind.Goal != "work" || mind.LastAct != "куёт" || mind.GoalUntil != 0 {
+		t.Fatalf("disconnect should preserve thought and allow AI reconsideration: %+v", mind)
+	}
+	secondID, secondSID, status := s.reserveBody(uid)
+	if status != "ok" || secondID != firstID || secondSID == firstSID {
+		t.Fatalf("reconnect = (%d,%d,%q), want same body %d and new lease", secondID, secondSID, status, firstID)
+	}
+	if got := core.Ident(s.world.Get(secondID)); got == nil || *got != ident {
+		t.Fatalf("identity changed: got %+v want %+v", got, ident)
+	}
+	if got := core.Vitals(s.world.Get(secondID)); got == nil || *got != vitals {
+		t.Fatalf("vitals changed: got %+v want %+v", got, vitals)
+	}
+	s.release(secondID, secondSID)
 }
