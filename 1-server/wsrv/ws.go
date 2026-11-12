@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 const magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" // из спецификации WebSocket
@@ -21,6 +22,7 @@ const magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" // из специфика�
 type Conn struct {
 	rw *bufio.ReadWriter
 	c  io.Closer
+	writeMu sync.Mutex // ping/pong и основной цикл могут отправлять одновременно
 }
 
 // Upgrade выполняет рукопожатие и возвращает соединение. После успеха обычный http-ответ
@@ -133,6 +135,8 @@ func (c *Conn) readFrame() (opcode byte, payload []byte, err error) {
 }
 
 func (c *Conn) writeFrame(opcode byte, payload []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	var head []byte
 	b0 := byte(0x80) | opcode // FIN=1
 	n := len(payload)

@@ -38,6 +38,8 @@ type Server struct {
 	tickEach time.Duration
 
 	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
+	chatPeers map[core.ID]*chatPeer // активные получатели событий чата; очереди ограничены
+	chatSeq uint64
 	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
 	// Подменяемый источник перемешивания нужен для детерминированных серверных тестов.
 	ochkoShuffle func([]sim.OchkoCard) error
@@ -91,6 +93,7 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 		webDir:   webDir,
 		tickEach: time.Minute, // игровой час за минуту: сутки за 24 реальных минуты
 		ctl:      map[core.ID]uint64{},
+		chatPeers: map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
 	}
@@ -106,6 +109,7 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 		webDir:   webDir,
 		tickEach: time.Minute,
 		ctl:      map[core.ID]uint64{},
+		chatPeers: map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
 	}
@@ -361,77 +365,47 @@ func (s *Server) release(cid core.ID, sid uint64) {
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	uid, err := s.acc.Validate(r.URL.Query().Get("token"))
-	if err != nil {
-		http.Error(w, "нужен токен", http.StatusUnauthorized)
-		return
-	}
+	if err != nil { http.Error(w, "нужен токен", http.StatusUnauthorized); return }
 	cid, sid, status := s.reserveBody(uid)
 	switch status {
-	case "none":
-		http.Error(w, "нет свободного тела в мире", http.StatusServiceUnavailable)
-		return
-	case "busy":
-		http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict)
-		return
+	case "none": http.Error(w, "нет свободного тела в мире", http.StatusServiceUnavailable); return
+	case "busy": http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict); return
 	}
-	// дать телу место в сцене (ходьба) и интерактивное состояние игрока (мана для магии)
 	s.mu.Lock()
 	if e := s.world.Get(cid); e != nil {
-		sim.EnsureScenePos(s.world, e)
-		sim.EnsurePlayer(s.world, e)
-		sim.RollGift(s.world, e, s.runner.Hub.Stream("gift", eid(e.ID))) // дар — бросок при первом вселении
-		if pl := core.Place(e); pl != nil {
-			sim.LearnVisited(s.world, e, pl.Settlement) // вселился → поселение посещено (#26 visited)
-		}
+		sim.EnsureScenePos(s.world, e); sim.EnsurePlayer(s.world, e)
+		sim.RollGift(s.world, e, s.runner.Hub.Stream("gift", eid(e.ID)))
+		if pl := core.Place(e); pl != nil { sim.LearnVisited(s.world, e, pl.Settlement) }
 	}
 	s.mu.Unlock()
 	conn, err := wsUpgrade(w, r)
-	if err != nil {
-		s.release(cid, sid) // upgrade не удался — снимаем свою резервацию
-		return
-	}
+	if err != nil { s.release(cid, sid); return }
 	defer conn.Close()
-	defer s.release(cid, sid) // отпускаем только СВОЮ резервацию
-
-	// единственный ридер намерений; на ошибке/закрытии закрывает done
+	defer s.unregisterChat(cid)
+	defer s.release(cid, sid)
+	chatEvents := s.registerChat(cid)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for {
-			msg, err := conn.ReadText()
-			if err != nil {
-				return
-			}
-			s.applyIntent(cid, msg)
-		}
+		for { msg, err := conn.ReadText(); if err != nil { return }; s.applyIntent(cid, msg) }
 	}()
-
-	// поток состояния: полная картина ~раз в секунду. Клиент первого лица может попросить ещё и
-	// БЫСТРЫЕ кадры (?fast=N, 2..15 Гц): лёгкий срез «тело/враги/соседи» между полными — для боя.
-	tick := time.NewTicker(1 * time.Second)
+	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	var fastC <-chan time.Time
 	if hz, _ := strconv.Atoi(r.URL.Query().Get("fast")); hz >= 2 {
-		if hz > 15 {
-			hz = 15
-		}
-		ft := time.NewTicker(time.Second / time.Duration(hz))
-		defer ft.Stop()
-		fastC = ft.C
+		if hz > 15 { hz = 15 }
+		ft := time.NewTicker(time.Second / time.Duration(hz)); defer ft.Stop(); fastC = ft.C
 	}
-	_ = conn.WriteText(s.stateJSON(cid)) // первый кадр сразу
+	_ = conn.WriteText(s.stateJSON(cid))
 	for {
 		select {
-		case <-done:
-			return
+		case <-done: return
+		case event := <-chatEvents:
+			if err := conn.WriteText(event); err != nil { return }
 		case <-tick.C:
-			if err := conn.WriteText(s.stateJSON(cid)); err != nil {
-				return
-			}
+			if err := conn.WriteText(s.stateJSON(cid)); err != nil { return }
 		case <-fastC:
-			if err := conn.WriteText(s.fastJSON(cid)); err != nil {
-				return
-			}
+			if err := conn.WriteText(s.fastJSON(cid)); err != nil { return }
 		}
 	}
 }
@@ -476,12 +450,16 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Trick  string   `json:"trick"`  // хитрость
 		Choice string   `json:"choice"` // решение на встрече в пути
 		Quest  string   `json:"quest"`  // id просьбы
+		ChatChannel string `json:"channel"`
+		ChatText string `json:"text"`
 
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
 	}
 	switch in.Op {
+	case "chat":
+		s.sendChat(cid, in.ChatChannel, in.ChatText, in.Target)
 	case "goal":
 		if in.Goal == "" {
 			return

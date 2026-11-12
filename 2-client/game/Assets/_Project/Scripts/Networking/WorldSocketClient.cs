@@ -18,6 +18,7 @@ namespace Pogranichye.Client.Networking
         private readonly SemaphoreSlim _sendGate = new SemaphoreSlim(1, 1);
 
         public event Action<string> MessageReceived;
+        public event Action<string> ChatReceived;
         public event Action<string> Closed;
         public bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
 
@@ -37,6 +38,21 @@ namespace Pogranichye.Client.Networking
             _socket = new ClientWebSocket();
             await _socket.ConnectAsync(builder.Uri, _lifetime.Token).ConfigureAwait(false);
             _ = ReceiveLoopAsync(_lifetime.Token);
+        }
+
+        public Task SendChatAsync(string channel, string text, string target,
+            CancellationToken cancellationToken)
+        {
+            if (channel != "local" && channel != "whisper")
+                throw new ArgumentException("Неизвестный канал чата.", nameof(channel));
+            if (string.IsNullOrWhiteSpace(text))
+                throw new ArgumentException("Сообщение пустое.", nameof(text));
+            var payload = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["v"] = 1, ["op"] = "chat", ["channel"] = channel, ["text"] = text
+            };
+            if (!string.IsNullOrWhiteSpace(target)) payload["target"] = target;
+            return SendPayloadAsync(payload, cancellationToken);
         }
 
         public async Task SendGoalAsync(string goal, CancellationToken cancellationToken)
@@ -205,6 +221,15 @@ namespace Pogranichye.Client.Networking
                         } while (!result.EndOfMessage);
 
                         var json = StrictUtf8.GetString(message.GetBuffer(), 0, checked((int)message.Length));
+                        // Chat uses a separate event envelope, not a world snapshot.
+                        // Route it before strict frame parsing so it cannot invalidate the world view.
+                        // Server emits compact JSON. A cheap discriminator avoids parsing every
+                        // 8 Hz combat/snapshot frame into a second object graph (and extra GC).
+                        if (json.IndexOf("\"type\":\"chat\"", StringComparison.Ordinal) >= 0)
+                        {
+                            ChatReceived?.Invoke(json);
+                            continue;
+                        }
                         MessageReceived?.Invoke(json);
                     }
                 }
