@@ -665,6 +665,17 @@ namespace Pogranichye.Client
                 Toast("Не всё сразу: дождись ответа на прошлые действия", 1.6f);
         }
 
+        // Action menu feedback is played only when the request actually enters the shared request gate.
+        private void AskActivity(string label, string action)
+        {
+            if (!QueueRequest(label, "act", "action", action))
+            {
+                Toast("Не всё сразу: дождись ответа на прошлые действия", 1.6f);
+                return;
+            }
+            _viewsPlayerGesture(action == "fish" ? "fish_cast" : action);
+        }
+
         private void ReadResult()
         {
             var result = Obj(_me, "result");
@@ -1241,7 +1252,7 @@ namespace Pogranichye.Client
                 if (_chopSwings >= 3)
                 {
                     _chopSwings = 0;
-                    Ask("Рубка", "act", "action", "chop");
+                    AskActivity("Рубка", "chop");
                 }
                 else Toast("Тюк… (" + _chopSwings + "/3)", 0.8f);
                 return;
@@ -1795,10 +1806,10 @@ namespace Pogranichye.Client
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 126f - (rows - 1) * 29f, width, height);
             GUI.Box(rect, title);
             if (GUI.Button(new Rect(rect.x + 8f, rect.y + 24f, rect.width - 16f, rowHeight), primaryLabel))
-                Ask(title, "act", "action", primaryAction);
+                AskActivity(title, primaryAction);
             if (!string.IsNullOrEmpty(secondaryAction) &&
                 GUI.Button(new Rect(rect.x + 8f, rect.y + 24f + rowHeight, rect.width - 16f, rowHeight), secondaryLabel))
-                Ask(title, "act", "action", secondaryAction);
+                AskActivity(title, secondaryAction);
         }
 
         private bool IsWorldPointOccluded(Camera cam, Vector3 point, Transform ownerRoot)
@@ -2223,14 +2234,14 @@ namespace Pogranichye.Client
             }
 
             DrawCardGames();
-            if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) Ask("Руда", "act", "action", "mine");
-            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) Ask("Травы", "act", "action", "gather");
-            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) Ask("Работа в поле", "act", "action", "farmwork");
-            if (HasFeature("garden") && Near("apiary", 5f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) Ask("Пасека", "act", "action", "apiary");
-            if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) Ask("Работа у горна", "act", "action", "forge");
-            if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) Ask("Созерцание", "act", "action", "meditate");
+            if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) AskActivity("Руда", "mine");
+            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) AskActivity("Травы", "gather");
+            if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) AskActivity("Работа в поле", "farmwork");
+            if (HasFeature("garden") && Near("apiary", 5f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) AskActivity("Пасека", "apiary");
+            if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) AskActivity("Работа у горна", "forge");
+            if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) AskActivity("Созерцание", "meditate");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) Ask("Рубка", "act", "action", "chop");
-            if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) Ask("Рыбалка", "act", "action", "fish");
+            if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
             foreach (var pair in TakeAt)
                 if (Near(pair.Value, 10f) && Count(items, pair.Key) < 1f && GUILayout.Button("Взять: " + Name(pair.Key)))
                     Ask("Взять", "take", "item", pair.Key);
