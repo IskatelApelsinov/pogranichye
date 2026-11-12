@@ -2011,12 +2011,12 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            if (moving) _audioDirector?.Footsteps(_input != null && (_input.JogHeld || _input.SprintHeld));
             if (_input != null && (_input.PrimaryPressed || _input.QuickAttackPressed || _input.DodgePressed)) _audioDirector?.Combat();
             if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
+            if (moving) _audioDirector?.Footsteps(canRun);
             var speed = canRun ? (fastRequested ? 6.0f : 3.2f) : 1.4f;
 
             if (moving)
