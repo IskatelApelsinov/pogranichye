@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	chatQueueSize = 32
+	chatQueueSize = 64
 	chatLocalRange = 35.0
 	chatWhisperRange = 8.0
 	chatMinInterval = 700 * time.Millisecond
@@ -20,6 +20,8 @@ const (
 type chatPeer struct {
 	events chan string
 	lastSent time.Time
+	voice bool
+	lastVoiceSignal time.Time
 }
 
 func (s *Server) registerChat(id core.ID) <-chan string {
@@ -33,6 +35,14 @@ func (s *Server) registerChat(id core.ID) <-chan string {
 
 func (s *Server) unregisterChat(id core.ID) {
 	s.mu.Lock()
+	if peer := s.chatPeers[id]; peer != nil && peer.voice {
+		now := time.Now().UnixMilli()
+		sender := s.world.Get(id)
+		for otherID, other := range s.chatPeers {
+			if otherID == id || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(otherID)) { continue }
+			s.queueVoiceLocked(otherID, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(id),"sent_at":now})
+		}
+	}
 	delete(s.chatPeers, id)
 	s.mu.Unlock()
 }

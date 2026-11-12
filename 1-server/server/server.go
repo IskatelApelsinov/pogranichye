@@ -381,8 +381,8 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrade(w, r)
 	if err != nil { s.release(cid, sid); return }
 	defer conn.Close()
-	defer s.unregisterChat(cid)
 	defer s.release(cid, sid)
+	defer s.unregisterChat(cid)
 	chatEvents := s.registerChat(cid)
 	done := make(chan struct{})
 	go func() {
@@ -452,6 +452,10 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Quest  string   `json:"quest"`  // id просьбы
 		ChatChannel string `json:"channel"`
 		ChatText string `json:"text"`
+		VoiceSDP string `json:"sdp"`
+		VoiceCandidate string `json:"candidate"`
+		VoiceSDPMid string `json:"sdp_mid"`
+		VoiceSDPMLine int `json:"sdp_mline_index"`
 
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
@@ -460,6 +464,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	switch in.Op {
 	case "chat":
 		s.sendChat(cid, in.ChatChannel, in.ChatText, in.Target)
+	case "voice":
+		s.signalVoice(cid, in.Action, in.Target, in.VoiceSDP, in.VoiceCandidate, in.VoiceSDPMid, in.VoiceSDPMLine)
 	case "goal":
 		if in.Goal == "" {
 			return
