@@ -33,6 +33,7 @@ namespace Pogranichye.Client.Presentation
         private float _zoomDistance;
         private float _jumpOffset;
         private bool _captureMouseForGesture;
+        private bool _invertMouseY;
 
         public void BindInput(Pogranichye.Client.ClientInput input) { _input = input; }
         public bool IsFirstPerson => _firstPerson;
@@ -47,6 +48,12 @@ namespace Pogranichye.Client.Presentation
         }
 
         public void SetMouseGestureCapture(bool active) { _captureMouseForGesture = active; }
+
+        public void SetLookSettings(float sensitivity, bool invertY)
+        {
+            mouseSensitivity = Mathf.Clamp(sensitivity, 0.008f, 0.09f);
+            _invertMouseY = invertY;
+        }
 
         private void Awake()
         {
@@ -90,7 +97,7 @@ namespace Pogranichye.Client.Presentation
                 {
                     var look = _input != null ? _input.LookDelta : Vector2.zero;
                     _yaw += look.x * mouseSensitivity;
-                    _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity, -75f, 75f);
+                    _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f), -75f, 75f);
                     _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
                 _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
@@ -111,7 +118,7 @@ namespace Pogranichye.Client.Presentation
             {
                 var look = _input != null ? _input.LookDelta : Vector2.zero;
                 _yaw += look.x * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity,
+                _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f),
                     thirdPersonMinPitch, thirdPersonMaxPitch);
             }
 
