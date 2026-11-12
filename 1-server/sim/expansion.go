@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -44,10 +45,17 @@ func ensureInv(w *core.World, e *core.Entity) *InventoryC {
 	return i
 }
 
-// itemSource — где можно взять предмет (ключ POI локации). Факел/фонарь/одежда — на рынке/в амбаре.
+// itemSource — торговые точки/места выдачи снаряжения. Подбор бесплатных копий запрещён:
+// обычная покупка списывает PurseC.Coins и зачисляет монеты в казну поселения.
+// Временные квестовые инструменты должны выдаваться отдельной серверной арендой/loan-записью,
+// а не через Take (иначе вещь невозможно безопасно отозвать при сдаче/отмене квеста).
 var itemSource = map[string]string{
 	"axe": "woods", "rod": "river", "sword": "smithy", "bow": "smithy",
 	"torch": "market", "lantern": "market", "cloak": "granary", "boots": "granary", "hat": "granary",
+}
+var itemPrice = map[string]float64{
+	"axe": 8, "rod": 6, "sword": 18, "bow": 15,
+	"torch": 2, "lantern": 6, "cloak": 8, "boots": 6, "hat": 3,
 }
 var wearSlot = map[string]string{"cloak": "body", "boots": "feet", "hat": "head"}
 var handItem = map[string]bool{"axe": true, "sword": true, "bow": true, "rod": true, "torch": true, "lantern": true}
@@ -61,22 +69,42 @@ func atPoi(e *core.Entity, poi string) bool {
 	return math.Hypot(p.X-x, p.Y-y) <= 10
 }
 
-// Take — подобрать предмет в подходящей локации. Идемпотентность по reqid (через PlayerC).
+// Take — купить предмет у местного поставщика в соответствующей точке. Бесплатный
+// бесконечный подбор закрыт: без кошеля/денег/поселения операция отклоняется. reqid защищает
+// от повторного списания; предмет и деньги меняются одной серверной операцией.
 func Take(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 	src, ok := itemSource[item]
 	if !ok {
-		return false, "такого не поднять"
+		return false, "такого товара здесь нет"
 	}
-	pc := EnsurePlayer(w, e)
+	price, priced := itemPrice[item]
+	if !priced || price <= 0 {
+		return false, "цена товара не задана"
+	}
 	if reqid == "" {
 		return false, "нужен reqid"
 	}
+	pc := EnsurePlayer(w, e)
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
 	if !atPoi(e, src) {
-		return false, "этого здесь нет — ищи в нужном месте"
+		return false, "этого здесь нет — ищи у нужного торговца"
 	}
+	se := settlementEnt(w, e)
+	pu := core.Purse(e)
+	if se == nil || core.Settle(se) == nil {
+		return false, "покупать можно только в поселении"
+	}
+	if pu == nil {
+		return false, "у тебя нет кошеля"
+	}
+	if pu.Coins < price {
+		return false, "не хватает монет: нужно " + fmt.Sprintf("%.0f", price)
+	}
+	// Сначала все проверки, затем обе стороны сделки — без частичного изменения состояния.
+	pu.Coins -= price
+	core.Settle(se).Coin += price
 	ensureInv(w, e).Items[item]++
 	pc.markDone(reqid)
 	return true, ""

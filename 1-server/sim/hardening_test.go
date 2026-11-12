@@ -87,3 +87,48 @@ func TestNavReachAllPOI(t *testing.T) {
 	}
 }
 
+func TestTakePurchasesItemAndDeduplicates(t *testing.T) {
+	w := core.NewWorld("take-purchase")
+	se := w.Spawn(&core.SettlementC{Name: "Село", Store: map[string]float64{}})
+	x, y := poiByKind("woods")
+	p := playerAt(w, x, y, 10, se.ID)
+	before := core.Purse(p).Coins
+	if ok, why := Take(w, p, "axe", "axe-buy-1"); !ok {
+		t.Fatalf("purchase rejected: %s", why)
+	}
+	if got := Inv(p).Items["axe"]; got != 1 {
+		t.Fatalf("axe count = %d, want 1", got)
+	}
+	if got := core.Purse(p).Coins; got != before-itemPrice["axe"] {
+		t.Fatalf("coins = %.2f, want %.2f", got, before-itemPrice["axe"])
+	}
+	if got := core.Settle(se).Coin; got != itemPrice["axe"] {
+		t.Fatalf("settlement treasury = %.2f, want %.2f", got, itemPrice["axe"])
+	}
+	if ok, why := Take(w, p, "axe", "axe-buy-1"); !ok {
+		t.Fatalf("duplicate request should return prior success: %s", why)
+	}
+	if got := Inv(p).Items["axe"]; got != 1 {
+		t.Fatalf("duplicate request created another axe: %d", got)
+	}
+	if got := core.Purse(p).Coins; got != before-itemPrice["axe"] {
+		t.Fatalf("duplicate request charged twice: %.2f", got)
+	}
+}
+
+func TestTakeRejectsInsufficientFundsWithoutGrantingItem(t *testing.T) {
+	w := core.NewWorld("take-poor")
+	se := w.Spawn(&core.SettlementC{Name: "Село", Store: map[string]float64{}})
+	x, y := poiByKind("woods")
+	p := playerAt(w, x, y, 10, se.ID)
+	core.Purse(p).Coins = 0
+	if ok, _ := Take(w, p, "axe", "axe-buy-poor"); ok {
+		t.Fatal("purchase without money must be rejected")
+	}
+	if Inv(p) != nil && Inv(p).Items["axe"] != 0 {
+		t.Fatal("failed purchase granted an axe")
+	}
+	if core.Settle(se).Coin != 0 {
+		t.Fatal("failed purchase changed settlement treasury")
+	}
+}
