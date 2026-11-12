@@ -557,6 +557,7 @@ namespace Pogranichye.Client
             _menuOpen = false;
             CloseWeave(false);
             _holding = false;
+            _viewsPlayerGuard(false);
             _guardSent = false;
             if (_handLight != null) _handLight.intensity = 0f;
             if (_mount != null) _mount.SetActive(false);
@@ -566,6 +567,7 @@ namespace Pogranichye.Client
 
         private void OnDestroy()
         {
+            _viewsPlayerGuard(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
