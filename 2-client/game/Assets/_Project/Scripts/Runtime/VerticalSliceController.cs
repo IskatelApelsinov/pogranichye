@@ -43,6 +43,9 @@ namespace Pogranichye.Client
         private string _login = "";
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
+        private bool _showMainSettings;
+        private float _masterVolume = 0.85f;
+        private WorldAudioDirector _audioDirector;
         [Serializable] private sealed class ChatEventData
         {
             public string type;
@@ -161,6 +164,10 @@ namespace Pogranichye.Client
             SetupPresentationScene();
             ProceduralVillageBuilder.Build(_presentationRoot);
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
+            _audioDirector = _presentationRoot.gameObject.AddComponent<WorldAudioDirector>();
+            _audioDirector.Initialize();
+            _masterVolume = PlayerPrefs.GetFloat("Pogranichye.MasterVolume", 0.85f);
+            AudioListener.volume = _masterVolume;
             _core = gameObject.AddComponent<CoreGameplay>();
             _core.Bind(SendCorePayload);
             _core.BindInput(_input);
@@ -201,7 +208,11 @@ namespace Pogranichye.Client
         {
             CoreGameplay.ApplyUiTheme();
             if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive)
+            {
                 DrawTitleLoadingBackdrop();
+                DrawMovementDebugOverlay();
+                return;
+            }
             if (_hudCollapsed)
             {
                 if (GUI.Button(new Rect(12, 12, 150, 30), "Показать меню [F1]"))
@@ -306,37 +317,88 @@ namespace Pogranichye.Client
         private void DrawTitleLoadingBackdrop()
         {
             var previousColor = GUI.color;
-            GUI.color = new Color(0.055f, 0.047f, 0.038f, 1f);
-            GUI.Box(new Rect(0f, 0f, Screen.width, Screen.height), GUIContent.none);
-            GUI.color = new Color(0.72f, 0.58f, 0.38f, 1f);
-            var title = new GUIStyle(GUI.skin.label)
+            var previousEnabled = GUI.enabled;
+            GUI.color = new Color(0.035f, 0.031f, 0.027f, 1f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = new Color(0.11f, 0.09f, 0.07f, 0.94f);
+            var panelWidth = Mathf.Min(560f, Screen.width - 36f);
+            var panelHeight = Mathf.Min(_showMainSettings ? 500f : 590f, Screen.height - 36f);
+            var panel = new Rect((Screen.width - panelWidth) * 0.5f, (Screen.height - panelHeight) * 0.5f,
+                panelWidth, panelHeight);
+            GUI.Box(panel, GUIContent.none);
+            var title = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.Clamp(Screen.height / 15, 34, 62), fontStyle = FontStyle.Bold };
+            GUI.color = new Color(0.83f, 0.68f, 0.45f, 1f);
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 24f, panel.width - 40f, 76f), "ПОГРАНИЧЬЕ", title);
+            var subtitle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 15, fontStyle = FontStyle.Italic };
+            GUI.color = new Color(0.79f, 0.74f, 0.66f, 1f);
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 94f, panel.width - 40f, 30f), "Жизнь на краю известного мира", subtitle);
+
+            GUILayout.BeginArea(new Rect(panel.x + 42f, panel.y + 142f, panel.width - 84f, panel.height - 164f));
+            if (_showMainSettings)
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.Clamp(Screen.height / 13, 28, 58),
-                fontStyle = FontStyle.Bold
-            };
-            GUI.Label(new Rect(0f, Screen.height * 0.16f, Screen.width, 76f), "ПОГРАНИЧЬЕ", title);
-            GUI.color = new Color(0.78f, 0.73f, 0.64f, 1f);
-            var subtitle = new GUIStyle(GUI.skin.label)
+                GUILayout.Label("НАСТРОЙКИ");
+                GUILayout.Space(10f);
+                GUILayout.Label("Громкость: " + Mathf.RoundToInt(_masterVolume * 100f) + "%");
+                var volume = GUILayout.HorizontalSlider(_masterVolume, 0f, 1f);
+                if (!Mathf.Approximately(volume, _masterVolume))
+                {
+                    _masterVolume = volume;
+                    AudioListener.volume = volume;
+                    PlayerPrefs.SetFloat("Pogranichye.MasterVolume", volume);
+                    PlayerPrefs.Save();
+                }
+                if (GUILayout.Button(Screen.fullScreen ? "Оконный режим" : "Полноэкранный режим", GUILayout.Height(36f))) ToggleFullscreen();
+                GUILayout.Label("Качество графики");
+                var quality = QualitySettings.GetQualityLevel();
+                var names = QualitySettings.names;
+                if (names != null && names.Length > 0)
+                {
+                    var selected = GUILayout.SelectionGrid(quality, names, Mathf.Min(3, names.Length), GUILayout.Height(34f));
+                    if (selected != quality && selected >= 0 && selected < names.Length)
+                        QualitySettings.SetQualityLevel(selected, true);
+                }
+                GUILayout.Space(10f);
+                if (GUILayout.Button("Назад", GUILayout.Height(40f))) _showMainSettings = false;
+            }
+            else
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.Clamp(Screen.height / 48, 13, 20)
-            };
-            GUI.Label(new Rect(0f, Screen.height * 0.16f + 72f, Screen.width, 34f),
-                "Жизнь на краю известного мира", subtitle);
+                GUILayout.Label("ПОДКЛЮЧЕНИЕ К МИРУ");
+                GUILayout.Label("Адрес сервера");
+                GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
+                serverUrl = GUILayout.TextField(serverUrl, GUILayout.Height(32f));
+                GUI.enabled = previousEnabled;
+                if (string.IsNullOrEmpty(_token))
+                {
+                    GUILayout.Space(5f);
+                    GUILayout.Label("Имя пользователя");
+                    _login = GUILayout.TextField(_login, GUILayout.Height(32f));
+                    GUILayout.Label("Пароль");
+                    _password = GUILayout.PasswordField(_password, '*', GUILayout.Height(32f));
+                    GUILayout.Space(8f);
+                    GUI.enabled = !_busy;
+                    if (GUILayout.Button(_busy ? "Подождите…" : "Войти", GUILayout.Height(42f))) _ = LoginAsync();
+                    if (GUILayout.Button("Создать учётную запись", GUILayout.Height(36f))) _ = RegisterAsync();
+                    GUI.enabled = previousEnabled;
+                }
+                else
+                {
+                    GUILayout.Label(ConnectionStateLabel());
+                    GUI.enabled = !_busy && _connectionState == WorldConnectionState.Closed;
+                    if (GUILayout.Button("ВОЙТИ В МИР", GUILayout.Height(48f))) _ = ConnectAsync();
+                    GUI.enabled = previousEnabled;
+                    if (GUILayout.Button("Выйти из аккаунта", GUILayout.Height(32f))) Logout();
+                }
+                GUILayout.Space(8f);
+                if (GUILayout.Button("Настройки", GUILayout.Height(34f))) _showMainSettings = true;
+                if (GUILayout.Button("Выход из игры", GUILayout.Height(34f))) Application.Quit();
+            }
+            GUILayout.Space(8f);
+            GUILayout.Label(_status, GUILayout.MinHeight(34f));
             if (_connectionState == WorldConnectionState.Connecting || _connectionState == WorldConnectionState.AwaitingSnapshot)
-            {
-                var loading = new GUIStyle(subtitle) { fontSize = 16, fontStyle = FontStyle.Italic };
-                var message = _connectionState == WorldConnectionState.Connecting
-                    ? "Связываемся с сервером и загружаем карту…" : "Получаем состояние мира…";
-                GUI.Label(new Rect(0f, Screen.height * 0.78f, Screen.width, 36f), message, loading);
-            }
-            else if (string.IsNullOrEmpty(_token))
-            {
-                GUI.Label(new Rect(0f, Screen.height * 0.78f, Screen.width, 36f),
-                    "Войдите или создайте учётную запись, чтобы продолжить", subtitle);
-            }
+                GUILayout.Label(_connectionState == WorldConnectionState.Connecting ? "Устанавливаем связь…" : "Получаем состояние мира…");
+            GUILayout.EndArea();
             GUI.color = previousColor;
+            GUI.enabled = previousEnabled;
         }
 
         private static void ToggleFullscreen()
@@ -973,6 +1035,16 @@ namespace Pogranichye.Client
         private void DrawSettingsTab()
         {
             GUILayout.Label("НАСТРОЙКИ");
+            GUILayout.Label("Звук");
+            GUILayout.Label("Громкость: " + Mathf.RoundToInt(_masterVolume * 100f) + "%");
+            var volume = GUILayout.HorizontalSlider(_masterVolume, 0f, 1f);
+            if (!Mathf.Approximately(volume, _masterVolume))
+            {
+                _masterVolume = volume;
+                AudioListener.volume = volume;
+                PlayerPrefs.SetFloat("Pogranichye.MasterVolume", volume);
+                PlayerPrefs.Save();
+            }
             GUILayout.Label("Экран");
             if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(34f)))
                 ToggleFullscreen();
@@ -1239,6 +1311,7 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
+            if (action == "cast" || action == "weave") _audioDirector?.Magic();
             var gesture = action == "chop" ? "chop" : action == "fish" ? "fish_reel" : action;
             _views?.PlayPlayerActionGesture(gesture);
         }
@@ -1430,6 +1503,7 @@ namespace Pogranichye.Client
             if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
             {
                 _drinkRequestPending = false;
+                if (outcome == RequestGate.Outcome.Accepted) _audioDirector?.DrinkBeer();
                 _status = outcome == RequestGate.Outcome.Accepted
                     ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
                     : outcome == RequestGate.Outcome.Rejected
@@ -1928,6 +2002,9 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
+            if (moving) _audioDirector?.Footsteps(_input != null && (_input.JogHeld || _input.SprintHeld));
+            if (_input != null && (_input.PrimaryPressed || _input.QuickAttackPressed || _input.DodgePressed)) _audioDirector?.Combat();
+            if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
