@@ -367,11 +367,11 @@ namespace Pogranichye.Client
         {
             if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive) return;
             var width = Mathf.Min(360f, Screen.width - 24f);
-            var height = Mathf.Min(236f, Screen.height - 24f);
+            var height = Mathf.Min(300f, Screen.height - 24f);
             var rect = new Rect(Screen.width - width - 12f, Screen.height - height - 12f, width, height);
             GUI.Box(rect, "Чат поблизости");
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, rect.height - 38f));
-            _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(rect.height - 86f));
+            _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(Mathf.Max(80f, rect.height - 150f)));
             var first = Mathf.Max(0, _chatHistory.Count - 40);
             for (var i = first; i < _chatHistory.Count; i++)
                 GUILayout.Label(_chatHistory[i], GUILayout.MinHeight(20f));
@@ -1808,6 +1808,7 @@ namespace Pogranichye.Client
                     UpdateTutorialIntroduction(frame);
                     if (!frame.Alive)
                     {
+                        _voiceChat?.StopVoice();
                         _pendingTalkTargetId = null;
                         _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
@@ -2146,6 +2147,7 @@ namespace Pogranichye.Client
 
         private void DisconnectWorld(string status)
         {
+            _voiceChat?.StopVoice();
             var socket = _socket;
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
@@ -2244,6 +2246,7 @@ namespace Pogranichye.Client
         {
             WorldPoi.Selected -= OnPoiSelected;
             WorldNpc.Selected -= OnNpcSelected;
+            _voiceChat?.StopVoice();
             _lifetime.Cancel();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_createdCameraRig && _cameraRig != null)
