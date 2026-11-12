@@ -16,7 +16,9 @@ namespace Pogranichye.Client.Presentation
         public void Initialize()
         {
             if (_oneShot != null) return;
-            _oneShot = gameObject.AddComponent<AudioSource>();
+            var playerAudioObject = new GameObject("Player • spatial action sounds");
+            playerAudioObject.transform.SetParent(transform, false);
+            _oneShot = playerAudioObject.AddComponent<AudioSource>();
             _oneShot.playOnAwake = false;
             _oneShot.spatialBlend = 0.82f;
             _oneShot.minDistance = 2f;
