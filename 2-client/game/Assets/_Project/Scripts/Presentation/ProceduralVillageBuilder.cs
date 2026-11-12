@@ -1586,7 +1586,7 @@ namespace Pogranichye.Client.Presentation
 
                 // Small numbered plaques make the two rentable rooms readable from the common room.
                 CreateSign(tavern, side < 0 ? "КОМНАТА I" : "КОМНАТА II",
-                    new Vector3(partitionX, 2.12f, -1.39f), 0.34f);
+                    new Vector3(partitionX, 2.12f, -0.72f), 0.34f);
 
                 var door = CreatePrimitive("Guest room • ajar door", PrimitiveType.Cube, tavern,
                     new Vector3(partitionX + side * 0.20f, 0.92f, -0.72f),
