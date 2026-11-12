@@ -418,6 +418,7 @@ func spawnPerson(w *core.World, s *dice.Stream, settlement core.ID) *core.Entity
 		&core.HomeC{Status: home, Comfort: 0, Settlement: settlement},
 		&core.PlaceC{Settlement: settlement},
 	)
+	ensureHotResidentBody(w, e) // births in an already-hot settlement join the active scene immediately
 	if s.Chance(mageSparkChance) {
 		w.Attach(e, &arcane.MageC{Awakened: false}) // врождённая искра: латент (ремесло обычное, пока не пробудился)
 	}
