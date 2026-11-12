@@ -43,11 +43,13 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	if len(sdp) > voiceMaxSignalBytes || len(candidate) > 4096 ||
 		!utf8.ValidString(sdp) || !utf8.ValidString(candidate) { return }
 	switch action {
-	case "join", "leave", "offer", "answer", "ice":
+	case "join", "leave", "offer", "answer", "ice", "ice_complete":
 	default: return
 	}
 	if (action == "offer" || action == "answer") && strings.TrimSpace(sdp) == "" { return }
 	if action == "ice" && strings.TrimSpace(candidate) == "" { return }
+	if action == "ice_complete" && strings.TrimSpace(candidate) != "" { return }
+	if len(mid) > 256 || mline < 0 || mline > 64 { return }
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -61,8 +63,8 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = true
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(id),"sent_at":now.UnixMilli()})
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(from),"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(id),"offerer":uint64(from)<uint64(id),"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(from),"offerer":uint64(id)<uint64(from),"sent_at":now.UnixMilli()})
 		}
 		return
 	}
@@ -89,6 +91,9 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		event["sdp"] = sdp
 	case "ice":
 		event["candidate"] = candidate
+		event["sdp_mid"] = mid
+		event["sdp_mline_index"] = mline
+	case "ice_complete":
 		event["sdp_mid"] = mid
 		event["sdp_mline_index"] = mline
 	}
