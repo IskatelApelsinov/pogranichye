@@ -202,6 +202,9 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            // Keep F3 diagnostics live even on the title/login screen, before movement starts.
+            if (_movementDebugVisible && _input != null)
+                _pressedKeysDebug = _input.BuildPressedKeysDebug();
             if (_core != null)
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
@@ -2125,7 +2128,6 @@ namespace Pogranichye.Client
             _movementRawAxesDebug = rawAxes;
             var input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(keyboardInput, 1f);
             _movementKeyboardDebug = keyboardInput;
-            _pressedKeysDebug = _input != null ? _input.BuildPressedKeysDebug() : "нет";
 
             // Derive movement from the camera's actual planar view basis. Projecting the
             // basis onto the ground avoids Euler-angle decomposition surprises when the

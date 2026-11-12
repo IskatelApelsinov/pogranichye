@@ -25,6 +25,7 @@ namespace Pogranichye.Client
         private InputAction _trickFeint, _trickBait, _trickSneak, _cycleStance;
         private readonly InputAction[] _weaveNodes = new InputAction[6];
         private readonly InputAction[] _journeyChoices = new InputAction[9];
+        private readonly InputEventDebugState _inputDebugState = new InputEventDebugState();
 
         public Vector2 Move => _move.ReadValue<Vector2>();
         public Vector2 LookDelta => _look.ReadValue<Vector2>();
@@ -61,8 +62,8 @@ namespace Pogranichye.Client
         {
             // InputSettings is shared by the Input System. Never lower a project's existing
             // setting; only raise the budget enough to absorb high-frequency device bursts.
-            if (InputSystem.settings != null && InputSystem.settings.maxEventBytes < maxInputEventBytes)
-                InputSystem.settings.maxEventBytes = maxInputEventBytes;
+            if (InputSystem.settings != null && InputSystem.settings.maxEventBytesPerUpdate < maxInputEventBytes)
+                InputSystem.settings.maxEventBytesPerUpdate = maxInputEventBytes;
 
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
@@ -104,7 +105,31 @@ namespace Pogranichye.Client
             for (var i = 0; i < _journeyChoices.Length; i++)
                 _journeyChoices[i] = Button("JourneyChoice" + (i + 1), "<Keyboard>/" + (i + 1));
 
+            _actions.actionTriggered += OnActionTriggered;
             _actions.Enable();
+        }
+
+        private void OnActionTriggered(InputAction.CallbackContext context)
+        {
+            var action = context.action;
+            var control = context.control;
+            _inputDebugState.Record(
+                action != null ? action.name : null,
+                control != null ? control.displayName : null,
+                PhaseName(context.phase),
+                Time.unscaledTime);
+        }
+
+        private static string PhaseName(InputActionPhase phase)
+        {
+            switch (phase)
+            {
+                case InputActionPhase.Started: return "Started";
+                case InputActionPhase.Performed: return "Performed";
+                case InputActionPhase.Canceled: return "Canceled";
+                case InputActionPhase.Waiting: return "Waiting";
+                default: return "Disabled";
+            }
         }
 
         private InputAction Button(string name, string path)
@@ -166,12 +191,17 @@ namespace Pogranichye.Client
                 if (Mouse.current.rightButton.isPressed) keys.Add("ПКМ");
                 if (Mouse.current.middleButton.isPressed) keys.Add("СКМ");
             }
-            return keys.Count == 0 ? "нет" : string.Join(", ", keys);
+            var held = keys.Count == 0 ? "нет" : string.Join(", ", keys);
+            return held + " · " + _inputDebugState.Describe(Time.unscaledTime);
         }
 
         private void OnDestroy()
         {
-            if (_actions != null) _actions.Dispose();
+            if (_actions != null)
+            {
+                _actions.actionTriggered -= OnActionTriggered;
+                _actions.Dispose();
+            }
         }
     }
 }
