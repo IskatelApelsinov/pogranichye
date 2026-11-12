@@ -8,6 +8,7 @@ namespace Pogranichye.Client.Presentation
     {
         public static event Action<Vector3, bool> NearbyFootstep;
         public static event Action<Vector3> NearbyMagicCast;
+        public static event Action<Vector3, NpcActivitySoundKind> NearbyWorkAction;
         private Transform _body;
         private Transform _head;
         private Transform _leftArm;
@@ -24,6 +25,7 @@ namespace Pogranichye.Client.Presentation
         private float _walkRate = 1f;
         private bool _isPlayer;
         private string _activity = "";
+        private bool _hasActivityBaseline;
         private float _locomotion;
         private float _locomotionTarget;
         private bool _hasNetworkTarget;
@@ -202,9 +204,21 @@ namespace Pogranichye.Client.Presentation
                     break;
             }
 
+            var hadActivityBaseline = _hasActivityBaseline;
+            _hasActivityBaseline = true;
             if (previousActivity == _activity) return;
+
             RefreshActivityTool();
-            if (_activity == "weave") NearbyMagicCast?.Invoke(transform.position);
+            // The local player already plays action audio from confirmed local input/ACK paths.
+            // Remote work sounds are emitted only after the first snapshot established a baseline,
+            // so joining a scene does not produce a burst of stale "action started" sounds.
+            if (!hadActivityBaseline || _isPlayer) return;
+
+            var soundKind = NpcActivitySoundPolicy.FromServerCode(activityCode);
+            if (soundKind != NpcActivitySoundKind.None)
+                NearbyWorkAction?.Invoke(transform.position, soundKind);
+            if (_activity == "weave")
+                NearbyMagicCast?.Invoke(transform.position);
         }
 
         /// <summary>
