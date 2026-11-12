@@ -11,8 +11,9 @@ import (
 type World struct {
 	Seed     string
 	NextID   ID
-	entities map[ID]*Entity
-	byKind   map[string]map[ID]*Entity
+	entities  map[ID]*Entity
+	byKind    map[string]map[ID]*Entity
+	byKindIDs map[string][]ID // stable ascending index: Each() does not allocate or sort per pass
 }
 
 // NewWorld создаёт пустой мир с данным семенем (семя кормит кости — пакет dice).
@@ -20,8 +21,9 @@ func NewWorld(seed string) *World {
 	return &World{
 		Seed:     seed,
 		NextID:   1,
-		entities: map[ID]*Entity{},
-		byKind:   map[string]map[ID]*Entity{},
+		entities:  map[ID]*Entity{},
+		byKind:    map[string]map[ID]*Entity{},
+		byKindIDs: map[string][]ID{},
 	}
 }
 
@@ -48,6 +50,7 @@ func (w *World) Detach(e *Entity, kind string) {
 	e.Remove(kind)
 	if m, ok := w.byKind[kind]; ok {
 		delete(m, e.ID)
+		w.removeKindID(kind, e.ID)
 	}
 }
 
@@ -58,6 +61,23 @@ func (w *World) index(e *Entity, kind string) {
 		w.byKind[kind] = m
 	}
 	m[e.ID] = e
+	ids := w.byKindIDs[kind]
+	at := sort.Search(len(ids), func(i int) bool { return ids[i] >= e.ID })
+	if at == len(ids) || ids[at] != e.ID {
+		ids = append(ids, 0)
+		copy(ids[at+1:], ids[at:])
+		ids[at] = e.ID
+		w.byKindIDs[kind] = ids
+	}
+}
+
+func (w *World) removeKindID(kind string, id ID) {
+	ids := w.byKindIDs[kind]
+	at := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
+	if at < len(ids) && ids[at] == id {
+		copy(ids[at:], ids[at+1:])
+		w.byKindIDs[kind] = ids[:len(ids)-1]
+	}
 }
 
 // Get возвращает сущность по id (или nil).
@@ -73,6 +93,7 @@ func (w *World) Remove(id ID) {
 	for kind := range e.Comps {
 		if m, ok := w.byKind[kind]; ok {
 			delete(m, id)
+			w.removeKindID(kind, id)
 		}
 	}
 	delete(w.entities, id)
@@ -85,17 +106,9 @@ func (w *World) Count() int { return len(w.entities) }
 // id (детерминированно: при одном семени системы ходят по сущностям в одном порядке,
 // иначе случайность «поедет»). fn может помечать на удаление, но не удалять на ходу.
 func (w *World) Each(kind string, fn func(e *Entity)) {
-	m := w.byKind[kind]
-	if len(m) == 0 {
-		return
-	}
-	ids := make([]ID, 0, len(m))
-	for id := range m {
-		ids = append(ids, id)
-	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	for _, id := range ids {
-		if e := w.entities[id]; e != nil {
+	ids := w.byKindIDs[kind]
+	for i := 0; i < len(ids); i++ {
+		if e := w.entities[ids[i]]; e != nil {
 			fn(e)
 		}
 	}
