@@ -41,13 +41,22 @@ func TestLocalChatIsSpatialAndWhisperIsPrivate(t *testing.T) {
 	if a["type"] != "chat" || a["text"] != "Всем доброго дня!" || b["text"] != a["text"] {
 		t.Fatalf("unexpected local events: A=%v B=%v",a,b)
 	}
+	if b["from_name"] != "" || b["from_desc"] == "" {
+		t.Fatalf("unknown sender identity must remain hidden: %v", b)
+	}
 	select { case got:=<-queues[2]: t.Fatalf("out-of-range resident received local chat: %s",got); default: }
 
-	s.mu.Lock(); s.chatPeers[ids[0]].lastSent = time.Now().Add(-time.Second); s.mu.Unlock()
+	s.mu.Lock()
+	s.chatPeers[ids[0]].lastSent = time.Now().Add(-time.Second)
+	s.world.Attach(s.world.Get(ids[1]), &sim.AcquaintC{Known: map[core.ID]bool{ids[0]: true}})
+	s.mu.Unlock()
 	s.sendChat(ids[0], "whisper", "Только тебе", eid(ids[1]))
 	wa, wb := read(queues[0]), read(queues[1])
 	if wa["channel"]!="whisper" || wb["channel"]!="whisper" || wb["text"]!="Только тебе" {
 		t.Fatalf("unexpected whisper: A=%v B=%v",wa,wb)
+	}
+	if wb["from_name"] == "" || wb["from_desc"] != "" {
+		t.Fatalf("known sender name should be revealed: %v", wb)
 	}
 	select { case got:=<-queues[2]: t.Fatalf("third resident received whisper: %s",got); default: }
 }
