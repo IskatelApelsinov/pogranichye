@@ -57,6 +57,7 @@ namespace Pogranichye.Client
         private readonly List<string> _chatHistory = new List<string>();
         private string _chatInput = "";
         private Vector2 _chatScroll;
+        private VoiceChatController _voiceChat;
         private string _token;
         private string _goalToSend;
         private WorldFrame _frame;
@@ -145,6 +146,8 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
+            _voiceChat = GetComponent<VoiceChatController>();
+            if (_voiceChat == null) _voiceChat = gameObject.AddComponent<VoiceChatController>();
             _input = GetComponent<ClientInput>();
             if (_input == null) _input = gameObject.AddComponent<ClientInput>();
             _presentationRoot = new GameObject("PresentationWorld").transform;
@@ -364,11 +367,11 @@ namespace Pogranichye.Client
         {
             if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive) return;
             var width = Mathf.Min(360f, Screen.width - 24f);
-            var height = Mathf.Min(236f, Screen.height - 24f);
+            var height = Mathf.Min(300f, Screen.height - 24f);
             var rect = new Rect(Screen.width - width - 12f, Screen.height - height - 12f, width, height);
             GUI.Box(rect, "Чат поблизости");
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, rect.height - 38f));
-            _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(rect.height - 86f));
+            _chatScroll = GUILayout.BeginScrollView(_chatScroll, GUILayout.Height(Mathf.Max(80f, rect.height - 150f)));
             var first = Mathf.Max(0, _chatHistory.Count - 40);
             for (var i = first; i < _chatHistory.Count; i++)
                 GUILayout.Label(_chatHistory[i], GUILayout.MinHeight(20f));
@@ -386,6 +389,16 @@ namespace Pogranichye.Client
             }
             GUI.enabled = true;
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUI.enabled = _voiceChat != null && _connectionState == WorldConnectionState.Active;
+            if (GUILayout.Button(_voiceChat != null && _voiceChat.IsJoined ? "Выйти из голоса" : "Войти в голос", GUILayout.Height(28f)))
+                _voiceChat.ToggleVoice();
+            if (_voiceChat != null && _voiceChat.IsJoined &&
+                GUILayout.Button(_voiceChat.IsMicrophoneEnabled ? "Выключить микрофон" : "Включить микрофон", GUILayout.Height(28f)))
+                _voiceChat.ToggleMicrophone();
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+            if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
             GUILayout.EndArea();
         }
 
@@ -1745,6 +1758,7 @@ namespace Pogranichye.Client
             // A delayed close from an older socket must not tear down a newer session.
             if (!ReferenceEquals(_socket, socket)) return;
 
+            _voiceChat?.StopVoice();
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
@@ -1788,11 +1802,13 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
                     UpdateTutorialIntroduction(frame);
                     if (!frame.Alive)
                     {
+                        _voiceChat?.StopVoice();
                         _pendingTalkTargetId = null;
                         _pendingTalkRequestSerial = 0;
                         _confirmedTalkTargetId = null;
@@ -2131,6 +2147,7 @@ namespace Pogranichye.Client
 
         private void DisconnectWorld(string status)
         {
+            _voiceChat?.StopVoice();
             var socket = _socket;
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
@@ -2229,6 +2246,7 @@ namespace Pogranichye.Client
         {
             WorldPoi.Selected -= OnPoiSelected;
             WorldNpc.Selected -= OnNpcSelected;
+            _voiceChat?.StopVoice();
             _lifetime.Cancel();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             if (_createdCameraRig && _cameraRig != null)

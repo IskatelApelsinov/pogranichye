@@ -971,6 +971,7 @@ func (s *Server) nearest(e *core.Entity, settlement core.ID, n int) []*core.Enti
 func (s *Server) fastJSON(cid core.ID) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pruneVoicePeersLocked()
 	e := s.world.Get(cid)
 	if e == nil {
 		return `{"v":1,"fast":true,"alive":false}`

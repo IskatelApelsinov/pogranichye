@@ -19,6 +19,7 @@ namespace Pogranichye.Client.Networking
 
         public event Action<string> MessageReceived;
         public event Action<string> ChatReceived;
+        public event Action<string> VoiceSignalReceived;
         public event Action<string> Closed;
         public bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
 
@@ -52,6 +53,24 @@ namespace Pogranichye.Client.Networking
                 ["v"] = 1, ["op"] = "chat", ["channel"] = channel, ["text"] = text
             };
             if (!string.IsNullOrWhiteSpace(target)) payload["target"] = target;
+            return SendPayloadAsync(payload, cancellationToken);
+        }
+
+        public Task SendVoiceSignalAsync(string action, string target, string sdp, string candidate,
+            string sdpMid, int sdpMLineIndex, CancellationToken cancellationToken)
+        {
+            if (action != "join" && action != "leave" && action != "offer" &&
+                action != "answer" && action != "ice" && action != "ice_complete")
+                throw new ArgumentException("Неизвестное действие голосовой связи.", nameof(action));
+            var payload = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["v"] = 1, ["op"] = "voice", ["action"] = action
+            };
+            if (!string.IsNullOrWhiteSpace(target)) payload["target"] = target;
+            if (!string.IsNullOrEmpty(sdp)) payload["sdp"] = sdp;
+            if (!string.IsNullOrEmpty(candidate)) payload["candidate"] = candidate;
+            if (!string.IsNullOrEmpty(sdpMid)) payload["sdp_mid"] = sdpMid;
+            if (sdpMLineIndex >= 0) payload["sdp_mline_index"] = sdpMLineIndex;
             return SendPayloadAsync(payload, cancellationToken);
         }
 
@@ -228,6 +247,11 @@ namespace Pogranichye.Client.Networking
                         if (json.IndexOf("\"type\":\"chat\"", StringComparison.Ordinal) >= 0)
                         {
                             ChatReceived?.Invoke(json);
+                            continue;
+                        }
+                        if (json.IndexOf("\"type\":\"voice_signal\"", StringComparison.Ordinal) >= 0)
+                        {
+                            VoiceSignalReceived?.Invoke(json);
                             continue;
                         }
                         MessageReceived?.Invoke(json);

@@ -15,6 +15,13 @@ const (
 	voiceMaxSignalBytes = 64 * 1024
 )
 
+func voiceRoom(e *core.Entity) string {
+	if e == nil { return "" }
+	p := core.Place(e)
+	if p == nil || p.Settlement == 0 { return "" }
+	return eid(p.Settlement)
+}
+
 func voiceNearby(a, b *core.Entity) bool {
 	if a == nil || b == nil { return false }
 	ap, bp := core.Place(a), core.Place(b)
@@ -56,6 +63,8 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	sender := s.world.Get(from)
 	peer := s.chatPeers[from]
 	if sender == nil || peer == nil { return }
+	spl := core.Place(sender)
+	if spl == nil || spl.Settlement == 0 { return }
 	now := time.Now()
 
 	if action == "join" {
@@ -63,8 +72,9 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = true
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(id),"offerer":uint64(from)<uint64(id),"sent_at":now.UnixMilli()})
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","from_id":eid(from),"offerer":uint64(id)<uint64(from),"sent_at":now.UnixMilli()})
+			room := eid(spl.Settlement)
+			s.queueVoiceLocked(from, map[string]any{"type":"voice_signal","action":"peer_joined","signaling_type":"welcome","from_id":eid(id),"room":room,"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_joined","signaling_type":"join","from_id":eid(from),"room":room,"sent_at":now.UnixMilli()})
 		}
 		return
 	}
@@ -73,7 +83,7 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 		peer.voice = false
 		for id, other := range s.chatPeers {
 			if id == from || other == nil || !other.voice || !voiceNearby(sender, s.world.Get(id)) { continue }
-			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"sent_at":now.UnixMilli()})
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(from),"room":voiceRoom(sender),"sent_at":now.UnixMilli()})
 		}
 		return
 	}
@@ -84,7 +94,7 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	if targetID == 0 || target == nil || targetPeer == nil || !targetPeer.voice || !voiceNearby(sender, target) { return }
 
 	event := map[string]any{
-		"type":"voice_signal", "action":action, "from_id":eid(from), "sent_at":now.UnixMilli(),
+		"type":"voice_signal", "action":action, "from_id":eid(from), "room":eid(spl.Settlement), "sent_at":now.UnixMilli(),
 	}
 	switch action {
 	case "offer", "answer":
@@ -99,4 +109,23 @@ func (s *Server) signalVoice(from core.ID, action, rawTarget, sdp, candidate, mi
 	}
 	s.queueVoiceLocked(targetID, event)
 	peer.lastVoiceSignal = now
+}
+
+// pruneVoicePeersLocked ends demo P2P links once their souls leave the authoritative
+// voice radius. Called from fast-frame generation while s.mu is already held.
+func (s *Server) pruneVoicePeersLocked() {
+	for id, peer := range s.chatPeers {
+		if peer == nil || !peer.voice { continue }
+		e := s.world.Get(id)
+		for otherID, other := range s.chatPeers {
+			if otherID <= id || other == nil || !other.voice { continue }
+			if voiceNearby(e, s.world.Get(otherID)) { continue }
+			// The two-person demo closes both ends of a link when its pair leaves range.
+			peer.voice = false
+			other.voice = false
+			now := time.Now().UnixMilli()
+			s.queueVoiceLocked(id, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(otherID),"room":voiceRoom(e),"sent_at":now})
+			s.queueVoiceLocked(otherID, map[string]any{"type":"voice_signal","action":"peer_left","from_id":eid(id),"room":voiceRoom(s.world.Get(otherID)),"sent_at":now})
+		}
+	}
 }
