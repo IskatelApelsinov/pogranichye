@@ -918,6 +918,9 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Shared visual wind intensity. It is atmospheric motion only, not authoritative weather.</summary>
         public static float WindStrength { get; private set; } = 1f;
 
+        /// <summary>Slowly changing horizontal wind direction in world XZ space; presentation only.</summary>
+        public static Vector2 WindDirection { get; private set; } = Vector2.right;
+
         public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
             _sky = sky;
@@ -955,6 +958,9 @@ namespace Pogranichye.Client.Presentation
             var gustA = Mathf.Sin(Time.time * 0.075f + 0.4f);
             var gustB = Mathf.Sin(Time.time * 0.19f + 2.1f);
             WindStrength = Mathf.Clamp(1f + gustA * 0.22f + gustB * 0.10f, 0.68f, 1.32f);
+            // Direction meanders gently instead of snapping or reversing every gust.
+            var windAngle = Mathf.Sin(Time.time * 0.018f + 0.7f) * 0.42f;
+            WindDirection = new Vector2(Mathf.Cos(windAngle), Mathf.Sin(windAngle)).normalized;
             var dusk = 1f - Mathf.Clamp01(Mathf.Abs(daylight - 0.42f) * 3.2f);
             var daySky = new Color(0.72f, 0.83f, 0.94f);
             var duskSky = new Color(0.88f, 0.48f, 0.32f);
@@ -1082,9 +1088,16 @@ namespace Pogranichye.Client.Presentation
         {
             if (_particles == null) return;
             var wind = WorldAtmosphereCycle.WindStrength;
+            var direction = WorldAtmosphereCycle.WindDirection;
             var velocity = _particles.velocityOverLifetime;
-            velocity.x = new ParticleSystem.MinMaxCurve(-_baseX * wind, _baseX * wind);
-            velocity.z = new ParticleSystem.MinMaxCurve(-_baseZ * wind, _baseZ * wind);
+            var driftX = direction.x * _baseX * wind;
+            var driftZ = direction.y * _baseZ * wind;
+            var spreadX = _baseX * wind * 0.18f;
+            var spreadZ = _baseZ * wind * 0.18f;
+            // A shared directional bias carries smoke and mist downwind; a narrow range
+            // preserves soft turbulence without cancelling the mean drift to zero.
+            velocity.x = new ParticleSystem.MinMaxCurve(driftX - spreadX, driftX + spreadX);
+            velocity.z = new ParticleSystem.MinMaxCurve(driftZ - spreadZ, driftZ + spreadZ);
         }
     }
 
