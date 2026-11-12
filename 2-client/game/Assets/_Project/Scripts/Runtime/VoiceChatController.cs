@@ -142,6 +142,18 @@ namespace Pogranichye.Client
                 // Another subsystem already initialized the shared native context.
             }
             _webRtcInitialized = true;
+            Application.quitting -= DisposeWebRTC;
+            Application.quitting += DisposeWebRTC;
+        }
+
+        private static void DisposeWebRTC()
+        {
+            if (!_webRtcInitialized) return;
+            var webRtcType = typeof(RTCPeerConnection).Assembly.GetType("Unity.WebRTC.WebRTC");
+            var dispose = webRtcType?.GetMethod("DisposeInternal", BindingFlags.Static | BindingFlags.NonPublic);
+            try { dispose?.Invoke(null, null); }
+            catch (Exception ex) { Debug.LogWarning("WebRTC shutdown: " + ex.Message); }
+            _webRtcInitialized = false;
         }
 
         private void OnSignalingStateChanged(SignalingState state)
