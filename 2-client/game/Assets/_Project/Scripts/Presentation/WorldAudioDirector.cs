@@ -45,6 +45,11 @@ namespace Pogranichye.Client.Presentation
             _fire.Play();
         }
 
+        public void SetPlayerPosition(Vector3 position)
+        {
+            if (_oneShot != null) _oneShot.transform.position = position;
+        }
+
         public void Footsteps(bool running)
         {
             if (Time.unscaledTime < _nextStepAt || _oneShot == null) return;
@@ -58,13 +63,14 @@ namespace Pogranichye.Client.Presentation
 
         private static AudioClip MakeNoise(string name, float amplitude, float duration, float decay, int seconds = 1)
         {
-            var length = Mathf.Max(1, Mathf.CeilToInt(Rate * duration));
+            var length = seconds > 1 ? Rate * seconds : Mathf.Max(1, Mathf.CeilToInt(Rate * duration));
             var data = new float[length];
             var random = new System.Random(name.GetHashCode());
             for (var i = 0; i < length; i++)
             {
                 var t = i / (float)Rate;
-                var envelope = Mathf.Exp(-t / Mathf.Max(0.02f, decay));
+                var randomValue = (float)random.NextDouble();
+                var envelope = seconds > 1 ? 0.18f + randomValue * 0.82f : Mathf.Exp(-t / Mathf.Max(0.02f, decay));
                 var noise = (float)(random.NextDouble() * 2.0 - 1.0);
                 var low = Mathf.Sin(t * 2f * Mathf.PI * 92f) * 0.24f;
                 data[i] = (noise * 0.72f + low) * amplitude * envelope;
