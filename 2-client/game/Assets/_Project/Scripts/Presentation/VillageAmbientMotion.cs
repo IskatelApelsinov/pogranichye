@@ -65,7 +65,10 @@ namespace Pogranichye.Client.Presentation
                 if (pulse.Light == null) { _lights.RemoveAt(i); continue; }
                 var wave = Mathf.Sin(time * pulse.Speed + pulse.Phase) * 0.65f
                          + Mathf.Sin(time * pulse.Speed * 2.17f + pulse.Phase) * 0.35f;
-                pulse.Light.intensity = pulse.BaseIntensity * (1f + wave * pulse.Amplitude);
+                // Windows, candles and yard lamps remain faintly visible by day, then naturally
+                // become prominent after dusk without requiring per-light day/night scripts.
+                var nightGlow = Mathf.Lerp(0.22f, 1f, WorldAtmosphereCycle.NightAmount);
+                pulse.Light.intensity = pulse.BaseIntensity * nightGlow * (1f + wave * pulse.Amplitude);
             }
 
             for (var i = _sways.Count - 1; i >= 0; i--)
