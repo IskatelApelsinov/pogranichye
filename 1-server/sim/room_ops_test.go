@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"strconv"
 	"testing"
 
 	"pogranichye/core"
@@ -381,11 +382,17 @@ func TestPlaceRoomsViewExposesSafeRoomDirectory(t *testing.T) {
 		t.Fatalf("place.rooms.items должен перечислять две комнаты: %#v", view["items"])
 	}
 	byID := map[string]map[string]any{}
-	for _, item := range items {
+	var previousID core.ID
+	for index, item := range items {
 		id, ok := item["id"].(string)
 		if !ok || id == "" {
 			t.Fatalf("каталог должен отдавать строковый ID комнаты: %#v", item)
 		}
+		parsed, err := strconv.ParseUint(id, 10, 64)
+		if err != nil || (index > 0 && core.ID(parsed) <= previousID) {
+			t.Fatalf("каталог должен быть отсортирован по числовому ID: %#v", items)
+		}
+		previousID = core.ID(parsed)
 		if _, exists := item["tenant"]; exists {
 			t.Fatalf("каталог не должен раскрывать арендатора: %#v", item)
 		}
