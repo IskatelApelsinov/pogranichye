@@ -52,8 +52,8 @@ go run ./cmd/pogserver -starter -web ../thin-client/web   # сервер на :8
 | Шаг | Сервер | Unity |
 |---|---|---|
 | Видят друг друга с серверными позициями | СЕРВЕР (`neighbors.player`) | BLOCKED |
-| Приглашение выпить, согласие/отказ, раздельная оплата | СЕРВЕР (`TestCoDrink…`) | BLOCKED |
-| Синхронный тост у обоих | СЕРВЕР (`social_event`) | BLOCKED |
+| Приглашение выпить, отказ без затрат, повторное приглашение, согласие и раздельная оплата | PASS (`TestTwoPlayerCoDrinkWebSocket`, `TestCoDrink`) | BLOCKED |
+| Синхронный тост у обоих | PASS: оба WS-клиента получают новый `social_event.type=codrink` (`TestTwoPlayerCoDrinkWebSocket`) | BLOCKED: два Unity клиента не запускались |
 | Разрыв и повторный вход без «призраков» и повторных списаний | СЕРВЕР (`TestReserveBodyNoDoubleControl`, очистка сессии в e2e) | BLOCKED |
 
 ## 4. Блокеры демо (по важности)
