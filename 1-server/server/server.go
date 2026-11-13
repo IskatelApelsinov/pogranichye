@@ -876,6 +876,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 	m := core.Mind(e)
 	home := core.Home(e)
 	pl := core.Place(e)
+	// Один Terrain на весь кадр: NewTerrain обходит все поселения мира, так что считать его заново
+	// на каждого из neighborCap соседей (как и на себя) было бы 1+N обходов на кадр вместо одного.
+	terrain := sim.NewTerrain(s.world)
 	out := map[string]any{
 		"v":      1, // версия протокола (см. 3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md)
 		"alive":  true,
@@ -897,7 +900,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
 			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
-			"wpos":         sim.WorldPosView(s.world, e),                  // v1.19: каноническое положение в мире (метры, высота, чанк)
+			"wpos":         sim.WorldPosViewUsing(terrain, s.world, e),    // v1.19: каноническое положение в мире (метры, высота, чанк)
 			"pos":          mePos(e),                                      // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 			"talk":         meTalk(s.world, e),                            // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
 			"invite_from":  meInvite(s.world, e),                          // кто зовёт выпить вместе (co-drink, v1.4)
@@ -946,6 +949,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct, "want": sim.Desire(o),
 							"gear":     sim.PublicGear(o),     // видимая экипировка: рука + надетое (#48), без личной сумы
 							"act_code": om.ActCode,            // стабильный код занятия соседа (для анимаций)
+							"wpos":     sim.WorldPosViewUsing(terrain, s.world, o), // v1.20: та же схема, что me.wpos (comms 0178) — сервер считает глобальную позицию сам, клиент не выводит её из place.anchor
 							"player":   s.ctl[o.ID] != 0,      // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"casting":  sim.CastingSeen(e, o), // плетёт ли (опытный маг читает имя узора) — v1.10
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})

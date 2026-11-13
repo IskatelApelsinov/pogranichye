@@ -289,6 +289,18 @@
           "y": -3.1,
           "facing": 210
         },
+        "wpos": {
+          "scheme": "yof-tangent",
+          "v": 1,
+          "frame": 0,
+          "e": 655.2,
+          "n": -27228.1,
+          "u": 131.4,
+          "ground": 131.4,
+          "z": 0,
+          "chunk": [2, -107],
+          "layer": 0
+        },
         "casting": ""
       }
     ],
