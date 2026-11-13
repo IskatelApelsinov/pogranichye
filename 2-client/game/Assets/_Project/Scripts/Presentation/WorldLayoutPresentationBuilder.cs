@@ -456,8 +456,8 @@ namespace Pogranichye.Client.Presentation
         }
 
         /// <summary>
-        /// Adds a few lived-in yard details around generated buildings. All props are combined
-        /// into static meshes and remain presentation-only (no colliders or gameplay inventory).
+        /// Adds lived-in yard details around generated buildings. Repeated crate/log geometry is
+        /// batched; authored hero props remain individual static renderers. Presentation-only.
         /// </summary>
         private static void BuildGeneratedYardProps(Transform world, WorldLayoutFrame layout)
         {
@@ -470,6 +470,7 @@ namespace Pogranichye.Client.Presentation
             // Prefer the authored Blender barrel when the Resources pack is installed.
             // Keep the procedural batch as a safe fallback for older or incomplete clones.
             var authoredBarrel = Resources.Load<GameObject>("TavernProps/barrel_oak");
+            var authoredBasket = Resources.Load<GameObject>("TavernProps/basket_wickermarket");
             var barrelVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 48);
             var barrelTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 72);
 
@@ -530,6 +531,14 @@ namespace Pogranichye.Client.Presentation
                     else
                         AppendBarrel(barrelVertices, barrelTriangles, barrelPosition, 0.27f, 0.78f);
                 }
+
+                // A few yards carry actual market produce, breaking up the repeated crate/log
+                // silhouettes. The authored basket is small and ground-centred (~0.36 m wide).
+                if (authoredBasket != null && random.NextDouble() < 0.42)
+                {
+                    var basketPosition = new Vector3(yard.x - 0.88f, 0f, yard.y + 0.48f);
+                    CreateAuthoredYardBasket(world, authoredBasket, basketPosition, yaw);
+                }
             }
 
             CreateCombinedMesh(world, "Village yards • stacked timber crates",
@@ -539,6 +548,43 @@ namespace Pogranichye.Client.Presentation
             // This mesh is populated only when the authored Resources model is unavailable.
             CreateCombinedMesh(world, "Village yards • wooden barrels (procedural fallback)",
                 barrelVertices, barrelTriangles, _trunk);
+        }
+
+        private static void CreateAuthoredYardBasket(
+            Transform parent, GameObject prefab, Vector3 localPosition, float yaw)
+        {
+            if (parent == null || prefab == null) return;
+            var instance = UnityEngine.Object.Instantiate(prefab, parent, false);
+            instance.name = "Yard produce basket • authored wicker";
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f);
+            instance.transform.localScale = Vector3.one;
+            instance.isStatic = true;
+
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                renderer.gameObject.isStatic = true;
+                var materials = renderer.sharedMaterials;
+                var changed = false;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var source = materials[materialIndex];
+                    if (source == null) continue;
+                    var materialName = source.name.ToLowerInvariant();
+                    Material replacement = null;
+                    if (materialName.Contains("dark seam"))
+                        replacement = _trunk;
+                    else if (materialName.Contains("wicker") || materialName.Contains("oak") ||
+                             materialName.Contains("timber"))
+                        replacement = _timber;
+                    if (replacement == null) continue;
+                    materials[materialIndex] = replacement;
+                    changed = true;
+                }
+                if (changed) renderer.sharedMaterials = materials;
+            }
         }
 
         private static void CreateAuthoredYardBarrel(
