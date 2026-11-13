@@ -127,7 +127,7 @@ func TestManaRegen(t *testing.T) {
 		t.Fatalf("мана должна восстанавливаться: %.1f", p.Mana)
 	}
 }
- 
+
 // Охота не должна выбирать deer: этот вид пока отсутствует в серверной модели FaunaC.
 func TestHuntIgnoresUnsupportedDeerPopulation(t *testing.T) {
 	w := core.NewWorld("t")
@@ -149,7 +149,8 @@ func TestHuntIgnoresUnsupportedDeerPopulation(t *testing.T) {
 	if why != "подходящего зверя рядом нет" {
 		t.Fatalf("ожидался честный отказ при отсутствии поддерживаемой дичи, получено: %q", why)
 	}
-	if econ.Stash(e).Goods["meat"] != 0 || econ.Stash(e).Goods["hide"] != 0 {
+	if stash := econ.Stash(e); stash != nil &&
+		(stash.Goods["meat"] != 0 || stash.Goods["hide"] != 0) {
 		t.Fatal("неподдерживаемый deer не должен давать добычу")
 	}
 }
