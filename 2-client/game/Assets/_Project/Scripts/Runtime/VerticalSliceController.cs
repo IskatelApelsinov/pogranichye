@@ -2517,9 +2517,9 @@ namespace Pogranichye.Client
         /// frame after login also lands here, so the tutorial default is replaced only when needed.
         /// </summary>
         /// <summary>
-        /// Streams only the chunk containing the authoritative player position. Server coordinates stay
-        /// double precision; only the final chunk mesh is rebased to the current settlement anchor.
-        /// Seamless server travel remains disabled until multi-chunk presentation and collision are complete.
+        /// Streams a bounded 3x3 terrain window around the authoritative player position. Server coordinates
+        /// stay double precision; only final chunk mesh vertices are rebased to the settlement anchor.
+        /// Seamless server travel remains disabled until neighboring settlement presentation and collision are complete.
         /// </summary>
         private void EnsureTerrainChunkForFrame(WorldFrame frame)
         {
@@ -2542,8 +2542,8 @@ namespace Pogranichye.Client
                 var stale = new List<string>();
                 foreach (var pair in _terrainChunks)
                 {
-                    if (Math.Abs(pair.Value.Chunk[0] - centerX) > 1 ||
-                        Math.Abs(pair.Value.Chunk[1] - centerZ) > 1)
+                    if (Math.Abs((decimal)pair.Value.Chunk[0] - centerX) > 1m ||
+                        Math.Abs((decimal)pair.Value.Chunk[1] - centerZ) > 1m)
                         stale.Add(pair.Key);
                 }
                 foreach (var id in stale)
@@ -2576,21 +2576,23 @@ namespace Pogranichye.Client
                 var chunkZ = centerZ + dz;
                 var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
                 if (_terrainChunks.ContainsKey(chunkId) || !_terrainChunkRequests.Add(chunkId)) continue;
-                _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId, _terrainStreamGeneration);
+                _ = LoadTerrainChunkAsync(chunkX, chunkZ, position.Frame, chunkId, _terrainStreamGeneration);
             }
         }
 
-        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, string chunkId, int generation)
+        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, int expectedFrame, string chunkId, int generation)
         {
             try
             {
                 var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
+                if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
+                    throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
-                    if (!_hasTerrainCenter || Math.Abs(chunkX - _terrainCenterX) > 1 ||
-                        Math.Abs(chunkZ - _terrainCenterZ) > 1 || _frame == null ||
+                    if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > 1m ||
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) > 1m || _frame == null ||
                         _frame.Place == null || _frame.Place.Anchor == null)
                         return;
                     _terrainChunks[chunkId] = chunk;
