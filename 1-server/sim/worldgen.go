@@ -143,6 +143,15 @@ func GenerateStarter(seed string) (*core.World, *dice.Hub) {
 	}
 	makeRealms(w, g, ids)
 	generateOuterWorld(w, g) // внешний мир: десятки деревень и несколько городов за горами (телепорт)
+	// Стартовый край тоже получает самостоятельные дикие места; внешние края заполняются
+	// внутри generateOuterWorld, чтобы ни один способ создания мира не оставлял пустые регионы.
+	var starterXY [][2]float64
+	for _, id := range ids {
+		if s := core.Settle(w.Get(id)); s != nil {
+			starterXY = append(starterXY, [2]float64{s.X, s.Y})
+		}
+	}
+	scatterWildSites(w, g, reg, 500, 500, starterXY, 2+g.Intn(3))
 	return w, hub
 }
 
@@ -199,6 +208,21 @@ func generateOuterWorld(w *core.World, g *dice.Stream) {
 		if first != nil {
 			core.Settle(se).Keeper = first.ID
 		}
+	}
+	// Внешний мир не должен быть пустым между поселениями: каждое сгенерированное кольцо
+	// получает 2–4 детерминированных диких места, отстоящих от всех сёл своего региона.
+	for _, region := range regIDs {
+		r := core.Region(region)
+		if r == nil {
+			continue
+		}
+		var avoid [][2]float64
+		w.Each("settlement", func(entity *core.Entity) {
+			if s := core.Settle(entity); s != nil && s.Region == region.ID {
+				avoid = append(avoid, [2]float64{s.X, s.Y})
+			}
+		})
+		scatterWildSites(w, g, region, r.X, r.Y, avoid, 2+g.Intn(3))
 	}
 }
 
