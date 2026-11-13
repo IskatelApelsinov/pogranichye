@@ -226,6 +226,16 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("total")] public int Total { get; set; }
         [JsonProperty("vacant")] public int Vacant { get; set; }
         [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        // Optional public room descriptors; no tenant identity or chest contents.
+        [JsonProperty("items")] public List<PlaceRoomEntryFrame> Items { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRoomEntryFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("lease_state")] public string LeaseState { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
     }
 
     [Serializable]
