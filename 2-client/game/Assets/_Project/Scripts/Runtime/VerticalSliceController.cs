@@ -273,6 +273,7 @@ namespace Pogranichye.Client
             var gameplayInputBlocked = _chatOpen || pointerOverUi ||
                 (_core != null && _core.CapturesInput) ||
                 _activityMiniGame != ActivityMiniGame.None;
+            _core?.SetExternalUiCapture(_chatOpen || pointerOverUi || _activityMiniGame != ActivityMiniGame.None);
             _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = _connectionState != WorldConnectionState.Active || gameplayInputBlocked;
