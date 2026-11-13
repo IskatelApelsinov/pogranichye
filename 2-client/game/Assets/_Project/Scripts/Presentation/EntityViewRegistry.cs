@@ -264,6 +264,13 @@ namespace Pogranichye.Client.Presentation
                         view.transform.position = position;
                         view.transform.rotation = targetRotation;
                     }
+
+                    // Distance LOD is presentation-only. Keep network targets, stable IDs,
+                    // interaction colliders and server-driven activity state intact.
+                    var viewLod = view.GetComponent<EntityViewLod>();
+                    if (viewLod != null)
+                        viewLod.ApplyDistance(Vector3.Distance(position, player.transform.position));
+
                     // NPC tavern drinking is a persistent server activity code; remote player
                     // sip gestures remain a short presentation tail. Neither state is inferred locally.
                     SetMug(view, neighbor.ActivityCode == "drink_tavern" ||
@@ -1236,6 +1243,12 @@ namespace Pogranichye.Client.Presentation
             text.characterSize = 0.065f;
             text.color = Color.white;
             text.richText = false;
+
+            if (!isLocalPlayer)
+            {
+                var lod = go.AddComponent<EntityViewLod>();
+                lod.Initialize(labelObject, go.GetComponentsInChildren<Renderer>(true));
+            }
 
             if (!isLocalPlayer)
             {
