@@ -2016,6 +2016,7 @@ namespace Pogranichye.Client
                 }
                 _terrainChunk = null;
                 _terrainChunkRequestedId = null;
+                WorldTerrainChunkBuilder.Clear(_presentationRoot);
                 _terrainAppliedSettlementId = null;
                 _terrainAppliedAnchorEast = double.NaN;
                 _terrainAppliedAnchorNorth = double.NaN;
@@ -2552,7 +2553,7 @@ namespace Pogranichye.Client
         {
             try
             {
-                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 16);
+                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
                 Enqueue(() =>
                 {
                     if (_terrainChunkRequestedId != chunkId || _frame == null ||
