@@ -45,6 +45,9 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared fixture must map neighbors[].player and neighbors[].want.");
                 if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null || frame.Me.SocialEvent == null || frame.Me.SocialEvent.Sequence != 7)
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
+                if (frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid ||
+                    frame.Place.Anchor == null || frame.Place.Anchor.Frame != frame.Me.WorldPosition.Frame)
+                    throw new FormatException("The shared v1.19 fixture must include valid global me.wpos and place.anchor.");
                 if (frame.Place.Life == null || frame.Place.Life.Population < 0 || frame.Place.Life.Working < 0 ||
                     frame.Place.Life.Activities == null || frame.Place.Life.Stock == null || frame.Place.Life.Activities.Maintenance < 0 ||
                     frame.Place.Life.Stock.Wood < 0 || frame.Place.Life.Stock.Metal < 0 || frame.Place.Beer < 0)
@@ -53,7 +56,8 @@ namespace Pogranichye.Client.Editor
                 ValidateNegativeCases();
                 ValidateJournalCases();
                 ValidateMapProjection();
-                Debug.Log($"v1.18 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
+                ValidateWorldV119Dtos();
+                Debug.Log($"v1.19 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
             }
             catch (Exception ex)
             {
