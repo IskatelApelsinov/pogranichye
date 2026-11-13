@@ -393,7 +393,7 @@ namespace Pogranichye.Client
                 {
                     var miniWidth = Mathf.Min(420f, Screen.width - 24f);
                     GUILayout.BeginArea(new Rect((Screen.width - miniWidth) * 0.5f,
-                        Screen.height - 190f, miniWidth, 178f));
+                        Screen.height - 286f, miniWidth, 178f));
                     DrawActivityMiniGame();
                     GUILayout.EndArea();
                 }
@@ -1674,6 +1674,7 @@ namespace Pogranichye.Client
             if (_connectionState != WorldConnectionState.Active || _core == null)
             {
                 _activityMiniGameFeedback = "Сначала подключитесь к миру.";
+                _status = _activityMiniGameFeedback;
                 return;
             }
             var poi = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
@@ -1683,12 +1684,14 @@ namespace Pogranichye.Client
                 _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
                     ? "Подойдите ближе к лесу, чтобы рубить."
                     : "Подойдите к берегу, чтобы рыбачить.";
+                _status = _activityMiniGameFeedback;
                 return;
             }
             if (!string.Equals(_frame?.Me?.Inventory?.Hand, tool, StringComparison.Ordinal))
             {
                 _activityMiniGameFeedback = "Сначала купите " + (tool == "axe" ? "топор" : "удочку") +
                     " и возьмите его в руку.";
+                _status = _activityMiniGameFeedback;
                 return;
             }
             _activityMiniGame = game;
