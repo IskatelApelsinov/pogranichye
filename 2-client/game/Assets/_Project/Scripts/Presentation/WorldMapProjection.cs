@@ -10,8 +10,10 @@ namespace Pogranichye.Client.Presentation
         {
             if (worldHalf <= 0d) throw new ArgumentOutOfRangeException(nameof(worldHalf));
             var span = worldHalf * 2d;
-            var normalizedX = Mathf.Clamp01((float)((x + worldHalf) / span));
-            var normalizedY = Mathf.Clamp01((float)((worldHalf - y) / span));
+            // Do not clamp: zoomed maps need off-screen geometry to remain outside the viewport
+            // so the caller can clip it instead of pinning every distant feature to the map edge.
+            var normalizedX = (float)((x + worldHalf) / span);
+            var normalizedY = (float)((worldHalf - y) / span);
             return new Vector2(
                 mapRect.x + normalizedX * mapRect.width,
                 mapRect.y + normalizedY * mapRect.height);
