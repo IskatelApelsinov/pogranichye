@@ -27,11 +27,13 @@ namespace Pogranichye.Client.Presentation
         private static readonly Dictionary<string, Material> Materials =
             new Dictionary<string, Material>(StringComparer.Ordinal);
         private static Transform _root;
+        private static WorldManifestFrame _manifest;
 
         public static void Rebuild(Transform parent, WorldManifestFrame manifest)
         {
             Clear();
             if (parent == null || manifest?.WildSites == null) return;
+            _manifest = manifest;
             _root = new GameObject("WorldWildSites").transform;
             _root.SetParent(parent, false);
             unchecked
@@ -63,7 +65,7 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            if (_root == null || _root.parent != parent || Views.Count != (manifest.WildSites?.Count ?? 0))
+            if (_root == null || _root.parent != parent || !ReferenceEquals(_manifest, manifest))
                 Rebuild(parent, manifest);
             if (_root == null) return;
             _root.gameObject.SetActive(true);
@@ -178,6 +180,7 @@ namespace Pogranichye.Client.Presentation
             if (_root != null) UnityEngine.Object.Destroy(_root.gameObject);
             _root = null;
             Views.Clear();
+            _manifest = null;
         }
     }
 }
