@@ -157,20 +157,51 @@ namespace Pogranichye.Client.Presentation
             {
                 var x = (float)(random.NextDouble() * 30 - 15);
                 var z = (float)(random.NextDouble() * 30 - 15);
-                if (Mathf.Abs(x) < 3f || Mathf.Abs(z) < 2.5f) continue;
-                BuildTree(village, new Vector3(x, 0, z), 0.8f + (float)random.NextDouble() * 0.7f);
+                var scale = 0.8f + (float)random.NextDouble() * 0.7f;
+                if (IsStarterVegetationBlocked(x, z, 2.5f * scale)) continue;
+                BuildTree(village, new Vector3(x, 0, z), scale);
             }
 
             for (var i = 0; i < 34; i++)
             {
                 var x = (float)(random.NextDouble() * 34 - 17);
                 var z = (float)(random.NextDouble() * 34 - 17);
-                if (Mathf.Abs(x) < 2.2f || Mathf.Abs(z) < 1.7f) continue;
+                if (IsStarterVegetationBlocked(x, z, 0.35f)) continue;
                 var tuft = CreatePrimitive("Grass tuft", PrimitiveType.Cube, village,
                     new Vector3(x, 0.12f, z), new Vector3(0.08f, 0.24f, 0.08f), _grassMaterial);
                 tuft.transform.rotation = Quaternion.Euler(0, (float)random.NextDouble() * 180, 18);
                 tuft.isStatic = true;
             }
+        }
+
+        // Random prototype vegetation used to ignore the authored village footprint. Keep
+        // tree canopies and grass out of buildings, the market, well, fence and yard props.
+        // The clearance is the visual radius of the candidate, so larger trees need more space.
+        private static bool IsStarterVegetationBlocked(float x, float z, float clearance)
+        {
+            // Main north/south and east/west village lanes.
+            if (Mathf.Abs(x) < 3f + clearance * 0.15f ||
+                Mathf.Abs(z) < 2.5f + clearance * 0.15f)
+                return true;
+
+            // Market and its produce stand (centre at 1, 11).
+            if (Mathf.Abs(x - 1f) < 4.6f + clearance &&
+                Mathf.Abs(z - 11f) < 3.5f + clearance)
+                return true;
+
+            // Well, fence line and small yard props.
+            if ((x * x) + ((z + 4f) * (z + 4f)) < (2.4f + clearance) * (2.4f + clearance))
+                return true;
+            if (Mathf.Abs(z + 13f) < 0.65f + clearance && Mathf.Abs(x) < 6.2f + clearance)
+                return true;
+            if ((x + 6.2f) * (x + 6.2f) + (z + 7.4f) * (z + 7.4f) <
+                (2.0f + clearance) * (2.0f + clearance))
+                return true;
+            if ((x + 8.2f) * (x + 8.2f) + (z + 2.4f) * (z + 2.4f) <
+                (1.8f + clearance) * (1.8f + clearance))
+                return true;
+
+            return false;
         }
 
         private static void BuildHouse(Transform root, string name, Vector3 position, float yaw)
