@@ -18,6 +18,7 @@ on:
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
       - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
+      - '3-dev/comms/0215-chatgpt-to-claude-map-activity-label-clipping.md'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
