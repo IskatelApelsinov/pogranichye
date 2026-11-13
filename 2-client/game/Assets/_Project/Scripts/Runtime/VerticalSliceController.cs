@@ -82,6 +82,7 @@ namespace Pogranichye.Client
         private WorldManifestFrame _worldManifest;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
+        private int _terrainStreamGeneration;
         private bool _hasTerrainCenter;
         private long _terrainCenterX;
         private long _terrainCenterZ;
@@ -2017,6 +2018,7 @@ namespace Pogranichye.Client
                     _worldManifest = null;
                     Enqueue(() => Debug.LogWarning("Карта мира v1.19 пока недоступна; остаёмся в локальном режиме поселения: " + worldError.Message));
                 }
+                _terrainStreamGeneration++;
                 _terrainChunks.Clear();
                 _terrainChunkRequests.Clear();
                 _hasTerrainCenter = false;
@@ -2574,17 +2576,18 @@ namespace Pogranichye.Client
                 var chunkZ = centerZ + dz;
                 var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
                 if (_terrainChunks.ContainsKey(chunkId) || !_terrainChunkRequests.Add(chunkId)) continue;
-                _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId);
+                _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId, _terrainStreamGeneration);
             }
         }
 
-        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, string chunkId)
+        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, string chunkId, int generation)
         {
             try
             {
                 var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
                 Enqueue(() =>
                 {
+                    if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
                     if (!_hasTerrainCenter || Math.Abs(chunkX - _terrainCenterX) > 1 ||
                         Math.Abs(chunkZ - _terrainCenterZ) > 1 || _frame == null ||
@@ -2602,6 +2605,7 @@ namespace Pogranichye.Client
             {
                 Enqueue(() =>
                 {
+                    if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
                     Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + ": " + exception.Message);
                 });
