@@ -113,3 +113,51 @@ func TestOpenFrontierAddsWildSites(t *testing.T) {
 		t.Fatalf("открытие фронтира должно добавить дикие места: было %d, стало %d", before, after)
 	}
 }
+
+
+// assertEverySettlementRegionHasWildSites verifies that no generated settlement region is left as
+// empty wilderness. This is deliberately checked through the public world entities, not helper internals.
+func assertEverySettlementRegionHasWildSites(t *testing.T, w *core.World) {
+	t.Helper()
+	regions := map[core.ID]bool{}
+	counts := map[core.ID]int{}
+	w.Each("settlement", func(e *core.Entity) {
+		if s := core.Settle(e); s != nil && s.Region != 0 {
+			regions[s.Region] = true
+		}
+	})
+	w.Each("wildsite", func(e *core.Entity) {
+		if ws := WildSite(e); ws != nil {
+			counts[ws.Region]++
+		}
+	})
+	if len(regions) == 0 {
+		t.Fatal("ожидались регионы с поселениями")
+	}
+	for region := range regions {
+		if counts[region] == 0 {
+			t.Errorf("регион %d с поселениями остался без диких мест", region)
+		}
+	}
+}
+
+func TestGenerateStarterPopulatesEverySettlementRegionWithWildSites(t *testing.T) {
+	w, _ := GenerateStarter("seed-starter-wildsites")
+	assertEverySettlementRegionHasWildSites(t, w)
+}
+
+func TestGenerateStarterWildSitesAreDeterministic(t *testing.T) {
+	w1, _ := GenerateStarter("seed-starter-wildsites-deterministic")
+	w2, _ := GenerateStarter("seed-starter-wildsites-deterministic")
+	a, b := WildSitesView(w1), WildSitesView(w2)
+	if len(a) != len(b) || len(a) == 0 {
+		t.Fatalf("ожидалось одинаковое ненулевое число диких мест: %d vs %d", len(a), len(b))
+	}
+	for i := range a {
+		for _, key := range []string{"name", "wild_type", "region", "e", "n", "u"} {
+			if a[i][key] != b[i][key] {
+				t.Fatalf("дикое место #%d отличается по %s: %v vs %v", i, key, a[i][key], b[i][key])
+			}
+		}
+	}
+}
