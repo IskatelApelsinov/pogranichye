@@ -103,8 +103,6 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException("me.wpos: координаты, chunk и layer противоречат друг другу.");
             if (frame.Me?.WorldPosition != null && frame.Place?.Anchor != null && frame.Me.Position != null)
             {
-                if (frame.Me.WorldPosition.Frame != frame.Place.Anchor.Frame)
-                    throw new FormatException("place.anchor.frame не совпадает с me.wpos.frame.");
                 if (Math.Abs(frame.Me.WorldPosition.East - frame.Place.Anchor.East - frame.Me.Position.X) > 0.002d ||
                     Math.Abs(frame.Me.WorldPosition.North - frame.Place.Anchor.North - frame.Me.Position.Y) > 0.002d)
                     throw new FormatException("me.wpos не совпадает с place.anchor + me.pos.");
