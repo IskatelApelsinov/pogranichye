@@ -636,6 +636,31 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
             DrawActivityMiniGame();
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
+            if (me.Weave != null)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("ПЛЕТЕНИЯ");
+                GUILayout.Label("Дар: " + (me.Weave.Gift ? "пробуждён" : "не пробуждён") +
+                    " · предел сложности " + me.Weave.Limit.ToString("0.#") +
+                    " · ёмкость ума " + me.Weave.Capacity.ToString("0.#"));
+                if (me.Weave.Known != null && me.Weave.Known.Count > 0)
+                {
+                    GUILayout.Label("Знакомые узоры:");
+                    foreach (var schema in me.Weave.Known)
+                    {
+                        if (schema == null || string.IsNullOrWhiteSpace(schema.Name)) continue;
+                        var nodes = schema.Nodes != null ? string.Join(" → ", schema.Nodes.ToArray()) : "";
+                        GUILayout.Label("• " + schema.Name + (nodes.Length > 0 ? " — " + nodes : ""));
+                    }
+                }
+                else GUILayout.Label("Знакомые узоры пока не открыты.");
+                if (me.Weave.CanLearn && GUILayout.Button("Медитировать и постигать плетения"))
+                    QueueWorldAction("meditate");
+                if (me.Weave.CanStudy && GUILayout.Button("Учиться у мага рядом"))
+                    QueueWorldAction("study");
+                if (!me.Weave.CanLearn && !me.Weave.CanStudy)
+                    GUILayout.Label("Сейчас некому учить и нет места силы поблизости.");
+            }
         }
 
         private void DrawInventoryTab()
