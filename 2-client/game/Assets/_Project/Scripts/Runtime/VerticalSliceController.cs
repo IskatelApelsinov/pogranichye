@@ -84,6 +84,7 @@ namespace Pogranichye.Client
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
         private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
         private const float TerrainChunkRetryDelaySeconds = 10f;
+        private const int MaxConcurrentTerrainChunkRequests = 3;
         private int _terrainStreamGeneration;
         private bool _hasTerrainCenter;
         private long _terrainCenterX;
@@ -2606,20 +2607,26 @@ namespace Pogranichye.Client
                 _terrainAppliedAnchorUp = anchor.Up;
             }
 
-            // A 3x3 window reveals the generated terrain beyond the server's 230 m settlement plateau.
-            // Chunks outside this window are evicted above; the window moves only when the player changes chunk.
+            // Keep the request budget bounded even if the player crosses several chunks while
+            // older HTTP requests are still in flight. Request the center first, then its neighbors.
+            TryRequestTerrainChunk(centerX, centerZ, position.Frame);
             for (var dz = -1; dz <= 1; dz++)
             for (var dx = -1; dx <= 1; dx++)
             {
-                var chunkX = centerX + dx;
-                var chunkZ = centerZ + dz;
-                var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
-                if (_terrainChunks.ContainsKey(chunkId) || _terrainChunkRequests.Contains(chunkId)) continue;
-                if (_terrainChunkRetryAfter.TryGetValue(chunkId, out var retryAfter) && Time.unscaledTime < retryAfter) continue;
-                _terrainChunkRetryAfter.Remove(chunkId);
-                if (!_terrainChunkRequests.Add(chunkId)) continue;
-                _ = LoadTerrainChunkAsync(chunkX, chunkZ, position.Frame, chunkId, _terrainStreamGeneration);
+                if (dx == 0 && dz == 0) continue;
+                TryRequestTerrainChunk(centerX + dx, centerZ + dz, position.Frame);
             }
+        }
+
+        private void TryRequestTerrainChunk(long chunkX, long chunkZ, int frame)
+        {
+            if (_terrainChunkRequests.Count >= MaxConcurrentTerrainChunkRequests) return;
+            var chunkId = frame + ":" + chunkX + ":" + chunkZ;
+            if (_terrainChunks.ContainsKey(chunkId) || _terrainChunkRequests.Contains(chunkId)) return;
+            if (_terrainChunkRetryAfter.TryGetValue(chunkId, out var retryAfter) && Time.unscaledTime < retryAfter) return;
+            _terrainChunkRetryAfter.Remove(chunkId);
+            if (!_terrainChunkRequests.Add(chunkId)) return;
+            _ = LoadTerrainChunkAsync(chunkX, chunkZ, frame, chunkId, _terrainStreamGeneration);
         }
 
         private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, int expectedFrame, string chunkId, int generation)
