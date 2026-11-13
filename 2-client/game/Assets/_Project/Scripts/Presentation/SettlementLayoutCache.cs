@@ -104,7 +104,7 @@ namespace Pogranichye.Client.Presentation
                 var distanceSquared = east * east + north * north;
                 if (distanceSquared > VisibleDistance * VisibleDistance)
                 {
-                    entry.Root.gameObject.SetActive(false);
+                    WorldLayoutPresentationBuilder.SetVisible(entry.Root, false);
                     continue;
                 }
 
