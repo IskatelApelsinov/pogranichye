@@ -257,9 +257,14 @@ namespace Pogranichye.Client.Presentation
                     switch (zone.Kind)
                     {
                         case "forest":
-                        case "copse":
                             material = _forest;
                             thickness = 0.12f;
+                            break;
+                        case "copse":
+                            // A copse is not a full timber forest: keep its floor visibly lighter
+                            // and its tree population sparse to match the server's unavailable-woods feature.
+                            material = _grass;
+                            thickness = 0.08f;
                             break;
                         case "field":
                             material = _field;
@@ -283,7 +288,10 @@ namespace Pogranichye.Client.Presentation
                     // Keep each zone in its own mesh batch so Unity can cull separate forest patches.
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
-                    var edgeFade = Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
+                    var isCopse = zone.Kind == "copse";
+                    var edgeFade = isCopse
+                        ? Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.16f, 3f, 7f)
+                        : Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
                     var zoneTrunks = new System.Collections.Generic.List<Vector3>();
                     var zoneTrunkTriangles = new System.Collections.Generic.List<int>();
                     var zoneCanopies = new System.Collections.Generic.List<Vector3>();
@@ -292,9 +300,11 @@ namespace Pogranichye.Client.Presentation
                     var zoneBushes = new System.Collections.Generic.List<Vector3>();
                     var zoneBushTriangles = new System.Collections.Generic.List<int>();
 
-                    // Roughly 550 mature trees per hectare before edge/obstruction rejection.
-                    // Wide overlapping crowns create a continuous canopy instead of isolated props.
-                    var treeTarget = Mathf.Clamp((int)(area / 18f), 24, 1800);
+                    // Full forest gets a continuous canopy; a copse stays open and is not
+                    // visually misrepresented as the server's harvestable timber woodland.
+                    var treeTarget = isCopse
+                        ? Mathf.Clamp((int)(area / 85f), 5, 36)
+                        : Mathf.Clamp((int)(area / 18f), 24, 1800);
                     var treeAdded = 0;
                     for (var attempt = 0; attempt < treeTarget * 12 && treeAdded < treeTarget; attempt++)
                     {
@@ -306,20 +316,26 @@ namespace Pogranichye.Client.Presentation
                         if (VegetationBlocked(layout, x, z, 2.2f, 4.2f, 8.0f)) continue;
 
                         // Mix tall narrow trees with shorter, broader crowns for a less repetitive skyline.
-                        var broadCanopy = random.NextDouble() < 0.38;
-                        var height = broadCanopy
-                            ? 6.0f + (float)random.NextDouble() * 3.8f
-                            : 8.0f + (float)random.NextDouble() * 4.5f;
-                        var radius = broadCanopy
-                            ? 2.45f + (float)random.NextDouble() * 1.25f
-                            : 1.85f + (float)random.NextDouble() * 0.95f;
+                        var broadCanopy = random.NextDouble() < (isCopse ? 0.58 : 0.38);
+                        var height = isCopse
+                            ? 3.6f + (float)random.NextDouble() * 2.8f
+                            : broadCanopy
+                                ? 6.0f + (float)random.NextDouble() * 3.8f
+                                : 8.0f + (float)random.NextDouble() * 4.5f;
+                        var radius = isCopse
+                            ? 1.1f + (float)random.NextDouble() * 0.9f
+                            : broadCanopy
+                                ? 2.45f + (float)random.NextDouble() * 1.25f
+                                : 1.85f + (float)random.NextDouble() * 0.95f;
                         AddLowPolyTree(zoneTrunks, zoneTrunkTriangles, zoneCanopies, zoneCanopyTriangles,
                             zoneCanopyTipIndices, new Vector3(x, 0f, z), height, radius, random);
                         treeAdded++;
                     }
 
-                    // Dense mixed undergrowth: rounded shrub clusters, with the same soft forest edge.
-                    var bushTarget = Mathf.Clamp((int)(area / 7f), 36, 2600);
+                    // Full forests get dense undergrowth; copses remain open enough to read as small groves.
+                    var bushTarget = isCopse
+                        ? Mathf.Clamp((int)(area / 22f), 8, 60)
+                        : Mathf.Clamp((int)(area / 7f), 36, 2600);
                     var bushAdded = 0;
                     for (var attempt = 0; attempt < bushTarget * 10 && bushAdded < bushTarget; attempt++)
                     {
