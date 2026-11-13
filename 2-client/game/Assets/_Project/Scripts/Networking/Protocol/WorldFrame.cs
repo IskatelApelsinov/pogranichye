@@ -327,6 +327,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("ready")] public bool Ready { get; set; }
         [JsonProperty("coins")] public double Coins { get; set; }
         [JsonProperty("accepted")] public bool Accepted { get; set; }
+        // Optional additive provenance: where this errand was accepted, not the giver's current location.
+        [JsonProperty("settlement_id")] public string SettlementId { get; set; }
+        [JsonProperty("settlement_name")] public string SettlementName { get; set; }
     }
 
     [Serializable]
