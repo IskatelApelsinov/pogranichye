@@ -50,6 +50,8 @@ namespace Pogranichye.Client.Presentation
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
             _iron = MakeTexturedMaterial("Forged iron • dark hoops", new Color(0.19f, 0.20f, 0.20f), 0, 1f, 1f);
+            if (_iron.HasProperty("_Metallic")) _iron.SetFloat("_Metallic", 0.72f);
+            if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
@@ -547,9 +549,9 @@ namespace Pogranichye.Client.Presentation
             instance.name = "Yard barrel • authored oak";
             instance.transform.localPosition = localPosition;
             instance.transform.localRotation = Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f);
-            // The Blender source is authored at 0.36 m high; this matches the former
-            // generated barrel's ~0.78 m height and ~0.69 m maximum diameter.
-            instance.transform.localScale = new Vector3(1.85f, 2.61f, 1.85f);
+            // Match the former generated barrel: ~0.58 m maximum diameter and ~0.78 m height.
+            // The larger scale used by the tutorial village is intentionally not reused here.
+            instance.transform.localScale = new Vector3(1.33f, 2.17f, 1.33f);
             instance.isStatic = true;
 
             var renderers = instance.GetComponentsInChildren<Renderer>(true);
