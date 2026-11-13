@@ -37,10 +37,10 @@ type Server struct {
 	webDir   string
 	tickEach time.Duration
 
-	ctl     map[core.ID]uint64 // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
+	ctl       map[core.ID]uint64    // персонаж → id сессии, что им правит (0/нет — свободен; AI не трогает цель)
 	chatPeers map[core.ID]*chatPeer // активные получатели событий чата; очереди ограничены
-	chatSeq uint64
-	nextSID uint64             // счётчик сессий: у каждого ws-подключения свой id владения телом
+	chatSeq   uint64
+	nextSID   uint64 // счётчик сессий: у каждого ws-подключения свой id владения телом
 	// Подменяемый источник перемешивания нужен для детерминированных серверных тестов.
 	ochkoShuffle func([]sim.OchkoCard) error
 	durakShuffle func([]sim.DurakCard) error
@@ -97,11 +97,11 @@ func New(seed string, villages int, accPath string, secret []byte, webDir string
 	r := core.NewRunnerWith(hub, core.Clock{}, sim.Default()...)
 	return &Server{
 		world: w, runner: r,
-		acc:      accounts.NewStore(accPath, secret),
-		webDir:   webDir,
-		tickEach: defaultWorldTick,
-		ctl:      map[core.ID]uint64{},
-		chatPeers: map[core.ID]*chatPeer{},
+		acc:          accounts.NewStore(accPath, secret),
+		webDir:       webDir,
+		tickEach:     defaultWorldTick,
+		ctl:          map[core.ID]uint64{},
+		chatPeers:    map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
 	}
@@ -113,11 +113,11 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 	r := core.NewRunnerWith(hub, core.Clock{}, sim.Default()...)
 	return &Server{
 		world: w, runner: r,
-		acc:      accounts.NewStore(accPath, secret),
-		webDir:   webDir,
-		tickEach: defaultWorldTick,
-		ctl:      map[core.ID]uint64{},
-		chatPeers: map[core.ID]*chatPeer{},
+		acc:          accounts.NewStore(accPath, secret),
+		webDir:       webDir,
+		tickEach:     defaultWorldTick,
+		ctl:          map[core.ID]uint64{},
+		chatPeers:    map[core.ID]*chatPeer{},
 		ochkoShuffle: shuffleOchkoDeck,
 		durakShuffle: shuffleDurakDeck,
 	}
@@ -408,21 +408,34 @@ func (s *Server) release(cid core.ID, sid uint64) {
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	uid, err := s.acc.Validate(r.URL.Query().Get("token"))
-	if err != nil { http.Error(w, "нужен токен", http.StatusUnauthorized); return }
+	if err != nil {
+		http.Error(w, "нужен токен", http.StatusUnauthorized)
+		return
+	}
 	cid, sid, status := s.reserveBody(uid)
 	switch status {
-	case "none": http.Error(w, "нет свободного тела в мире", http.StatusServiceUnavailable); return
-	case "busy": http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict); return
+	case "none":
+		http.Error(w, "нет свободного тела в мире", http.StatusServiceUnavailable)
+		return
+	case "busy":
+		http.Error(w, "это тело уже под управлением другой сессии", http.StatusConflict)
+		return
 	}
 	s.mu.Lock()
 	if e := s.world.Get(cid); e != nil {
-		sim.EnsureScenePos(s.world, e); sim.EnsurePlayer(s.world, e)
+		sim.EnsureScenePos(s.world, e)
+		sim.EnsurePlayer(s.world, e)
 		sim.RollGift(s.world, e, s.runner.Hub.Stream("gift", eid(e.ID)))
-		if pl := core.Place(e); pl != nil { sim.LearnVisited(s.world, e, pl.Settlement) }
+		if pl := core.Place(e); pl != nil {
+			sim.LearnVisited(s.world, e, pl.Settlement)
+		}
 	}
 	s.mu.Unlock()
 	conn, err := wsUpgrade(w, r)
-	if err != nil { s.release(cid, sid); return }
+	if err != nil {
+		s.release(cid, sid)
+		return
+	}
 	defer conn.Close()
 	defer s.release(cid, sid)
 	defer s.unregisterChat(cid)
@@ -430,25 +443,42 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for { msg, err := conn.ReadText(); if err != nil { return }; s.applyIntent(cid, msg) }
+		for {
+			msg, err := conn.ReadText()
+			if err != nil {
+				return
+			}
+			s.applyIntent(cid, msg)
+		}
 	}()
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	var fastC <-chan time.Time
 	if hz, _ := strconv.Atoi(r.URL.Query().Get("fast")); hz >= 2 {
-		if hz > 15 { hz = 15 }
-		ft := time.NewTicker(time.Second / time.Duration(hz)); defer ft.Stop(); fastC = ft.C
+		if hz > 15 {
+			hz = 15
+		}
+		ft := time.NewTicker(time.Second / time.Duration(hz))
+		defer ft.Stop()
+		fastC = ft.C
 	}
 	_ = conn.WriteText(s.stateJSON(cid))
 	for {
 		select {
-		case <-done: return
+		case <-done:
+			return
 		case event := <-chatEvents:
-			if err := conn.WriteText(event); err != nil { return }
+			if err := conn.WriteText(event); err != nil {
+				return
+			}
 		case <-tick.C:
-			if err := conn.WriteText(s.stateJSON(cid)); err != nil { return }
+			if err := conn.WriteText(s.stateJSON(cid)); err != nil {
+				return
+			}
 		case <-fastC:
-			if err := conn.WriteText(s.fastJSON(cid)); err != nil { return }
+			if err := conn.WriteText(s.fastJSON(cid)); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -480,27 +510,26 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		// навигация менеджмент-клиента v1.6: дискретный переход в локацию
 		Location string `json:"location"`
 		// расширение v1.7: инвентарь/рынок/путешествия
-		Good   string   `json:"good"`
-		Side   string   `json:"side"`
-		Qty    int      `json:"qty"`    // ядро v1.10: плетения, бой, хитрости, просьбы, ремесло, дорога, отряд
-		Nodes  []string `json:"nodes"`  // узор плетения
-		Aim    string   `json:"aim"`    // часть тела: head|torso|arm|leg
-		Style  string   `json:"style"`  // стиль удара
-		Acc    float64  `json:"acc"`    // точность 0..1 (прицельный клиент)
-		Power  float64  `json:"power"`  // натяжение/замах 0..1
-		Aimed  bool     `json:"aimed"`  // клиент целился сам (первое лицо)
-		On     bool     `json:"on"`     // блок вкл/выкл
-		Stance string   `json:"stance"` // стойка
-		Trick  string   `json:"trick"`  // хитрость
-		Choice string   `json:"choice"` // решение на встрече в пути
-		Quest  string   `json:"quest"`  // id просьбы
-		ChatChannel string `json:"channel"`
-		ChatText string `json:"text"`
-		VoiceSDP string `json:"sdp"`
-		VoiceCandidate string `json:"candidate"`
-		VoiceSDPMid string `json:"sdp_mid"`
-		VoiceSDPMLine int `json:"sdp_mline_index"`
-
+		Good           string   `json:"good"`
+		Side           string   `json:"side"`
+		Qty            int      `json:"qty"`    // ядро v1.10: плетения, бой, хитрости, просьбы, ремесло, дорога, отряд
+		Nodes          []string `json:"nodes"`  // узор плетения
+		Aim            string   `json:"aim"`    // часть тела: head|torso|arm|leg
+		Style          string   `json:"style"`  // стиль удара
+		Acc            float64  `json:"acc"`    // точность 0..1 (прицельный клиент)
+		Power          float64  `json:"power"`  // натяжение/замах 0..1
+		Aimed          bool     `json:"aimed"`  // клиент целился сам (первое лицо)
+		On             bool     `json:"on"`     // блок вкл/выкл
+		Stance         string   `json:"stance"` // стойка
+		Trick          string   `json:"trick"`  // хитрость
+		Choice         string   `json:"choice"` // решение на встрече в пути
+		Quest          string   `json:"quest"`  // id просьбы
+		ChatChannel    string   `json:"channel"`
+		ChatText       string   `json:"text"`
+		VoiceSDP       string   `json:"sdp"`
+		VoiceCandidate string   `json:"candidate"`
+		VoiceSDPMid    string   `json:"sdp_mid"`
+		VoiceSDPMLine  int      `json:"sdp_mline_index"`
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -601,13 +630,17 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			var ok bool
 			var why string
 			game := in.Game
-			if game == "" { game = "ochko" } // совместимость с первым контрактом #340
+			if game == "" {
+				game = "ochko"
+			} // совместимость с первым контрактом #340
 			switch game {
 			case "ochko":
 				switch in.Action {
 				case "start":
 					shuffle := s.ochkoShuffle
-					if shuffle == nil { shuffle = shuffleOchkoDeck }
+					if shuffle == nil {
+						shuffle = shuffleOchkoDeck
+					}
 					ok, why = sim.StartOchko(s.world, e, in.ReqID, shuffle)
 				case "hit":
 					ok, why = sim.HitOchko(s.world, e, in.ReqID)
@@ -619,7 +652,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "durak":
 				if in.Action == "start" {
 					shuffle := s.durakShuffle
-					if shuffle == nil { shuffle = shuffleDurakDeck }
+					if shuffle == nil {
+						shuffle = shuffleDurakDeck
+					}
 					ok, why = sim.StartDurak(s.world, e, in.ReqID, shuffle)
 				} else {
 					ok, why = sim.ActDurak(s.world, e, in.Action, in.Index, in.ReqID)
@@ -847,7 +882,9 @@ func shuffleOchkoDeck(cards []sim.OchkoCard) error {
 func shuffleDurakDeck(cards []sim.DurakCard) error {
 	for i := len(cards) - 1; i > 0; i-- {
 		n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(i+1)))
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		j := int(n.Int64())
 		cards[i], cards[j] = cards[j], cards[i]
 	}
@@ -900,43 +937,48 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
 			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
-			"wpos":         sim.WorldPosViewUsing(terrain, s.world, e),    // v1.19: каноническое положение в мире (метры, высота, чанк)
-			"pos":          mePos(e),                                      // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
-			"talk":         meTalk(s.world, e),                            // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
-			"invite_from":  meInvite(s.world, e),                          // кто зовёт выпить вместе (co-drink, v1.4)
-			"social_event": meSocial(e),                                   // подтверждённый тост/угощение (монотонный seq) — v1.5
-			"known_places": s.meKnownPlaces(e),                            // что игрок знает о поселениях: visited/known (#26, v1.5)
-			"desire":       sim.Desire(e),                                 // текущее главное желание (v1.7)
-			"inv":          meInv(e),                                      // инвентарь: предметы, рука, одежда (v1.7)
-			"world":        sim.Settlements(s.world),                      // карта поселений для путешествий (v1.7)
-			"result":       meResult(e),                                   // ack последнего действия (reqid/ok/reason) — #40
-			"task":         sim.OpeningTask(s.world, e),                   // вводная задача + выданное поручение (#80)
-			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()), // личная летопись вех (#54)
+			"wpos":         sim.WorldPosViewUsing(terrain, s.world, e),     // v1.19: каноническое положение в мире (метры, высота, чанк)
+			"pos":          mePos(e),                                       // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
+			"talk":         meTalk(s.world, e),                             // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
+			"invite_from":  meInvite(s.world, e),                           // кто зовёт выпить вместе (co-drink, v1.4)
+			"social_event": meSocial(e),                                    // подтверждённый тост/угощение (монотонный seq) — v1.5
+			"known_places": s.meKnownPlaces(e),                             // что игрок знает о поселениях: visited/known (#26, v1.5)
+			"desire":       sim.Desire(e),                                  // текущее главное желание (v1.7)
+			"inv":          meInv(e),                                       // инвентарь: предметы, рука, одежда (v1.7)
+			"world":        sim.Settlements(s.world),                       // карта поселений для путешествий (v1.7)
+			"result":       meResult(e),                                    // ack последнего действия (reqid/ok/reason) — #40
+			"task":         sim.OpeningTask(s.world, e),                    // вводная задача + выданное поручение (#80)
+			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()),  // личная летопись вех (#54)
 			// ядро v1.10
-			"weave":   sim.WeaveView(s.world, e),                                                            // плетения: узлы, ёмкость ума, знакомые схемы
-			"combat":  sim.CombatView(s.world, e),                                                           // стойка/блок/щит/стрелы/убитые
-			"feed":    sim.Feed(e),                                                                          // лента подтверждённых событий (монотонный seq)
-			"quests":  sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
-			"recipes": sim.RecipesView(s.world, e),                                                                   // ремесло: рецепты и хватает ли сырья
-			"journey": sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
-			"horse":   sim.HorseView(s.world, e),                                                            // лошадь и седельная сумка (v1.13; null — нет)
-			"bag":     sim.BagView(e),                                                                       // сума: загрузка/вместимость от силы (v1.13)
-			"stats":   sim.StatsView(e),                                                                     // характеристики (v1.12)
-			"drunk":   round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
-			"region":  sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
-			"party":   sim.PartyView(s.world, e),                                                            // отряд друзей
-			"card_game": sim.CardGameView(e), // личная партия; скрытая рука корчмаря не попадает в кадр
+			"weave":     sim.WeaveView(s.world, e),                                                            // плетения: узлы, ёмкость ума, знакомые схемы
+			"combat":    sim.CombatView(s.world, e),                                                           // стойка/блок/щит/стрелы/убитые
+			"feed":      sim.Feed(e),                                                                          // лента подтверждённых событий (монотонный seq)
+			"quests":    sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
+			"recipes":   sim.RecipesView(s.world, e),                                                          // ремесло: рецепты и хватает ли сырья
+			"journey":   sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
+			"horse":     sim.HorseView(s.world, e),                                                            // лошадь и седельная сумка (v1.13; null — нет)
+			"bag":       sim.BagView(e),                                                                       // сума: загрузка/вместимость от силы (v1.13)
+			"stats":     sim.StatsView(e),                                                                     // характеристики (v1.12)
+			"drunk":     round0(sim.Drunk(e)),                                                                 // хмель 0..100 (v1.12)
+			"region":    sim.RegionView(s.world, e),                                                           // карта края: известное и тракты (v1.12)
+			"party":     sim.PartyView(s.world, e),                                                            // отряд друзей
+			"card_game": sim.CardGameView(e),                                                                  // личная партия; скрытая рука корчмаря не попадает в кадр
 		},
 	}
 	out["hour"] = s.runner.Clock.Hour()                    // час суток 0..23 — для света/ночи на клиенте
 	if pl != nil && pl.Settlement != 0 && !sim.OnRoad(e) { // в пути сцены поселения нет — см. me.journey
 		if se := s.world.Get(pl.Settlement); se != nil {
 			st := core.Settle(se)
+			vanchorE, vanchorN := sim.Anchor(s.world, st) // якорь СМОТРЯЩЕГО — для рендера соседей через границу (AOI)
 			neighbors := []map[string]any{}
-			for _, o := range s.nearest(e, pl.Settlement, neighborCap) {
+			for _, o := range sim.AOINeighbors(s.world, terrain, e, pl.Settlement, neighborCap) {
 				{
 					if oi := core.Ident(o); oi != nil {
-						nx, ny, nf := neighborPos(s.world, o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
+						// РЕАЛЬНАЯ позиция НПС (ходит сервером); для соседа из СВОЕГО села — как раньше
+						// (его же сцена), для соседа из близкого ЧУЖОГО села у границы (comms 0179/0182/0196,
+						// v1.22) — та же точка мира, выраженная от якоря смотрящего, иначе клиент поставил
+						// бы его в чужой сцене вместо видимой рядом точки за околицей.
+						nx, ny, nf := neighborRenderPos(s.world, terrain, pl.Settlement, vanchorE, vanchorN, o)
 						om := core.Mind(o)
 						// знакомство (v1.4): имя видно только знакомым; иначе аноним + обезличенное desc
 						known := sim.Knows(e, o.ID)
@@ -947,11 +989,11 @@ func (s *Server) stateJSON(cid core.ID) string {
 						neighbors = append(neighbors, map[string]any{
 							"id": eid(o.ID), "name": shownName, "known": known,
 							"desc": sim.DescFor(oi.Role), "role": oi.Role, "trait": oi.Trait, "act": om.LastAct, "want": sim.Desire(o),
-							"gear":     sim.PublicGear(o),     // видимая экипировка: рука + надетое (#48), без личной сумы
-							"act_code": om.ActCode,            // стабильный код занятия соседа (для анимаций)
+							"gear":     sim.PublicGear(o),                          // видимая экипировка: рука + надетое (#48), без личной сумы
+							"act_code": om.ActCode,                                 // стабильный код занятия соседа (для анимаций)
 							"wpos":     sim.WorldPosViewUsing(terrain, s.world, o), // v1.20: та же схема, что me.wpos (comms 0178) — сервер считает глобальную позицию сам, клиент не выводит её из place.anchor
-							"player":   s.ctl[o.ID] != 0,      // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
-							"casting":  sim.CastingSeen(e, o), // плетёт ли (опытный маг читает имя узора) — v1.10
+							"player":   s.ctl[o.ID] != 0,                           // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
+							"casting":  sim.CastingSeen(e, o),                      // плетёт ли (опытный маг читает имя узора) — v1.10
 							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
 					}
 				}
@@ -966,14 +1008,14 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer":        round0(st.Store[sim.BeerGood]), // запас пива в корчме (v1.2)
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
-				"foes":        sim.FoesView(s.world, pl.Settlement),     // звери/лихие люди сцены (v1.10)
-				"exits":       sim.ExitsView(s.world, e, pl.Settlement), // выезды: тракты к соседям и перевал (v1.15)
-				"site":        sim.SiteView(s.world, se),                // место на планете и характер села (v1.14)
-				"anchor":      sim.AnchorView(s.world, pl.Settlement),   // v1.19: центр села в мире; мир = anchor + pos
-				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan, // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
-				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
-				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
-				"life":        s.placeLife(se),                           // агрегаты жизни общины (v1.18)
+				"foes":        sim.FoesView(s.world, pl.Settlement),                     // звери/лихие люди сцены (v1.10)
+				"exits":       sim.ExitsView(s.world, e, pl.Settlement),                 // выезды: тракты к соседям и перевал (v1.15)
+				"site":        sim.SiteView(s.world, se),                                // место на планете и характер села (v1.14)
+				"anchor":      sim.AnchorView(s.world, pl.Settlement),                   // v1.19: центр села в мире; мир = anchor + pos
+				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan,                // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
+				"stable":      sim.StableView(se),                                       // конюшня: лошади на продажу и цена (v1.13)
+				"market":      sim.MarketView(se, e),                                    // прилавок: запас и цены (v1.10)
+				"life":        s.placeLife(se),                                          // агрегаты жизни общины (v1.18)
 				"rooms":       sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()), // комнаты над корчмой: всего/вакантно/цена (v1.20)
 			}
 		}
@@ -1212,6 +1254,23 @@ func neighborPos(w *core.World, e *core.Entity) (x, y, facing float64) {
 	}
 	sx, sy := sim.LayoutFor(w, e).SpawnSpot(uint64(e.ID))
 	return sx, sy, 90
+}
+
+// neighborRenderPos — позиция соседа в ЛОКАЛЬНОЙ сцене СМОТРЯЩЕГО (AOI через границу села, v1.22,
+// comms 0179/0182/0196): для соседа из того же села — обычная neighborPos без изменений; для
+// соседа из ДРУГОГО (близкого) села — та же мировая точка (sim.WorldPosOf), выраженная от якоря
+// СМОТРЯЩЕГО (anchorE/anchorN — sim.Anchor его села), а не от якоря своего села, иначе клиент
+// расположил бы его в чужой сцене вместо видимой у ограды точки. facing берём как обычно.
+func neighborRenderPos(w *core.World, t *sim.Terrain, viewerSettlement core.ID, anchorE, anchorN float64, o *core.Entity) (x, y, facing float64) {
+	x, y, facing = neighborPos(w, o)
+	if p := core.Place(o); p == nil || p.Settlement == viewerSettlement {
+		return x, y, facing
+	}
+	if wp, ok := sim.WorldPosOf(w, t, o); ok {
+		wx, wy, _ := wp.Meters()
+		x, y = wx-anchorE, wy-anchorN
+	}
+	return x, y, facing
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
