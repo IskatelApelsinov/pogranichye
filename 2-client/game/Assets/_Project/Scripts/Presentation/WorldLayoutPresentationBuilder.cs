@@ -149,6 +149,7 @@ namespace Pogranichye.Client.Presentation
             var canopyTriangles = new System.Collections.Generic.List<int>(72000);
             var bushVertices = new System.Collections.Generic.List<Vector3>(18000);
             var bushTriangles = new System.Collections.Generic.List<int>(36000);
+            var canopyTipIndices = new System.Collections.Generic.List<int>(18000);
             var treesAdded = 0;
             for (var attempt = 0; attempt < 900 && treesAdded < 150; attempt++)
             {
@@ -157,7 +158,7 @@ namespace Pogranichye.Client.Presentation
                 if (VegetationBlocked(layout, x, z, 2.8f, 5.0f, 8.0f)) continue;
                 var height = 4f + (float)random.NextDouble() * 5f;
                 var radius = 1.65f + (float)random.NextDouble() * 1.05f;
-                AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
+                AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles, canopyTipIndices,
                     new Vector3(x, 0f, z), height, radius, random);
                 treesAdded++;
             }
@@ -1707,7 +1708,7 @@ namespace Pogranichye.Client.Presentation
         private static void RegisterAssets(Transform root)
         {
             if (root == null || _activeBuildAssets == null) return;
-            var key = root.GetInstanceID();
+            var key = root.GetEntityId();
             CleanupAssetsForKey(key);
             _assetsByLayoutRoot[key] = _activeBuildAssets;
             _activeBuildAssets = null;
