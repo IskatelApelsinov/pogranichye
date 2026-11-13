@@ -295,15 +295,7 @@ namespace Pogranichye.Client
             }
 
             if (_frame?.Me == null) return false;
-            var atWoods = _core != null && _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
-            var atRiver = _core != null && _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
-            if ((atWoods || atRiver) && _activityMiniGame == ActivityMiniGame.None)
-            {
-                var width = Mathf.Min(520f, Screen.width - 24f);
-                var height = atWoods && atRiver ? 94f : 72f;
-                if (new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f,
-                    width, height).Contains(guiPoint)) return true;
-            }
+            if (GetContextActionRect().Contains(guiPoint)) return true;
 
             if (_activityMiniGame != ActivityMiniGame.None)
             {
@@ -1665,24 +1657,88 @@ namespace Pogranichye.Client
             _status = "Ожидаю подтверждения сервера: " + label + "…";
         }
 
+        private Rect GetContextActionRect()
+        {
+            if (_frame?.Me == null || _frame.Place == null || _core == null ||
+                _activityMiniGame != ActivityMiniGame.None)
+                return new Rect(0f, 0f, 0f, 0f);
+
+            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
+            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
+            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
+            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
+            var atSmithy = IsNearActivityPoi("smithy", 10f);
+            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+            if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern)
+                return new Rect(0f, 0f, 0f, 0f);
+
+            var rows = 1 + ((atMine || atGarden || atSmithy) ? 1 : 0) + (atTavern ? 1 : 0);
+            var width = Mathf.Min(560f, Screen.width - 24f);
+            var height = 42f + rows * 34f;
+            return new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height);
+        }
+
         private void DrawContextActions()
         {
-            if (_frame?.Me == null || _core == null || _activityMiniGame != ActivityMiniGame.None) return;
-            var atWoods = IsNearActivityPoi("woods", 10f);
-            var atRiver = IsNearActivityPoi("river", 10f);
-            if (!atWoods && !atRiver) return;
+            var panel = GetContextActionRect();
+            if (panel.width <= 0f) return;
 
-            var width = Mathf.Min(520f, Screen.width - 24f);
-            var height = atWoods && atRiver ? 94f : 72f;
-            GUILayout.BeginArea(new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height));
+            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
+            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
+            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
+            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
+            var atSmithy = IsNearActivityPoi("smithy", 10f);
+            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+
+            GUILayout.BeginArea(panel);
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("МЕСТНОЕ ДЕЛО");
             GUILayout.BeginHorizontal();
             if (atWoods) DrawContextToolAction("axe", 8, "Топор", ActivityMiniGame.Woodcutting, "G");
             if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "J");
             GUILayout.EndHorizontal();
+
+            if (atMine || atGarden || atSmithy)
+            {
+                GUILayout.BeginHorizontal();
+                if (atMine && GUILayout.Button("⛏ Добыть руду")) QueueWorldAction("mine");
+                if (atGarden && GUILayout.Button("🌿 Собрать травы")) QueueWorldAction("gather");
+                if (atGarden && GUILayout.Button("🌾 Помочь в поле")) QueueWorldAction("farmwork");
+                if (atSmithy && GUILayout.Button("⚒ Помочь у горна")) QueueWorldAction("forge");
+                GUILayout.EndHorizontal();
+            }
+
+            if (atTavern)
+            {
+                GUILayout.BeginHorizontal();
+                if (_frame.Me.Mug)
+                {
+                    if (GUILayout.Button("🍺 Выпить пиво")) QueueContextItemAction("consume", "beer", "Выпить пиво");
+                }
+                else if (_frame.Place.Beer > 0)
+                {
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = _frame.Me.Coins >= _frame.Place.BeerPrice;
+                    if (GUILayout.Button("🍺 Заказать кружку · " +
+                        _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                        QueueContextItemAction("buy", "beer", "Заказать пиво");
+                    GUI.enabled = previousEnabled;
+                }
+                else GUILayout.Label("Пиво закончилось.");
+                GUILayout.EndHorizontal();
+            }
             GUILayout.EndVertical();
             GUILayout.EndArea();
+        }
+
+        private void QueueContextItemAction(string op, string item, string label)
+        {
+            if (_core == null || !_core.QueueRequest(label, op, "item", item))
+            {
+                _status = "Не удалось отправить действие: дождитесь ответа на предыдущее.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label + "…";
         }
 
         private void DrawContextToolAction(string item, int price, string label,
