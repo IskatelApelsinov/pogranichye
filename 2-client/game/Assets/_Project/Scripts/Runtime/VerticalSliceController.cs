@@ -297,7 +297,7 @@ namespace Pogranichye.Client
             if (_frame?.Me == null) return false;
             var atWoods = IsNearActivityPoi("woods", 10f);
             var atRiver = IsNearActivityPoi("river", 10f);
-            if (atWoods || atRiver)
+            if ((atWoods || atRiver) && _activityMiniGame == ActivityMiniGame.None)
             {
                 var width = Mathf.Min(520f, Screen.width - 24f);
                 var height = atWoods && atRiver ? 94f : 72f;
@@ -1667,7 +1667,7 @@ namespace Pogranichye.Client
 
         private void DrawContextActions()
         {
-            if (_frame?.Me == null || _core == null) return;
+            if (_frame?.Me == null || _core == null || _activityMiniGame != ActivityMiniGame.None) return;
             var atWoods = IsNearActivityPoi("woods", 10f);
             var atRiver = IsNearActivityPoi("river", 10f);
             if (!atWoods && !atRiver) return;
