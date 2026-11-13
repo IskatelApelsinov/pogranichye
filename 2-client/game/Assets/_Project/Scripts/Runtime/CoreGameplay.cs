@@ -547,6 +547,7 @@ namespace Pogranichye.Client
 
         public void Clear()
         {
+            ClearLockedTarget(false);
             _cancelPlayerWorkGesture();
             foreach (var pair in _foes)
                 if (pair.Value.Root != null) Destroy(pair.Value.Root);
