@@ -423,7 +423,9 @@ func TestTakeTradeWebSocket(t *testing.T) {
 	if player == nil { s.mu.Unlock(); t.Fatal("reserved player body missing") }
 	pos := sim.EnsureScenePos(s.world, player)
 	pos.X, pos.Y = tx, ty
-	core.Purse(player).Coins = 100
+	purse := core.Purse(player)
+	if purse == nil { purse = &core.PurseC{Debts: map[string]float64{}}; s.world.Attach(player, purse) }
+	purse.Coins = 100
 	settlementID := core.Place(player).Settlement
 	settlement := core.Settle(s.world.Get(settlementID))
 	if settlement.Store == nil { settlement.Store = map[string]float64{} }
