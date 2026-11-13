@@ -101,6 +101,7 @@ namespace Pogranichye.Client
         private double _terrainAppliedAnchorUp = double.NaN;
         // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
         private string _layoutSettlementId;
+        private string _prototypeSettlementId;
         private string _layoutRequestedFor;
         private int _layoutRequestGeneration;
         private string _layoutFailedFor;
@@ -2940,8 +2941,13 @@ namespace Pogranichye.Client
 
             // Starter tutorial geometry remains the authored prototype. Generated settlements
             // are independent cached roots so a transition never destroys the previous layout.
-            if (frame.Place.Plan == "starter" || (_layoutSettlementId == null && frame.Place.Plan == null))
+            if (frame.Place.Plan == "starter" ||
+                (_layoutSettlementId == null && frame.Place.Plan == null) ||
+                (!string.IsNullOrEmpty(_prototypeSettlementId) && placeId == _prototypeSettlementId))
             {
+                if (string.IsNullOrEmpty(_prototypeSettlementId) &&
+                    (frame.Place.Plan == "starter" || frame.Place.Plan == null))
+                    _prototypeSettlementId = placeId;
                 if (_layoutRequestedFor != null)
                 {
                     _layoutRequestGeneration++;
