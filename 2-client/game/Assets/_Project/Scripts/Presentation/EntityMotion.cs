@@ -33,6 +33,9 @@ namespace Pogranichye.Client.Presentation
         private Vector3 _networkPositionVelocity;
         private Quaternion _networkTargetRotation;
         private float _lastNetworkTargetAt;
+        private float _presentationUpdateInterval;
+        private float _nextPresentationUpdateAt;
+        private float _presentationDeltaTime;
         private float _nextFootstepSoundAt;
         private float _greetingRemaining;
         private float _drinkGestureRemaining;
@@ -80,6 +83,15 @@ namespace Pogranichye.Client.Presentation
             _networkTargetPosition = position;
             _networkTargetRotation = rotation;
             _lastNetworkTargetAt = now;
+        }
+
+        /// <summary>
+        /// Sets the presentation pose cadence for distance LOD. Network target interpolation
+        /// remains render-rate; only procedural animation work is throttled.
+        /// </summary>
+        public void SetPresentationUpdateInterval(float seconds)
+        {
+            _presentationUpdateInterval = Mathf.Max(0f, seconds);
         }
 
         public void Initialize(Transform body, Transform head, Transform leftArm, Transform rightArm,
@@ -363,7 +375,18 @@ namespace Pogranichye.Client.Presentation
             }
 
             if (_body == null) return;
-            _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, Time.deltaTime * 5.5f);
+
+            // Keep network interpolation above at render frequency, but run procedural
+            // pose work at a distance-dependent cadence. Accumulate scaled time so gestures
+            // and locomotion do not slow down when a distant entity is updated less often.
+            _presentationDeltaTime += animationDeltaTime;
+            var presentationNow = Time.unscaledTime;
+            if (_presentationUpdateInterval > 0f && presentationNow < _nextPresentationUpdateAt)
+                return;
+            var animationDeltaTime = _presentationDeltaTime;
+            _presentationDeltaTime = 0f;
+            _nextPresentationUpdateAt = presentationNow + _presentationUpdateInterval;
+            _locomotion = Mathf.MoveTowards(_locomotion, _locomotionTarget, animationDeltaTime * 5.5f);
             var walking = _locomotion > 0.02f;
             if (!_isPlayer && walking && Time.unscaledTime >= _nextFootstepSoundAt)
             {
@@ -372,25 +395,25 @@ namespace Pogranichye.Client.Presentation
                 NearbyFootstep?.Invoke(transform.position, running);
             }
             if (_workGestureLoop && walking) CancelWorkGesture();
-            _phase += Time.deltaTime * (walking
+            _phase += animationDeltaTime * (walking
                 ? Mathf.Lerp(5.5f, 8.5f, _locomotion) * _walkRate
                 : (_isPlayer ? 2.2f : _idleRate));
 
             if (_drinkGestureRemaining > 0f)
-                _drinkGestureRemaining = Mathf.Max(0f, _drinkGestureRemaining - Time.deltaTime);
+                _drinkGestureRemaining = Mathf.Max(0f, _drinkGestureRemaining - animationDeltaTime);
             if (_talkGestureRemaining > 0f)
-                _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - Time.deltaTime);
+                _talkGestureRemaining = Mathf.Max(0f, _talkGestureRemaining - animationDeltaTime);
             if (_clinkGestureRemaining > 0f)
-                _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - Time.deltaTime);
+                _clinkGestureRemaining = Mathf.Max(0f, _clinkGestureRemaining - animationDeltaTime);
             if (_workGestureLoop)
             {
-                _workGesturePhase += Time.deltaTime * 5.2f;
-                _workGestureMinimumRemaining = Mathf.Max(0f, _workGestureMinimumRemaining - Time.deltaTime);
+                _workGesturePhase += animationDeltaTime * 5.2f;
+                _workGestureMinimumRemaining = Mathf.Max(0f, _workGestureMinimumRemaining - animationDeltaTime);
                 if (_workGestureStopRequested && _workGestureMinimumRemaining <= 0f)
                     EndWorkGesture();
             }
             if (!_workGestureLoop && _actionGestureRemaining > 0f)
-                _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - Time.deltaTime);
+                _actionGestureRemaining = Mathf.Max(0f, _actionGestureRemaining - animationDeltaTime);
 
             if (_heldTankard != null)
             {
@@ -399,7 +422,7 @@ namespace Pogranichye.Client.Presentation
                 var targetTankardRotation = _heldTankardRestRotation * Quaternion.Euler(0f, 0f, sipTilt);
                 _heldTankard.localRotation = Quaternion.Slerp(
                     _heldTankard.localRotation, targetTankardRotation,
-                    1f - Mathf.Exp(-14f * Time.deltaTime));
+                    1f - Mathf.Exp(-14f * animationDeltaTime));
             }
 
             var resting = _activity == "rest";
@@ -471,7 +494,7 @@ namespace Pogranichye.Client.Presentation
             var greeting = _greetingRemaining > 0f && !walking && !_isPlayer;
             if (_greetingRemaining > 0f)
             {
-                _greetingRemaining = Mathf.Max(0f, _greetingRemaining - Time.deltaTime);
+                _greetingRemaining = Mathf.Max(0f, _greetingRemaining - animationDeltaTime);
                 if (_greetingRemaining <= 0f) _attentionTarget = null;
             }
 
@@ -748,7 +771,7 @@ namespace Pogranichye.Client.Presentation
                 }
 
                 _head.localRotation = Quaternion.Slerp(
-                    _head.localRotation, _headTargetRotation, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                    _head.localRotation, _headTargetRotation, 1f - Mathf.Exp(-8f * animationDeltaTime));
             }
         }
     }
