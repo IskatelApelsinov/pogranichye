@@ -15,6 +15,8 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _wind;
         private AudioSource _birds;
         private AudioSource _water;
+        private AudioSource _forge;
+        private AudioSource _hearth;
         private float _ambienceVolume = 0.75f;
         private float _windAtmosphereFactor = 1f;
         private float _birdDaylightFactor = 1f;
@@ -45,6 +47,8 @@ namespace Pogranichye.Client.Presentation
             if (_wind != null) _wind.volume = 0.16f * _ambienceVolume * _windAtmosphereFactor;
             if (_birds != null) _birds.volume = 0.20f * _ambienceVolume * _birdDaylightFactor;
             if (_water != null) _water.volume = 0.22f * _ambienceVolume;
+            if (_forge != null) _forge.volume = 0.18f * _ambienceVolume;
+            if (_hearth != null) _hearth.volume = 0.24f * _ambienceVolume;
         }
 
         public void Initialize()
@@ -67,6 +71,21 @@ namespace Pogranichye.Client.Presentation
             _water.clip = CreateWaterLoop();
             _water.volume = 0.22f * _ambienceVolume;
             _water.Play();
+
+            // One spatial forge bed: distant low fire rumble with sparse hammer strikes.
+            // Unity's 3D rolloff handles listener distance; no per-frame proximity polling.
+            _forge = CreateSource("Ambience • blacksmith forge", 1f, 3f, 26f);
+            _forge.transform.localPosition = new Vector3(27.9f, 1.15f, 20.65f);
+            _forge.clip = CreateForgeLoop();
+            _forge.volume = 0.18f * _ambienceVolume;
+            _forge.Play();
+
+            // Shared north hearth: one localized crackle loop, naturally distance-culled.
+            _hearth = CreateSource("Ambience • village common hearth", 1f, 2f, 22f);
+            _hearth.transform.localPosition = new Vector3(4f, 0.45f, 16f);
+            _hearth.clip = CreateHearthLoop();
+            _hearth.volume = 0.24f * _ambienceVolume;
+            _hearth.Play();
         }
 
         private AudioSource CreateSource(string sourceName, float blend, float minDistance, float maxDistance)
@@ -144,6 +163,73 @@ namespace Pogranichye.Client.Presentation
             return MakeLoop("Generated creek water", samples);
         }
 
+        private static AudioClip CreateHearthLoop()
+        {
+            const int seconds = 9;
+            var samples = new float[SampleRate * seconds];
+            var random = new System.Random(16016);
+            var filtered = 0f;
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var noise = (float)(random.NextDouble() * 2.0 - 1.0);
+                filtered += (noise - filtered) * 0.11f;
+                var slowBreath = 0.76f + 0.24f * Mathf.Sin(i / (float)SampleRate * 1.7f);
+                samples[i] = (filtered * 0.20f + noise * 0.025f) * slowBreath;
+            }
+
+            // A small number of dry, short pops; no particle or emitter-per-ember objects.
+            for (var pop = 0; pop < 15; pop++)
+            {
+                var start = random.Next(0, samples.Length - SampleRate / 20);
+                var length = random.Next(SampleRate / 180, SampleRate / 55);
+                var amplitude = 0.12f + (float)random.NextDouble() * 0.18f;
+                for (var j = 0; j < length; j++)
+                {
+                    var envelope = 1f - j / (float)length;
+                    samples[start + j] += ((float)random.NextDouble() * 2f - 1f)
+                        * envelope * amplitude;
+                }
+            }
+
+            return MakeLoop("Generated village hearth crackle", samples);
+        }
+
+        private static AudioClip CreateForgeLoop()
+        {
+            const int seconds = 10;
+            var samples = new float[SampleRate * seconds];
+            var random = new System.Random(28411);
+            var low = 0f;
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var noise = (float)(random.NextDouble() * 2.0 - 1.0);
+                low += (noise - low) * 0.018f;
+                // Quiet, filtered forge/fire bed; transient strikes are layered below.
+                samples[i] = low * 0.16f + noise * 0.012f;
+            }
+
+            // Sparse irregular hammer taps. Each short, damped metallic partial is
+            // synthesized into the same loop, avoiding extra AudioSources or clips.
+            var strikeTimes = new[] { 0.63f, 2.08f, 2.42f, 5.71f, 7.36f, 8.02f };
+            for (var strike = 0; strike < strikeTimes.Length; strike++)
+            {
+                var start = Mathf.RoundToInt(strikeTimes[strike] * SampleRate);
+                var length = Mathf.RoundToInt((0.11f + (float)random.NextDouble() * 0.055f) * SampleRate);
+                var fundamental = 720f + (float)random.NextDouble() * 420f;
+                var amplitude = 0.11f + (float)random.NextDouble() * 0.045f;
+                for (var j = 0; j < length && start + j < samples.Length; j++)
+                {
+                    var t = j / (float)SampleRate;
+                    var envelope = Mathf.Exp(-t * 25f);
+                    var metallic = Mathf.Sin(2f * Mathf.PI * fundamental * t)
+                        + 0.34f * Mathf.Sin(2f * Mathf.PI * fundamental * 2.73f * t);
+                    samples[start + j] += metallic * envelope * amplitude;
+                }
+            }
+
+            return MakeLoop("Generated distant forge and hammer", samples);
+        }
+
         private static AudioClip MakeLoop(string clipName, float[] samples)
         {
             // Fade the loop boundaries to avoid a hard discontinuity/click on repeat.
@@ -164,6 +250,8 @@ namespace Pogranichye.Client.Presentation
             DestroySource(_wind);
             DestroySource(_birds);
             DestroySource(_water);
+            DestroySource(_forge);
+            DestroySource(_hearth);
         }
 
         private static void DestroySource(AudioSource source)
