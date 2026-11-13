@@ -110,7 +110,10 @@ namespace Pogranichye.Client.Networking.Protocol
             {
                 if (Scheme != "yof-tangent" || Version != 1 || Frame < 0 || Chunk == null || Chunk.Length != 2 ||
                     !IsFinite(East) || !IsFinite(North) || !IsFinite(Up) || !IsFinite(Ground) ||
-                    !IsFinite(HeightAboveGround) || !IsFinite(Latitude) || !IsFinite(Longitude))
+                    !IsFinite(HeightAboveGround) || !IsFinite(Latitude) || !IsFinite(Longitude) ||
+                    Math.Abs(East) > 1000000000d || Math.Abs(North) > 1000000000d ||
+                    Math.Abs(Up) > 1000000000d || Math.Abs(Ground) > 1000000000d ||
+                    Math.Abs(HeightAboveGround) > 1000000000d)
                     return false;
                 // WorldPos uses floor division: negative coordinates just west/south of zero
                 // must belong to chunk -1, not chunk 0.
