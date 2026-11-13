@@ -170,6 +170,17 @@ namespace Pogranichye.Client.Presentation
             if (prototype != null) prototype.gameObject.SetActive(visible && serverLayout == null);
         }
 
+        /// <summary>
+        /// Places a cached settlement layout at its canonical global anchor relative to the
+        /// current presentation origin. The layout's own geometry remains settlement-local.
+        /// </summary>
+        public static void SetPresentationOffset(Transform root, Vector3 offset)
+        {
+            if (root == null) return;
+            var serverLayout = root.Find("ServerLayoutV2");
+            if (serverLayout != null) serverLayout.localPosition = offset;
+        }
+
         public static void Rebuild(Transform root, WorldLayoutFrame layout)
         {
             if (root == null || layout == null || layout.Version != 2) return;
