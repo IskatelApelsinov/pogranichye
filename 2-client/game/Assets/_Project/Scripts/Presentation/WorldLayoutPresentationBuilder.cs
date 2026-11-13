@@ -320,7 +320,57 @@ namespace Pogranichye.Client.Presentation
                     if ((end - start).sqrMagnitude < 0.25f) continue;
                     AddRoad(world, start, end, 2.6f);
                 }
+
+                // Subtle roadside ground cover makes generated settlements feel less sterile.
+                // It is one combined presentation mesh: no colliders, no per-clump GameObjects,
+                // and deterministic from the server-provided road graph.
+                BuildRoadsideGroundCover(world, layout);
             }
+        }
+
+        private static void BuildRoadsideGroundCover(Transform world, WorldLayoutFrame layout)
+        {
+            if (layout == null || layout.Roads == null || layout.Roads.Count == 0) return;
+
+            var vertices = new System.Collections.Generic.List<Vector3>(4200);
+            var triangles = new System.Collections.Generic.List<int>(8400);
+            var random = new System.Random(7319);
+            var added = 0;
+
+            foreach (var road in layout.Roads)
+            {
+                if (road == null || road.Length != 4 || added >= 140) continue;
+                var start = new Vector2((float)road[0], (float)road[1]);
+                var end = new Vector2((float)road[2], (float)road[3]);
+                var delta = end - start;
+                var length = delta.magnitude;
+                if (length < 8f) continue;
+
+                var direction = delta / length;
+                var side = new Vector2(-direction.y, direction.x);
+                var samples = Mathf.Min(12, Mathf.Max(2, Mathf.FloorToInt(length / 9f)));
+                for (var sample = 1; sample < samples && added < 140; sample++)
+                {
+                    // Keep clear of road ends, intersections, buildings and usable POIs.
+                    var along = length * sample / samples;
+                    var offset = 2.1f + (float)random.NextDouble() * 1.15f;
+                    var sign = random.Next(0, 2) == 0 ? -1f : 1f;
+                    var point = start + direction * along + side * (offset * sign);
+                    if (layout.IsBlocked(point.x, point.y) ||
+                        NearAnyBuilding(layout, point.x, point.y, 2.0f) ||
+                        NearAnyPoi(layout, point.x, point.y, 5.5f))
+                        continue;
+
+                    var radius = 0.18f + (float)random.NextDouble() * 0.22f;
+                    var height = 0.16f + (float)random.NextDouble() * 0.18f;
+                    AddLowPolyBush(vertices, triangles, new Vector3(point.x, 0f, point.y),
+                        radius, height, random);
+                    added++;
+                }
+            }
+
+            if (vertices.Count > 0)
+                CreateCombinedMesh(world, "Roadside ground cover • combined", vertices, triangles, _grass);
         }
 
         private static bool NearAnyPoi(WorldLayoutFrame layout, float x, float z, float radius)
