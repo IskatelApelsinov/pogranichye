@@ -104,17 +104,20 @@ namespace Pogranichye.Client.Presentation
             else if (!_captureMouseForGesture)
             {
                 var aimPoint = _lockOnTarget.position + Vector3.up * 1.1f;
-                var toTarget = aimPoint - _target.position;
+                var aimOrigin = _firstPerson ? transform.position : _target.position;
+                var toTarget = aimPoint - aimOrigin;
                 var horizontal = new Vector2(toTarget.x, toTarget.z).magnitude;
                 if (horizontal > 0.05f)
                 {
-                    var desiredYaw = Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg;
-                    var desiredPitch = -Mathf.Atan2(toTarget.y, horizontal) * Mathf.Rad2Deg;
+                    var playerToTarget = aimPoint - _target.position;
+                    var desiredYaw = Mathf.Atan2(playerToTarget.x, playerToTarget.z) * Mathf.Rad2Deg;
+                    var desiredPitch = _firstPerson
+                        ? -Mathf.Atan2(toTarget.y, horizontal) * Mathf.Rad2Deg
+                        : _pitch;
                     var lockBlend = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
                     _yaw = Mathf.LerpAngle(_yaw, desiredYaw, lockBlend);
-                    _pitch = Mathf.Lerp(_pitch, desiredPitch,
-                        lockBlend * (_firstPerson ? 1f : 0.45f));
-                    if (!_firstPerson) _pitch = Mathf.Clamp(_pitch, thirdPersonMinPitch, thirdPersonMaxPitch);
+                    if (_firstPerson)
+                        _pitch = Mathf.Lerp(_pitch, desiredPitch, lockBlend);
                 }
             }
 
