@@ -267,9 +267,15 @@ namespace Pogranichye.Client
             // The title screen and chat are pointer-driven modes: never feed mouse delta
             // into the camera while either is active.
             var pointerOverUi = IsPointerOverUi();
-            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi);
+            // Any open gameplay window (TAB character menu, weave wheel, chat, contextual
+            // panel or mini-game) owns input. Do not let WASD/Space or camera look leak through
+            // while the player is interacting with UI.
+            var gameplayInputBlocked = _chatOpen || pointerOverUi ||
+                (_core != null && _core.CapturesInput) ||
+                _activityMiniGame != ActivityMiniGame.None;
+            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
             Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi;
+            Cursor.visible = _connectionState != WorldConnectionState.Active || gameplayInputBlocked;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
@@ -278,7 +284,7 @@ namespace Pogranichye.Client
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
 
-            if (_connectionState == WorldConnectionState.Active && !_chatOpen)
+            if (_connectionState == WorldConnectionState.Active && !gameplayInputBlocked)
             {
                 UpdateJump();
                 UpdateMovement();
