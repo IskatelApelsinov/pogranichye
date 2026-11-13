@@ -47,11 +47,11 @@ func otherActiveRoom(w *core.World, actor, except core.ID, day int64) bool {
 			return
 		}
 		if r := Room(re); r != nil && r.Tenant == actor {
-            state := RoomLeaseStateAt(r, day)
-            if state == RoomLeaseActive || state == RoomLeaseGrace {
-                found = true
-            }
-        }
+			state := RoomLeaseStateAt(r, day)
+			if state == RoomLeaseActive || state == RoomLeaseGrace {
+				found = true
+			}
+		}
 	})
 	return found
 }
