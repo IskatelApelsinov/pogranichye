@@ -136,6 +136,7 @@ namespace Pogranichye.Client
         private WorldLayoutFrame _layout;
         private readonly Dictionary<string, PoiCoordinate> _layoutPois = new Dictionary<string, PoiCoordinate>();
         private bool _hasLayoutPois;
+        private bool _allowLegacyPoiFallback;
 
         private static readonly Dictionary<string, string> TakeAt = new Dictionary<string, string>
         {
@@ -501,10 +502,11 @@ namespace Pogranichye.Client
         }
 
         /// <summary>Uses the current server Layout v2 POIs for local affordances; never changes server validation.</summary>
-        public void SetLayout(WorldLayoutFrame layout)
+        public void SetLayout(WorldLayoutFrame layout, bool allowLegacyPoiFallback)
         {
-            if (ReferenceEquals(_layout, layout)) return;
+            if (ReferenceEquals(_layout, layout) && _allowLegacyPoiFallback == allowLegacyPoiFallback) return;
             _layout = layout;
+            _allowLegacyPoiFallback = allowLegacyPoiFallback;
             _layoutPois.Clear();
             _hasLayoutPois = layout != null && layout.Pois != null;
             if (!_hasLayoutPois) return;
@@ -2328,7 +2330,7 @@ namespace Pogranichye.Client
         {
             var pos = Obj(_me, "pos");
             if (pos == null || !PoiPositionPolicy.TryResolve(
-                poi, _layoutPois, Poi, _hasLayoutPois, out var anchor))
+                poi, _layoutPois, Poi, _hasLayoutPois, _allowLegacyPoiFallback, out var anchor))
                 return false;
 
             return PoiPositionPolicy.IsWithin(
