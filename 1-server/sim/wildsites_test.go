@@ -2,6 +2,8 @@ package sim
 
 import (
 	"testing"
+	"fmt"
+	"math"
 
 	"pogranichye/core"
 	"pogranichye/dice"
@@ -158,6 +160,51 @@ func TestGenerateStarterWildSitesAreDeterministic(t *testing.T) {
 			if a[i][key] != b[i][key] {
 				t.Fatalf("дикое место #%d отличается по %s: %v vs %v", i, key, a[i][key], b[i][key])
 			}
+		}
+	}
+}
+
+
+// TestWildSitesSeedMatrix — generation must keep wilderness populated and biome-plausible across
+// multiple independent seeds, not only one hand-picked fixture.
+func TestWildSitesSeedMatrix(t *testing.T) {
+	allowed := map[string]map[string]bool{
+		"hills":  {"cave": true, "ruins": true, "tower": true},
+		"forest": {"grove": true, "ruins": true, "cave": true},
+		"coast":  {"spring": true, "ruins": true},
+		"plain":  {"tower": true, "ruins": true, "grove": true},
+		"steppe": {"tower": true, "ruins": true},
+	}
+	for i := 0; i < 8; i++ {
+		seed := fmt.Sprintf("wildsite-matrix-%02d", i)
+		var worlds []*core.World
+		starter, _ := GenerateStarter(seed)
+		generated, _ := Generate(seed, 12+i)
+		worlds = append(worlds, starter, generated)
+		for worldIndex, world := range worlds {
+			assertEverySettlementRegionHasWildSites(t, world)
+			world.Each("wildsite", func(entity *core.Entity) {
+				site := WildSite(entity)
+				if site == nil || site.Region == 0 {
+					t.Errorf("seed %s world %d: дикое место без компонента/региона", seed, worldIndex)
+					return
+				}
+				region := core.Region(world.Get(site.Region))
+				if region == nil {
+					t.Errorf("seed %s world %d: регион дикого места %d отсутствует", seed, worldIndex, site.Region)
+					return
+				}
+				if !allowed[region.Biome][site.Type] {
+					t.Errorf("seed %s world %d: тип %q не подходит биому %q", seed, worldIndex, site.Type, region.Biome)
+				}
+				if math.IsNaN(site.X) || math.IsInf(site.X, 0) ||
+					math.IsNaN(site.Y) || math.IsInf(site.Y, 0) ||
+					math.IsNaN(site.Z) || math.IsInf(site.Z, 0) ||
+					site.Mana < 0.1 || site.Mana > 3.0 ||
+					site.Danger < 0 || site.Danger > 1 {
+					t.Errorf("seed %s world %d: некорректные параметры дикого места: %+v", seed, worldIndex, site)
+				}
+			})
 		}
 	}
 }
