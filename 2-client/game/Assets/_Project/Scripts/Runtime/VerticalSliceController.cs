@@ -86,6 +86,7 @@ namespace Pogranichye.Client
         private const float TerrainChunkRetryDelaySeconds = 10f;
         private const int MaxConcurrentTerrainChunkRequests = 3;
         private int _terrainStreamGeneration;
+        private string _terrainStreamSettlementId;
         private bool _hasTerrainCenter;
         private long _terrainCenterX;
         private long _terrainCenterZ;
@@ -2303,6 +2304,7 @@ namespace Pogranichye.Client
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
                 _terrainAppliedSettlementId = null;
+                _terrainStreamSettlementId = null;
                 _terrainAppliedAnchorEast = double.NaN;
                 _terrainAppliedAnchorNorth = double.NaN;
                 _terrainAppliedAnchorUp = double.NaN;
@@ -2809,6 +2811,24 @@ namespace Pogranichye.Client
                 frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid)
                 return;
 
+            var placeId = frame.Place.Id;
+            if (!string.Equals(_terrainStreamSettlementId, placeId, StringComparison.Ordinal))
+            {
+                // Chunks and in-flight responses are scoped to a settlement presentation window.
+                // Never rebase old cached geometry onto a new settlement anchor.
+                _terrainStreamSettlementId = placeId;
+                _terrainStreamGeneration++;
+                _terrainChunks.Clear();
+                _terrainChunkRequests.Clear();
+                _terrainChunkRetryAfter.Clear();
+                _hasTerrainCenter = false;
+                WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                _terrainAppliedSettlementId = null;
+                _terrainAppliedAnchorEast = double.NaN;
+                _terrainAppliedAnchorNorth = double.NaN;
+                _terrainAppliedAnchorUp = double.NaN;
+            }
+
             var anchor = frame.Place.Anchor;
             var position = frame.Me.WorldPosition;
             if (anchor.Frame != position.Frame || position.Frame != 0) return;
@@ -2918,6 +2938,10 @@ namespace Pogranichye.Client
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
             if (placeId == _layoutSettlementId || placeId == _layoutRequestedFor) return;
+            // Never show one settlement's buildings while the server is already sending another
+            // settlement's NPCs and positions. The new layout is revealed only after anchor validation.
+            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
+            _status = "Подгружается раскладка поселения…";
             // A server without per-settlement layouts sends no plan; the default layout is already right.
             if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
             {
@@ -2948,6 +2972,7 @@ namespace Pogranichye.Client
                         _layoutRequestedFor = null;
                         _layoutFailedFor = placeId;
                         _layoutRetryAfter = Time.unscaledTime + 10f;
+                        _status = "Якорь раскладки не совпал с серверным. Повтор через 10 секунд.";
                         Debug.LogWarning("Раскладка поселения " + placeId +
                             " не совпадает с якорем полного кадра; старая геометрия не будет заменена.");
                         return;
@@ -2959,6 +2984,8 @@ namespace Pogranichye.Client
                     _layoutFailedFor = null;
                     _layoutRetryAfter = 0f;
                     WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                    WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+                    _status = "Поселение загружено: " + (frame.Place.Name ?? placeId);
                 });
             }
             catch (Exception exception)
@@ -2969,6 +2996,7 @@ namespace Pogranichye.Client
                     _layoutRequestedFor = null;
                     _layoutFailedFor = placeId;
                     _layoutRetryAfter = Time.unscaledTime + 10f;
+                    _status = "Не удалось загрузить поселение; повтор через 10 секунд. " + exception.Message;
                     Debug.LogWarning("Не удалось получить раскладку поселения " + placeId + ": " + exception.Message);
                 });
             }
