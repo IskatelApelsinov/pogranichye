@@ -2965,18 +2965,21 @@ namespace Pogranichye.Client
                     if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId ||
                         _frame == null || _frame.Place == null || _frame.Place.Id != placeId) return;
                     var expectedAnchor = _frame.Place.Anchor;
-                    if (layout.Anchor != null && expectedAnchor != null &&
-                        (layout.Anchor.Frame != expectedAnchor.Frame ||
+                    var anchorMismatch = expectedAnchor != null &&
+                        (layout.Anchor == null || layout.Anchor.Frame != expectedAnchor.Frame ||
                          Math.Abs(layout.Anchor.East - expectedAnchor.East) > 0.002d ||
                          Math.Abs(layout.Anchor.North - expectedAnchor.North) > 0.002d ||
-                         Math.Abs(layout.Anchor.Up - expectedAnchor.Up) > 0.002d))
+                         Math.Abs(layout.Anchor.Up - expectedAnchor.Up) > 0.002d);
+                    var settlementMismatch = !string.IsNullOrEmpty(layout.Settlement) &&
+                        !string.Equals(layout.Settlement, placeId, StringComparison.Ordinal);
+                    if (anchorMismatch || settlementMismatch)
                     {
                         _layoutRequestedFor = null;
                         _layoutFailedFor = placeId;
                         _layoutRetryAfter = Time.unscaledTime + 10f;
-                        _status = "Якорь раскладки не совпал с серверным. Повтор через 10 секунд.";
+                        _status = "Раскладка не совпала с поселением или якорем сервера. Повтор через 10 секунд.";
                         Debug.LogWarning("Раскладка поселения " + placeId +
-                            " не совпадает с якорем полного кадра; старая геометрия не будет заменена.");
+                            " не совпадает с идентификатором/якорем полного кадра; старая геометрия не будет заменена.");
                         return;
                     }
 
