@@ -196,7 +196,7 @@ namespace Pogranichye.Client
         private float _fishAt;
         private string _toast;
         private float _toastUntil;
-        private bool _showHints = true;
+        private bool _showHints = false;
         private long _feedSeq;
         private float _hurtFlash;
         private float _hitMarker;
@@ -2084,31 +2084,47 @@ namespace Pogranichye.Client
 
         private void DrawStatus()
         {
-            var combat = Obj(_me, "combat");
-            var x = Screen.width * 0.5f - 170f;
-            var y = Screen.height - 86f;
-            Bar(new Rect(x, y, 340f, 10f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
-            Bar(new Rect(x, y + 13f, 340f, 8f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
-            Bar(new Rect(x, y + 24f, 340f, 8f), Num(_me, "mana") / 100f, new Color(0.5f, 0.65f, 0.88f));
+            // Quiet survival readout: small, unlabeled bars keep the world unobstructed.
+            // Detailed combat state and keybinds remain available on demand with H.
+            const float width = 210f;
+            var x = Screen.width * 0.5f - width * 0.5f;
+            var y = Screen.height - 54f;
+            Bar(new Rect(x, y, width, 5f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
+            Bar(new Rect(x, y + 8f, width, 4f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
+            var mana = Num(_me, "mana");
+            if (mana > 0f)
+                Bar(new Rect(x, y + 15f, width, 4f), mana / 100f, new Color(0.5f, 0.65f, 0.88f));
+
             var drunk = Mathf.Clamp(Num(_me, "drunk"), 0f, 100f);
             if (drunk > 0f)
             {
-                Bar(new Rect(x, y + 35f, 340f, 7f), drunk / 100f, new Color(0.78f, 0.55f, 0.28f));
-                GUI.Label(new Rect(x + 346f, y + 29f, 110f, 20f),
+                Bar(new Rect(x, y + 22f, width, 3f), drunk / 100f, new Color(0.78f, 0.55f, 0.28f));
+                GUI.Label(new Rect(x + width + 6f, y + 15f, 90f, 18f),
                     "Хмель " + drunk.ToString("0", CultureInfo.InvariantCulture) + "%");
             }
+
+            var combat = Obj(_me, "combat");
             var weapon = Str(combat, "weapon");
             var stance = Str(combat, "stance");
-            var line = (string.IsNullOrEmpty(weapon) ? "кулаки" : Name(weapon))
-                + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
-                + " · стойка: " + (stance == "aggressive" ? "яростная" : stance == "defensive" ? "осторожная" : "ровная")
-                + (Flag(combat, "guard") ? " · БЛОК" : "") + (Flag(combat, "sneak") ? " · крадёшься" : "")
-                + (Flag(combat, "feint") ? " · финт готов" : "")
-                + (Num(combat, "shield") > 0f ? " · щит " + (int)Num(combat, "shield") : "");
-            GUI.Label(new Rect(x, y + 45f, 520f, 22f), line);
+            var guard = Flag(combat, "guard");
+            var sneak = Flag(combat, "sneak");
+            var feint = Flag(combat, "feint");
+            var shield = Num(combat, "shield");
+            var combatIsNotable = !string.IsNullOrEmpty(weapon) || guard || sneak || feint ||
+                shield > 0f || (stance.Length > 0 && stance != "balanced");
+            if (combatIsNotable)
+            {
+                var line = (string.IsNullOrEmpty(weapon) ? "К бою" : Name(weapon))
+                    + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
+                    + (stance == "aggressive" ? " · яростная стойка" : stance == "defensive" ? " · осторожная стойка" : "")
+                    + (guard ? " · блок" : "") + (sneak ? " · скрытность" : "")
+                    + (feint ? " · финт" : "") + (shield > 0f ? " · щит " + (int)shield : "");
+                GUI.Label(new Rect(x - 150f, y - 22f, width + 300f, 18f), line);
+            }
+
             if (_showHints)
-                GUI.Label(new Rect(x - 120f, y + 63f, 900f, 22f),
-                    "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · CapsLock/СКМ захват цели · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка · H подсказки");
+                GUI.Label(new Rect(12f, Screen.height - 34f, Screen.width - 24f, 24f),
+                    "ЛКМ удар · ПКМ блок · CapsLock/СКМ захват · Q уворот · F укол · R плетение · Tab дела · H подсказки");
         }
 
         private void DrawFeed()
