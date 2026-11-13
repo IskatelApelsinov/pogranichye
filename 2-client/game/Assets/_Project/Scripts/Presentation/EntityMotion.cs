@@ -379,7 +379,7 @@ namespace Pogranichye.Client.Presentation
             // Keep network interpolation above at render frequency, but run procedural
             // pose work at a distance-dependent cadence. Accumulate scaled time so gestures
             // and locomotion do not slow down when a distant entity is updated less often.
-            _presentationDeltaTime += animationDeltaTime;
+            _presentationDeltaTime += Time.deltaTime;
             var presentationNow = Time.unscaledTime;
             if (_presentationUpdateInterval > 0f && presentationNow < _nextPresentationUpdateAt)
                 return;
