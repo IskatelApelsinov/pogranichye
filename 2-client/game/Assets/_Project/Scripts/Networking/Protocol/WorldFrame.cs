@@ -57,6 +57,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("bleeding")] public double Bleeding { get; set; }
         [JsonProperty("stash")] public Dictionary<string, double> Stash { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        // v1.19 canonical world-space coordinates; optional on older v1 servers.
+        [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
     }
 
     [Serializable]
@@ -87,6 +89,34 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("known")] public bool Known { get; set; }
     }
 
+    /// <summary>v1.19 canonical world position in metres; server precision is integer millimetres.</summary>
+    [Serializable]
+    public sealed class WorldPositionFrame
+    {
+        [JsonProperty("scheme")] public string Scheme { get; set; }
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("ground")] public double Ground { get; set; }
+        [JsonProperty("z")] public double HeightAboveGround { get; set; }
+        [JsonProperty("chunk")] public long[] Chunk { get; set; }
+        [JsonProperty("layer")] public long Layer { get; set; }
+        [JsonProperty("lat")] public double Latitude { get; set; }
+        [JsonProperty("lon")] public double Longitude { get; set; }
+    }
+
+    /// <summary>v1.19 global origin of the current settlement, in metres.</summary>
+    [Serializable]
+    public sealed class WorldAnchorFrame
+    {
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+    }
+
     [Serializable]
     public sealed class ScenePositionFrame
     {
@@ -101,6 +131,8 @@ namespace Pogranichye.Client.Networking.Protocol
     public sealed class PlaceFrame
     {
         [JsonProperty("id")] public string Id { get; set; }
+        // v1.19 settlement origin; optional for legacy servers.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
         /// <summary>v1.19: settlement plan ("starter", "street", "cross", "ring", "scatter").</summary>
         [JsonProperty("plan")] public string Plan { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
