@@ -3115,7 +3115,7 @@ namespace Pogranichye.Client
             if (isTutorialSettlement)
             {
                 if (string.IsNullOrEmpty(_prototypeSettlementId) &&
-                    (frame.Place.Plan == "starter" || frame.Place.Plan == null))
+                    SettlementLayoutSelectionPolicy.IsTutorialLayout(frame.Place.Plan))
                     _prototypeSettlementId = placeId;
                 if (_layoutRequestedFor != null)
                 {
