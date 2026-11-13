@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"pogranichye/core"
@@ -47,7 +48,7 @@ func TestStateFrameRoomsCatalog(t *testing.T) {
 		t.Fatalf("items[] (%d) должен покрывать total (%v)", len(items), rooms["total"])
 	}
 
-	previousID := ""
+	var previousID uint64
 	for i, raw := range items {
 		item, _ := raw.(map[string]any)
 		if item == nil {
@@ -57,10 +58,14 @@ func TestStateFrameRoomsCatalog(t *testing.T) {
 		if !ok || id == "" {
 			t.Fatalf("items[%d].id должен быть непустой строкой, получили %T %v", i, item["id"], item["id"])
 		}
-		if i > 0 && id <= previousID {
-			t.Fatalf("items должны быть отсортированы по id: %q после %q", id, previousID)
+		idValue, err := strconv.ParseUint(id, 10, 64)
+		if err != nil {
+			t.Fatalf("items[%d].id должен быть uint64 строкой: %q", i, id)
 		}
-		previousID = id
+		if i > 0 && idValue <= previousID {
+			t.Fatalf("items должны быть отсортированы по числовому id: %q после %d", id, previousID)
+		}
+		previousID = idValue
 		switch item["lease_state"] {
 		case "vacant", "active", "grace", "expired":
 		default:
