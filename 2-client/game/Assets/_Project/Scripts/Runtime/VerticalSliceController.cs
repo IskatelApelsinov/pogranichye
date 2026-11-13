@@ -82,6 +82,14 @@ namespace Pogranichye.Client
         private WorldLayoutFrame _layout;
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
+        // Nearby settlement graph is cached per current settlement/manifest, not rebuilt on every IMGUI repaint.
+        private readonly List<WorldSettlementFrame> _worldMapNearby = new List<WorldSettlementFrame>();
+        private readonly List<double> _worldMapNearbyDistances = new List<double>();
+        private readonly Dictionary<string, WorldSettlementFrame> _worldMapNearbyById = new Dictionary<string, WorldSettlementFrame>();
+        private WorldManifestFrame _worldMapCachedManifest;
+        private string _worldMapCachedSettlementId;
+        private int _worldMapCachedFrame = -1;
+        private double _worldMapRadius = 500d;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
         private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
@@ -982,6 +990,8 @@ namespace Pogranichye.Client
                 DrawLocalMap();
                 GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  • Жители  ★ Вы");
                 GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
+                GUILayout.Space(8f);
+                DrawWorldConnectionsMap();
             }
 
             GUILayout.Space(10f);
@@ -1126,6 +1136,18 @@ namespace Pogranichye.Client
                 Rect.MinMaxRect(left, top, right, bottom);
         }
 
+        private static void DrawMapLine(Vector2 start, Vector2 end, float thickness, Color color)
+        {
+            var delta = end - start;
+            var length = delta.magnitude;
+            if (length < 1f) return;
+            var center = (start + end) * 0.5f;
+            var previousMatrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, center);
+            DrawMapFill(new Rect(center.x - length * 0.5f, center.y - thickness * 0.5f, length, thickness), color);
+            GUI.matrix = previousMatrix;
+        }
+
         private static void DrawMapFill(Rect rect, Color color)
         {
             var previous = GUI.color;
@@ -1230,6 +1252,186 @@ namespace Pogranichye.Client
                 case "weaver_wait": return "ожидает дела";
                 default: return string.Empty;
             }
+        }
+
+        private void DrawWorldConnectionsMap()
+        {
+            GUILayout.Label("МИРОВЫЕ ДОРОГИ И СОСЕДНИЕ ПОСЕЛЕНИЯ");
+            var place = _frame?.Place;
+            var anchor = place?.Anchor;
+            var manifest = _worldManifest;
+            if (manifest?.Settlements == null || place == null || anchor == null)
+            {
+                GUILayout.Label("Глобальная карта дорог пока недоступна от сервера.");
+                return;
+            }
+
+            EnsureWorldMapNearby(place.Id, anchor.Frame, anchor.East, anchor.North);
+            if (_worldMapNearby.Count == 0)
+            {
+                GUILayout.Label("В этом географическом кадре пока нет известных дорог и поселений.");
+                return;
+            }
+
+            const float mapSize = 320f;
+            var rect = GUILayoutUtility.GetRect(mapSize, mapSize,
+                GUILayout.Width(mapSize), GUILayout.Height(mapSize));
+            DrawMapFill(rect, new Color(0.19f, 0.25f, 0.19f, 1f));
+            for (var i = 1; i < 8; i++)
+            {
+                var x = rect.x + rect.width * i / 8f;
+                var y = rect.y + rect.height * i / 8f;
+                DrawMapFill(new Rect(x, rect.y, 1f, rect.height), new Color(0.75f, 0.78f, 0.64f, 0.12f));
+                DrawMapFill(new Rect(rect.x, y, rect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.12f));
+            }
+
+            EnsureMapStyles();
+            // Draw the authoritative road graph only when both endpoints are in the selected nearby set.
+            if (manifest.Roads != null)
+            {
+                for (var i = 0; i < manifest.Roads.Count; i++)
+                {
+                    var road = manifest.Roads[i];
+                    if (road == null ||
+                        !_worldMapNearbyById.TryGetValue(road.From, out var from) ||
+                        !_worldMapNearbyById.TryGetValue(road.To, out var to))
+                        continue;
+                    var a = WorldMapPoint(from, anchor, rect);
+                    var b = WorldMapPoint(to, anchor, rect);
+                    DrawMapLine(a, b, 2.5f, new Color(0.72f, 0.58f, 0.36f, 0.88f));
+                }
+            }
+
+            var names = new Dictionary<string, string>();
+            var known = _frame.Me?.KnownPlaces;
+            if (known != null)
+                foreach (var item in known)
+                    if (item != null && !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.Name))
+                        names[item.Id] = item.Name;
+            var world = _frame.Me?.World;
+            if (world != null)
+                foreach (var item in world)
+                    if (item != null && !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.Name))
+                        names[item.Id] = item.Name;
+
+            for (var i = 0; i < _worldMapNearby.Count; i++)
+            {
+                var settlement = _worldMapNearby[i];
+                if (settlement == null) continue;
+                var current = string.Equals(settlement.Id, place.Id, StringComparison.Ordinal);
+                var hasName = current || names.TryGetValue(settlement.Id, out _);
+                var label = current ? place.Name :
+                    (names.TryGetValue(settlement.Id, out var knownName) ? knownName : "?");
+                var point = WorldMapPoint(settlement, anchor, rect);
+                var size = current ? 16f : 10f;
+                var previousBackground = GUI.backgroundColor;
+                var previousContent = GUI.contentColor;
+                GUI.backgroundColor = current
+                    ? new Color(0.68f, 0.22f, 0.16f, 1f)
+                    : hasName ? new Color(0.72f, 0.67f, 0.43f, 1f) : new Color(0.42f, 0.48f, 0.40f, 1f);
+                GUI.contentColor = Color.white;
+                GUI.Box(new Rect(point.x - size * 0.5f, point.y - size * 0.5f, size, size),
+                    current ? "★" : hasName ? "●" : "?", _mapNeighborStyle);
+                GUI.backgroundColor = previousBackground;
+                GUI.contentColor = previousContent;
+                if (current || hasName)
+                    GUI.Label(new Rect(point.x + size * 0.5f + 3f, point.y - 8f, 116f, 16f),
+                        label, _mapPoiLabelStyle);
+            }
+
+            var player = _frame.Me?.WorldPosition;
+            if (player != null)
+            {
+                var playerPoint = new Vector2(
+                    rect.center.x + (float)((player.East - anchor.East) / _worldMapRadius) * rect.width * 0.5f,
+                    rect.center.y - (float)((player.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
+                DrawMapFill(new Rect(playerPoint.x - 2f, playerPoint.y - 2f, 4f, 4f), Color.white);
+            }
+            GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? ещё не названное место");
+            GUILayout.Label("Карта показывает соседние поселения и реальные связи из мирового реестра; неизвестные места остаются без имени.");
+        }
+
+        private void EnsureWorldMapNearby(string currentSettlementId, int frameId, double centerEast, double centerNorth)
+        {
+            if (ReferenceEquals(_worldMapCachedManifest, _worldManifest) &&
+                _worldMapCachedSettlementId == currentSettlementId && _worldMapCachedFrame == frameId)
+                return;
+
+            _worldMapCachedManifest = _worldManifest;
+            _worldMapCachedSettlementId = currentSettlementId;
+            _worldMapCachedFrame = frameId;
+            _worldMapNearby.Clear();
+            _worldMapNearbyDistances.Clear();
+            _worldMapNearbyById.Clear();
+            _worldMapRadius = 500d;
+            if (_worldManifest?.Settlements == null) return;
+
+            // Keep direct road neighbors even if farther away, then fill remaining slots
+            // with the nearest settlements. Work is O(settlements × small fixed window) once per place.
+            var directRoadIds = new HashSet<string>();
+            if (_worldManifest.Roads != null)
+            {
+                foreach (var road in _worldManifest.Roads)
+                {
+                    if (road == null) continue;
+                    if (road.From == currentSettlementId && !string.IsNullOrWhiteSpace(road.To))
+                        directRoadIds.Add(road.To);
+                    else if (road.To == currentSettlementId && !string.IsNullOrWhiteSpace(road.From))
+                        directRoadIds.Add(road.From);
+                }
+            }
+
+            var candidates = new List<WorldSettlementFrame>();
+            var distances = new List<double>();
+            foreach (var settlement in _worldManifest.Settlements)
+            {
+                if (settlement == null || settlement.Frame != frameId || string.IsNullOrWhiteSpace(settlement.Id))
+                    continue;
+                if (settlement.Id == currentSettlementId || directRoadIds.Contains(settlement.Id))
+                {
+                    _worldMapNearby.Add(settlement);
+                    _worldMapNearbyDistances.Add(Math.Sqrt(
+                        (settlement.East - centerEast) * (settlement.East - centerEast) +
+                        (settlement.North - centerNorth) * (settlement.North - centerNorth)));
+                    continue;
+                }
+                var dx = settlement.East - centerEast;
+                var dy = settlement.North - centerNorth;
+                var distance = Math.Sqrt(dx * dx + dy * dy);
+                var insertAt = candidates.Count;
+                for (var i = 0; i < distances.Count; i++)
+                    if (distance < distances[i]) { insertAt = i; break; }
+                if (insertAt >= 12) continue;
+                candidates.Insert(insertAt, settlement);
+                distances.Insert(insertAt, distance);
+                if (candidates.Count > 12)
+                {
+                    candidates.RemoveAt(candidates.Count - 1);
+                    distances.RemoveAt(distances.Count - 1);
+                }
+            }
+
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                _worldMapNearby.Add(candidates[i]);
+                _worldMapNearbyDistances.Add(distances[i]);
+            }
+            for (var i = 0; i < _worldMapNearby.Count; i++)
+            {
+                var settlement = _worldMapNearby[i];
+                if (settlement != null && !_worldMapNearbyById.ContainsKey(settlement.Id))
+                    _worldMapNearbyById.Add(settlement.Id, settlement);
+                if (_worldMapNearbyDistances[i] > _worldMapRadius)
+                    _worldMapRadius = _worldMapNearbyDistances[i];
+            }
+            _worldMapRadius = Math.Max(300d, _worldMapRadius * 1.18d);
+        }
+
+        private Vector2 WorldMapPoint(WorldSettlementFrame settlement, WorldAnchorFrame anchor, Rect rect)
+        {
+            return new Vector2(
+                rect.center.x + (float)((settlement.East - anchor.East) / _worldMapRadius) * rect.width * 0.5f,
+                rect.center.y - (float)((settlement.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
         }
 
         private void DrawKnownSettlements()
