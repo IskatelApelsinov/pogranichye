@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Pogranichye.Client.Networking.Protocol;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -21,8 +19,11 @@ namespace Pogranichye.Client.Presentation
             var old = root.Find(RootName);
             if (old != null)
             {
+                var oldFilter = old.GetComponent<MeshFilter>();
+                var oldMesh = oldFilter != null ? oldFilter.sharedMesh : null;
                 old.name = RootName + " (replaced)";
                 UnityEngine.Object.Destroy(old.gameObject);
+                if (oldMesh != null) UnityEngine.Object.Destroy(oldMesh);
             }
 
             var side = chunk.Side;
@@ -71,6 +72,8 @@ namespace Pogranichye.Client.Presentation
             {
                 var shader = Shader.Find("Universal Render Pipeline/Lit");
                 if (shader == null) shader = Shader.Find("Standard");
+                if (shader == null) shader = Shader.Find("Sprites/Default");
+                if (shader == null) return;
                 _material = new Material(shader) { name = "World terrain • URP compatible" };
                 if (_material.HasProperty("_BaseColor"))
                     _material.SetColor("_BaseColor", new Color(0.31f, 0.37f, 0.24f));
