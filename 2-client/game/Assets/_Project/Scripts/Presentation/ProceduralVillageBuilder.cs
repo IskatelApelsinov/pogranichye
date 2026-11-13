@@ -254,18 +254,19 @@ namespace Pogranichye.Client.Presentation
             var door = CreatePrimitive("Door • open", PrimitiveType.Cube, house,
                 new Vector3(-0.92f, 0.72f, -1.34f), new Vector3(0.62f, 1.45f, 0.08f), _roofMaterial);
             door.transform.localRotation = Quaternion.Euler(0f, -62f, 0f);
-            // Individually readable vertical boards and forged straps make the open door
-            // read as a timber object rather than a single dark placeholder slab.
+            // Child transforms inherit the door slab scale (0.62 x 1.45 x 0.08).
+            // Use door-local normalized dimensions so the boards remain full-height,
+            // separated, and proud of the slab instead of being scaled almost paper-thin.
             for (var plank = -1; plank <= 1; plank++)
             {
                 var doorBoard = CreatePrimitive("Door • vertical oak board", PrimitiveType.Cube, door.transform,
-                    new Vector3(plank * 0.18f, 0f, -0.052f), new Vector3(0.16f, 1.34f, 0.025f), _woodMaterial);
+                    new Vector3(plank * 0.34f, 0f, -0.66f), new Vector3(0.31f, 0.92f, 0.30f), _woodMaterial);
                 doorBoard.isStatic = true;
             }
-            foreach (var strapY in new[] { -0.48f, 0.48f })
+            foreach (var strapY in new[] { -0.33f, 0.33f })
             {
                 var strap = CreatePrimitive("Door • iron strap hinge", PrimitiveType.Cube, door.transform,
-                    new Vector3(-0.18f, strapY, -0.075f), new Vector3(0.38f, 0.055f, 0.035f), _metalMaterial);
+                    new Vector3(-0.15f, strapY, -0.72f), new Vector3(0.62f, 0.04f, 0.32f), _metalMaterial);
                 strap.isStatic = true;
             }
             CreatePrimitive("Door handle", PrimitiveType.Sphere, house,
