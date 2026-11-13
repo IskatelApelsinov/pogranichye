@@ -236,6 +236,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("lease_state")] public string LeaseState { get; set; }
         [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        [JsonProperty("available")] public bool Available { get; set; }
     }
 
     [Serializable]
