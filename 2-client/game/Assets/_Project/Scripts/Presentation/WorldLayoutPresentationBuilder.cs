@@ -226,12 +226,6 @@ namespace Pogranichye.Client.Presentation
         private static void BuildGeneratedCountryside(Transform world, WorldLayoutFrame layout)
         {
             var half = (float)layout.WorldHalf;
-            var trunkVertices = new System.Collections.Generic.List<Vector3>(12000);
-            var trunkTriangles = new System.Collections.Generic.List<int>(24000);
-            var canopyVertices = new System.Collections.Generic.List<Vector3>(48000);
-            var canopyTriangles = new System.Collections.Generic.List<int>(96000);
-            var bushVertices = new System.Collections.Generic.List<Vector3>(24000);
-            var bushTriangles = new System.Collections.Generic.List<int>(48000);
             var index = 0;
             if (layout.Zones != null)
             {
@@ -331,14 +325,6 @@ namespace Pogranichye.Client.Presentation
                     CreateCombinedMesh(world, "Woodland zone " + index + " • dense undergrowth", zoneBushes, zoneBushTriangles, _grass, false);
                 }
             }
-            if (trunkVertices.Count > 0)
-            {
-                CreateCombinedMesh(world, "Generated woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
-                CreateCombinedMesh(world, "Generated woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
-            }
-            if (bushVertices.Count > 0)
-                CreateCombinedMesh(world, "Generated woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
-
             BuildGeneratedGroundCover(world, layout);
             BuildGeneratedYardProps(world, layout);
 
