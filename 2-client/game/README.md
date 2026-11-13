@@ -170,3 +170,10 @@ The cross-system integration matrix and acceptance gates are tracked in `3-dev/c
 ## Experimental server seamless mode
 
 The server now defaults to `-seamless=on` at the owner's request. Use `-seamless=off` for the previous settlement-edge behavior or `-seamless=keep` to respect the save. This is server-side experimental activation only: Unity still lacks complete global floating-origin, neighbor-region geometry, terrain collision and seam-safe navigation. Do not interpret this flag as client seamless readiness; expect incomplete/empty terrain outside the currently streamed area until the client streaming slices land.
+
+
+## Authoritative world clock → visual atmosphere
+
+- Full v1 snapshots may include top-level `hour` (0–23). Unity maps this optional field through `WorldFrame.Hour` and calls `WorldEnvironmentBuilder.SetServerHour`, synchronizing sky tint, sun direction/intensity, stars, ambient light and fog palette with the server clock.
+- Older v1 snapshots without `hour` remain valid and keep the local visual preview cycle. The shared fixture and Editor validator cover deserialization, range rejection and backward compatibility.
+- This is presentation synchronization only; it does not change server time, weather or gameplay. Unity Editor/PlayMode verification remains required.

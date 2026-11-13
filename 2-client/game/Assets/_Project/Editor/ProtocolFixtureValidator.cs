@@ -28,6 +28,8 @@ namespace Pogranichye.Client.Editor
                 var frame = WorldFrameParser.Parse(File.ReadAllText(fixturePath));
                 if (!frame.Alive || frame.Me == null || frame.Place == null)
                     throw new FormatException("The shared example is expected to be a living frame with place data.");
+                if (!frame.Hour.HasValue || frame.Hour.Value < 0 || frame.Hour.Value > 23)
+                    throw new FormatException("The shared v1 fixture must deserialize the authoritative hour in range 0..23.");
 
                 if (frame.Me.Position == null || frame.Me.Position.Sequence != 0)
                     throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
@@ -94,10 +96,15 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"me\":{\"id\":\"42\"}}", "missing alive");
             ExpectRejected("{\"v\":\"1\",\"alive\":false}", "string version");
             ExpectRejected("{\"v\":2,\"alive\":false}", "unsupported version");
+            ExpectRejected("{\"v\":1,\"alive\":false,\"hour\":24}", "out-of-range world hour");
+            ExpectRejected("{\"v\":1,\"alive\":false,\"hour\":\"12\"}", "string world hour");
+
+            var timed = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"hour\":23,\"me\":{\"id\":\"42\"}}");
+            if (timed.Hour != 23) throw new FormatException("Optional top-level hour was not deserialized.");
 
             var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}");
-            if (legacy.Me == null || legacy.Me.Position != null)
-                throw new FormatException("A legacy v1.0 frame without pos must remain parseable.");
+            if (legacy.Me == null || legacy.Me.Position != null || legacy.Hour.HasValue)
+                throw new FormatException("A legacy v1.0 frame without pos/hour must remain parseable.");
 
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)

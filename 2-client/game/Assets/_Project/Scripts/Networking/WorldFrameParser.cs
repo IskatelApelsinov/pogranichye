@@ -34,6 +34,11 @@ namespace Pogranichye.Client.Networking
                 throw new NotSupportedException(
                     $"Версия протокола {version} не поддерживается. Клиент поддерживает v{SupportedVersion}.");
 
+            var hourToken = root["hour"];
+            if (hourToken != null && hourToken.Type != JTokenType.Null &&
+                (hourToken.Type != JTokenType.Integer || !int.TryParse(hourToken.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var hour) || hour < 0 || hour > 23))
+                throw new FormatException("Поле hour должно быть целым числом от 0 до 23.");
+
             var aliveToken = root["alive"];
             if (aliveToken == null || aliveToken.Type != JTokenType.Boolean)
                 throw new FormatException("Поле alive должно быть boolean.");
