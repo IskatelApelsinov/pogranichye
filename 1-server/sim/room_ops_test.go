@@ -417,3 +417,102 @@ func TestOldSaveWithoutRoomOrContainerDoesNotBreakViews(t *testing.T) {
 		t.Fatal("вход в несуществующую комнату должен аккуратно отклоняться, а не падать")
 	}
 }
+
+// TestEnterRoomMovesToDistinctInsideAnchorAndExitReturnsToDoor — приоритет P1 из comms
+// 0185/0192/0194: вход/выход должны быть настоящим серверным перемещением ScenePosC, а не только
+// флагом. Обе комнаты одной корчмы должны получать РАЗНЫЕ точки внутри, иначе два арендатора
+// делили бы одну и ту же (demo acceptance criterion).
+func TestEnterRoomMovesToDistinctInsideAnchorAndExitReturnsToDoor(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	other := secondPlayer(t, w, se, e.ID)
+	rooms := tavernRoomsOf(w, se.ID)
+	if len(rooms) < 2 {
+		t.Fatal("нужно хотя бы 2 комнаты, чтобы проверить разные anchors")
+	}
+	doorX, doorY := roomDoorPos(w, Room(w.Get(rooms[0])))
+
+	GoTo(w, e, "tavern")
+	GoTo(w, other, "tavern")
+	RentRoom(w, e, rooms[0], 10, "r1")
+	RentRoom(w, other, rooms[1], 10, "r2")
+
+	if ok, why := EnterRoom(w, e, rooms[0], 10, "e1"); !ok {
+		t.Fatalf("арендатор должен войти: %q", why)
+	}
+	x1, y1 := ScenePos(e).X, ScenePos(e).Y
+	if x1 == doorX && y1 == doorY {
+		t.Fatal("вход должен физически переставить ScenePosC внутрь, не оставляя у двери")
+	}
+
+	if ok, why := EnterRoom(w, other, rooms[1], 10, "e2"); !ok {
+		t.Fatalf("второй арендатор должен войти в свою комнату: %q", why)
+	}
+	x2, y2 := ScenePos(other).X, ScenePos(other).Y
+	if x1 == x2 && y1 == y2 {
+		t.Fatal("две разные комнаты одной корчмы не должны делить одну внутреннюю точку")
+	}
+
+	if ok, why := ExitRoom(w, e, "x1"); !ok {
+		t.Fatalf("выход должен пройти: %q", why)
+	}
+	if ScenePos(e).X != doorX || ScenePos(e).Y != doorY {
+		t.Fatalf("выход должен вернуть к двери (%.1f,%.1f), получили (%.1f,%.1f)", doorX, doorY, ScenePos(e).X, ScenePos(e).Y)
+	}
+	if ScenePos(e).Indoor != "" {
+		t.Fatal("после выхода Indoor должен быть пуст")
+	}
+}
+
+// TestEnterRoomRejectsWrongSettlementEvenAtSameNamedPOI — комната в другом селе не должна быть
+// доступна игроку, стоящему у двери своей собственной корчмы (DoorPOI="tavern" одинаков везде).
+func TestEnterRoomRejectsWrongSettlementEvenAtSameNamedPOI(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	var otherSettlement *core.Entity
+	w.Each("settlement", func(s *core.Entity) {
+		if otherSettlement == nil && s.ID != se.ID {
+			otherSettlement = s
+		}
+	})
+	if otherSettlement == nil {
+		t.Skip("нужно хотя бы 2 поселения в стартовом мире")
+	}
+	foreignRooms := tavernRoomsOf(w, otherSettlement.ID)
+	if len(foreignRooms) == 0 {
+		t.Skip("у соседнего села нет комнат")
+	}
+	// Сделаем игрока «арендатором» чужой комнаты искусственно, минуя RentRoom (который и так
+	// отклонил бы аренду не в своём селе) — проверяем именно барьер EnterRoom по settlement.
+	room := Room(w.Get(foreignRooms[0]))
+	room.Tenant = e.ID
+	room.PaidThrough = 1000
+	room.GraceUntil = 1000
+	room.LeaseState = RoomLeaseActive
+
+	GoTo(w, e, "tavern") // стоит у двери СВОЕГО села, не чужого
+	if ok, why := EnterRoom(w, e, foreignRooms[0], 10, "e1"); ok || why == "" {
+		t.Fatal("вход в комнату чужого села не должен проходить по совпадению имени POI")
+	}
+}
+
+// TestExitRoomAllowedAfterExpiryButReentryAndChestDenied — выход никогда не создаёт softlock:
+// с истёкшей арендой выйти можно, но снова войти или открыть сундук — нет.
+func TestExitRoomAllowedAfterExpiryButReentryAndChestDenied(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	rooms := tavernRoomsOf(w, se.ID)
+	GoTo(w, e, "tavern")
+	RentRoom(w, e, rooms[0], 10, "r1") // paid_through=11, grace=12
+	EnterRoom(w, e, rooms[0], 10, "e1")
+	if ScenePos(e).Indoor == "" {
+		t.Fatal("должен быть внутри перед проверкой истечения")
+	}
+	if ok, why := ExitRoom(w, e, "x1"); !ok {
+		t.Fatalf("выход должен пройти даже после истечения аренды: %q", why)
+	}
+	GoTo(w, e, "tavern")
+	if ok, why := EnterRoom(w, e, rooms[0], 20, "e2"); ok || why == "" {
+		t.Fatal("повторный вход с истёкшей арендой должен отклоняться")
+	}
+	if ok, why := StowToChest(w, e, rooms[0], "axe", 1, 20, "s1"); ok || why == "" {
+		t.Fatal("доступ к сундуку с истёкшей арендой должен отклоняться")
+	}
+}

@@ -123,9 +123,54 @@ func RentRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid st
 	return true, ""
 }
 
-// EnterRoom — войти в снятую комнату (должен стоять у двери корчмы и быть её текущим арендатором
-// с активной либо льготной арендой). Ставит ScenePosC.Indoor; X/Y тела не меняются — отдельной
-// внутренней геометрии пока нет.
+// roomInsideOffset — детерминированный сдвиг от двери до условной точки внутри ИМЕННО этой
+// комнаты (среди комнат с тем же DoorPOI в том же селе), чтобы два арендатора одной корчмы не
+// делили одну и ту же внутреннюю точку. Это не вторая геометрия и не новое поле wire: те же x/y
+// сцены того же поселения (frame 0), что и снаружи — просто другая точка внутри стен корчмы.
+// Стабильно между сохранениями: порядок — по возрастанию ID комнаты, а не по времени создания.
+func roomInsideOffset(w *core.World, roomID core.ID, settlement core.ID, doorPOI string) (dx, dy float64) {
+	var siblings []core.ID
+	w.Each("room", func(re *core.Entity) {
+		if r := Room(re); r != nil && r.Settlement == settlement && r.DoorPOI == doorPOI {
+			siblings = append(siblings, re.ID)
+		}
+	})
+	sort.Slice(siblings, func(i, j int) bool { return siblings[i] < siblings[j] })
+	idx := 0
+	for i, id := range siblings {
+		if id == roomID {
+			idx = i
+		}
+	}
+	offsets := [][2]float64{{3, 2}, {-3, 2}, {3, 4}, {-3, 4}}
+	return offsets[idx%len(offsets)][0], offsets[idx%len(offsets)][1]
+}
+
+// roomDoorPos/roomInsidePos — серверные авторитетные anchors для этой комнаты в системе координат
+// сцены её поселения: дверь (та же точка, что и снаружи для rent/atPoi) и условная точка внутри.
+func roomDoorPos(w *core.World, room *RoomC) (x, y float64) {
+	return LayoutOf(w, room.Settlement).POI(room.DoorPOI)
+}
+
+func roomInsidePos(w *core.World, roomID core.ID, room *RoomC) (x, y float64) {
+	px, py := roomDoorPos(w, room)
+	dx, dy := roomInsideOffset(w, roomID, room.Settlement, room.DoorPOI)
+	return px + dx, py + dy
+}
+
+// roomIDFromIndoor разбирает ScenePosC.Indoor обратно в ID комнаты (формат indoorTag).
+func roomIDFromIndoor(indoor string) (core.ID, bool) {
+	var raw uint64
+	if n, err := fmt.Sscanf(indoor, "room:%d", &raw); n != 1 || err != nil {
+		return 0, false
+	}
+	return core.ID(raw), true
+}
+
+// EnterRoom — войти в снятую комнату: должен стоять у двери корчмы СВОЕГО текущего поселения (а
+// не чужого с тем же именем POI) и быть её текущим арендатором с активной либо льготной арендой.
+// Серверно переставляет ScenePosC на условную точку внутри ИМЕННО этой комнаты (см.
+// roomInsidePos) и ставит Indoor-метку; entity ID не меняется, клиент координат не присылает.
 func EnterRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid string) (bool, string) {
 	if reqid == "" {
 		return false, "нужен reqid"
@@ -138,6 +183,10 @@ func EnterRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid s
 	if roomEnt == nil {
 		return false, "такой комнаты нет"
 	}
+	se := settlementEnt(w, e)
+	if se == nil || room.Settlement != se.ID {
+		return false, "эта комната не в твоём селе"
+	}
 	if room.Tenant != e.ID {
 		return false, "это не твоя комната"
 	}
@@ -149,12 +198,18 @@ func EnterRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid s
 		return false, "нужно быть у входа в корчму"
 	}
 	sp := EnsureScenePos(w, e)
+	sp.X, sp.Y = roomInsidePos(w, roomID, room)
 	sp.Indoor = indoorTag(roomID)
+	if nav := navOf(e); nav != nil {
+		nav.Route = nil
+	}
 	pc.markDone(reqid)
 	return true, ""
 }
 
-// ExitRoom — выйти из текущего интерьера наружу (к двери, с которой входил).
+// ExitRoom — выйти из текущего интерьера наружу, к двери комнаты, из которой вышел. Разрешено
+// всегда, пока игрок внутри — даже с истёкшей арендой (выход никогда не создаёт softlock); повторно
+// войти или открыть сундук с истёкшей арендой при этом всё равно нельзя (см. EnterRoom/CanAccessRoomChest).
 func ExitRoom(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if reqid == "" {
 		return false, "нужен reqid"
@@ -167,7 +222,15 @@ func ExitRoom(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if sp == nil || sp.Indoor == "" {
 		return false, "ты не внутри"
 	}
+	if roomID, ok := roomIDFromIndoor(sp.Indoor); ok {
+		if _, _, room := roomAndChest(w, roomID); room != nil {
+			sp.X, sp.Y = roomDoorPos(w, room)
+		}
+	}
 	sp.Indoor = ""
+	if nav := navOf(e); nav != nil {
+		nav.Route = nil
+	}
 	pc.markDone(reqid)
 	return true, ""
 }
