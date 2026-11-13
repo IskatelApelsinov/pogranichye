@@ -79,7 +79,7 @@ go run ./cmd/pogserver -starter -web ../thin-client/web   # сервер на :8
 | 4 | #209 (merged, 368f22a) летопись в тонком клиенте | показать `me.journal`, не терять его на fast frames | source merged; ручной браузерный прогон pending |
 | 5 | #208 (merged, 92081e0) Unity parser + журнал | optional/null-compatible `me.journal` DTO, validation и экран | source merged; **нужен человек с Unity 6000.6.7f1** для Editor/PlayMode |
 | 6 | #205 (merged, 086a2e3) Unity: единая очередь запросов | talk/say/buy/consume через один `RequestGate` | PlayMode не проверен: Unity Editor BLOCKED |
-| 7 | сохранение мира | #save/load реализованы: `server.SaveTo`, `LoadFrom`, `Autosave`; формат `memory`; тесты `TestWorldSurvivesRestart` и `TestAutosaveZeroIntervalStillSavesOnClose` | слито; проверить путь/права на файл в локальном запуске и отдельно решить persistence аккаунтов/сетевых сессий |
+| 7 | сохранение мира | #save/load реализованы: `server.SaveTo`, `LoadFrom`, `Autosave`; формат `memory`; тесты `TestWorldSurvivesRestart`, `TestJournalSurvivesWorldRestart`, `TestAutosaveZeroIntervalStillSavesOnClose` | слито; проверить путь/права на файл в локальном запуске и отдельно решить persistence аккаунтов/сетевых сессий |
 | 8 | одна доп. механика (P3) | рыбалка: место, удочка, поклёвка, улов, просьба «налови рыбы» | полный серверный цикл и тест; сервер уже умеет, не хватает проверки в клиенте |
 | 9 | два игрока (P4) | прогон сценария двумя клиентами | сетевой тест на два соединения |
 | 10 | открытый мир (P5) | только после утверждения ADR из #200 | — |
