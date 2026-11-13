@@ -75,6 +75,8 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":\"1\"}}}", "string movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":9223372036854775808}}}", "overflowing movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"18446744073709551616\"}}", "overflowing me.id");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":257,\"n\":-1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,-1],\"layer\":1}}}", "global chunk and layer inconsistent with coordinates");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":1,\"n\":1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":1,\"e\":0,\"n\":0,\"u\":120}}}", "settlement anchor frame mismatch");
             ExpectRejected("{\"v\":1,\"me\":{\"id\":\"42\"}}", "missing alive");
             ExpectRejected("{\"v\":\"1\",\"alive\":false}", "string version");
             ExpectRejected("{\"v\":2,\"alive\":false}", "unsupported version");
