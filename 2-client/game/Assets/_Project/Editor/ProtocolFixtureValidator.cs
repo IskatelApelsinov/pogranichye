@@ -52,6 +52,9 @@ namespace Pogranichye.Client.Editor
                     Math.Abs(frame.Me.WorldPosition.East - frame.Place.Anchor.East - frame.Me.Position.X) > 0.002d ||
                     Math.Abs(frame.Me.WorldPosition.North - frame.Place.Anchor.North - frame.Me.Position.Y) > 0.002d)
                     throw new FormatException("v1.19 global position must equal settlement anchor plus local scene position (2 mm tolerance).");
+                if (frame.Me.Weave == null || frame.Me.Weave.Known == null ||
+                    frame.Me.Weave.Nodes == null || frame.Me.Weave.MaxLength <= 0)
+                    throw new FormatException("The shared v1 fixture must include the weave catalogue and known schemas.");
                 if (frame.Place.Life == null || frame.Place.Life.Population < 0 || frame.Place.Life.Working < 0 ||
                     frame.Place.Life.Activities == null || frame.Place.Life.Stock == null || frame.Place.Life.Activities.Maintenance < 0 ||
                     frame.Place.Life.Stock.Wood < 0 || frame.Place.Life.Stock.Metal < 0 || frame.Place.Beer < 0)
