@@ -14,6 +14,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
+      - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
@@ -52,3 +54,8 @@ jobs:
         run: |
           mcs -out:/tmp/hex-cell-coordinate.exe Tests/HexCellCoordinateCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs
           mono /tmp/hex-cell-coordinate.exe
+      - name: Hex cell streaming policy regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/hex-cell-streaming-policy.exe Tests/HexCellStreamingPolicyCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs
+          mono /tmp/hex-cell-streaming-policy.exe
