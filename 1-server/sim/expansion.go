@@ -385,7 +385,7 @@ func chaseBeast(w *core.World, e *core.Entity, reqid string, melee bool) (bool, 
 		return false, "зверья не водится"
 	}
 	// выбрать цель: для охоты — дичь/заяц/кабан, для стычки — хищник
-	order := []string{"hare", "boar", "deer", "fox"}
+	order := []string{"hare", "boar", "fox"}
 	if melee {
 		order = []string{"wolf", "bear", "boar"}
 	}
@@ -412,7 +412,7 @@ func chaseBeast(w *core.World, e *core.Entity, reqid string, melee bool) (bool, 
 	} else if inv.Hand == "axe" {
 		weapon = 10
 	}
-	danger := map[string]float64{"hare": 2, "fox": 6, "deer": 8, "boar": 22, "wolf": 30, "bear": 45}[target]
+	danger := map[string]float64{"hare": 2, "fox": 6, "boar": 22, "wolf": 30, "bear": 45}[target]
 	roll := float64(hashReq(reqid)%100) // 0..99
 	success := roll < 45+skill*1.5+weapon // шанс растёт от навыка и оружия
 	v.Energy -= 12
