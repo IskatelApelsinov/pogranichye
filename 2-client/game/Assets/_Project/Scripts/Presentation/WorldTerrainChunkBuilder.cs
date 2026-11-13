@@ -13,6 +13,17 @@ namespace Pogranichye.Client.Presentation
         private const string RootName = "WorldTerrainChunk";
         private static Material _material;
 
+        public static void Clear(Transform root)
+        {
+            if (root == null) return;
+            var old = root.Find(RootName);
+            if (old == null) return;
+            var filter = old.GetComponent<MeshFilter>();
+            var mesh = filter != null ? filter.sharedMesh : null;
+            UnityEngine.Object.Destroy(old.gameObject);
+            if (mesh != null) UnityEngine.Object.Destroy(mesh);
+        }
+
         public static void Apply(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
         {
             if (root == null || chunk == null || !chunk.IsValid || anchor == null) return;
