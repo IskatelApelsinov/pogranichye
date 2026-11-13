@@ -342,7 +342,7 @@ namespace Pogranichye.Client
             }
             if (_hudCollapsed)
             {
-                if (GUI.Button(new Rect(12, 12, 150, 30), "Показать меню [F1]"))
+                if (GUI.Button(new Rect(12, 12, 38, 30), new GUIContent("≡", "Открыть меню (F1)")))
                     _hudCollapsed = false;
             }
             else
