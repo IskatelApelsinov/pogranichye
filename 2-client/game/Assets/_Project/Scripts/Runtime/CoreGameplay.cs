@@ -1992,6 +1992,8 @@ namespace Pogranichye.Client
             if (distance <= 0.05f) return false;
             var count = Physics.RaycastNonAlloc(cam.transform.position, offset / distance, _visibilityHits,
                 distance - 0.04f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            // A saturated NonAlloc buffer may omit an intervening wall; fail closed for lock-on visibility.
+            if (count >= _visibilityHits.Length) return true;
             for (var i = 0; i < count; i++)
             {
                 var collider = _visibilityHits[i].collider;
