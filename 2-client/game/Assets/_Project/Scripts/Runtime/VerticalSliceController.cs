@@ -40,6 +40,7 @@ namespace Pogranichye.Client
         private WorldInteractionProbe _interactionProbe;
         private bool _createdCameraRig;
         private Transform _presentationRoot;
+        private SettlementLayoutCache _layoutCache;
         private string _login = "";
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
@@ -100,6 +101,7 @@ namespace Pogranichye.Client
         private double _terrainAppliedAnchorUp = double.NaN;
         // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
         private string _layoutSettlementId;
+        private string _prototypeSettlementId;
         private string _layoutRequestedFor;
         private int _layoutRequestGeneration;
         private string _layoutFailedFor;
@@ -196,6 +198,7 @@ namespace Pogranichye.Client
             if (_input == null) _input = gameObject.AddComponent<ClientInput>();
             _presentationRoot = new GameObject("PresentationWorld").transform;
             _presentationRoot.SetParent(transform, false);
+            _layoutCache = new SettlementLayoutCache(_presentationRoot);
             var entityRoot = new GameObject("EntityViews").transform;
             entityRoot.SetParent(_presentationRoot, false);
             _views = new EntityViewRegistry(entityRoot);
@@ -2931,58 +2934,51 @@ namespace Pogranichye.Client
             }
         }
 
-        private bool TryKeepCurrentLayoutAtGlobalPosition(WorldFrame frame)
-        {
-            if (_layout == null || _layout.Anchor == null || frame == null ||
-                frame.Place == null || frame.Place.Anchor == null ||
-                _layout.Anchor.Frame != frame.Place.Anchor.Frame)
-                return false;
-
-            // Layout geometry is settlement-local. Move the previous settlement's root by
-            // (old global anchor - current global anchor), so it remains in the right place
-            // while the next layout is fetched. Never leave it at local (0,0,0) over the new town.
-            var offset = new Vector3(
-                (float)(_layout.Anchor.East - frame.Place.Anchor.East),
-                (float)(_layout.Anchor.Up - frame.Place.Anchor.Up),
-                (float)(_layout.Anchor.North - frame.Place.Anchor.North));
-            WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, offset);
-            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
-            return true;
-        }
-
         private void EnsureLayoutForPlace(WorldFrame frame)
         {
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
-            var preservedPreviousLayout = TryKeepCurrentLayoutAtGlobalPosition(frame);
-            if (placeId == _layoutSettlementId)
+
+            // Starter tutorial geometry remains the authored prototype. Generated settlements
+            // are independent cached roots so a transition never destroys the previous layout.
+            if (frame.Place.Plan == "starter" ||
+                (_layoutSettlementId == null && frame.Place.Plan == null) ||
+                (!string.IsNullOrEmpty(_prototypeSettlementId) && placeId == _prototypeSettlementId))
             {
-                // The player may return before another settlement's layout request completes.
-                // Invalidate that request so a later revisit can request it again.
+                if (string.IsNullOrEmpty(_prototypeSettlementId) &&
+                    (frame.Place.Plan == "starter" || frame.Place.Plan == null))
+                    _prototypeSettlementId = placeId;
                 if (_layoutRequestedFor != null)
                 {
                     _layoutRequestGeneration++;
                     _layoutRequestedFor = null;
                 }
-                WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, Vector3.zero);
-                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
-                return;
-            }
-            if (placeId == _layoutRequestedFor) return;
-            // A server without per-settlement layouts sends no plan; the default layout is already right.
-            if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
-            {
                 _layoutSettlementId = placeId;
+                _layout = null;
+                _layoutCache?.Update(frame);
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
             }
-            // Keep the previous layout visible at its true global offset until the replacement
-            // has passed settlement/anchor validation. Hide only when there is no trustworthy anchor.
-            if (!preservedPreviousLayout)
+
+            if (_layoutCache != null && _layoutCache.TryGet(placeId, frame, out var cachedLayout))
+            {
+                _layout = cachedLayout;
+                _layoutSettlementId = placeId;
+                if (_layoutRequestedFor != null)
+                {
+                    _layoutRequestGeneration++;
+                    _layoutRequestedFor = null;
+                }
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
-            _status = preservedPreviousLayout
-                ? "Подгружается соседнее поселение… прежняя геометрия сохранена."
-                : "Подгружается раскладка поселения…";
+                _layoutFailedFor = null;
+                _status = "Поселение из кэша: " +
+                    (!string.IsNullOrEmpty(frame.Place.Name) ? frame.Place.Name : placeId);
+                return;
+            }
+
+            _layoutCache?.Update(frame); // Keep nearby cached settlements at their true global offsets.
+            if (placeId == _layoutRequestedFor) return;
+            _status = "Подгружается соседнее поселение… прежняя геометрия сохранена.";
             if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
             _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
@@ -3016,14 +3012,21 @@ namespace Pogranichye.Client
                         return;
                     }
 
+                    if (_layoutCache == null || !_layoutCache.Store(placeId, layout, _frame))
+                    {
+                        _layoutRequestedFor = null;
+                        _layoutFailedFor = placeId;
+                        _layoutRetryAfter = Time.unscaledTime + 10f;
+                        _status = "Не удалось собрать геометрию поселения; прежняя геометрия сохранена.";
+                        return;
+                    }
                     _layout = layout;
                     _layoutSettlementId = placeId;
-                    WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, Vector3.zero);
+                    _layoutCache.Update(_frame);
+                    WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
                     _layoutRequestedFor = null;
                     _layoutFailedFor = null;
                     _layoutRetryAfter = 0f;
-                    WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
-                    WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                     _status = "Поселение загружено: " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : placeId);
                 });
             }
@@ -3121,6 +3124,8 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
             WorldEnvironmentBuilder.Cleanup();
+            _layoutCache?.Dispose();
+            _layoutCache = null;
             WorldLayoutPresentationBuilder.Cleanup();
             ProceduralVillageBuilder.Cleanup();
         }
