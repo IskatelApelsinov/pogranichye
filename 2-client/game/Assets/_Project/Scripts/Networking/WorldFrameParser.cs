@@ -109,8 +109,10 @@ namespace Pogranichye.Client.Networking
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Object ||
                 token["scheme"]?.Type != JTokenType.String || token["scheme"].Value<string>() != "yof-tangent" ||
-                token["v"]?.Type != JTokenType.Integer || token["v"].Value<int>() != 1 ||
-                token["frame"]?.Type != JTokenType.Integer)
+                token["v"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["v"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var version) || version != 1 ||
+                token["frame"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
                 throw new FormatException(fieldName + " имеет неподдерживаемую схему координат.");
             foreach (var key in new[] { "e", "n", "u", "ground", "z" })
             {
@@ -132,8 +134,9 @@ namespace Pogranichye.Client.Networking
         private static void ValidateWorldAnchor(JToken token, string fieldName)
         {
             if (token == null || token.Type == JTokenType.Null) return;
-            if (token.Type != JTokenType.Object || token["frame"]?.Type != JTokenType.Integer)
-                throw new FormatException(fieldName + " должен содержать целочисленный frame.");
+            if (token.Type != JTokenType.Object || token["frame"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
+                throw new FormatException(fieldName + " должен содержать неотрицательный целочисленный frame.");
             foreach (var key in new[] { "e", "n", "u" })
                 if (!IsNumber(token[key]) || !IsFinite(token[key].Value<double>()))
                     throw new FormatException(fieldName + "." + key + " должен быть конечным числом в метрах.");
