@@ -478,7 +478,7 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label("ПОДКЛЮЧЕНИЕ К МИРУ");
+                GUILayout.Label(_connectionState == WorldConnectionState.Active && _frame != null && _frame.Alive ? "СИСТЕМНОЕ МЕНЮ" : "ПОДКЛЮЧЕНИЕ К МИРУ");
                 GUILayout.Label("Адрес сервера");
                 GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
                 serverUrl = GUILayout.TextField(serverUrl, GUILayout.Height(32f));
@@ -523,6 +523,8 @@ namespace Pogranichye.Client
                     if (GUILayout.Button("Выйти из аккаунта", GUILayout.Height(32f))) Logout();
                 }
                 GUILayout.Space(8f);
+                if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(30f)))
+                    ToggleFullscreen();
                 if (GUILayout.Button("Настройки", GUILayout.Height(34f))) _showMainSettings = true;
                 if (GUILayout.Button("Выход из игры", GUILayout.Height(34f))) Application.Quit();
             }
