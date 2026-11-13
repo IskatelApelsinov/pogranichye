@@ -93,6 +93,9 @@ namespace Pogranichye.Client
         // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
         private string _layoutSettlementId;
         private string _layoutRequestedFor;
+        private int _layoutRequestGeneration;
+        private string _layoutFailedFor;
+        private float _layoutRetryAfter;
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
         private int _tutorialStep;
@@ -1978,6 +1981,10 @@ namespace Pogranichye.Client
                 return;
 
             ResetSessionJournal();
+            _layoutRequestGeneration++;
+            _layoutRequestedFor = null;
+            _layoutFailedFor = null;
+            _layoutRetryAfter = 0f;
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
@@ -2462,6 +2469,8 @@ namespace Pogranichye.Client
 
         private void DisconnectWorld(string status)
         {
+            _layoutRequestGeneration++;
+            _layoutRequestedFor = null;
             _voiceChat?.StopVoice();
             var socket = _socket;
             _socket = null;
@@ -2625,21 +2634,25 @@ namespace Pogranichye.Client
                 _layoutSettlementId = placeId;
                 return;
             }
+            if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
-            _ = ReloadLayoutAsync(placeId);
+            _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
         }
 
-        private async Task ReloadLayoutAsync(string placeId)
+        private async Task ReloadLayoutAsync(string placeId, int generation)
         {
             try
             {
                 var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(placeId);
                 Enqueue(() =>
                 {
-                    if (_layoutRequestedFor != placeId) return;
+                    if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId ||
+                        _frame == null || _frame.Place == null || _frame.Place.Id != placeId) return;
                     _layout = layout;
                     _layoutSettlementId = placeId;
                     _layoutRequestedFor = null;
+                    _layoutFailedFor = null;
+                    _layoutRetryAfter = 0f;
                     WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
                 });
             }
@@ -2647,7 +2660,10 @@ namespace Pogranichye.Client
             {
                 Enqueue(() =>
                 {
-                    if (_layoutRequestedFor == placeId) _layoutRequestedFor = null;
+                    if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId) return;
+                    _layoutRequestedFor = null;
+                    _layoutFailedFor = placeId;
+                    _layoutRetryAfter = Time.unscaledTime + 10f;
                     Debug.LogWarning("Не удалось получить раскладку поселения " + placeId + ": " + exception.Message);
                 });
             }
