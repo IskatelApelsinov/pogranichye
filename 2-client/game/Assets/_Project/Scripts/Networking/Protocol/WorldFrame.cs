@@ -43,6 +43,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
         [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
@@ -87,6 +88,34 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("visited")] public bool Visited { get; set; }
         [JsonProperty("known")] public bool Known { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveFrame
+    {
+        [JsonProperty("nodes")] public List<WeaveNodeFrame> Nodes { get; set; }
+        [JsonProperty("capacity")] public double Capacity { get; set; }
+        [JsonProperty("max_len")] public int MaxLength { get; set; }
+        [JsonProperty("known")] public List<WeaveSchemaFrame> Known { get; set; }
+        [JsonProperty("gift")] public bool Gift { get; set; }
+        [JsonProperty("limit")] public double Limit { get; set; }
+        [JsonProperty("can_learn")] public bool CanLearn { get; set; }
+        [JsonProperty("can_study")] public bool CanStudy { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveNodeFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("hint")] public string Hint { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveSchemaFrame
+    {
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("nodes")] public List<string> Nodes { get; set; }
     }
 
     [Serializable]
