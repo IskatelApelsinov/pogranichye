@@ -22,7 +22,11 @@ namespace Pogranichye.Client.Presentation
         private void LateUpdate()
         {
             if (_renderer == null) _renderer = GetComponent<Renderer>();
-            if (_camera == null) _camera = Camera.main;
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+                if (_camera == null) _camera = FindFirstObjectByType<Camera>();
+            }
             if (_renderer == null || _camera == null) return;
 
             var towardViewer = _camera.transform.position - transform.position;
