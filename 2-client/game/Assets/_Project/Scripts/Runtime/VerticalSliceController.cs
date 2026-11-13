@@ -2549,6 +2549,9 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    // Keep presentation lighting aligned with authoritative world time.
+                    // Legacy v1 servers without hour retain the local visual preview cycle.
+                    if (frame.Hour.HasValue) WorldEnvironmentBuilder.SetServerHour(frame.Hour.Value);
                     EnsureLayoutForPlace(frame);
                     EnsureTerrainChunkForFrame(frame);
                     if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
