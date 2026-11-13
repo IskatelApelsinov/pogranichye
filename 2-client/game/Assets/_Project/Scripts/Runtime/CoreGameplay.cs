@@ -2856,6 +2856,19 @@ namespace Pogranichye.Client
         {
             var rect = GUILayoutUtility.GetRect(420f, 220f, GUILayout.ExpandWidth(true));
             GUI.Box(rect, GUIContent.none);
+            var inner = new Rect(rect.x + 18f, rect.y + 24f, rect.width - 36f, rect.height - 42f);
+
+            // The map lives inside a scrollable IMGUI panel. Consume the wheel only while
+            // it is over the map so the parent panel does not scroll instead of zooming.
+            var currentEvent = Event.current;
+            if (currentEvent != null && currentEvent.type == EventType.ScrollWheel &&
+                inner.Contains(currentEvent.mousePosition))
+            {
+                _regionMapZoom = Mathf.Clamp(
+                    _regionMapZoom + (currentEvent.delta.y < 0f ? 0.25f : -0.25f), 1f, 4f);
+                currentEvent.Use();
+            }
+
             var points = new Dictionary<string, Vector2>();
             var minX = float.MaxValue;
             var maxX = float.MinValue;
@@ -2871,7 +2884,7 @@ namespace Pogranichye.Client
                 minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
             }
             if (points.Count == 0) return;
-            var inner = new Rect(rect.x + 18f, rect.y + 24f, rect.width - 36f, rect.height - 42f);
+
             const float pad = 18f;
             var spanX = Mathf.Max(1f, maxX - minX);
             var spanY = Mathf.Max(1f, maxY - minY);
@@ -2889,22 +2902,30 @@ namespace Pogranichye.Client
                     break;
                 }
             }
+
             var scale = fitScale * _regionMapZoom;
-            var screenCenter = inner.center;
+            var screenCenter = new Vector2(inner.width * 0.5f, inner.height * 0.5f);
+            Vector2 ProjectPoint(Vector2 worldPoint)
+            {
+                return new Vector2(screenCenter.x + (worldPoint.x - mapCenter.x) * scale,
+                    screenCenter.y - (worldPoint.y - mapCenter.y) * scale);
+            }
             Vector2 Project(JToken node)
             {
-                var x = Num(node, "x");
-                var y = Num(node, "y");
-                return new Vector2(screenCenter.x + (x - mapCenter.x) * scale,
-                    screenCenter.y - (y - mapCenter.y) * scale);
+                return ProjectPoint(new Vector2(Num(node, "x"), Num(node, "y")));
             }
 
+            // Group clips zoomed nodes and roads to the parchment map viewport.
+            GUI.BeginGroup(inner);
             if (roads != null)
             {
                 foreach (var road in roads)
                 {
-                    Vector2 a, b;
-                    if (!points.TryGetValue(Str(road, "a"), out a) || !points.TryGetValue(Str(road, "b"), out b)) continue;
+                    Vector2 worldA, worldB;
+                    if (!points.TryGetValue(Str(road, "a"), out worldA) ||
+                        !points.TryGetValue(Str(road, "b"), out worldB)) continue;
+                    var a = ProjectPoint(worldA);
+                    var b = ProjectPoint(worldB);
                     var delta = b - a;
                     var length = delta.magnitude;
                     if (length < 1f) continue;
@@ -2934,6 +2955,7 @@ namespace Pogranichye.Client
                 if (!string.IsNullOrEmpty(label))
                     GUI.Label(new Rect(point.x + 7f, point.y - 10f, 130f, 20f), label);
             }
+            GUI.EndGroup();
         }
 
         private void DrawPlaces(JArray world, string hereId, bool hereOuter, bool sameSide)
