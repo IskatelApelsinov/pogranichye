@@ -140,3 +140,15 @@ The broader keyboard/mouse scheme and intended weighty-but-responsive character 
 ## Verification status
 
 The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. Parser hardening and Editor-side positive/negative fixture checks are source changes only until the menu action is actually run. URP package pin and setup instructions are committed as project configuration, but actual package resolution, asset assignment, scene generation, runtime compatibility and server integration still require an Editor run. Do not treat this branch as a tested Unity build.
+
+
+## v1.19 world presentation and contextual activity UX
+
+- Generated settlements now use deterministic area-based woodland density instead of a 90-tree cap per forest zone. Trees and low-poly shrub clusters are combined into a small number of meshes (no per-bush GameObjects/colliders); candidate placement avoids building footprints, road corridors, river obstruction and POI approaches. The starter woodland also has a denser tree/shrub pass, and legacy trees overlapping the settlement core/buildings/paths are culled.
+- Public generated buildings (tavern, smithy, granary and market) receive two-sided facade signs using the server-provided building name; the tutorial tavern sign now reads **КОРЧМА** and is larger.
+- The settlement map has a 1×–4× zoom control. Above 1× it follows the player's current local position; off-screen geometry is clipped instead of being clamped to the map edge.
+- Woodcutting and fishing are available through a compact contextual panel near the woods/river, independent of the Character tab. The panel offers server-backed purchase of an axe/rod, equip-to-hand, then starts the existing timing/bite minigame. G starts woodcutting and J starts fishing when the player is in the matching POI area and the correct tool is in hand. The minigame panel is rendered outside the tab scroll view.
+- The pointer becomes visible and camera look is paused while it is over interactive HUD/context/minigame surfaces; camera look resumes when the pointer leaves those surfaces.
+- Inventory distinction: op take buys tools/equipment and increments me.inv.items; market op trade buys bulk goods into me.stash. The Inventory tab now explains the two destinations. The contextual field-tool buttons use the same result-gated take/equip requests; no local optimistic inventory mutation is performed.
+
+These are source-level changes only. Unity Editor 6000.6.7f1, Play Mode, visual vegetation clearance, actual cursor behaviour and server-backed purchase/minigame loops still require runtime verification.
