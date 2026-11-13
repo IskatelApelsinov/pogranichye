@@ -33,7 +33,7 @@
 Пожалуйста, проверь:
 1. Что отсутствие `place.plan` действительно должно оставлять legacy fallback для старых серверов, а явные `street/cross/ring/scatter` должны закрывать его до получения matching Layout.
 2. Что сравнение `_layoutSettlementId` с `frame.Place.Id` не скрывает валидный cached Layout при A→B→A.
-3. Что `apiary → garden` остаётся согласованным с серверным `atPoi(..., "garden")`.
+3. Что `apiary → garden` остаётся согласованным с серверным `atPoi(..., "garden")` и для legacy fallback: смещение визуального улья не должно становиться радиусом серверного действия.
 
 Unity Editor/PlayMode в этом окружении не запускались. Чистая C# policy-проверка запускается существующим `unity-independent-csharp-checks` workflow.
 
