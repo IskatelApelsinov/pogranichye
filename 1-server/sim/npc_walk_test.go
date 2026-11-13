@@ -143,3 +143,67 @@ func TestMigrantStaysAbstractWithoutSeamless(t *testing.T) {
 		t.Fatal("без бесшовного режима идущий должен оставаться вне населения обоих сёл")
 	}
 }
+
+
+// TestMigrantWalksMultiHopRoute — every intermediate settlement on a real road route must become
+// the walker's temporary scene owner; multi-hop journeys may not fall back to invisible teleport travel.
+func TestMigrantWalksMultiHopRoute(t *testing.T) {
+	w, _, _ := starterPlayer(t)
+	SetSeamless(w, true)
+	var settlements []core.ID
+	w.Each("settlement", func(entity *core.Entity) { settlements = append(settlements, entity.ID) })
+	var bestRoute []core.ID
+	var bestFrom, bestTo core.ID
+	for _, from := range settlements {
+		fromSettlement := core.Settle(w.Get(from))
+		roads := RoadGraph(w, isOuter(w, fromSettlement))
+		for _, to := range settlements {
+			if from == to || isOuter(w, fromSettlement) != isOuter(w, core.Settle(w.Get(to))) {
+				continue
+			}
+			route, _ := RoadRoute(roads, from, to)
+			if len(route) > len(bestRoute) {
+				bestRoute, bestFrom, bestTo = route, from, to
+			}
+		}
+	}
+	if len(bestRoute) < 3 {
+		t.Skip("стартовая дорожная сеть не содержит маршрута через промежуточное поселение")
+	}
+
+	person := spawnMigrant(w, bestFrom)
+	if !StartMigration(w, person, bestTo, "multi-hop-test", 0) {
+		t.Fatal("переселение по многошаговому дорожному маршруту должно начаться")
+	}
+	m := Migration(person)
+	if m == nil || len(m.Route) < 3 {
+		t.Fatalf("ожидался многошаговый маршрут, получено %+v", m)
+	}
+	intermediateSeen := make(map[core.ID]bool)
+	terrain := NewTerrain(w)
+	total := int(m.TotalHours) + 1
+	for hour := 1; hour <= total && Migration(person) != nil; hour++ {
+		(MigrationSystem{}).Hour(w, core.Clock{TotalHours: int64(hour)}, nil)
+		if ScenePos(person) == nil {
+			t.Fatalf("на часу %d у многошагового переселенца пропало тело", hour)
+		}
+		if place := core.Place(person); place != nil {
+			for _, id := range m.Route[1 : len(m.Route)-1] {
+				if place.Settlement == id {
+					intermediateSeen[id] = true
+				}
+			}
+		}
+		if _, ok := WorldPosOf(w, terrain, person); !ok {
+			t.Fatalf("на часу %d не удалось получить WPOS многошагового переселенца", hour)
+		}
+	}
+	for _, id := range m.Route[1 : len(m.Route)-1] {
+		if !intermediateSeen[id] {
+			t.Errorf("переселенец не проходил через промежуточное поселение %d", id)
+		}
+	}
+	if Migration(person) != nil || core.Place(person).Settlement != bestTo {
+		t.Fatal("многошаговое переселение должно завершиться в конечном поселении")
+	}
+}
