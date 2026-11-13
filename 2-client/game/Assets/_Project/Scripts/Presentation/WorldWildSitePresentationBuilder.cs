@@ -42,14 +42,14 @@ namespace Pogranichye.Client.Presentation
             _root.SetParent(parent, false);
             foreach (var site in manifest.WildSites)
             {
-                    if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
-                        continue;
-                    Views.Add(site.Id, new SiteView
-                    {
-                        Id = site.Id, Frame = site.Frame, East = site.East,
-                        North = site.North, Up = site.Up, Ground = site.Ground, Type = site.Type,
-                        Mana = site.Mana, Danger = site.Danger
-                    });
+                if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
+                    continue;
+                Views.Add(site.Id, new SiteView
+                {
+                    Id = site.Id, Frame = site.Frame, East = site.East,
+                    North = site.North, Up = site.Up, Ground = site.Ground, Type = site.Type,
+                    Mana = site.Mana, Danger = site.Danger
+                });
             }
         }
 
@@ -62,7 +62,7 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            if (_root == null || _root.parent != parent || !ReferenceEquals(_manifest, manifest))
+            if (_root == null || _root.parent != parent || !object.ReferenceEquals(_manifest, manifest))
                 Rebuild(parent, manifest);
             if (_root == null) return;
             _root.gameObject.SetActive(true);
