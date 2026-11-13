@@ -22,6 +22,8 @@ namespace Pogranichye.Client.Presentation
         private bool _labelVisible = true;
         private bool _shadowsEnabled = true;
 
+        public int AnimationTier => _animationTier;
+
         public void Initialize(GameObject label, Renderer[] renderers)
         {
             _label = label;
