@@ -154,6 +154,83 @@ func TestTerrainIsDeterministicFlatInVillagesAndSeamless(t *testing.T) {
 	}
 }
 
+func TestTerrainChunkBordersAreDeterministicForSignedCoordinates(t *testing.T) {
+	w, player, starter := starterPlayer(t)
+	var other core.ID
+	w.Each("settlement", func(se *core.Entity) {
+		if other == 0 && se.ID != starter.ID {
+			other = se.ID
+		}
+	})
+	if other == 0 {
+		t.Fatal("нужно второе поселение для проверки независимости от активного села")
+	}
+
+	// Check all supported grid steps, including boundaries at negative coordinates and zero.
+	for _, step := range []int{8, 16, 32, 64} {
+		side := ChunkMeters/step + 1
+		for _, c := range []struct{ cx, cz int64 }{
+			{-3, -2}, {-1, -1}, {0, -3}, {2, 1},
+		} {
+			west := TerrainChunk(w, c.cx, c.cz, step)["heights"].([]float64)
+			east := TerrainChunk(w, c.cx+1, c.cz, step)["heights"].([]float64)
+			for row := 0; row < side; row++ {
+				if west[row*side+side-1] != east[row*side] {
+					t.Fatalf("горизонтальный шов step=%d chunk=(%d,%d) row=%d: %.2f != %.2f",
+						step, c.cx, c.cz, row, west[row*side+side-1], east[row*side])
+				}
+			}
+		}
+
+		for _, c := range []struct{ cx, cz int64 }{
+			{-4, -2}, {-1, -1}, {1, 0}, {2, 3},
+		} {
+			south := TerrainChunk(w, c.cx, c.cz, step)["heights"].([]float64)
+			north := TerrainChunk(w, c.cx, c.cz+1, step)["heights"].([]float64)
+			for col := 0; col < side; col++ {
+				if south[(side-1)*side+col] != north[col] {
+					t.Fatalf("вертикальный шов step=%d chunk=(%d,%d) col=%d: %.2f != %.2f",
+						step, c.cx, c.cz, col, south[(side-1)*side+col], north[col])
+				}
+			}
+		}
+	}
+
+	// Requesting the same chunks in reverse order must not change their height samples.
+	aFirst := TerrainChunk(w, -2, -3, 16)
+	bSecond := TerrainChunk(w, -1, -3, 16)
+	bFirst := TerrainChunk(w, -1, -3, 16)
+	aSecond := TerrainChunk(w, -2, -3, 16)
+	assertTerrainHeightsEqual(t, "chunk A after reverse request order", aFirst, aSecond)
+	assertTerrainHeightsEqual(t, "chunk B after reverse request order", bSecond, bFirst)
+
+	// The same canonical chunk must not depend on which settlement the player currently owns.
+	place := core.Place(player)
+	if place == nil {
+		t.Fatal("у тестового игрока должно быть PlaceC")
+	}
+	originalSettlement := place.Settlement
+	before := TerrainChunk(w, -2, -3, 16)
+	place.Settlement = other
+	after := TerrainChunk(w, -2, -3, 16)
+	place.Settlement = originalSettlement
+	assertTerrainHeightsEqual(t, "terrain while player is in another settlement", before, after)
+}
+
+func assertTerrainHeightsEqual(t *testing.T, label string, a, b map[string]any) {
+	t.Helper()
+	ah, aok := a["heights"].([]float64)
+	bh, bok := b["heights"].([]float64)
+	if !aok || !bok || len(ah) != len(bh) {
+		t.Fatalf("%s: несовместимые сетки высот", label)
+	}
+	for i := range ah {
+		if ah[i] != bh[i] {
+			t.Fatalf("%s: sample %d изменился: %.2f != %.2f", label, i, ah[i], bh[i])
+		}
+	}
+}
+
 func firstSettlement(w *core.World) *core.Entity {
 	var se *core.Entity
 	w.Each("settlement", func(e *core.Entity) {
