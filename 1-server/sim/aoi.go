@@ -55,7 +55,9 @@ func AOICandidateSettlements(w *core.World, origin core.ID) map[core.ID]bool {
 // РОВНО тот же список и тот же порядок, что и старое «ближайшие в своём селе» (кандидат-сёл всего
 // одно — своё, расстояние совпадает с локальной сценой, т.к. якорь общий). t — общий Terrain кадра
 // (считать его на каждого соседа — O(сёл) обход мира ещё раз, см. предупреждение в
-// WorldPosViewUsing). skip — сам смотрящий (игрок/НПС, чей кадр собирается).
+// WorldPosViewUsing). Переселенцы в пути проходят anchor-prefilter: их Place указывает ближайшее
+// село маршрута, но тело уже может быть далеко от его якоря; для них решает только WorldPosOf.
+// skip — сам смотрящий (игрок/НПС, чей кадр собирается).
 func AOINeighbors(w *core.World, t *Terrain, skip *core.Entity, origin core.ID, n int) []*core.Entity {
 	if n <= 0 || skip == nil {
 		return nil
@@ -75,7 +77,7 @@ func AOINeighbors(w *core.World, t *Terrain, skip *core.Entity, origin core.ID, 
 			return
 		}
 		p := core.Place(o)
-		if p == nil || !cand[p.Settlement] || core.Ident(o) == nil {
+		if p == nil || (!cand[p.Settlement] && Migration(o) == nil) || core.Ident(o) == nil {
 			return
 		}
 		np, ok := WorldPosOf(w, t, o)
