@@ -457,6 +457,8 @@ namespace Pogranichye.Client.Networking.Protocol
         /// <summary>Seamless world: land beyond world_half is open ground, not a wall.</summary>
         [JsonProperty("open")] public bool Open { get; set; }
         [JsonProperty("settlement")] public string Settlement { get; set; }
+        // v1.19: settlement-local layout origin in the same global frame as place.anchor.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
 
         /// <summary>True when the layout was generated for a non-tutorial settlement.</summary>
         public bool IsGenerated => !string.IsNullOrEmpty(Plan) && Plan != "starter";
