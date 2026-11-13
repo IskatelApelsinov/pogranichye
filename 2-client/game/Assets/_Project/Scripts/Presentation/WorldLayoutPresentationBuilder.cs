@@ -274,6 +274,7 @@ namespace Pogranichye.Client.Presentation
                     var zoneTrunkTriangles = new System.Collections.Generic.List<int>();
                     var zoneCanopies = new System.Collections.Generic.List<Vector3>();
                     var zoneCanopyTriangles = new System.Collections.Generic.List<int>();
+                    var zoneCanopyTipIndices = new System.Collections.Generic.List<int>();
                     var zoneBushes = new System.Collections.Generic.List<Vector3>();
                     var zoneBushTriangles = new System.Collections.Generic.List<int>();
 
@@ -299,7 +300,7 @@ namespace Pogranichye.Client.Presentation
                             ? 2.45f + (float)random.NextDouble() * 1.25f
                             : 1.85f + (float)random.NextDouble() * 0.95f;
                         AddLowPolyTree(zoneTrunks, zoneTrunkTriangles, zoneCanopies, zoneCanopyTriangles,
-                            new Vector3(x, 0f, z), height, radius, random);
+                            zoneCanopyTipIndices, new Vector3(x, 0f, z), height, radius, random);
                         treeAdded++;
                     }
 
@@ -321,7 +322,8 @@ namespace Pogranichye.Client.Presentation
                     }
 
                     CreateCombinedMesh(world, "Woodland zone " + index + " • trunks", zoneTrunks, zoneTrunkTriangles, _trunk, false);
-                    CreateCombinedMesh(world, "Woodland zone " + index + " • layered canopy", zoneCanopies, zoneCanopyTriangles, _forest, true);
+                    CreateCombinedMesh(world, "Woodland zone " + index + " • layered canopy",
+                        zoneCanopies, zoneCanopyTriangles, _forest, true, zoneCanopyTipIndices);
                     CreateCombinedMesh(world, "Woodland zone " + index + " • dense undergrowth", zoneBushes, zoneBushTriangles, _grass, false);
                 }
             }
@@ -854,6 +856,7 @@ namespace Pogranichye.Client.Presentation
             System.Collections.Generic.List<int> trunkTriangles,
             System.Collections.Generic.List<Vector3> canopyVertices,
             System.Collections.Generic.List<int> canopyTriangles,
+            System.Collections.Generic.List<int> canopyTipIndices,
             Vector3 position, float height, float radius, System.Random random)
         {
             // Six-sided tapered trunk, with three irregular foliage tiers instead of a single sphere.
@@ -899,6 +902,7 @@ namespace Pogranichye.Client.Presentation
                     canopyVertices.Add(position + new Vector3(Mathf.Cos(angle) * r,
                         tierY + (ring == 0 ? 0f : tierHeight),
                         Mathf.Sin(angle) * r));
+                    if (ring == 1) canopyTipIndices.Add(tierBase + sides + side);
                 }
                 for (var side = 0; side < sides; side++)
                 {
@@ -915,7 +919,8 @@ namespace Pogranichye.Client.Presentation
 
         private static void CreateCombinedMesh(Transform parent, string objectName,
             System.Collections.Generic.List<Vector3> vertices,
-            System.Collections.Generic.List<int> triangles, Material material, bool castShadows = true)
+            System.Collections.Generic.List<int> triangles, Material material, bool castShadows = true,
+            System.Collections.Generic.List<int> windTipIndices = null)
         {
             if (vertices.Count == 0 || triangles.Count == 0) return;
             var mesh = new Mesh { name = objectName };
@@ -927,12 +932,16 @@ namespace Pogranichye.Client.Presentation
             if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
             var go = new GameObject(objectName);
             go.transform.SetParent(parent, false);
-            go.isStatic = true;
+            var hasWindTips = windTipIndices != null && windTipIndices.Count > 0;
+            // Animated canopy meshes must not be marked static; trunks and all other batches remain static.
+            go.isStatic = !hasWindTips;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
             renderer.receiveShadows = castShadows;
+            if (hasWindTips)
+                go.AddComponent<WoodlandCanopyWind>().Initialize(mesh, windTipIndices);
         }
 
         private static void BuildRiverSurface(Transform parent, WorldLayoutFrame layout)
@@ -1633,6 +1642,50 @@ namespace Pogranichye.Client.Presentation
                 if (collider != null) UnityEngine.Object.Destroy(collider);
             }
             return go;
+        }
+    }
+    /// <summary>
+    /// Wind response for the upper canopy vertices of a batched woodland mesh.
+    /// Only crown tips move; trunks, lower foliage and collision stay still.
+    /// </summary>
+    public sealed class WoodlandCanopyWind : MonoBehaviour
+    {
+        private const float UpdateInterval = 0.12f;
+        private Mesh _mesh;
+        private Vector3[] _rest;
+        private Vector3[] _vertices;
+        private int[] _tipIndices;
+        private float _nextUpdateAt;
+
+        public void Initialize(Mesh mesh, System.Collections.Generic.List<int> tipIndices)
+        {
+            _mesh = mesh;
+            if (_mesh == null || tipIndices == null || tipIndices.Count == 0) return;
+            _rest = _mesh.vertices;
+            _vertices = new Vector3[_rest.Length];
+            Array.Copy(_rest, _vertices, _rest.Length);
+            _tipIndices = tipIndices.ToArray();
+            var bounds = _mesh.bounds;
+            bounds.Expand(new Vector3(0.32f, 0.04f, 0.32f));
+            _mesh.bounds = bounds;
+        }
+
+        private void Update()
+        {
+            if (_mesh == null || _rest == null || _tipIndices == null || Time.time < _nextUpdateAt) return;
+            _nextUpdateAt = Time.time + UpdateInterval;
+            var direction = WorldAtmosphereCycle.WindDirection;
+            var wind = WorldAtmosphereCycle.WindStrength;
+            var time = Time.time * 0.72f;
+            for (var i = 0; i < _tipIndices.Length; i++)
+            {
+                var index = _tipIndices[i];
+                var rest = _rest[index];
+                var phase = time + (rest.x * direction.x + rest.z * direction.y) * 0.19f;
+                var sway = Mathf.Sin(phase) * 0.075f * wind;
+                _vertices[index] = rest + new Vector3(direction.x * sway, 0f, direction.y * sway);
+            }
+            _mesh.vertices = _vertices;
         }
     }
 }
