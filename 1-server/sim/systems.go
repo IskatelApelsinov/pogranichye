@@ -597,7 +597,7 @@ func settlementOf(w *core.World, e *core.Entity) *core.Entity {
 func residentsOf(w *core.World, settlement core.ID) []*core.Entity {
 	var out []*core.Entity
 	w.Each("place", func(e *core.Entity) {
-		if pl := core.Place(e); pl != nil && pl.Settlement == settlement && core.Ident(e) != nil {
+		if pl := core.Place(e); pl != nil && pl.Settlement == settlement && core.Ident(e) != nil && Migration(e) == nil {
 			out = append(out, e)
 		}
 	})
@@ -612,7 +612,7 @@ func residentIndex(w *core.World) map[core.ID][]*core.Entity {
 		if core.Ident(e) == nil {
 			return
 		}
-		if pl := core.Place(e); pl != nil && pl.Settlement != 0 {
+		if pl := core.Place(e); pl != nil && pl.Settlement != 0 && Migration(e) == nil {
 			idx[pl.Settlement] = append(idx[pl.Settlement], e)
 		}
 	})
