@@ -173,6 +173,10 @@ func (MigrationSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 	if w == nil {
 		return
 	}
+	// Бесшовный мир: прямые переходы между соседними сёлами становятся видимым пешим путём
+	// (см. npc_walk.go). Многошаговые/перевальные маршруты и небесшовные миры эта функция не
+	// трогает — ниже всё работает как раньше, только позиция уже материализована.
+	StepMigrants(w)
 	var arrived []*core.Entity
 	w.Each("migration", func(e *core.Entity) {
 		m := Migration(e)
