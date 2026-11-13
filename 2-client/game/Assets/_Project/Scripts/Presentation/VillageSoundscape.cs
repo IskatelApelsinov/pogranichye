@@ -5,7 +5,7 @@ namespace Pogranichye.Client.Presentation
 {
     /// <summary>
     /// A small, deterministic set of procedural ambience loops for the local village.
-    /// Keeps source count bounded: one 2D wind bed and two spatial ambience emitters.
+    /// Keeps source count bounded: one 2D wind bed and five spatial ambience emitters.
     /// Replace generated clips with authored/licensed recordings when the audio pack is ready.
     /// </summary>
     [DisallowMultipleComponent]
@@ -17,6 +17,7 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _water;
         private AudioSource _forge;
         private AudioSource _hearth;
+        private AudioSource _tavern;
         private float _ambienceVolume = 0.75f;
         private float _windAtmosphereFactor = 1f;
         private float _birdDaylightFactor = 1f;
@@ -49,6 +50,7 @@ namespace Pogranichye.Client.Presentation
             if (_water != null) _water.volume = 0.22f * _ambienceVolume;
             if (_forge != null) _forge.volume = 0.18f * _ambienceVolume;
             if (_hearth != null) _hearth.volume = 0.24f * _ambienceVolume;
+            if (_tavern != null) _tavern.volume = 0.12f * _ambienceVolume;
         }
 
         public void Initialize()
@@ -86,6 +88,14 @@ namespace Pogranichye.Client.Presentation
             _hearth.clip = CreateHearthLoop();
             _hearth.volume = 0.24f * _ambienceVolume;
             _hearth.Play();
+
+            // A restrained, spatial room murmur makes the inn feel occupied without
+            // adding voice actors, per-NPC emitters, or a constant village-wide noise bed.
+            _tavern = CreateSource("Ambience • muffled tavern conversation", 1f, 4f, 24f);
+            _tavern.transform.localPosition = new Vector3(-33f, 1.25f, 20f);
+            _tavern.clip = CreateTavernMurmurLoop();
+            _tavern.volume = 0.12f * _ambienceVolume;
+            _tavern.Play();
         }
 
         private AudioSource CreateSource(string sourceName, float blend, float minDistance, float maxDistance)
@@ -230,6 +240,53 @@ namespace Pogranichye.Client.Presentation
             return MakeLoop("Generated distant forge and hammer", samples);
         }
 
+        private static AudioClip CreateTavernMurmurLoop()
+        {
+            const int seconds = 12;
+            var samples = new float[SampleRate * seconds];
+            var random = new System.Random(28491);
+            var voiceCount = 7;
+
+            // Soft, overlapping speech-like tonal beds, deliberately indistinct:
+            // this is ambience only and never conveys dialogue or gameplay information.
+            for (var voice = 0; voice < voiceCount; voice++)
+            {
+                var start = random.Next(0, samples.Length / 3);
+                var length = random.Next(SampleRate * 2, SampleRate * 5);
+                var fundamental = 105f + (float)random.NextDouble() * 95f;
+                var formant = 420f + (float)random.NextDouble() * 520f;
+                var phase = (float)random.NextDouble() * Mathf.PI * 2f;
+                var amplitude = 0.018f + (float)random.NextDouble() * 0.018f;
+                for (var j = 0; j < length && start + j < samples.Length; j++)
+                {
+                    var t = j / (float)SampleRate;
+                    var envelope = Mathf.Sin(Mathf.PI * j / Mathf.Max(1f, length - 1f));
+                    var syllable = 0.72f + 0.28f * Mathf.Sin(t * (3.2f + voice * 0.31f) + phase);
+                    var tone = Mathf.Sin(2f * Mathf.PI * fundamental * t + phase) * 0.55f
+                        + Mathf.Sin(2f * Mathf.PI * formant * t + phase * 0.7f) * 0.18f;
+                    var breath = (float)(random.NextDouble() * 2.0 - 1.0) * 0.12f;
+                    samples[start + j] += (tone + breath) * envelope * syllable * amplitude;
+                }
+            }
+
+            // A few distant tableware ticks add life without sounding like repeated SFX.
+            for (var tick = 0; tick < 5; tick++)
+            {
+                var start = random.Next(0, samples.Length - SampleRate / 12);
+                var length = random.Next(SampleRate / 90, SampleRate / 35);
+                var frequency = 1450f + (float)random.NextDouble() * 900f;
+                for (var j = 0; j < length; j++)
+                {
+                    var t = j / (float)SampleRate;
+                    var envelope = Mathf.Exp(-t * 42f);
+                    samples[start + j] += Mathf.Sin(2f * Mathf.PI * frequency * t)
+                        * envelope * 0.012f;
+                }
+            }
+
+            return MakeLoop("Generated distant tavern murmur", samples);
+        }
+
         private static AudioClip MakeLoop(string clipName, float[] samples)
         {
             // Fade the loop boundaries to avoid a hard discontinuity/click on repeat.
@@ -252,6 +309,7 @@ namespace Pogranichye.Client.Presentation
             DestroySource(_water);
             DestroySource(_forge);
             DestroySource(_hearth);
+            DestroySource(_tavern);
         }
 
         private static void DestroySource(AudioSource source)
