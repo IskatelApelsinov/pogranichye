@@ -311,6 +311,12 @@ search:
 	if !ok {
 		t.Fatalf("покупка пива отклонена: %s", reason)
 	}
+	// The full wire snapshot must expose the purchased beer as a mug, not as a generic item.
+	boughtFrame := c.full()
+	boughtMe := boughtFrame["me"].(map[string]any)
+	if boughtMe["mug"] != true {
+		t.Fatalf("after buying beer me.mug must be true, got %v", boughtMe["mug"])
+	}
 	var coins1 float64
 	c.world(func(e *core.Entity) {
 		coins1 = core.Purse(e).Coins
@@ -326,8 +332,14 @@ search:
 			t.Fatalf("повтор платного reqid списал деньги второй раз: %.2f → %.2f", coins1, core.Purse(e).Coins)
 		}
 	})
-	if ok, reason, _ := c.result(`"op":"consume","item":"beer"`); !ok {
+	consumeOK, reason, consumeReq := c.result(`"op":"consume","item":"beer"`)
+	if !consumeOK {
 		t.Fatalf("выпить не удалось: %s", reason)
+	}
+	// Retrying the same consume reqid must acknowledge the original result without
+	// creating another drink event or another journal milestone.
+	if ok, retryReason, _ := c.resultWith(`"op":"consume","item":"beer"`, consumeReq); !ok {
+		t.Fatalf("повтор consume с тем же reqid должен быть идемпотентен: %s", retryReason)
 	}
 	// пустую кружку второй раз не выпить
 	if ok, _, _ := c.result(`"op":"consume","item":"beer"`); ok {
