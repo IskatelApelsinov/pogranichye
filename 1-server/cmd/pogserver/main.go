@@ -38,7 +38,7 @@ func main() {
 	frontierMax := flag.Int("frontier-max", 300, "бесконечный мир: потолок числа поселений (0 — мир не растёт)")
 	frontierVillages := flag.Int("frontier-villages", 4, "бесконечный мир: деревень в каждом новом краю")
 	savePath := flag.String("save", "world.sav", "файл сохранения мира (\"\" — не сохранять)")
-	saveEvery := flag.Int("save-every", 120, "автосохранение мира, секунд")
+	saveEvery := flag.Int("save-every", 120, "автосохранение мира, секунд (0 — только при остановке)")
 	seamless := flag.String("seamless", "on", "бесшовный мир: on — между сёлами ходят ногами (по умолчанию); off — по-старому; keep — как записано в сохранении")
 	uniform := flag.Bool("uniform-layouts", false, "предохранитель: все сёла со стартовой раскладкой, как до v1.19")
 	flag.Parse()
