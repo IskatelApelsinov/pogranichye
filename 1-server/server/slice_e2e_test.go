@@ -56,6 +56,28 @@ func (c *sliceClient) full() map[string]any {
 	return nil
 }
 
+// gotoAndWait waits for the authoritative body position to reach the requested POI.
+// Merely reading the next full frame is racy: the WS writer may have queued that frame
+// before the intent reader applies the preceding goto command.
+func (c *sliceClient) gotoAndWait(location string) map[string]any {
+	c.t.Helper()
+	c.send(`{"v":1,"op":"goto","location":"%s"}`, location)
+	tx, ty := sim.StarterLayout().POI(location)
+	for i := 0; i < 10; i++ {
+		f := c.full()
+		me, _ := f["me"].(map[string]any)
+		pos, _ := me["pos"].(map[string]any)
+		if pos == nil { continue }
+		x, xOK := pos["x"].(float64)
+		y, yOK := pos["y"].(float64)
+		if xOK && yOK && math.Hypot(x-tx, y-ty) <= 2.5 {
+			return f
+		}
+	}
+	c.t.Fatalf("игрок не дошёл до POI %q по подтверждённой позиции", location)
+	return nil
+}
+
 // result шлёт намерение с новым reqid и ждёт me.result ИМЕННО с этим reqid (полный или быстрый кадр).
 func (c *sliceClient) result(intent string) (bool, string, string) {
 	c.t.Helper()
@@ -138,22 +160,19 @@ func TestVerticalSliceTalkWorkBeer(t *testing.T) {
 	var npc string
 search:
 	for _, loc := range []string{"well", "tavern", "market", "hearth", "smithy", "granary"} {
-		c.send(`{"v":1,"op":"goto","location":"%s"}`, loc)
-		for try := 0; try < 3 && npc == ""; try++ {
-			f := c.full()
-			pos := f["me"].(map[string]any)["pos"].(map[string]any)
-			place, _ := f["place"].(map[string]any)
-			for _, raw := range place["neighbors"].([]any) {
-				nb := raw.(map[string]any)
-				np := nb["pos"].(map[string]any)
-				if nb["player"] == true || nb["known"] == true {
-					continue
-				}
-				if math.Hypot(np["x"].(float64)-pos["x"].(float64), np["y"].(float64)-pos["y"].(float64)) <= 4 {
-					if ok, _, _ := c.result(fmt.Sprintf(`"op":"talk","target":"%s"`, nb["id"])); ok {
-						npc = nb["id"].(string)
-						break search
-					}
+		f := c.gotoAndWait(loc)
+		pos := f["me"].(map[string]any)["pos"].(map[string]any)
+		place, _ := f["place"].(map[string]any)
+		for _, raw := range place["neighbors"].([]any) {
+			nb := raw.(map[string]any)
+			np := nb["pos"].(map[string]any)
+			if nb["player"] == true || nb["known"] == true {
+				continue
+			}
+			if math.Hypot(np["x"].(float64)-pos["x"].(float64), np["y"].(float64)-pos["y"].(float64)) <= 4 {
+				if ok, _, _ := c.result(fmt.Sprintf(`"op":"talk","target":"%s"`, nb["id"])); ok {
+					npc = nb["id"].(string)
+					break search
 				}
 			}
 		}
@@ -202,8 +221,7 @@ search:
 	c.send(`{"v":1,"op":"endtalk"}`)
 
 	// --- 2. отказ: работа вне места ---
-	c.send(`{"v":1,"op":"goto","location":"well"}`)
-	c.full()
+	c.gotoAndWait("well")
 	var wood0 float64
 	c.world(func(e *core.Entity) { wood0 = stashOf(e, econ.GoodWood) })
 	if ok, reason, _ := c.result(`"op":"act","action":"chop"`); ok || reason == "" {
@@ -216,8 +234,7 @@ search:
 	})
 
 	// --- 3. работа у нужного места с подтверждением ---
-	c.send(`{"v":1,"op":"goto","location":"woods"}`)
-	c.full()
+	c.gotoAndWait("woods")
 	var skill0 float64
 	c.world(func(e *core.Entity) { skill0 = core.Skills(e).Level("woodcutter") })
 	ok, reason, chopReq := c.result(`"op":"act","action":"chop"`)
@@ -287,8 +304,7 @@ search:
 	if ok, _, _ := c.result(`"op":"buy","item":"beer"`); ok {
 		t.Fatal("пиво в лесу купить нельзя")
 	}
-	c.send(`{"v":1,"op":"goto","location":"tavern"}`)
-	c.full()
+	c.gotoAndWait("tavern")
 	var coins0 float64
 	c.world(func(e *core.Entity) { coins0 = core.Purse(e).Coins })
 	ok, reason, buyReq := c.result(`"op":"buy","item":"beer"`)
