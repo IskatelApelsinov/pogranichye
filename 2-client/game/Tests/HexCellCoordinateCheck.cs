@@ -46,7 +46,7 @@ internal static class HexCellCoordinateCheck
         Equal(0L, negative.Q, "small negative east/north remains origin cell");
         Equal(0L, negative.R, "small negative north remains origin cell");
 
-        var farNegative = HexCellCoordinate.FromWorld(0, -Math.Sqrt(3d) * radius, -1.5d * radius, radius);
+        var farNegative = HexCellCoordinate.FromWorld(0, -1.5d * Math.Sqrt(3d) * radius, -1.5d * radius, radius);
         Equal(-1L, farNegative.Q, "negative axial q");
         Equal(-1L, farNegative.R, "negative axial r");
 
