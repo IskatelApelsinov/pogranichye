@@ -74,7 +74,7 @@ namespace Pogranichye.Client.Presentation
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
-            var go = new GameObject(RootName + " • " + chunk.Id);
+            var go = new GameObject(RootName);
             go.transform.SetParent(root, false);
             var filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
