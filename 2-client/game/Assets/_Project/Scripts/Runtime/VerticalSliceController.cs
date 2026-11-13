@@ -1734,9 +1734,127 @@ namespace Pogranichye.Client
                 }
                 else GUILayout.Label("Пиво закончилось.");
                 GUILayout.EndHorizontal();
+                DrawTavernRoomPanel();
             }
             GUILayout.EndVertical();
             GUILayout.EndArea();
+        }
+
+        private void DrawTavernRoomPanel()
+        {
+            var rooms = _frame?.Place?.Rooms?.Items;
+            var owned = _frame?.Me?.Room;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("КОМНАТЫ НАД КОРЧМОЙ");
+            GUILayout.Label("Вход и сундук работают через сервер; отдельная 3D-геометрия интерьера ещё не подключена.");
+            if (rooms == null || rooms.Count == 0)
+            {
+                GUILayout.Label("Каталог комнат пока не получен от сервера.");
+                GUILayout.EndVertical();
+                return;
+            }
+
+            for (var i = 0; i < rooms.Count; i++)
+            {
+                var room = rooms[i];
+                if (room == null || string.IsNullOrEmpty(room.Id)) continue;
+                var isMine = owned != null && string.Equals(owned.Id, room.Id, StringComparison.Ordinal);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Комната · " + room.LeaseState + " · " +
+                    room.RentPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон.");
+                if (isMine)
+                {
+                    if (owned.LeaseState == "expired")
+                    {
+                        var previousEnabled = GUI.enabled;
+                        GUI.enabled = _frame.Me.Coins >= owned.RentPrice;
+                        if (GUILayout.Button("Продлить"))
+                            QueueRoomAction("rent", owned.Id, null, 0, "Продлить аренду");
+                        GUI.enabled = previousEnabled;
+                    }
+                    else if (owned.Indoor)
+                    {
+                        if (GUILayout.Button("Выйти"))
+                            QueueRoomAction("exit", null, null, 0, "Выйти из комнаты");
+                    }
+                    else if (GUILayout.Button("Войти"))
+                    {
+                        QueueRoomAction("enter", owned.Id, null, 0, "Войти в комнату");
+                    }
+                }
+                else if (owned == null && room.Available)
+                {
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = _frame.Me.Coins >= room.RentPrice;
+                    if (GUILayout.Button("Снять"))
+                        QueueRoomAction("rent", room.Id, null, 0, "Снять комнату");
+                    GUI.enabled = previousEnabled;
+                }
+                else
+                {
+                    GUILayout.Label(room.Available ? "Недоступно" : "Занята / недоступна");
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            if (owned != null && owned.Indoor &&
+                (owned.LeaseState == "active" || owned.LeaseState == "grace"))
+            {
+                GUILayout.Label("Личный сундук · " +
+                    owned.ChestLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
+                    owned.ChestCapacity.ToString("0.#", CultureInfo.InvariantCulture));
+                GUILayout.Label("Положить в сундук (по 1 шт.):");
+                var inventory = _frame.Me.Inventory?.Items;
+                if (inventory != null)
+                {
+                    foreach (var pair in inventory)
+                    {
+                        if (pair.Value <= 0) continue;
+                        var previousEnabled = GUI.enabled;
+                        GUI.enabled = pair.Value > 0;
+                        if (GUILayout.Button("＋ " + pair.Key + " ×" + pair.Value))
+                            QueueRoomAction("stow", owned.Id, pair.Key, 1, "Положить в сундук: " + pair.Key);
+                        GUI.enabled = previousEnabled;
+                    }
+                }
+                GUILayout.Label("Забрать из сундука (по 1 шт.):");
+                if (owned.ChestItems != null)
+                {
+                    foreach (var pair in owned.ChestItems)
+                    {
+                        if (pair.Value <= 0) continue;
+                        if (GUILayout.Button("− " + pair.Key + " ×" + pair.Value))
+                            QueueRoomAction("take", owned.Id, pair.Key, 1, "Забрать из сундука: " + pair.Key);
+                    }
+                }
+            }
+            else
+            {
+                GUILayout.Label("Для доступа к сундуку нужна своя действующая аренда и вход в комнату.");
+            }
+            GUILayout.EndVertical();
+        }
+
+        private void QueueRoomAction(string action, string target, string item, int quantity, string label)
+        {
+            if (_core == null)
+            {
+                _status = "Мир ещё не подключён.";
+                return;
+            }
+
+            bool queued;
+            if (item != null)
+                queued = _core.QueueRequest(label, "room", "action", action, "target", target,
+                    "item", item, "qty", quantity);
+            else if (target != null)
+                queued = _core.QueueRequest(label, "room", "action", action, "target", target);
+            else
+                queued = _core.QueueRequest(label, "room", "action", action);
+
+            _status = queued
+                ? "Ожидаю подтверждения сервера: " + label + "…"
+                : "Не удалось отправить действие: дождитесь ответа на предыдущее.";
         }
 
         private void QueueContextItemAction(string op, string item, string label)
