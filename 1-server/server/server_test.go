@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"pogranichye/core"
+	"pogranichye/econ"
 	"pogranichye/sim"
 )
 
