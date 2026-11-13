@@ -11,7 +11,8 @@ and log for each step.
    `error CS` (start with `Runtime/CoreGameplay.cs` and the `_core` hooks in `VerticalSliceController`).
 2. Open the scene, enter Play Mode against `go run ./cmd/pogserver -starter` and check the Console for exceptions.
 3. Camera and input: mouse look in first/third person; cursor locks only in first person with the HUD folded
-   (F1) and no window open; no movement without keys; RMB (guard) does not break the camera.
+   (F1) and no window open; no movement without keys; RMB (guard) does not break the camera. T opens chat;
+   N cycles combat stance (these actions must never trigger together).
 4. Movement reconciliation at a wall, on the bridge, at the world edge and while running.
 5. Loop: talk to a specific villager → chop in the woods → buy and drink beer in the tavern. Each success must
    appear only after the server confirms it (`me.result` / state); a refusal must show its reason.
@@ -20,6 +21,10 @@ and log for each step.
 8. HUD: Tab window, F1, H (hints), text readable at the real resolution; nothing permanently covers the view.
 9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
 10. v1.19 world data: confirm `me.wpos`/`place.anchor`, inspect the current 256 m terrain mesh, cross a chunk edge and verify stale chunk responses do not replace the current terrain. Keep `-seamless=on` disabled.
+
+## Input bindings — 2026-11-13
+
+- Fixed a real binding collision: `T` was assigned to both chat and combat stance cycling. Chat remains on `T`; stance cycling is now `N`. The in-game control hint and F3 pressed-key diagnostics are updated together.
 
 ## v1.19 Unity world-data integration — PR in progress (2026-11-13)
 
