@@ -70,6 +70,7 @@ namespace Pogranichye.Client.Presentation
 #endif
 
         public Transform PlayerTransform { get; private set; }
+        public int RemoteViewCount => Mathf.Max(0, _views.Count - (PlayerTransform != null ? 1 : 0));
 
         /// <summary>Raised only when a server-confirmed solo drink or co-drink event is presented.</summary>
         public event Action DrinkPresented;
