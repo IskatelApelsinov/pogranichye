@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
         // are owned by the layout root that created them, not by the most recently built layout.
         private static readonly System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<UnityEngine.Object>> _assetsByLayoutRoot =
@@ -47,6 +48,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
+            _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -310,6 +312,8 @@ namespace Pogranichye.Client.Presentation
             if (bushVertices.Count > 0)
                 CreateCombinedMesh(world, "Generated woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
 
+            BuildGeneratedGroundCover(world, layout);
+
             if (layout.Roads != null)
             {
                 foreach (var road in layout.Roads)
@@ -326,6 +330,109 @@ namespace Pogranichye.Client.Presentation
                 // and deterministic from the server-provided road graph.
                 BuildRoadsideGroundCover(world, layout);
             }
+        }
+
+        /// <summary>
+        /// Adds deterministic meadow and field undergrowth to real generated settlements.
+        /// Geometry is batched into two meshes per layout and never creates colliders or per-plant GameObjects.
+        /// </summary>
+        private static void BuildGeneratedGroundCover(Transform world, WorldLayoutFrame layout)
+        {
+            if (layout == null || layout.Zones == null || layout.Zones.Count == 0) return;
+
+            var grassVertices = new System.Collections.Generic.List<Vector3>(18000);
+            var grassTriangles = new System.Collections.Generic.List<int>(36000);
+            var flowerVertices = new System.Collections.Generic.List<Vector3>(6000);
+            var flowerTriangles = new System.Collections.Generic.List<int>(9000);
+
+            for (var zoneIndex = 0; zoneIndex < layout.Zones.Count; zoneIndex++)
+            {
+                var zone = layout.Zones[zoneIndex];
+                if (zone == null || (zone.Kind != "meadow" && zone.Kind != "field")) continue;
+
+                var x0 = Mathf.Max((float)zone.X0, (float)-layout.WorldHalf);
+                var x1 = Mathf.Min((float)zone.X1, (float)layout.WorldHalf);
+                var z0 = Mathf.Max((float)zone.Y0, (float)-layout.WorldHalf);
+                var z1 = Mathf.Min((float)zone.Y1, (float)layout.WorldHalf);
+                if (x1 <= x0 || z1 <= z0) continue;
+
+                // Seed by stable settlement identity and zone order: the same settlement
+                // keeps its dressing across reconnects, while other settlements differ.
+                var random = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex));
+                var area = (x1 - x0) * (z1 - z0);
+                var target = Mathf.Clamp(Mathf.RoundToInt(area / 3.2f), 24, 1400);
+                var added = 0;
+                for (var attempt = 0; attempt < target * 5 && added < target; attempt++)
+                {
+                    var x = x0 + 0.6f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 1.2f);
+                    var z = z0 + 0.6f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 1.2f);
+                    if (VegetationBlocked(layout, x, z, 0.65f, 1.8f, 3.6f)) continue;
+
+                    var height = zone.Kind == "field"
+                        ? 0.16f + (float)random.NextDouble() * 0.20f
+                        : 0.22f + (float)random.NextDouble() * 0.34f;
+                    var width = 0.035f + (float)random.NextDouble() * 0.045f;
+                    var center = new Vector3(x, 0.085f, z);
+                    AddGrassBlade(grassVertices, grassTriangles, center, height, width,
+                        (float)random.NextDouble() * Mathf.PI * 2f);
+                    AddGrassBlade(grassVertices, grassTriangles, center, height * 0.78f, width * 0.88f,
+                        Mathf.PI * 0.5f + (float)random.NextDouble() * 0.8f);
+
+                    if (random.NextDouble() < (zone.Kind == "meadow" ? 0.30 : 0.12))
+                        AddWildflower(flowerVertices, flowerTriangles, center,
+                            0.18f + (float)random.NextDouble() * 0.13f,
+                            (float)random.NextDouble() * Mathf.PI);
+                    added++;
+                }
+            }
+
+            CreateCombinedMesh(world, "Generated meadows • combined grass tufts",
+                grassVertices, grassTriangles, _grass, false);
+            CreateCombinedMesh(world, "Generated meadows • scattered wildflowers",
+                flowerVertices, flowerTriangles, _flowers, false);
+        }
+
+        private static int StableDecorationSeed(string settlement, int zoneIndex)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                var value = string.IsNullOrEmpty(settlement) ? "unknown-settlement" : settlement;
+                for (var i = 0; i < value.Length; i++)
+                    hash = (hash ^ value[i]) * 16777619u;
+                hash = (hash ^ (uint)zoneIndex) * 16777619u;
+                return (int)hash;
+            }
+        }
+
+        private static void AddWildflower(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 basePoint, float height, float yaw)
+        {
+            var stemSide = new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw)) * 0.012f;
+            var stemTop = basePoint + Vector3.up * height;
+            var stem = vertices.Count;
+            vertices.Add(basePoint - stemSide);
+            vertices.Add(basePoint + stemSide);
+            vertices.Add(stemTop);
+            triangles.Add(stem); triangles.Add(stem + 2); triangles.Add(stem + 1);
+            triangles.Add(stem); triangles.Add(stem + 1); triangles.Add(stem + 2);
+
+            var right = new Vector3(Mathf.Cos(yaw + 0.7f), 0f, Mathf.Sin(yaw + 0.7f)) * 0.075f;
+            var forward = new Vector3(-right.z, 0f, right.x);
+            var petalCenter = stemTop + Vector3.up * 0.018f;
+            var petal = vertices.Count;
+            vertices.Add(petalCenter - right);
+            vertices.Add(petalCenter + right);
+            vertices.Add(petalCenter + Vector3.up * 0.025f);
+            vertices.Add(petalCenter - forward);
+            vertices.Add(petalCenter + forward);
+            vertices.Add(petalCenter + Vector3.up * 0.025f);
+            triangles.Add(petal); triangles.Add(petal + 2); triangles.Add(petal + 1);
+            triangles.Add(petal + 3); triangles.Add(petal + 5); triangles.Add(petal + 4);
+            triangles.Add(petal); triangles.Add(petal + 1); triangles.Add(petal + 2);
+            triangles.Add(petal + 3); triangles.Add(petal + 4); triangles.Add(petal + 5);
         }
 
         private static void BuildRoadsideGroundCover(Transform world, WorldLayoutFrame layout)
@@ -597,7 +704,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void CreateCombinedMesh(Transform parent, string objectName,
             System.Collections.Generic.List<Vector3> vertices,
-            System.Collections.Generic.List<int> triangles, Material material)
+            System.Collections.Generic.List<int> triangles, Material material, bool castShadows = true)
         {
             if (vertices.Count == 0 || triangles.Count == 0) return;
             var mesh = new Mesh { name = objectName };
@@ -613,8 +720,8 @@ namespace Pogranichye.Client.Presentation
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = ShadowCastingMode.On;
-            renderer.receiveShadows = true;
+            renderer.shadowCastingMode = castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+            renderer.receiveShadows = castShadows;
         }
 
         private static void BuildRiverSurface(Transform parent, WorldLayoutFrame layout)
@@ -1289,6 +1396,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = null;
             _grass = null;
             _stone = null;
+            _flowers = null;
         }
 
         private static Material MakeMaterial(string name, Color color)
