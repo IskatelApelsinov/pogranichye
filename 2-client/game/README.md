@@ -149,6 +149,7 @@ The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. 
 
 ## v1.19 world presentation and contextual activity UX
 
+- The default no-id `/api/layout` response is retained as the tutorial settlement's active Layout v2 data. The first `place.plan:"starter"` (or legacy first snapshot without a plan) keeps that layout for movement collision prediction, POI distance/action gates and the map instead of clearing it. After visiting a generated settlement, returning to the tutorial place reselects the retained default layout rather than reusing the last generated settlement's geometry. If the default response is not starter-compatible, the client fails closed instead of using stale geometry.
 - Generated settlements now use deterministic area-based woodland density instead of a 90-tree cap per forest zone. Trees and low-poly shrub clusters are combined into a small number of meshes (no per-bush GameObjects/colliders); candidate placement avoids building footprints, road corridors, river obstruction and POI approaches. The starter woodland also has a denser tree/shrub pass, and legacy trees overlapping the settlement core/buildings/paths are culled.
 - Public generated buildings (tavern, smithy, granary and market) receive two-sided facade signs using the server-provided building name; the tutorial tavern sign now reads **КОРЧМА** and is larger.
 - The settlement map has a 1×–4× zoom control. Above 1× it follows the player's current local position; off-screen geometry is clipped instead of being clamped to the map edge.
