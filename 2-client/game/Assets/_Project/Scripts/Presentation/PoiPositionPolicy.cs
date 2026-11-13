@@ -18,6 +18,20 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Resolves current Layout v2 POIs before any legacy starter-layout fallback.</summary>
     public static class PoiPositionPolicy
     {
+        public static bool IsLayoutForSettlement(string layoutSettlementId, string currentPlaceId)
+        {
+            return !string.IsNullOrEmpty(layoutSettlementId) &&
+                !string.IsNullOrEmpty(currentPlaceId) &&
+                string.Equals(layoutSettlementId, currentPlaceId, StringComparison.Ordinal);
+        }
+
+        public static bool AllowsLegacyFallback(string plan)
+        {
+            // A missing plan is the pre-v1.19 compatibility shape; explicit generated plans
+            // must wait for their own Layout v2 rather than borrowing tutorial coordinates.
+            return string.IsNullOrEmpty(plan) || string.Equals(plan, "starter", StringComparison.Ordinal);
+        }
+
         public static bool TryResolve(string poiId,
             IDictionary<string, PoiCoordinate> layoutPois,
             IDictionary<string, PoiCoordinate> legacyPois,
