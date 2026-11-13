@@ -90,7 +90,7 @@ namespace Pogranichye.Client.Presentation
             }
 
             var playerMotion = player.GetComponent<EntityMotion>();
-            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug)
+            if (DrinkPresentationPolicy.IsSoloDrinkTransition(_hasPlayerMugState, _playerHadMug, frame.Me.Mug))
             {
                 if (playerMotion != null) playerMotion.PlayDrinkGesture();
                 DrinkPresented?.Invoke();
@@ -838,8 +838,7 @@ namespace Pogranichye.Client.Presentation
                 isNewSocialEvent = true;
             }
 
-            if (isNewSocialEvent && socialEvent != null &&
-                string.Equals(socialEvent.Type, "codrink", System.StringComparison.OrdinalIgnoreCase))
+            if (socialEvent != null && DrinkPresentationPolicy.IsCoDrinkEvent(isNewSocialEvent, socialEvent.Type))
             {
                 var playerMotion = player.GetComponent<EntityMotion>();
                 if (playerMotion != null) playerMotion.PlayClinkGesture();
