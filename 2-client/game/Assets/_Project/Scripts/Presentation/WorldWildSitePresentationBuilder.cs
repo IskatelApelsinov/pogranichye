@@ -98,7 +98,8 @@ namespace Pogranichye.Client.Presentation
                     view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
                     if (!view.Built)
                     {
-                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger,\n                            Math.Abs(view.Up - view.Ground));
+                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger,
+                            Math.Abs(view.Up - view.Ground));
                         view.Built = true;
                     }
                 }
@@ -124,9 +125,10 @@ namespace Pogranichye.Client.Presentation
                     Part(root, PrimitiveType.Cube, "CaveDarkness", new Vector3(0, -0.8f, 0.72f), new Vector3(2.1f, 1.6f, 0.12f), dark);
                     break;
                 case "tower":
-                    Part(root, PrimitiveType.Cylinder, "TowerBody", new Vector3(0, 4f, 0), new Vector3(3.2f, 4f, 3.2f), stone);
-                    Part(root, PrimitiveType.Cylinder, "TowerCrown", new Vector3(0, 8.1f, 0), new Vector3(4.1f, 0.55f, 4.1f), wood);
-                    Part(root, PrimitiveType.Cylinder, "TowerRoof", new Vector3(0, 9.35f, 0), new Vector3(3.7f, 1.1f, 3.7f), wood);
+                    var towerHeight = Mathf.Clamp((float)verticalOffset, 12f, 35f);
+                    Part(root, PrimitiveType.Cylinder, "TowerBody", new Vector3(0, towerHeight * 0.5f, 0), new Vector3(3.2f, towerHeight * 0.5f, 3.2f), stone);
+                    Part(root, PrimitiveType.Cylinder, "TowerCrown", new Vector3(0, towerHeight, 0), new Vector3(4.1f, 0.55f, 4.1f), wood);
+                    Part(root, PrimitiveType.Cylinder, "TowerRoof", new Vector3(0, towerHeight + 1.1f, 0), new Vector3(3.7f, 1.1f, 3.7f), wood);
                     break;
                 case "ruins":
                     Part(root, PrimitiveType.Cube, "RuinWallA", new Vector3(-2.4f, 1.3f, 0), new Vector3(1f, 2.6f, 5f), stone);
