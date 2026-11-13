@@ -54,6 +54,15 @@ namespace Pogranichye.Client.Presentation
             if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
+            // Prefer generated 512px PBR maps when the Blender asset pass has been run.
+            // Existing 64px procedural surfaces remain the fallback for an untouched checkout.
+            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f);
+            ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
+            ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
+            ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
+            ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f);
+            ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f);
+
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
             if (layout.RiverPresent)
@@ -1595,6 +1604,35 @@ namespace Pogranichye.Client.Presentation
                     _forest, false);
                 verge.transform.rotation = rotation;
                 verge.transform.localPosition += rotation * Vector3.right * (side * (width * 0.5f + 0.18f));
+            }
+        }
+
+        private static void ApplyGeneratedWorldMaps(Material material, string materialKey, float tilingX, float tilingY)
+        {
+            if (material == null) return;
+            var prefix = "WorldMaterials/Textures/" + materialKey;
+            var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            if (albedo != null)
+            {
+                material.mainTexture = albedo;
+                material.mainTextureScale = new Vector2(tilingX, tilingY);
+                if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", albedo);
+            }
+
+            var normal = Resources.Load<Texture2D>(prefix + "_normal");
+            if (normal != null && material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", new Vector2(tilingX, tilingY));
+                material.EnableKeyword("_NORMALMAP");
+            }
+
+            var ao = Resources.Load<Texture2D>(prefix + "_ao");
+            if (ao != null && material.HasProperty("_OcclusionMap"))
+            {
+                material.SetTexture("_OcclusionMap", ao);
+                material.SetTextureScale("_OcclusionMap", new Vector2(tilingX, tilingY));
+                material.EnableKeyword("_OCCLUSIONMAP");
             }
         }
 
