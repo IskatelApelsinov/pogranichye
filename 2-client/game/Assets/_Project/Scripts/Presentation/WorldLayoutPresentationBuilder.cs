@@ -458,8 +458,6 @@ namespace Pogranichye.Client.Presentation
 
                 var centerX = (float)((building.X0 + building.X1) * 0.5);
                 var centerZ = (float)((building.Y0 + building.Y1) * 0.5);
-                var halfWidth = (float)(building.X1 - building.X0) * 0.5f;
-                var halfDepth = (float)(building.Y1 - building.Y0) * 0.5f;
                 var seed = StableDecorationSeed(layout.Settlement, i + 1703);
                 var random = new System.Random(seed);
                 var sideStart = random.Next(0, 4);
@@ -527,7 +525,7 @@ namespace Pogranichye.Client.Presentation
             {
                 foreach (var other in layout.Buildings)
                 {
-                    if (other == null || ReferenceEquals(other, owner)) continue;
+                    if (other == null || object.ReferenceEquals(other, owner)) continue;
                     if (x >= other.X0 - 1.4 && x <= other.X1 + 1.4 &&
                         z >= other.Y0 - 1.4 && z <= other.Y1 + 1.4)
                         return false;
@@ -567,8 +565,9 @@ namespace Pogranichye.Client.Presentation
         {
             var start = vertices.Count;
             vertices.Add(a); vertices.Add(b); vertices.Add(c); vertices.Add(d);
-            triangles.Add(start); triangles.Add(start + 1); triangles.Add(start + 2);
-            triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 3);
+            // Reverse the local face winding so the exterior surfaces face outward.
+            triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 1);
+            triangles.Add(start); triangles.Add(start + 3); triangles.Add(start + 2);
         }
 
         private static void AppendLog(
@@ -589,8 +588,8 @@ namespace Pogranichye.Client.Presentation
             for (var side = 0; side < sides; side++)
             {
                 var next = (side + 1) % sides;
-                triangles.Add(start + side); triangles.Add(start + sides + side); triangles.Add(start + next);
-                triangles.Add(start + next); triangles.Add(start + sides + side); triangles.Add(start + sides + next);
+                triangles.Add(start + side); triangles.Add(start + next); triangles.Add(start + sides + side);
+                triangles.Add(start + next); triangles.Add(start + sides + next); triangles.Add(start + sides + side);
             }
             var capA = vertices.Count;
             vertices.Add(center - axis * (length * 0.5f));
