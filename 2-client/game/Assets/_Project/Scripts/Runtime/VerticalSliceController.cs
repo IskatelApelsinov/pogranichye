@@ -256,7 +256,15 @@ namespace Pogranichye.Client
             if (_core != null)
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
-            _core?.SetLayout(_layout);
+            var currentPlace = _frame != null ? _frame.Place : null;
+            var currentPlaceId = currentPlace != null ? currentPlace.Id : null;
+            var layoutMatchesCurrentPlace = !string.IsNullOrEmpty(currentPlaceId) &&
+                string.Equals(_layoutSettlementId, currentPlaceId, StringComparison.Ordinal);
+            var layoutForCurrentPlace = layoutMatchesCurrentPlace ? _layout : null;
+            var allowLegacyPoiFallback = currentPlace != null &&
+                (string.IsNullOrEmpty(currentPlace.Plan) ||
+                 string.Equals(currentPlace.Plan, "starter", StringComparison.Ordinal));
+            _core?.SetLayout(layoutForCurrentPlace, allowLegacyPoiFallback);
             UpdateTalkConfirmationTimeout();
             if (_connectionState != WorldConnectionState.Active)
                 SetChatOpen(false);
