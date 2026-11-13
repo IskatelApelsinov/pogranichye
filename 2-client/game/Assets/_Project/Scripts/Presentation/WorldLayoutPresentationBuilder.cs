@@ -1623,6 +1623,7 @@ namespace Pogranichye.Client.Presentation
             if (normal != null && material.HasProperty("_BumpMap"))
             {
                 material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", new Vector2(tilingX, tilingY));
                 material.EnableKeyword("_NORMALMAP");
             }
 
@@ -1630,6 +1631,7 @@ namespace Pogranichye.Client.Presentation
             if (ao != null && material.HasProperty("_OcclusionMap"))
             {
                 material.SetTexture("_OcclusionMap", ao);
+                material.SetTextureScale("_OcclusionMap", new Vector2(tilingX, tilingY));
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
         }
