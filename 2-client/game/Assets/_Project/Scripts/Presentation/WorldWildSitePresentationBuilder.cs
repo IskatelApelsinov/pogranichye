@@ -19,6 +19,10 @@ namespace Pogranichye.Client.Presentation
             public double East;
             public double North;
             public double Up;
+            public string Type;
+            public double Mana;
+            public double Danger;
+            public bool Built;
             public Transform Root;
         }
 
@@ -45,11 +49,11 @@ namespace Pogranichye.Client.Presentation
                         continue;
                     var viewRoot = new GameObject("WildSite_" + site.Id).transform;
                     viewRoot.SetParent(_root, false);
-                    BuildLandmark(viewRoot, site.Type, site.Mana, site.Danger);
                     Views.Add(site.Id, new SiteView
                     {
                         Id = site.Id, Frame = site.Frame, East = site.East,
-                        North = site.North, Up = site.Up, Root = viewRoot
+                        North = site.North, Up = site.Up, Type = site.Type,
+                        Mana = site.Mana, Danger = site.Danger, Root = viewRoot
                     });
                     hash = hash * 31 + site.Id.GetHashCode();
                 }
@@ -85,11 +89,18 @@ namespace Pogranichye.Client.Presentation
                 var north = view.North - origin.North;
                 var up = view.Up - origin.Up;
                 var distanceSquared = east * east + north * north;
-                var visible = distanceSquared <= 1100d * 1100d &&
+                var visible = distanceSquared <= 360d * 360d &&
                     Math.Abs(east) < 1000000d && Math.Abs(north) < 1000000d && Math.Abs(up) < 1000000d;
                 view.Root.gameObject.SetActive(visible);
                 if (visible)
+                {
                     view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
+                    if (!view.Built)
+                    {
+                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger);
+                        view.Built = true;
+                    }
+                }
             }
         }
 
