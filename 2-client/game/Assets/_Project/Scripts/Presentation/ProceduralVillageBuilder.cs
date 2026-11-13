@@ -616,7 +616,7 @@ namespace Pogranichye.Client.Presentation
             door.transform.localRotation = Quaternion.Euler(0, -32f, 0);
             BuildTavernFrontWindow(tavern, -1.65f);
             BuildTavernFrontWindow(tavern, 1.65f);
-            CreateSign(tavern, "ТАВЕРНА", new Vector3(0, 2.15f, -2.12f), 0.9f);
+            CreateSign(tavern, "КОРЧМА", new Vector3(0, 2.15f, -2.12f), 1.15f);
             CreatePrimitive("Tavern chimney", PrimitiveType.Cube, tavern,
                 new Vector3(1.8f, 3.45f, 0.8f), new Vector3(0.5f, 1.2f, 0.5f), _stoneMaterial);
             BuildChimneySmoke(tavern, new Vector3(1.8f, 4.12f, 0.8f));
