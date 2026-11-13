@@ -185,21 +185,28 @@ func (s *Server) LoadFrom(path string) (bool, error) {
 }
 
 // Autosave сохраняет мир каждые every до остановки сервера (Close) и ещё раз при остановке.
+// Нулевой/отрицательный интервал отключает периодические снимки, но финальное сохранение остаётся.
 func (s *Server) Autosave(path string, every time.Duration) {
+	stop := s.quit()
+	save := func(label string) {
+		if err := s.SaveTo(path); err != nil {
+			log.Printf("%s: %v", label, err)
+		}
+	}
+	if every <= 0 {
+		<-stop
+		save("сохранение при остановке")
+		return
+	}
 	t := time.NewTicker(every)
 	defer t.Stop()
-	stop := s.quit()
 	for {
 		select {
 		case <-stop:
-			if err := s.SaveTo(path); err != nil {
-				log.Printf("сохранение при остановке: %v", err)
-			}
+			save("сохранение при остановке")
 			return
 		case <-t.C:
-			if err := s.SaveTo(path); err != nil {
-				log.Printf("автосохранение: %v", err)
-			}
+			save("автосохранение")
 		}
 	}
 }
