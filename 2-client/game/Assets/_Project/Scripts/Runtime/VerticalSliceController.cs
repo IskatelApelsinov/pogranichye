@@ -718,6 +718,13 @@ namespace Pogranichye.Client
             if (_frame.Place != null)
                 GUILayout.Label($"Еда: {_frame.Place.Food:0} | Хлеб: {_frame.Place.Bread:0} | Цена: {_frame.Place.BreadPrice:0.0}");
             GUILayout.Label($"{me.Name} {me.Surname} — {me.Role}");
+            var serverNeighborCount = _frame.Place?.Neighbors?.Count ?? 0;
+            var renderedNeighborCount = _views?.RemoteViewCount ?? 0;
+            GUILayout.Label($"Люди рядом: сервер прислал {serverNeighborCount} · создано представлений {renderedNeighborCount}");
+            if (serverNeighborCount == 0)
+                GUILayout.Label("Сервер сейчас не передал соседей в область видимости.");
+            else if (renderedNeighborCount == 0)
+                GUILayout.Label("Соседи есть в кадре, но их представления не созданы — проверьте консоль Unity.");
             GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
             GUILayout.Label($"Цель: {me.Goal} | Действие: {me.Last}");
             GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
