@@ -565,7 +565,7 @@ namespace Pogranichye.Client
             var width = Mathf.Min(360f, Screen.width - 24f);
             var height = Mathf.Min(300f, Screen.height - 24f);
             var rect = new Rect(Screen.width - width - 12f, Screen.height - height - 12f, width, height);
-            GUI.Box(rect, "Чат поблизости");
+            GUI.Box(rect, "Чат поблизости · T открыть · Enter отправить");
             if (GUI.Button(new Rect(rect.xMax - 30f, rect.y + 3f, 24f, 22f), "×"))
             {
                 SetChatOpen(false);
@@ -586,13 +586,17 @@ namespace Pogranichye.Client
                 _chatFocusPending = false;
             }
             var canSend = !string.IsNullOrWhiteSpace(_chatInput) && !_busy;
+            var chatEvent = Event.current;
+            if (canSend && chatEvent != null && chatEvent.type == EventType.KeyDown &&
+                (chatEvent.keyCode == KeyCode.Return || chatEvent.keyCode == KeyCode.KeypadEnter) &&
+                GUI.GetNameOfFocusedControl() == "PogranichyeChatInput")
+            {
+                SendCurrentChatMessage();
+                chatEvent.Use();
+            }
             GUI.enabled = canSend;
             if (GUILayout.Button("Отправить", GUILayout.Width(92f), GUILayout.Height(28f)))
-            {
-                var text = _chatInput.Trim();
-                _chatInput = "";
-                _ = SendChatMessageAsync(text);
-            }
+                SendCurrentChatMessage();
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
@@ -606,6 +610,15 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
             if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
             GUILayout.EndArea();
+        }
+
+        private void SendCurrentChatMessage()
+        {
+            var text = _chatInput.Trim();
+            if (string.IsNullOrEmpty(text) || _busy) return;
+            _chatInput = "";
+            _ = SendChatMessageAsync(text);
+            _chatFocusPending = true;
         }
 
         private void SetChatOpen(bool open)
