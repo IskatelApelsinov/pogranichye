@@ -927,12 +927,24 @@ namespace Pogranichye.Client
                 headRoot.localPosition = new Vector3(0f, 1.7f, 0f);
                 Part(headRoot, PrimitiveType.Sphere, Vector3.zero, new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
                 Part(headRoot, PrimitiveType.Sphere, new Vector3(0f, 0.06f, -0.04f), new Vector3(0.48f, 0.42f, 0.48f), new Color(0.16f, 0.12f, 0.1f));
-                var leftArm = Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
-                var rightArm = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
-                // A short wooden club follows the right hand instead of floating beside the body.
-                Part(rightArm, PrimitiveType.Cube, new Vector3(0f, -0.04f, 0.36f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
-                var rightLeg = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.17f, 0.34f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
-                var leftLeg = Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.17f, 0.34f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
+                var leftArm = new GameObject("Bandit left arm pivot").transform;
+                leftArm.SetParent(root.transform, false);
+                leftArm.localPosition = new Vector3(-0.36f, 1.44f, 0f);
+                Part(leftArm, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                var rightArm = new GameObject("Bandit right arm pivot").transform;
+                rightArm.SetParent(root.transform, false);
+                rightArm.localPosition = new Vector3(0.36f, 1.44f, 0f);
+                Part(rightArm, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                // The club is parented to an unscaled shoulder pivot, so it keeps its real size while swinging.
+                Part(rightArm, PrimitiveType.Cube, new Vector3(0f, -0.2f, 0.34f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
+                var rightLeg = new GameObject("Bandit right leg pivot").transform;
+                rightLeg.SetParent(root.transform, false);
+                rightLeg.localPosition = new Vector3(0.17f, 0.66f, 0f);
+                Part(rightLeg, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
+                var leftLeg = new GameObject("Bandit left leg pivot").transform;
+                leftLeg.SetParent(root.transform, false);
+                leftLeg.localPosition = new Vector3(-0.17f, 0.66f, 0f);
+                Part(leftLeg, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.86f, 0f), new Vector3(0.6f, 0.04f, 0.6f), new Color(0.12f, 0.09f, 0.07f));
                 Part(headRoot, PrimitiveType.Sphere, new Vector3(-0.07f, 0.02f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
                 Part(headRoot, PrimitiveType.Sphere, new Vector3(0.07f, 0.02f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
