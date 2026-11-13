@@ -19,6 +19,8 @@ on:
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
+      - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -56,6 +58,11 @@ jobs:
         run: |
           mcs -out:/tmp/drink-presentation.exe Tests/DrinkPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs
           mono /tmp/drink-presentation.exe
+      - name: Settlement layout selection regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/settlement-layout-selection.exe Tests/SettlementLayoutSelectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs
+          mono /tmp/settlement-layout-selection.exe
       - name: Hex cell coordinate regression checks
         working-directory: 2-client/game
         run: |
