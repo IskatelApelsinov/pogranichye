@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Presentation-only terrain mesh for one server-owned v1.19 world chunk.
+    /// Render and static collision mesh for one server-owned v1.19 world chunk.
     /// Vertices are rebased against the active settlement anchor, keeping Unity coordinates near zero.
     /// </summary>
     public static class WorldTerrainChunkBuilder
@@ -97,6 +97,10 @@ namespace Pogranichye.Client.Presentation
             go.transform.SetParent(root, false);
             var filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
+            // One non-convex collider per bounded chunk. No per-vertex GameObjects or dynamic rigidbodies.
+            // This gives future cross-settlement traversal real ground contact without changing server movement authority.
+            var collider = go.AddComponent<MeshCollider>();
+            collider.sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
             if (_material == null)
             {
