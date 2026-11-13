@@ -360,9 +360,10 @@ func WeaveView(w *core.World, e *core.Entity) map[string]any {
 		"capacity":  round1x(arcane.Capacity(skill)), // сколько сложности ум держит без надрыва
 		"max_len":   weaveMaxLen,
 		"known":     g.Known,
-		"gift":      gift,     // есть ли дар (v1.12)
-		"limit":     limit,    // до какой сложности узор доступен этому телу
-		"can_learn": canLearn, // можно ли здесь учиться (место силы или маг рядом) — act:"meditate"
+		"gift":      gift,                   // есть ли дар (v1.12)
+		"limit":     limit,                  // до какой сложности узор доступен этому телу
+		"can_learn": canLearn,               // можно ли здесь учиться (место силы или маг рядом) — act:"meditate"
+		"can_study": canStudyHere(w, e),     // есть ли наставник-маг рядом и узор для него — act:"study"
 	}
 }
 
