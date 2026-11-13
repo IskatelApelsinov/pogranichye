@@ -258,12 +258,11 @@ namespace Pogranichye.Client
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
             var currentPlace = _frame != null ? _frame.Place : null;
             var currentPlaceId = currentPlace != null ? currentPlace.Id : null;
-            var layoutMatchesCurrentPlace = !string.IsNullOrEmpty(currentPlaceId) &&
-                string.Equals(_layoutSettlementId, currentPlaceId, StringComparison.Ordinal);
+            var layoutMatchesCurrentPlace = PoiPositionPolicy.IsLayoutForSettlement(
+                _layoutSettlementId, currentPlaceId);
             var layoutForCurrentPlace = layoutMatchesCurrentPlace ? _layout : null;
             var allowLegacyPoiFallback = currentPlace != null &&
-                (string.IsNullOrEmpty(currentPlace.Plan) ||
-                 string.Equals(currentPlace.Plan, "starter", StringComparison.Ordinal));
+                PoiPositionPolicy.AllowsLegacyFallback(currentPlace.Plan);
             _core?.SetLayout(layoutForCurrentPlace, allowLegacyPoiFallback);
             UpdateTalkConfirmationTimeout();
             if (_connectionState != WorldConnectionState.Active)
