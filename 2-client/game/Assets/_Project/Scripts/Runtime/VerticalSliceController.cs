@@ -157,6 +157,7 @@ namespace Pogranichye.Client
         private float _movementPlayerYawDebug;
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
+        private Vector2 _contextActionScroll;
         private float _mapZoom = 1f;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
@@ -1965,9 +1966,26 @@ namespace Pogranichye.Client
             if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern)
                 return new Rect(0f, 0f, 0f, 0f);
 
-            var rows = 1 + ((atMine || atGarden || atSmithy) ? 1 : 0) + (atTavern ? 1 : 0);
             var width = Mathf.Min(560f, Screen.width - 24f);
-            var height = 42f + rows * 34f;
+            var height = 42f;
+            if (atWoods || atRiver) height += 34f;
+            if (atMine || atGarden || atSmithy) height += 34f;
+            if (atTavern)
+            {
+                var rooms = _frame.Place.Rooms?.Items;
+                var roomCount = rooms != null ? rooms.Count : 0;
+                height += 34f + 76f + roomCount * 32f;
+                var owned = _frame.Me.Room;
+                if (owned != null && owned.Indoor)
+                {
+                    var inventoryCount = _frame.Me.Inventory?.Items?.Count ?? 0;
+                    var chestCount = owned.ChestItems != null ? owned.ChestItems.Count : 0;
+                    height += 68f + (inventoryCount + chestCount) * 30f;
+                }
+            }
+            // The panel grows to fit normal use, then becomes a real scroll view on short screens
+            // or when a room chest contains many items. Never let the content fall outside its area.
+            height = Mathf.Min(height, Mathf.Max(160f, Screen.height - 24f));
             return new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height);
         }
 
@@ -1984,6 +2002,8 @@ namespace Pogranichye.Client
             var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
 
             GUILayout.BeginArea(panel);
+            _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
+                GUILayout.Width(panel.width), GUILayout.Height(panel.height));
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("МЕСТНОЕ ДЕЛО");
             GUILayout.BeginHorizontal();
@@ -2022,6 +2042,7 @@ namespace Pogranichye.Client
                 DrawTavernRoomPanel();
             }
             GUILayout.EndVertical();
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
         }
 
