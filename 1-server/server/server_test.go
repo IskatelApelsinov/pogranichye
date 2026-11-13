@@ -305,12 +305,12 @@ func TestTwoPlayerCoDrinkWebSocket(t *testing.T) {
 	}
 	s.mu.Lock()
 	declinedA, declinedB := sim.CoDrink(s.world.Get(aID)), sim.CoDrink(s.world.Get(bID))
-	coinsA, coinsB := core.Purse(s.world.Get(aID)).Coins, core.Purse(s.world.Get(bID)).Coins
-	beerLeft := core.Settle(s.world.Get(settlementID)).Store[sim.BeerGood]
+	declineCoinsA, declineCoinsB := core.Purse(s.world.Get(aID)).Coins, core.Purse(s.world.Get(bID)).Coins
+	declineBeerLeft := core.Settle(s.world.Get(settlementID)).Store[sim.BeerGood]
 	clear := declinedA != nil && declinedB != nil && declinedA.State == "" && declinedB.State == ""
 	s.mu.Unlock()
-	if !clear || coinsA != 10 || coinsB != 10 || beerLeft != 4 {
-		t.Fatalf("decline must clear both invitations without cost: clear=%v coins=(%.2f,%.2f) beer=%.1f", clear, coinsA, coinsB, beerLeft)
+	if !clear || declineCoinsA != 10 || declineCoinsB != 10 || declineBeerLeft != 4 {
+		t.Fatalf("decline must clear both invitations without cost: clear=%v coins=(%.2f,%.2f) beer=%.1f", clear, declineCoinsA, declineCoinsB, declineBeerLeft)
 	}
 
 	// The same pair can start a fresh invitation after a decline.
