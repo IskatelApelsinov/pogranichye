@@ -29,6 +29,21 @@ public static class PoiPositionPolicyCheck
             { "woods", new PoiCoordinate(-95d, 10d) }
         };
 
+        Check(PoiPositionPolicy.IsLayoutForSettlement("village-a", "village-a"),
+            "the selected layout is accepted for its own settlement");
+        Check(!PoiPositionPolicy.IsLayoutForSettlement("village-a", "village-b"),
+            "a previous settlement layout is rejected during A-to-B transition");
+        Check(PoiPositionPolicy.IsLayoutForSettlement("village-a", "village-a"),
+            "returning from B to A can reuse A's cached layout");
+        Check(!PoiPositionPolicy.IsLayoutForSettlement(null, "village-b"),
+            "a missing selected layout never matches the current settlement");
+        Check(PoiPositionPolicy.AllowsLegacyFallback("starter") &&
+              PoiPositionPolicy.AllowsLegacyFallback(null),
+            "starter and pre-v1.19 frames retain the legacy compatibility path");
+        Check(!PoiPositionPolicy.AllowsLegacyFallback("cross") &&
+              !PoiPositionPolicy.AllowsLegacyFallback("street"),
+            "explicit generated plans do not use starter POI anchors");
+
         PoiCoordinate point;
         Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, true, false, out point) &&
               point.X == 112d && point.Y == 86d,
