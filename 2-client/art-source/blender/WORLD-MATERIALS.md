@@ -8,8 +8,13 @@ materials for the Unity 6 client:
 - aged oak planks
 - mossy stone
 - forest floor litter
+- leaf canopy
+- thatched roofing
+- packed dirt road
+- cobblestone paving
+- limewashed plaster
 
-Each material has Albedo, tangent-space Normal, Roughness and AO PNG maps.
+The library now contains ten materials (40 maps at 512×512). Each material has Albedo, tangent-space Normal, Roughness and AO PNG maps.
 The generator is deterministic and uses periodic functions so opposite edges
 match. It uses no external textures, add-ons, or downloaded assets.
 

@@ -79,6 +79,40 @@ def material_sample(kind, x, y):
         height = 0.43 + n*0.09 + leaf*0.035
         color = (0.24 + n*0.035 + leaf*0.025, 0.20 + n*0.03 + leaf*0.035, 0.12 + n*0.02)
         rough = 0.96
+    elif kind == "leaf_canopy":
+        vein = abs(wave(x, y, 7, 2, 0.25) + 0.34*wave(x, y, 13, 4, 1.1))
+        lobes = 0.5 + 0.5*wave(x, y, 9, 7, 0.6)*wave(x, y, 5, 11, 1.4)
+        height = 0.48 + lobes*0.12 - vein*0.025 + n*0.025
+        color = (0.12 + lobes*0.075 + n*0.025, 0.23 + lobes*0.12 + n*0.035, 0.075 + lobes*0.045 + n*0.018)
+        rough = 0.86
+    elif kind == "thatch_roof":
+        straw = wave(x, y, 3, 47, 0.2) + 0.42*wave(x, y, 7, 91, 1.6) + 0.18*wave(x, y, 13, 137, 0.8)
+        bundles = 0.5 + 0.5*wave(x, y, 0, 9, 0.3)
+        height = 0.48 + straw*0.065 + bundles*0.055 + n*0.018
+        color = (0.39 + straw*0.075 + bundles*0.035, 0.285 + straw*0.06 + bundles*0.025, 0.14 + straw*0.035)
+        rough = 0.97
+    elif kind == "packed_road":
+        grit = abs(fine)*0.7 + abs(n)*0.3
+        ruts = abs(wave(x, y, 2, 0, 0.4) + 0.22*wave(x, y, 5, 0, 1.7))
+        height = 0.47 + grit*0.09 - ruts*0.045
+        color = (0.31 + grit*0.075 - ruts*0.025, 0.235 + grit*0.055 - ruts*0.02, 0.155 + grit*0.035)
+        rough = 0.95
+    elif kind == "cobblestone":
+        cx, cy = (x*7.0 + 0.5) % 1.0 - 0.5, (y*7.0 + 0.5) % 1.0 - 0.5
+        radius = math.sqrt((cx*1.04)**2 + (cy*0.94)**2)
+        joint = clamp((radius - 0.34) * 18.0)
+        crown = max(0.0, 1.0 - radius/0.43)
+        variation = n*0.55 + fine*0.25
+        height = 0.36 + crown*0.19 - joint*0.10 + variation*0.025
+        stone = (0.36 + variation*0.08, 0.345 + variation*0.075, 0.30 + variation*0.07)
+        mortar = (0.19, 0.18, 0.15)
+        color = tuple(stone[i]*(1-joint*0.92) + mortar[i]*(joint*0.92) for i in range(3))
+        rough = 0.91
+    elif kind == "lime_plaster":
+        mottling = n*0.65 + fine*0.35
+        height = 0.50 + mottling*0.025 + abs(fine)*0.025
+        color = (0.62 + mottling*0.055, 0.56 + mottling*0.05, 0.43 + mottling*0.045)
+        rough = 0.9
     else:
         raise ValueError(kind)
     return tuple(clamp(c) for c in color), clamp(height), clamp(rough)
@@ -142,7 +176,7 @@ def build_material(kind):
 def main():
     TEXTURES.mkdir(parents=True, exist_ok=True)
     materials = {}
-    for kind in ("meadow_soil", "oak_bark", "oak_planks", "mossy_stone", "forest_floor"):
+    for kind in ("meadow_soil", "oak_bark", "oak_planks", "mossy_stone", "forest_floor", "leaf_canopy", "thatch_roof", "packed_road", "cobblestone", "lime_plaster"):
         materials[kind] = build_material(kind)
     manifest = {
         "name": "Pogranichye World Materials",
