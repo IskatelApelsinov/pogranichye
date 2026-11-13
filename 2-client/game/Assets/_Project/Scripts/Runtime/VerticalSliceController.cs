@@ -220,6 +220,15 @@ namespace Pogranichye.Client
             _antiAliasing = PlayerPrefs.GetInt("Pogranichye.AntiAliasing", 2);
             _vSync = PlayerPrefs.GetInt("Pogranichye.VSync", 1) != 0;
             _targetFrameRate = PlayerPrefs.GetInt("Pogranichye.TargetFrameRate", 60);
+            var savedQuality = PlayerPrefs.GetInt("Pogranichye.QualityLevel", -1);
+            if (savedQuality >= 0 && QualitySettings.names != null && savedQuality < QualitySettings.names.Length)
+                QualitySettings.SetQualityLevel(savedQuality, true);
+            if (PlayerPrefs.HasKey("Pogranichye.Fullscreen"))
+            {
+                var savedFullscreen = PlayerPrefs.GetInt("Pogranichye.Fullscreen", 0) != 0;
+                Screen.fullScreenMode = savedFullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+                Screen.fullScreen = savedFullscreen;
+            }
             ApplyGraphicsSettings();
             _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
             AudioListener.volume = _masterVolume;
@@ -471,6 +480,7 @@ namespace Pogranichye.Client
                 GUILayout.Label("НАСТРОЙКИ");
                 DrawOptionsControls();
                 GUILayout.Space(10f);
+                if (GUILayout.Button("Сбросить настройки", GUILayout.Height(34f))) ResetSettingsToDefaults();
                 if (GUILayout.Button("Назад", GUILayout.Height(40f))) _showMainSettings = false;
             }
             else
@@ -520,11 +530,12 @@ namespace Pogranichye.Client
             GUI.enabled = previousEnabled;
         }
 
-        private static void ToggleFullscreen()
+        private void ToggleFullscreen()
         {
             var enable = !Screen.fullScreen;
             Screen.fullScreenMode = enable ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
             Screen.fullScreen = enable;
+            SaveInt("Pogranichye.Fullscreen", enable ? 1 : 0);
         }
 
         private void OnSocketChatMessage(WorldSocketClient socket, string json)
@@ -1229,28 +1240,34 @@ namespace Pogranichye.Client
             DrawOptionsControls();
             GUILayout.Space(8f);
             if (GUILayout.Button("Сбросить настройки", GUILayout.Height(32f)))
+                ResetSettingsToDefaults();
+        }
+
+        private void ResetSettingsToDefaults()
+        {
+            foreach (var key in new[]
             {
-                PlayerPrefs.DeleteKey("Pogranichye.MasterVolume");
-                PlayerPrefs.DeleteKey("Pogranichye.SfxVolume");
-                PlayerPrefs.DeleteKey("Pogranichye.AmbienceVolume");
-                PlayerPrefs.DeleteKey("Pogranichye.MouseSensitivity");
-                PlayerPrefs.DeleteKey("Pogranichye.InvertMouseY");
-                PlayerPrefs.DeleteKey("Pogranichye.ShadowDistance");
-                PlayerPrefs.DeleteKey("Pogranichye.LodBias");
-                PlayerPrefs.DeleteKey("Pogranichye.AntiAliasing");
-                PlayerPrefs.DeleteKey("Pogranichye.VSync");
-                PlayerPrefs.DeleteKey("Pogranichye.TargetFrameRate");
-                _masterVolume = 0.85f; _sfxVolume = 0.9f; _ambienceVolume = 0.75f;
-                _mouseSensitivity = 0.035f; _invertMouseY = false; _shadowDistance = 120f;
-                _lodBias = 1f; _antiAliasing = 2;
-                _vSync = true; _targetFrameRate = 60;
-                AudioListener.volume = _masterVolume;
-                _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
-                _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
-                _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
-                ApplyGraphicsSettings();
-                PlayerPrefs.Save();
-            }
+                "Pogranichye.MasterVolume", "Pogranichye.SfxVolume", "Pogranichye.AmbienceVolume",
+                "Pogranichye.MouseSensitivity", "Pogranichye.InvertMouseY", "Pogranichye.ShadowDistance",
+                "Pogranichye.LodBias", "Pogranichye.AntiAliasing", "Pogranichye.VSync",
+                "Pogranichye.TargetFrameRate", "Pogranichye.QualityLevel", "Pogranichye.Fullscreen"
+            })
+                PlayerPrefs.DeleteKey(key);
+
+            _masterVolume = 0.85f; _sfxVolume = 0.9f; _ambienceVolume = 0.75f;
+            _mouseSensitivity = 0.035f; _invertMouseY = false; _shadowDistance = 120f;
+            _lodBias = 1f; _antiAliasing = 2; _vSync = true; _targetFrameRate = 60;
+            AudioListener.volume = _masterVolume;
+            _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
+            _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
+            _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
+            if (QualitySettings.names != null && QualitySettings.names.Length > 0)
+                QualitySettings.SetQualityLevel(Mathf.Min(2, QualitySettings.names.Length - 1), true);
+            Screen.fullScreenMode = FullScreenMode.Windowed;
+            Screen.fullScreen = false;
+            ApplyGraphicsSettings();
+            PlayerPrefs.Save();
+            _status = "Настройки сброшены.";
         }
 
         private void DrawOptionsControls()
@@ -1271,7 +1288,10 @@ namespace Pogranichye.Client
                 var quality = QualitySettings.GetQualityLevel();
                 var selected = GUILayout.SelectionGrid(quality, qualityNames, Mathf.Min(3, qualityNames.Length), GUILayout.MinHeight(32f));
                 if (selected != quality && selected >= 0 && selected < qualityNames.Length)
+                {
                     QualitySettings.SetQualityLevel(selected, true);
+                    SaveInt("Pogranichye.QualityLevel", selected);
+                }
             }
             GUILayout.Label("Дальность теней: " + Mathf.RoundToInt(_shadowDistance) + " м");
             var shadows = GUILayout.HorizontalSlider(_shadowDistance, 35f, 220f);
