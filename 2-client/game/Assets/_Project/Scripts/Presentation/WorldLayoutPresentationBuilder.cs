@@ -593,7 +593,7 @@ namespace Pogranichye.Client.Presentation
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            _generatedAssets.Add(mesh);
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
             var water = new GameObject("River surface • rippled overlay");
             water.transform.SetParent(parent, false);
             water.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -694,7 +694,7 @@ namespace Pogranichye.Client.Presentation
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            _generatedAssets.Add(mesh);
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
 
             var crops = new GameObject("Cultivated grain • combined low-poly rows");
             crops.transform.SetParent(parent, false);
@@ -1063,7 +1063,7 @@ namespace Pogranichye.Client.Presentation
             mesh.triangles = new[] { 0, 1, 2, 2, 1, 0 };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            _generatedAssets.Add(mesh);
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
             var gable = new GameObject("Timber gable end");
             gable.transform.SetParent(parent, false);
             gable.AddComponent<MeshFilter>().sharedMesh = mesh;
