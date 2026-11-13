@@ -37,6 +37,7 @@ namespace Pogranichye.Client.Presentation
         private long _lastSocialEventSequence;
         private ulong _socialEventOwner;
         private bool _hasSocialEventBaseline;
+        private string _settlementId;
 
         public Transform PlayerTransform { get; private set; }
 
@@ -57,6 +58,17 @@ namespace Pogranichye.Client.Presentation
         public void Apply(WorldFrame frame)
         {
             if (frame == null || !frame.Alive || frame.Me == null) return;
+
+            // Entity positions are settlement-local. Never interpolate a cached entity from
+            // one settlement into another when the server changes place.id.
+            var incomingSettlementId = frame.Place != null ? frame.Place.Id : null;
+            if (!string.IsNullOrEmpty(incomingSettlementId))
+            {
+                if (!string.IsNullOrEmpty(_settlementId) &&
+                    !string.Equals(_settlementId, incomingSettlementId, System.StringComparison.Ordinal))
+                    Clear();
+                _settlementId = incomingSettlementId;
+            }
 
             var active = new HashSet<ulong>();
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
@@ -949,6 +961,7 @@ namespace Pogranichye.Client.Presentation
             _lastSocialEventSequence = 0L;
             _socialEventOwner = 0UL;
             _hasSocialEventBaseline = false;
+            _settlementId = null;
             _hasPlayerMugState = false;
             _playerHadMug = false;
             _playerMugOwner = 0UL;
