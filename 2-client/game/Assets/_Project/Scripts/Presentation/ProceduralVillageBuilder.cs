@@ -4199,7 +4199,12 @@ namespace Pogranichye.Client.Presentation
         private static Material CreateMaterial(string name, Color color)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var material = new Material(shader) { name = name, color = color };
+            var material = new Material(shader)
+            {
+                name = name,
+                color = color,
+                enableInstancing = true
+            };
             return material;
         }
 
@@ -4356,11 +4361,12 @@ namespace Pogranichye.Client.Presentation
         private static Texture2D MakeSurfaceTexture(string textureName, int pattern)
         {
             const int size = 64;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
             {
                 name = textureName,
                 wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Bilinear
+                filterMode = FilterMode.Trilinear,
+                anisoLevel = 4
             };
             var random = new System.Random(100 + pattern * 37);
             for (var y = 0; y < size; y++)
@@ -4398,18 +4404,19 @@ namespace Pogranichye.Client.Presentation
                 shade = Mathf.Clamp(shade, 0.45f, 1.08f);
                 texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
             }
-            texture.Apply();
+            texture.Apply(true, true);
             return texture;
         }
 
         private static Texture2D MakeGroundTexture()
         {
             const int size = 64;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
             {
                 name = "Generated meadow texture",
                 wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Point
+                filterMode = FilterMode.Trilinear,
+                anisoLevel = 4
             };
             var random = new System.Random(42);
             for (var y = 0; y < size; y++)
@@ -4422,7 +4429,7 @@ namespace Pogranichye.Client.Presentation
                     Mathf.Clamp01(0.42f + noise + fleck),
                     Mathf.Clamp01(0.25f + noise), 1f));
             }
-            texture.Apply();
+            texture.Apply(true, true);
             return texture;
         }
     }
