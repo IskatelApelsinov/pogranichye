@@ -68,6 +68,7 @@ namespace Pogranichye.Client.Editor
                 ValidateNegativeCases();
                 ValidateJournalCases();
                 ValidateMapProjection();
+                ValidateWorldPositionProjection();
                 ValidateWorldV119Dtos();
                 ValidateWorldV120Dtos();
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
@@ -144,6 +145,33 @@ namespace Pogranichye.Client.Editor
                 layout.Roads.Count != 1 || layout.Homes == null || layout.Homes.Count != 1 ||
                 layout.Entry == null || layout.Entry.X != 0d || !layout.IsGenerated)
                 throw new FormatException("Settlement layout v1.19 DTO deserialization failed.");
+        }
+
+        private static void ValidateWorldPositionProjection()
+        {
+            var origin = new Pogranichye.Client.Networking.Protocol.WorldPositionFrame
+            {
+                Scheme = "yof-tangent", Version = 1, Frame = 0,
+                East = 102d, North = 204d, Up = 120d, Ground = 120d,
+                HeightAboveGround = 0d, Chunk = new long[] { 0, 0 }, Layer = 1
+            };
+            var neighbor = new Pogranichye.Client.Networking.Protocol.WorldPositionFrame
+            {
+                Scheme = "yof-tangent", Version = 1, Frame = 0,
+                East = 105d, North = 208d, Up = 122d, Ground = 122d,
+                HeightAboveGround = 0d, Chunk = new long[] { 0, 0 }, Layer = 1
+            };
+            var localOrigin = new Pogranichye.Client.Networking.Protocol.ScenePositionFrame { X = 2d, Y = 4d };
+            if (!WorldPositionProjection.TryToUnityPosition(neighbor, origin, localOrigin, out var projected))
+                throw new FormatException("Valid global neighbor position should project into the player's local frame.");
+            if (Mathf.Abs(projected.x - 5f) > 0.001f ||
+                Mathf.Abs(projected.y - 2f) > 0.001f ||
+                Mathf.Abs(projected.z - 8f) > 0.001f)
+                throw new FormatException("Global neighbor projection must preserve east/north offsets and relative elevation.");
+
+            neighbor.Frame = 1;
+            if (WorldPositionProjection.TryToUnityPosition(neighbor, origin, localOrigin, out _))
+                throw new FormatException("Global positions from different frames must not be mixed.");
         }
 
         private static void ValidateWorldV120Dtos()
