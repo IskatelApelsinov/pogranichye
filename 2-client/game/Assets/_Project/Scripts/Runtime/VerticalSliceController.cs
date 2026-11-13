@@ -3224,7 +3224,7 @@ namespace Pogranichye.Client
             // Without one, every AudioSource in the village is effectively inaudible.
             var listener = camera.GetComponent<AudioListener>();
             if (listener == null) listener = camera.gameObject.AddComponent<AudioListener>();
-            var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+            var listeners = FindObjectsByType<AudioListener>();
             for (var i = 0; i < listeners.Length; i++)
                 if (listeners[i] != null && listeners[i] != listener)
                     listeners[i].enabled = false;
