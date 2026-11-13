@@ -44,6 +44,9 @@ namespace Pogranichye.Client.Presentation
 
         public Transform PlayerTransform { get; private set; }
 
+        /// <summary>Raised only when a server-confirmed solo drink or co-drink event is presented.</summary>
+        public event Action DrinkPresented;
+
         public EntityViewRegistry(Transform root) { _root = root; }
 
         public void PlayPlayerActionGesture(string action)
@@ -87,8 +90,11 @@ namespace Pogranichye.Client.Presentation
             }
 
             var playerMotion = player.GetComponent<EntityMotion>();
-            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug && playerMotion != null)
-                playerMotion.PlayDrinkGesture();
+            if (_hasPlayerMugState && _playerHadMug && !frame.Me.Mug)
+            {
+                if (playerMotion != null) playerMotion.PlayDrinkGesture();
+                DrinkPresented?.Invoke();
+            }
 
             // Keep the consumed tankard visible for the full presentation gesture.
             // Inventory/mug state remains server-authoritative; this is only a short visual tail.
@@ -838,6 +844,7 @@ namespace Pogranichye.Client.Presentation
                 var playerMotion = player.GetComponent<EntityMotion>();
                 if (playerMotion != null) playerMotion.PlayClinkGesture();
                 SetMug(player, true);
+                DrinkPresented?.Invoke();
                 if (TryGetView(socialEvent.With, out var drinkPartner))
                 {
                     SetMug(drinkPartner, true);

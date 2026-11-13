@@ -210,6 +210,7 @@ namespace Pogranichye.Client
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _audioDirector = _presentationRoot.gameObject.AddComponent<WorldAudioDirector>();
             _audioDirector.Initialize();
+            _views.DrinkPresented += OnDrinkPresented;
             _masterVolume = PlayerPrefs.GetFloat("Pogranichye.MasterVolume", 0.85f);
             _sfxVolume = PlayerPrefs.GetFloat("Pogranichye.SfxVolume", 0.9f);
             _ambienceVolume = PlayerPrefs.GetFloat("Pogranichye.AmbienceVolume", 0.75f);
@@ -2098,6 +2099,12 @@ namespace Pogranichye.Client
             }
         }
 
+        private void OnDrinkPresented()
+        {
+            _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
+            _audioDirector?.DrinkBeer();
+        }
+
         private void OnCoreRequestResolved(string label, RequestGate.Outcome outcome, string reason)
         {
             if (label != null && label.StartsWith(TalkRequestLabelPrefix, StringComparison.Ordinal))
@@ -2131,11 +2138,8 @@ namespace Pogranichye.Client
             if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
             {
                 _drinkRequestPending = false;
-                if (outcome == RequestGate.Outcome.Accepted)
-                {
-                    _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
-                    _audioDirector?.DrinkBeer();
-                }
+                // Invite/accept/decline ACKs are not drinking events. Audio is triggered
+                // separately by EntityViewRegistry only when the server publishes a drink transition.
                 _status = outcome == RequestGate.Outcome.Accepted
                     ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
                     : outcome == RequestGate.Outcome.Rejected
