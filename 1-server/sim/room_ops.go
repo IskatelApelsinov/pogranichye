@@ -40,15 +40,18 @@ func roomAndChest(w *core.World, roomID core.ID) (roomEnt, chestEnt *core.Entity
 }
 
 // otherActiveRoom — другая комната, уже снятая этим игроком (одна активная аренда на игрока).
-func otherActiveRoom(w *core.World, actor, except core.ID) bool {
+func otherActiveRoom(w *core.World, actor, except core.ID, day int64) bool {
 	found := false
 	w.Each("room", func(re *core.Entity) {
 		if re.ID == except {
 			return
 		}
 		if r := Room(re); r != nil && r.Tenant == actor {
-			found = true
-		}
+            state := RoomLeaseStateAt(r, day)
+            if state == RoomLeaseActive || state == RoomLeaseGrace {
+                found = true
+            }
+        }
 	})
 	return found
 }
@@ -78,7 +81,7 @@ func RentRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid st
 	if room.Tenant != 0 && room.Tenant != e.ID {
 		return false, "комната уже занята"
 	}
-	if room.Tenant != e.ID && otherActiveRoom(w, e.ID, roomID) {
+	if room.Tenant != e.ID && otherActiveRoom(w, e.ID, roomID, day) {
 		return false, "у тебя уже есть другая снятая комната"
 	}
 	pu := core.Purse(e)
