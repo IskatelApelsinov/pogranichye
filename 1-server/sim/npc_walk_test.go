@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"testing"
 
 	"pogranichye/core"
@@ -181,6 +182,8 @@ func TestMigrantWalksMultiHopRoute(t *testing.T) {
 	}
 	intermediateSeen := make(map[core.ID]bool)
 	terrain := NewTerrain(w)
+	var previousEast, previousNorth float64
+	hasPreviousPosition := false
 	total := int(m.TotalHours) + 1
 	for hour := 1; hour <= total && Migration(person) != nil; hour++ {
 		(MigrationSystem{}).Hour(w, core.Clock{TotalHours: int64(hour)}, nil)
@@ -194,9 +197,18 @@ func TestMigrantWalksMultiHopRoute(t *testing.T) {
 				}
 			}
 		}
-		if _, ok := WorldPosOf(w, terrain, person); !ok {
+		worldPosition, ok := WorldPosOf(w, terrain, person)
+		if !ok {
 			t.Fatalf("на часу %d не удалось получить WPOS многошагового переселенца", hour)
 		}
+		east, north, _ := worldPosition.Meters()
+		if hasPreviousPosition {
+			dx, dy := east-previousEast, north-previousNorth
+			if dx*dx+dy*dy > 20000*20000 {
+				t.Fatalf("на часу %d многошаговый маршрут телепортировал NPC: (%.0f,%.0f) → (%.0f,%.0f)", hour, previousEast, previousNorth, east, north)
+			}
+		}
+		previousEast, previousNorth, hasPreviousPosition = east, north, true
 	}
 	for _, id := range m.Route[1 : len(m.Route)-1] {
 		if !intermediateSeen[id] {
