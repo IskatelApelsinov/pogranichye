@@ -16,12 +16,34 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _birds;
         private AudioSource _water;
         private float _ambienceVolume = 0.75f;
+        private float _windAtmosphereFactor = 1f;
+        private float _birdDaylightFactor = 1f;
+        private float _nextAtmosphereMixAt;
 
         public void SetAmbienceVolume(float volume)
         {
             _ambienceVolume = Mathf.Clamp01(volume);
-            if (_wind != null) _wind.volume = 0.16f * _ambienceVolume;
-            if (_birds != null) _birds.volume = 0.20f * _ambienceVolume;
+            ApplyVolumes();
+        }
+
+        private void Update()
+        {
+            // Three bounded sources do not need per-frame atmosphere polling.
+            if (Time.time < _nextAtmosphereMixAt) return;
+            _nextAtmosphereMixAt = Time.time + 0.25f;
+
+            var wind01 = Mathf.InverseLerp(0.68f, 1.32f, WorldAtmosphereCycle.WindStrength);
+            var targetWind = Mathf.Lerp(0.78f, 1.16f, wind01);
+            var targetBirds = Mathf.Lerp(1f, 0.16f, WorldAtmosphereCycle.NightAmount);
+            _windAtmosphereFactor = Mathf.Lerp(_windAtmosphereFactor, targetWind, 0.42f);
+            _birdDaylightFactor = Mathf.Lerp(_birdDaylightFactor, targetBirds, 0.42f);
+            ApplyVolumes();
+        }
+
+        private void ApplyVolumes()
+        {
+            if (_wind != null) _wind.volume = 0.16f * _ambienceVolume * _windAtmosphereFactor;
+            if (_birds != null) _birds.volume = 0.20f * _ambienceVolume * _birdDaylightFactor;
             if (_water != null) _water.volume = 0.22f * _ambienceVolume;
         }
 
