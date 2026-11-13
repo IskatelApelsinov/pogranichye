@@ -57,6 +57,9 @@ namespace Pogranichye.Client.Presentation
         private int _diagnosticNpcViewsMoved;
         private int _diagnosticGlobalSamples;
         private int _diagnosticLocalSamples;
+        private int _diagnosticNearLodViews;
+        private int _diagnosticMidLodViews;
+        private int _diagnosticFarLodViews;
         private float _diagnosticMaxPresentationGap;
         private float _diagnosticMaxTargetSpan;
         private float _diagnosticMaxViewSpan;
@@ -90,6 +93,11 @@ namespace Pogranichye.Client.Presentation
             var active = _activeIds;
             active.Clear();
             _staleIds.Clear();
+#if UNITY_EDITOR
+            _diagnosticNearLodViews = 0;
+            _diagnosticMidLodViews = 0;
+            _diagnosticFarLodViews = 0;
+#endif
 #if UNITY_EDITOR
             var hasFrameTargetBounds = false;
             var hasFrameViewBounds = false;
@@ -269,7 +277,17 @@ namespace Pogranichye.Client.Presentation
                     // interaction colliders and server-driven activity state intact.
                     var viewLod = view.GetComponent<EntityViewLod>();
                     if (viewLod != null)
+                    {
                         viewLod.ApplyDistance(Vector3.Distance(position, player.transform.position));
+#if UNITY_EDITOR
+                        switch (viewLod.AnimationTier)
+                        {
+                            case 0: _diagnosticNearLodViews++; break;
+                            case 1: _diagnosticMidLodViews++; break;
+                            default: _diagnosticFarLodViews++; break;
+                        }
+#endif
+                    }
 
                     // NPC tavern drinking is a persistent server activity code; remote player
                     // sip gestures remain a short presentation tail. Neither state is inferred locally.
@@ -339,7 +357,9 @@ namespace Pogranichye.Client.Presentation
                         $"maxFrameWposSpan={_diagnosticMaxWposSpan:F2}m, " +
                         $"maxFrameLocalPosSpan={_diagnosticMaxLocalPosSpan:F2}m, " +
                         $"wpos={_diagnosticGlobalSamples}, localPos={_diagnosticLocalSamples}, " +
-                        $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
+                        $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m, " +
+                        $"lodNear={_diagnosticNearLodViews}, lodMid={_diagnosticMidLodViews}, " +
+                        $"lodFar={_diagnosticFarLodViews}");
                 _diagnosticNpcSamples = 0;
                 _diagnosticNpcMoved = 0;
                 _diagnosticNpcViewsMoved = 0;
