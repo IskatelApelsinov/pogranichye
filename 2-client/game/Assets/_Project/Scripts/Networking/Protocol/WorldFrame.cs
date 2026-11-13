@@ -104,8 +104,28 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("layer")] public long Layer { get; set; }
         [JsonProperty("lat")] public double Latitude { get; set; }
         [JsonProperty("lon")] public double Longitude { get; set; }
-        public bool IsValid => Scheme == "yof-tangent" && Version == 1 && Frame >= 0 && Chunk != null && Chunk.Length == 2 &&
-            IsFinite(East) && IsFinite(North) && IsFinite(Up) && IsFinite(Ground) && IsFinite(HeightAboveGround);
+        public bool IsValid
+        {
+            get
+            {
+                if (Scheme != "yof-tangent" || Version != 1 || Frame < 0 || Chunk == null || Chunk.Length != 2 ||
+                    !IsFinite(East) || !IsFinite(North) || !IsFinite(Up) || !IsFinite(Ground) ||
+                    !IsFinite(HeightAboveGround) || !IsFinite(Latitude) || !IsFinite(Longitude))
+                    return false;
+                // WorldPos uses floor division: negative coordinates just west/south of zero
+                // must belong to chunk -1, not chunk 0.
+                var expectedX = Math.Floor(East / 256d);
+                var expectedZ = Math.Floor(North / 256d);
+                var expectedLayer = Math.Floor(Up / 64d);
+                return expectedX >= long.MinValue && expectedX <= long.MaxValue &&
+                    expectedZ >= long.MinValue && expectedZ <= long.MaxValue &&
+                    expectedLayer >= long.MinValue && expectedLayer <= long.MaxValue &&
+                    Chunk[0] == (long)expectedX && Chunk[1] == (long)expectedZ &&
+                    Layer == (long)expectedLayer && Ground <= Up + 0.001 &&
+                    HeightAboveGround >= -0.001 &&
+                    Math.Abs((Ground + HeightAboveGround) - Up) <= 0.01;
+            }
+        }
         private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
