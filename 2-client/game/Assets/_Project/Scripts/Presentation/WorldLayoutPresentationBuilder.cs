@@ -463,6 +463,9 @@ namespace Pogranichye.Client.Presentation
             var crateTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 144);
             var logVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 180);
             var logTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 240);
+            // Prefer the authored Blender barrel when the Resources pack is installed.
+            // Keep the procedural batch as a safe fallback for older or incomplete clones.
+            var authoredBarrel = Resources.Load<GameObject>("TavernProps/barrel_oak");
             var barrelVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 48);
             var barrelTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 72);
 
@@ -516,17 +519,62 @@ namespace Pogranichye.Client.Presentation
                 }
 
                 if (random.NextDouble() < 0.58)
-                    AppendBarrel(barrelVertices, barrelTriangles,
-                        new Vector3(yard.x + 1.02f, 0f, yard.y + 0.42f),
-                        0.27f, 0.78f);
+                {
+                    var barrelPosition = new Vector3(yard.x + 1.02f, 0f, yard.y + 0.42f);
+                    if (authoredBarrel != null)
+                        CreateAuthoredYardBarrel(world, authoredBarrel, barrelPosition, yaw);
+                    else
+                        AppendBarrel(barrelVertices, barrelTriangles, barrelPosition, 0.27f, 0.78f);
+                }
             }
 
             CreateCombinedMesh(world, "Village yards • stacked timber crates",
                 crateVertices, crateTriangles, _timber);
             CreateCombinedMesh(world, "Village yards • split firewood",
                 logVertices, logTriangles, _trunk);
-            CreateCombinedMesh(world, "Village yards • wooden barrels",
+            // This mesh is populated only when the authored Resources model is unavailable.
+            CreateCombinedMesh(world, "Village yards • wooden barrels (procedural fallback)",
                 barrelVertices, barrelTriangles, _trunk);
+        }
+
+        private static void CreateAuthoredYardBarrel(
+            Transform parent, GameObject prefab, Vector3 localPosition, float yaw)
+        {
+            if (parent == null || prefab == null) return;
+            var instance = UnityEngine.Object.Instantiate(prefab, parent, false);
+            instance.name = "Yard barrel • authored oak";
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f);
+            // The Blender source is authored at 0.36 m high; this matches the former
+            // generated barrel's ~0.78 m height and ~0.69 m maximum diameter.
+            instance.transform.localScale = new Vector3(1.85f, 2.61f, 1.85f);
+            instance.isStatic = true;
+
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                renderer.gameObject.isStatic = true;
+                var materials = renderer.sharedMaterials;
+                var changed = false;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var source = materials[materialIndex];
+                    if (source == null) continue;
+                    var materialName = source.name.ToLowerInvariant();
+                    Material replacement = null;
+                    if (materialName.Contains("iron"))
+                        replacement = _stone;
+                    else if (materialName.Contains("dark seam"))
+                        replacement = _trunk;
+                    else if (materialName.Contains("oak") || materialName.Contains("timber"))
+                        replacement = _timber;
+                    if (replacement == null) continue;
+                    materials[materialIndex] = replacement;
+                    changed = true;
+                }
+                if (changed) renderer.sharedMaterials = materials;
+            }
         }
 
         private static bool IsYardPointClear(WorldLayoutFrame layout, WorldRectFrame owner,
