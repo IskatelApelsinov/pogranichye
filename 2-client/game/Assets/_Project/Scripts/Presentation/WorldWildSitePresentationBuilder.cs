@@ -23,7 +23,6 @@ namespace Pogranichye.Client.Presentation
             public string Type;
             public double Mana;
             public double Danger;
-            public bool Built;
             public Transform Root;
         }
 
@@ -45,13 +44,11 @@ namespace Pogranichye.Client.Presentation
             {
                     if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
                         continue;
-                    var viewRoot = new GameObject("WildSite_" + site.Id).transform;
-                    viewRoot.SetParent(_root, false);
                     Views.Add(site.Id, new SiteView
                     {
                         Id = site.Id, Frame = site.Frame, East = site.East,
                         North = site.North, Up = site.Up, Ground = site.Ground, Type = site.Type,
-                        Mana = site.Mana, Danger = site.Danger, Root = viewRoot
+                        Mana = site.Mana, Danger = site.Danger
                     });
             }
         }
@@ -75,7 +72,7 @@ namespace Pogranichye.Client.Presentation
             _root.position = new Vector3((float)scene.X, 0f, (float)scene.Y);
             foreach (var view in Views.Values)
             {
-                if (view.Root == null || view.Frame != origin.Frame)
+                if (view.Frame != origin.Frame)
                 {
                     if (view.Root != null) view.Root.gameObject.SetActive(false);
                     continue;
@@ -87,17 +84,24 @@ namespace Pogranichye.Client.Presentation
                 var distanceSquared = east * east + north * north;
                 var visible = distanceSquared <= 360d * 360d &&
                     Math.Abs(east) < 1000000d && Math.Abs(north) < 1000000d && Math.Abs(up) < 1000000d;
-                view.Root.gameObject.SetActive(visible);
-                if (visible)
+                if (!visible)
                 {
-                    view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
-                    if (!view.Built)
-                    {
-                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger,
-                            Math.Abs(view.Up - view.Ground));
-                        view.Built = true;
-                    }
+                    if (view.Root != null) view.Root.gameObject.SetActive(false);
+                    continue;
                 }
+
+                if (view.Root == null)
+                {
+                    view.Root = new GameObject("WildSite_" + view.Id).transform;
+                    view.Root.SetParent(_root, false);
+                    BuildLandmark(view.Root, view.Type, view.Mana, view.Danger,
+                        Math.Abs(view.Up - view.Ground));
+                }
+                else
+                {
+                    view.Root.gameObject.SetActive(true);
+                }
+                view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
             }
         }
 
