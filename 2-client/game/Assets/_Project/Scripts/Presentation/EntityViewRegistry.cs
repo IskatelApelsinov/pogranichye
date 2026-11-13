@@ -16,6 +16,10 @@ namespace Pogranichye.Client.Presentation
 
         private readonly Dictionary<ulong, GameObject> _views = new Dictionary<ulong, GameObject>();
         private readonly Dictionary<ulong, string> _neighborEquipmentSignatures = new Dictionary<ulong, string>();
+        // Full snapshots are 1 Hz. Retain a missing neighbor briefly to bridge one transient
+        // AOI/snapshot gap at a settlement seam; server presence remains authoritative.
+        private readonly Dictionary<ulong, float> _neighborLastSeenAt = new Dictionary<ulong, float>();
+        private const float NeighborRetentionSeconds = 2.25f;
         private readonly MaterialPropertyBlock _propertyBlock = new MaterialPropertyBlock();
         private readonly Transform _root;
         private Transform _leftPlayerArm;
@@ -113,10 +117,15 @@ namespace Pogranichye.Client.Presentation
                     if (id == playerId) continue;
 
                     active.Add(id);
+                    _neighborLastSeenAt[id] = Time.unscaledTime;
                     var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
-                    var position = neighbor.Position != null
-                        ? ToUnityPosition(neighbor.Position)
-                        : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
+                    Vector3 position;
+                    var hasGlobalPosition = WorldPositionProjection.TryToUnityPosition(
+                        neighbor.WorldPosition, frame.Me.WorldPosition, frame.Me.Position, out position);
+                    if (!hasGlobalPosition)
+                        position = neighbor.Position != null
+                            ? ToUnityPosition(neighbor.Position)
+                            : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, neighbor.Controlled, false);
                     SetActivityCode(view, neighbor.ActivityCode);
                     ApplyNeighborGearAppearance(view, neighbor.Gear, id);
@@ -152,13 +161,20 @@ namespace Pogranichye.Client.Presentation
 
             var stale = new List<ulong>();
             foreach (var pair in _views)
-                if (!active.Contains(pair.Key)) stale.Add(pair.Key);
+            {
+                if (active.Contains(pair.Key)) continue;
+                if (_neighborLastSeenAt.TryGetValue(pair.Key, out var lastSeen) &&
+                    Time.unscaledTime - lastSeen < NeighborRetentionSeconds)
+                    continue;
+                stale.Add(pair.Key);
+            }
 
             foreach (var id in stale)
             {
                 if (_views[id] != null) Object.Destroy(_views[id]);
                 _views.Remove(id);
                 _neighborEquipmentSignatures.Remove(id);
+                _neighborLastSeenAt.Remove(id);
             }
         }
 
@@ -945,6 +961,8 @@ namespace Pogranichye.Client.Presentation
             foreach (var view in _views.Values)
                 if (view != null) Object.Destroy(view);
             _views.Clear();
+            _neighborLastSeenAt.Clear();
+            _neighborEquipmentSignatures.Clear();
             _lastTalkEvent = string.Empty;
             _lastSocialEventSequence = 0L;
             _socialEventOwner = 0UL;
