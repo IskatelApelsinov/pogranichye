@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -79,11 +80,34 @@ namespace Pogranichye.Client.Networking
                     manifest.Units != "m" || manifest.ChunkMeters != 256 || manifest.LayerMeters != 64 ||
                     manifest.Frames == null || manifest.Settlements == null || manifest.Roads == null)
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую карту мира v1.19.");
+                var frameIds = new HashSet<int>();
+                foreach (var frame in manifest.Frames)
+                {
+                    if (frame == null || frame.Id < 0 || string.IsNullOrWhiteSpace(frame.Projection) ||
+                        !IsFinite(frame.OriginLatitude) || !IsFinite(frame.OriginLongitude) ||
+                        !IsFinite(frame.RadiusMeters) || frame.RadiusMeters <= 0)
+                        throw new InvalidOperationException("Карта мира содержит некорректный кадр координат.");
+                    if (!frameIds.Add(frame.Id))
+                        throw new InvalidOperationException("Карта мира содержит повторный frame id.");
+                }
+                if (!frameIds.Contains(0) || !IsFinite(manifest.RimRadiusMeters) || manifest.RimRadiusMeters <= 0)
+                    throw new InvalidOperationException("Карта мира не содержит корректный основной frame 0 или радиус котла.");
+
+                var settlementIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var settlement in manifest.Settlements)
-                    if (settlement == null || string.IsNullOrEmpty(settlement.Id) ||
+                {
+                    if (settlement == null || string.IsNullOrWhiteSpace(settlement.Id) ||
+                        !frameIds.Contains(settlement.Frame) ||
                         !IsFinite(settlement.East) || !IsFinite(settlement.North) ||
-                        !IsFinite(settlement.Up) || !IsFinite(settlement.Half))
+                        !IsFinite(settlement.Up) || !IsFinite(settlement.Half) || settlement.Half <= 0)
                         throw new InvalidOperationException("Карта мира содержит некорректное поселение.");
+                    if (!settlementIds.Add(settlement.Id))
+                        throw new InvalidOperationException("Карта мира содержит повторный settlement id.");
+                }
+                foreach (var road in manifest.Roads)
+                    if (road == null || string.IsNullOrWhiteSpace(road.From) ||
+                        string.IsNullOrWhiteSpace(road.To) || road.From == road.To)
+                        throw new InvalidOperationException("Карта мира содержит некорректную дорогу.");
                 return manifest;
             }
         }
