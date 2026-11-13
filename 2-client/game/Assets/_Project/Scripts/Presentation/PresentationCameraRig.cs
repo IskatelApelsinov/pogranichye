@@ -27,6 +27,7 @@ namespace Pogranichye.Client.Presentation
         private float _defaultFieldOfView = 48f;
         private float _headBobPhase;
         private Transform _target;
+        private Transform _lockOnTarget;
         private bool _firstPerson;
         private float _yaw;
         private float _pitch;
@@ -70,6 +71,11 @@ namespace Pogranichye.Client.Presentation
             _pitch = _firstPerson ? 0f : 28f;
         }
 
+        public void SetLockOnTarget(Transform target)
+        {
+            _lockOnTarget = target;
+        }
+
         public void SetFirstPerson(bool enabled)
         {
             if (_firstPerson == enabled) return;
@@ -89,6 +95,27 @@ namespace Pogranichye.Client.Presentation
                 var targetFov = _defaultFieldOfView + sprintFieldOfViewBoost * sprintBlend;
                 var blend = 1f - Mathf.Exp(-fieldOfViewSharpness * Time.unscaledDeltaTime);
                 _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, blend);
+            }
+
+            if (_lockOnTarget == null)
+            {
+                _lockOnTarget = null;
+            }
+            else if (!_captureMouseForGesture)
+            {
+                var aimPoint = _lockOnTarget.position + Vector3.up * 1.1f;
+                var toTarget = aimPoint - _target.position;
+                var horizontal = new Vector2(toTarget.x, toTarget.z).magnitude;
+                if (horizontal > 0.05f)
+                {
+                    var desiredYaw = Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg;
+                    var desiredPitch = -Mathf.Atan2(toTarget.y, horizontal) * Mathf.Rad2Deg;
+                    var lockBlend = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
+                    _yaw = Mathf.LerpAngle(_yaw, desiredYaw, lockBlend);
+                    _pitch = Mathf.Lerp(_pitch, desiredPitch,
+                        lockBlend * (_firstPerson ? 1f : 0.45f));
+                    if (!_firstPerson) _pitch = Mathf.Clamp(_pitch, thirdPersonMinPitch, thirdPersonMaxPitch);
+                }
             }
 
             if (_firstPerson)
