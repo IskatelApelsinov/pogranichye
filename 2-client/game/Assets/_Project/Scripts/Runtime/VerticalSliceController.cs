@@ -1049,7 +1049,7 @@ namespace Pogranichye.Client
             {
                 foreach (var poiId in MapPoiOrder)
                 {
-                    if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null) continue;
+                    if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null || !ShouldShowMapPoi(poiId)) continue;
                     var position = WorldMapProjection.ToMapPoint(point.X - centerX, point.Y - centerY, half, mapRect);
                     if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
@@ -1061,7 +1061,7 @@ namespace Pogranichye.Client
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
                     var labelRect = new Rect(position.x + 10f, position.y - 8f, 112f, 16f);
-                    GUI.Label(labelRect, MapPoiName(poiId), _mapPoiLabelStyle);
+                    GUI.Label(labelRect, MapPoiDisplayName(poiId), _mapPoiLabelStyle);
                 }
             }
 
@@ -1143,9 +1143,15 @@ namespace Pogranichye.Client
             if (length < 1f) return;
             var center = (start + end) * 0.5f;
             var previousMatrix = GUI.matrix;
-            GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, center);
-            DrawMapFill(new Rect(center.x - length * 0.5f, center.y - thickness * 0.5f, length, thickness), color);
-            GUI.matrix = previousMatrix;
+            try
+            {
+                GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, center);
+                DrawMapFill(new Rect(center.x - length * 0.5f, center.y - thickness * 0.5f, length, thickness), color);
+            }
+            finally
+            {
+                GUI.matrix = previousMatrix;
+            }
         }
 
         private static void DrawMapFill(Rect rect, Color color)
@@ -1178,6 +1184,28 @@ namespace Pogranichye.Client
             _mapNeighborStyle.normal.textColor = Color.white;
             _mapPlayerStyle = new GUIStyle(_mapPoiStyle) { fontSize = 11 };
             _mapPlayerStyle.normal.textColor = Color.white;
+        }
+
+        private bool ShouldShowMapPoi(string poiId)
+        {
+            if (_core == null) return true;
+            switch (poiId)
+            {
+                case "river": return _layout != null && _layout.RiverPresent && _core.SupportsFeature("river");
+                case "mine": return _core.SupportsFeature("mine");
+                case "garden": return true; // a meadow/pasture still exists even when no cultivated field is available
+                case "tavern": return _frame?.Place?.Tavern == true;
+                default: return true;
+            }
+        }
+
+        private string MapPoiDisplayName(string poiId)
+        {
+            if (_core != null && poiId == "woods" && !_core.SupportsFeature("woods"))
+                return "Рощица";
+            if (_core != null && poiId == "garden" && !_core.SupportsFeature("garden"))
+                return "Луг / выгон";
+            return MapPoiName(poiId);
         }
 
         private static string MapPoiName(string poiId)
@@ -1308,12 +1336,6 @@ namespace Pogranichye.Client
                 foreach (var item in known)
                     if (item != null && !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.Name))
                         names[item.Id] = item.Name;
-            var world = _frame.Me?.World;
-            if (world != null)
-                foreach (var item in world)
-                    if (item != null && !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.Name))
-                        names[item.Id] = item.Name;
-
             for (var i = 0; i < _worldMapNearby.Count; i++)
             {
                 var settlement = _worldMapNearby[i];
@@ -1349,6 +1371,8 @@ namespace Pogranichye.Client
             }
             GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? ещё не названное место");
             GUILayout.Label("Карта показывает соседние поселения и реальные связи из мирового реестра; неизвестные места остаются без имени.");
+            if (!manifest.Seamless)
+                GUILayout.Label("Сервер пока не включил бесшовное перемещение: дороги показаны по мировому реестру, но переходы могут быть ограничены.");
         }
 
         private void EnsureWorldMapNearby(string currentSettlementId, int frameId, double centerEast, double centerNorth)
