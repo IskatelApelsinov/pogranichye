@@ -41,6 +41,17 @@ namespace Pogranichye.Client.Presentation
         private long _lastSocialEventSequence;
         private ulong _socialEventOwner;
         private bool _hasSocialEventBaseline;
+#if UNITY_EDITOR
+        // Editor-only telemetry for the reported "all NPCs stand still" issue. It observes
+        // authoritative projected targets without changing movement or creating client simulation.
+        private readonly Dictionary<ulong, Vector3> _diagnosticNpcTargets = new Dictionary<ulong, Vector3>();
+        private float _nextNpcDiagnosticAt;
+        private int _diagnosticNpcSamples;
+        private int _diagnosticNpcMoved;
+        private int _diagnosticGlobalSamples;
+        private int _diagnosticLocalSamples;
+        private float _diagnosticMaxPresentationGap;
+#endif
 
         public Transform PlayerTransform { get; private set; }
 
@@ -132,6 +143,18 @@ namespace Pogranichye.Client.Presentation
                         position = neighbor.Position != null
                             ? ToUnityPosition(neighbor.Position)
                             : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
+#if UNITY_EDITOR
+                    _diagnosticNpcSamples++;
+                    if (hasGlobalPosition) _diagnosticGlobalSamples++;
+                    else _diagnosticLocalSamples++;
+                    if (_diagnosticNpcTargets.TryGetValue(id, out var previousTarget) &&
+                        (position - previousTarget).sqrMagnitude > 0.0025f)
+                        _diagnosticNpcMoved++;
+                    _diagnosticNpcTargets[id] = position;
+                    if (_views.TryGetValue(id, out var diagnosticView) && diagnosticView != null)
+                        _diagnosticMaxPresentationGap = Mathf.Max(_diagnosticMaxPresentationGap,
+                            Vector3.Distance(diagnosticView.transform.position, position));
+#endif
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, neighbor.Controlled, false);
                     SetActivityCode(view, neighbor.ActivityCode);
                     ApplyNeighborGearAppearance(view, neighbor.Gear, id);
@@ -181,7 +204,28 @@ namespace Pogranichye.Client.Presentation
                 _views.Remove(id);
                 _neighborEquipmentSignatures.Remove(id);
                 _neighborLastSeenAt.Remove(id);
+#if UNITY_EDITOR
+                _diagnosticNpcTargets.Remove(id);
+#endif
             }
+
+#if UNITY_EDITOR
+            // Five-second summaries make the data path observable while keeping the normal
+            // frame loop quiet. No per-NPC log spam and no effect in player builds.
+            if (Time.unscaledTime >= _nextNpcDiagnosticAt)
+            {
+                _nextNpcDiagnosticAt = Time.unscaledTime + 5f;
+                if (_diagnosticNpcSamples > 0)
+                    Debug.Log($"[Pogranichye NPC replication] samples={_diagnosticNpcSamples}, " +
+                        $"targetsMoved={_diagnosticNpcMoved}, wpos={_diagnosticGlobalSamples}, " +
+                        $"localPos={_diagnosticLocalSamples}, maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
+                _diagnosticNpcSamples = 0;
+                _diagnosticNpcMoved = 0;
+                _diagnosticGlobalSamples = 0;
+                _diagnosticLocalSamples = 0;
+                _diagnosticMaxPresentationGap = 0f;
+            }
+#endif
         }
 
 
