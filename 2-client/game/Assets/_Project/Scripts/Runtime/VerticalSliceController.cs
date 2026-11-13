@@ -80,8 +80,11 @@ namespace Pogranichye.Client
         private WorldLayoutFrame _layout;
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
-        private TerrainChunkFrame _terrainChunk;
-        private string _terrainChunkRequestedId;
+        private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
+        private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
+        private bool _hasTerrainCenter;
+        private long _terrainCenterX;
+        private long _terrainCenterZ;
         private string _terrainAppliedSettlementId;
         private double _terrainAppliedAnchorEast = double.NaN;
         private double _terrainAppliedAnchorNorth = double.NaN;
@@ -2014,8 +2017,9 @@ namespace Pogranichye.Client
                     _worldManifest = null;
                     Enqueue(() => Debug.LogWarning("Карта мира v1.19 пока недоступна; остаёмся в локальном режиме поселения: " + worldError.Message));
                 }
-                _terrainChunk = null;
-                _terrainChunkRequestedId = null;
+                _terrainChunks.Clear();
+                _terrainChunkRequests.Clear();
+                _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
                 _terrainAppliedSettlementId = null;
                 _terrainAppliedAnchorEast = double.NaN;
@@ -2525,28 +2529,53 @@ namespace Pogranichye.Client
             var anchor = frame.Place.Anchor;
             var position = frame.Me.WorldPosition;
             if (anchor.Frame != position.Frame || position.Frame != 0) return;
-            var chunkX = position.Chunk[0];
-            var chunkZ = position.Chunk[1];
-            var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
-            if (_terrainChunk != null && _terrainChunk.Id == chunkId)
+            var centerX = position.Chunk[0];
+            var centerZ = position.Chunk[1];
+            var centerChanged = !_hasTerrainCenter || centerX != _terrainCenterX || centerZ != _terrainCenterZ;
+            if (centerChanged)
             {
-                var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
-                    Math.Abs(_terrainAppliedAnchorEast - anchor.East) > 0.001 ||
-                    Math.Abs(_terrainAppliedAnchorNorth - anchor.North) > 0.001 ||
-                    Math.Abs(_terrainAppliedAnchorUp - anchor.Up) > 0.001;
-                if (changedAnchor)
+                _hasTerrainCenter = true;
+                _terrainCenterX = centerX;
+                _terrainCenterZ = centerZ;
+                var stale = new List<string>();
+                foreach (var pair in _terrainChunks)
                 {
-                    WorldTerrainChunkBuilder.Apply(_presentationRoot, _terrainChunk, anchor);
-                    _terrainAppliedSettlementId = frame.Place.Id;
-                    _terrainAppliedAnchorEast = anchor.East;
-                    _terrainAppliedAnchorNorth = anchor.North;
-                    _terrainAppliedAnchorUp = anchor.Up;
+                    if (Math.Abs(pair.Value.Chunk[0] - centerX) > 1 ||
+                        Math.Abs(pair.Value.Chunk[1] - centerZ) > 1)
+                        stale.Add(pair.Key);
                 }
-                return;
+                foreach (var id in stale)
+                {
+                    _terrainChunks.Remove(id);
+                    WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
+                }
             }
-            if (_terrainChunkRequestedId == chunkId) return;
-            _terrainChunkRequestedId = chunkId;
-            _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId);
+
+            var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
+                Math.Abs(_terrainAppliedAnchorEast - anchor.East) > 0.001 ||
+                Math.Abs(_terrainAppliedAnchorNorth - anchor.North) > 0.001 ||
+                Math.Abs(_terrainAppliedAnchorUp - anchor.Up) > 0.001;
+            if (changedAnchor)
+            {
+                foreach (var pair in _terrainChunks)
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                _terrainAppliedSettlementId = frame.Place.Id;
+                _terrainAppliedAnchorEast = anchor.East;
+                _terrainAppliedAnchorNorth = anchor.North;
+                _terrainAppliedAnchorUp = anchor.Up;
+            }
+
+            // A 3x3 window reveals the generated terrain beyond the server's 230 m settlement plateau.
+            // Chunks outside this window are evicted above; the window moves only when the player changes chunk.
+            for (var dz = -1; dz <= 1; dz++)
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                var chunkX = centerX + dx;
+                var chunkZ = centerZ + dz;
+                var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
+                if (_terrainChunks.ContainsKey(chunkId) || !_terrainChunkRequests.Add(chunkId)) continue;
+                _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId);
+            }
         }
 
         private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, string chunkId)
@@ -2556,15 +2585,12 @@ namespace Pogranichye.Client
                 var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
                 Enqueue(() =>
                 {
-                    if (_terrainChunkRequestedId != chunkId || _frame == null ||
-                        _frame.Me == null || _frame.Me.WorldPosition == null ||
-                        _frame.Me.WorldPosition.Chunk == null ||
-                        _frame.Me.WorldPosition.Chunk[0] != chunkX ||
-                        _frame.Me.WorldPosition.Chunk[1] != chunkZ ||
+                    _terrainChunkRequests.Remove(chunkId);
+                    if (!_hasTerrainCenter || Math.Abs(chunkX - _terrainCenterX) > 1 ||
+                        Math.Abs(chunkZ - _terrainCenterZ) > 1 || _frame == null ||
                         _frame.Place == null || _frame.Place.Anchor == null)
                         return;
-                    _terrainChunk = chunk;
-                    _terrainChunkRequestedId = null;
+                    _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
                     _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
@@ -2576,7 +2602,7 @@ namespace Pogranichye.Client
             {
                 Enqueue(() =>
                 {
-                    if (_terrainChunkRequestedId == chunkId) _terrainChunkRequestedId = null;
+                    _terrainChunkRequests.Remove(chunkId);
                     Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + ": " + exception.Message);
                 });
             }
