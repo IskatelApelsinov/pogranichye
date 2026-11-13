@@ -284,3 +284,36 @@ func TestSeamlessLandsKeepWorldPosition(t *testing.T) {
 		t.Fatal("на меже не должно быть дребезга")
 	}
 }
+
+// TestWorldPosViewUsingMatchesPerEntityView — общий Terrain (для кадра из me + соседей, comms 0178)
+// должен давать ТОЧНО тот же результат, что отдельный WorldPosView на ту же сущность. Важно: один
+// Terrain на кадр — это экономия (NewTerrain обходит все поселения), а не смена формулы.
+func TestWorldPosViewUsingMatchesPerEntityView(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	var neighbor *core.Entity
+	for _, r := range residentsOf(w, se.ID) {
+		if r.ID != e.ID {
+			neighbor = r
+			break
+		}
+	}
+	if neighbor == nil {
+		t.Fatal("нужен хоть один сосед для теста")
+	}
+	EnsureScenePos(w, neighbor)
+
+	shared := NewTerrain(w)
+	for _, ent := range []*core.Entity{e, neighbor} {
+		got := WorldPosViewUsing(shared, w, ent)
+		want := WorldPosView(w, ent)
+		gm, wm := got.(map[string]any), want.(map[string]any)
+		if gm == nil || wm == nil {
+			t.Fatalf("оба вызова должны вернуть карту: got=%v want=%v", got, want)
+		}
+		for _, k := range []string{"scheme", "v", "frame", "e", "n", "u", "ground", "z", "layer"} {
+			if gm[k] != wm[k] {
+				t.Fatalf("%s: общий Terrain дал %v, отдельный %v", k, gm[k], wm[k])
+			}
+		}
+	}
+}

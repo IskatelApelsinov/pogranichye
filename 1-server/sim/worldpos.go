@@ -244,6 +244,12 @@ func WorldPosOf(w *core.World, t *Terrain, e *core.Entity) (WorldPos, bool) {
 	z := 0.0
 	if p := ScenePos(e); p != nil {
 		x, y, z = x+p.X, y+p.Y, p.Z
+	} else {
+		// Без ScenePosC (НПС вне LOD-активации) должен совпадать с запасным местом, которое кадр
+		// показывает тому же НПС в neighbors[].pos (см. server.neighborPos) — иначе при первом
+		// появлении ScenePosC клиент увидел бы скачок координат (comms 0178, критерий приёмки).
+		sx, sy := layoutFor(w, e).SpawnSpot(uint64(e.ID))
+		x, y = x+sx, y+sy
 	}
 	return WorldPosMeters(0, x, y, t.Height(x, y)+z), true
 }
@@ -261,8 +267,17 @@ func SurfaceOf(w *core.World, p WorldPos) (lat, lon float64, ok bool) {
 func r3(v float64) float64 { return math.Round(v*1000) / 1000 }
 
 // WorldPosView — положение игрока для кадра (me.wpos). Метры с точностью до миллиметра.
+// Строит СВОЙ Terrain — удобно для одиночного вызова; при переносе по кадру нескольких сущностей
+// (me + neighbors[]) используй WorldPosViewUsing с ОДНИМ общим Terrain, иначе каждый вызов заново
+// обойдёт все поселения мира (NewTerrain — O(settlements)), а это уже 1+neighborCap раз на кадр.
 func WorldPosView(w *core.World, e *core.Entity) any {
-	t := NewTerrain(w)
+	return WorldPosViewUsing(NewTerrain(w), w, e)
+}
+
+// WorldPosViewUsing — то же самое, но с готовым Terrain (см. предупреждение выше). Та же схема,
+// что и у me.wpos — используется и для me, и для neighbors[].wpos (v1.20, comms 0178): глобальные
+// координаты сервер считает сам, клиент не должен выводить их из меняющегося place.anchor.
+func WorldPosViewUsing(t *Terrain, w *core.World, e *core.Entity) any {
 	p, ok := WorldPosOf(w, t, e)
 	if !ok {
 		return nil
