@@ -154,3 +154,9 @@ The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. 
 - Inventory distinction: op take buys tools/equipment and increments me.inv.items; market op trade buys bulk goods into me.stash. The Inventory tab now explains the two destinations. The contextual field-tool buttons use the same result-gated take/equip requests; no local optimistic inventory mutation is performed.
 
 These are source-level changes only. Unity Editor 6000.6.7f1 and Play Mode are still required to verify vegetation clearance, building signs, cursor behaviour, purchase/minigame loops, lock-on camera/occlusion, terrain MeshCollider contact and settlement transitions. No Unity build or runtime pass is claimed.
+
+
+## Global world integration gate (2026-11-13)
+
+The cross-system integration matrix and acceptance gates are tracked in `3-dev/comms/0173-chatgpt-to-claude-global-world-integration-matrix.md`. This is the canonical checklist for coordinating global coordinates, chunk/region streaming, multi-layout presentation, floating origin, spatial AOI, NPC border crossing, navigation, world content and gameplay interactions. Treat any subsystem not marked global-aware by source-backed evidence as local/staging/missing. Keep `-seamless=on` disabled until every P0–P4 acceptance gate is implemented and tested. See also handoffs 0170 (owner requirement) and 0171 (source audit).
+
