@@ -2095,6 +2095,8 @@ namespace Pogranichye.Client
             GUILayout.EndArea();
         }
 
+        public bool SupportsFeature(string feature) => HasFeature(feature);
+
         private bool HasFeature(string feature)
         {
             var site = Obj(_place, "site");
