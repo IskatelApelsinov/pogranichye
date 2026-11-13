@@ -2310,6 +2310,7 @@ namespace Pogranichye.Client
             if (HasFeature("garden") && Near("apiary", 5f) && GUILayout.Button("🍯 Вынуть мёд на пасеке")) AskActivity("Пасека", "apiary");
             if (Near("smithy", 10f) && GUILayout.Button("⚒ Помочь у горна")) AskActivity("Работа у горна", "forge");
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) AskActivity("Созерцание", "meditate");
+            if (Flag(Obj(_me, "weave"), "can_study") && GUILayout.Button("Учиться у мага рядом (новый узор)")) AskActivity("Урок плетения", "study");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
             foreach (var pair in TakeAt)
