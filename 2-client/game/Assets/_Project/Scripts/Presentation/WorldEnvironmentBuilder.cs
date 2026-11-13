@@ -918,6 +918,9 @@ namespace Pogranichye.Client.Presentation
         /// <summary>Shared visual wind intensity. It is atmospheric motion only, not authoritative weather.</summary>
         public static float WindStrength { get; private set; } = 1f;
 
+        /// <summary>Slowly changing horizontal wind direction in world XZ space; presentation only.</summary>
+        public static Vector2 WindDirection { get; private set; } = Vector2.right;
+
         public void Initialize(Material sky, Material stars, Material motes, Material mist, Light sun)
         {
             _sky = sky;
@@ -955,6 +958,9 @@ namespace Pogranichye.Client.Presentation
             var gustA = Mathf.Sin(Time.time * 0.075f + 0.4f);
             var gustB = Mathf.Sin(Time.time * 0.19f + 2.1f);
             WindStrength = Mathf.Clamp(1f + gustA * 0.22f + gustB * 0.10f, 0.68f, 1.32f);
+            // Direction meanders gently instead of snapping or reversing every gust.
+            var windAngle = Mathf.Sin(Time.time * 0.018f + 0.7f) * 0.42f;
+            WindDirection = new Vector2(Mathf.Cos(windAngle), Mathf.Sin(windAngle)).normalized;
             var dusk = 1f - Mathf.Clamp01(Mathf.Abs(daylight - 0.42f) * 3.2f);
             var daySky = new Color(0.72f, 0.83f, 0.94f);
             var duskSky = new Color(0.88f, 0.48f, 0.32f);
@@ -1029,7 +1035,7 @@ namespace Pogranichye.Client.Presentation
                 _tipIndices[tip++] = i;
 
             var bounds = _mesh.bounds;
-            bounds.Expand(new Vector3(0.12f, 0f, 0f));
+            bounds.Expand(new Vector3(0.12f, 0f, 0.12f));
             _mesh.bounds = bounds;
         }
 
@@ -1040,11 +1046,16 @@ namespace Pogranichye.Client.Presentation
             _nextUpdateAt = Time.time + UpdateInterval;
 
             var time = Time.time * 1.15f;
+            var wind = WorldAtmosphereCycle.WindStrength;
+            var direction = WorldAtmosphereCycle.WindDirection;
             for (var i = 0; i < _tipIndices.Length; i++)
             {
                 var index = _tipIndices[i];
                 var vertex = _rest[index];
-                vertex.x += Mathf.Sin(time + vertex.x * 0.27f + vertex.z * 0.19f) * 0.055f * WorldAtmosphereCycle.WindStrength;
+                var phase = time + (vertex.x * direction.x + vertex.z * direction.y) * 0.27f;
+                var sway = Mathf.Sin(phase) * 0.055f * wind;
+                vertex.x += direction.x * sway;
+                vertex.z += direction.y * sway;
                 _vertices[index] = vertex;
             }
             _mesh.vertices = _vertices;
@@ -1082,9 +1093,16 @@ namespace Pogranichye.Client.Presentation
         {
             if (_particles == null) return;
             var wind = WorldAtmosphereCycle.WindStrength;
+            var direction = WorldAtmosphereCycle.WindDirection;
             var velocity = _particles.velocityOverLifetime;
-            velocity.x = new ParticleSystem.MinMaxCurve(-_baseX * wind, _baseX * wind);
-            velocity.z = new ParticleSystem.MinMaxCurve(-_baseZ * wind, _baseZ * wind);
+            var driftX = direction.x * _baseX * wind;
+            var driftZ = direction.y * _baseZ * wind;
+            var spreadX = _baseX * wind * 0.18f;
+            var spreadZ = _baseZ * wind * 0.18f;
+            // A shared directional bias carries smoke and mist downwind; a narrow range
+            // preserves soft turbulence without cancelling the mean drift to zero.
+            velocity.x = new ParticleSystem.MinMaxCurve(driftX - spreadX, driftX + spreadX);
+            velocity.z = new ParticleSystem.MinMaxCurve(driftZ - spreadZ, driftZ + spreadZ);
         }
     }
 
@@ -1094,7 +1112,9 @@ namespace Pogranichye.Client.Presentation
         public void Initialize(float speed) { _speed = speed; }
         private void Update()
         {
-            transform.position += Vector3.right * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
+            var direction = WorldAtmosphereCycle.WindDirection;
+            var drift = new Vector3(direction.x, 0f, direction.y);
+            transform.position += drift * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
             if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
         }
     }
