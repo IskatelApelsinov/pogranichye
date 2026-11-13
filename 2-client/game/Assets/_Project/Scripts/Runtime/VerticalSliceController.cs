@@ -1341,7 +1341,7 @@ namespace Pogranichye.Client
             }
             if (GUILayout.Button(_firstPerson ? "Камера: первое лицо" : "Камера: третье лицо", GUILayout.Height(30f)))
                 SetCameraMode(!_firstPerson);
-            GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие · F1 — интерфейс\nЛКМ — атака/выстрел · ПКМ — блок · Q — уворот · R — плетение\nZ/X/V/B/C — боевые приёмы · T — стойка · Tab — дела и меню");
+            GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие · F1 — интерфейс\nЛКМ — атака/выстрел · ПКМ — блок · Q — уворот · R — плетение\nZ/X/V/B/C — боевые приёмы · N — стойка · T — чат · Tab — дела и меню");
         }
 
         private void DrawVolumeSlider(string label, ref float value, string key)

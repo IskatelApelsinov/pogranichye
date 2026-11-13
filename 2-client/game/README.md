@@ -11,7 +11,8 @@ and log for each step.
    `error CS` (start with `Runtime/CoreGameplay.cs` and the `_core` hooks in `VerticalSliceController`).
 2. Open the scene, enter Play Mode against `go run ./cmd/pogserver -starter` and check the Console for exceptions.
 3. Camera and input: mouse look in first/third person; cursor locks only in first person with the HUD folded
-   (F1) and no window open; no movement without keys; RMB (guard) does not break the camera.
+   (F1) and no window open; no movement without keys; RMB (guard) does not break the camera. T opens chat;
+   N cycles combat stance (these actions must never trigger together).
 4. Movement reconciliation at a wall, on the bridge, at the world edge and while running.
 5. Loop: talk to a specific villager → chop in the woods → buy and drink beer in the tavern. Each success must
    appear only after the server confirms it (`me.result` / state); a refusal must show its reason.
@@ -21,11 +22,15 @@ and log for each step.
 9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
 10. v1.19 world data: confirm `me.wpos`/`place.anchor`, inspect the current 256 m terrain mesh, cross a chunk edge and verify stale chunk responses do not replace the current terrain. Keep `-seamless=on` disabled.
 
-## v1.19 Unity world-data integration — PR in progress (2026-11-13)
+## Input bindings — 2026-11-13
+
+- Fixed a real binding collision: `T` was assigned to both chat and combat stance cycling. Chat remains on `T`; stance cycling is now `N`. The in-game control hint and F3 pressed-key diagnostics are updated together.
+
+## v1.19 Unity world-data integration — merged foundation (updated 2026-11-13)
 
 - `WorldFrame` now deserializes optional `me.wpos` and `place.anchor` as double-precision metre coordinates. The strict snapshot parser validates the scheme, frame, finite coordinates and signed 64-bit chunk/layer indices while keeping older v:1 frames valid when these additive fields are absent.
 - `HttpAuthClient` now reads and validates `/api/world` plus `/api/terrain`. Terrain chunks are checked for the 256 m extent, supported sample step, expected grid size and finite heights before use.
-- `VerticalSliceController` requests world metadata on connect (failure is non-fatal for the local village demo), then maintains a bounded 3×3 terrain-chunk window around the authoritative `me.wpos`. Stale asynchronous responses (including responses from a previous connection or settlement) are discarded; chunks outside the window are evicted. Terrain responses must match the requested frame, chunk ID and origin. A settlement change invalidates the old cache and request generation; old chunk meshes are cleared rather than re-based onto a different `place.anchor`.
+- `VerticalSliceController` requests world metadata on connect (failure is non-fatal for the local village demo), then maintains a 3×3 terrain request window around the authoritative `me.wpos` and a 5×5 retention cache. Responses from a previous connection are discarded; a response that finishes after a settlement change may still be applied when its canonical frame/chunk ID remains inside the retention radius. Terrain responses must match the requested frame, chunk ID and origin. On settlement change, cached global chunks are re-applied relative to the new `place.anchor`; only chunks outside the retention radius are evicted.
 - The Editor shared-fixture validator now deserializes a generated settlement layout sample (`plan`, `has_river`, `zones`, `roads`, `homes`, `entry`, `settlement`, `anchor`) so field-name/type drift is caught when the menu validation is run.
 - The v1.19 layout DTO now reads the optional global `anchor`. `/api/layout?settlement=id` responses are checked against the requested settlement id and, when present, the active `place.anchor` (frame and 2 mm coordinate tolerance) before replacing scene geometry. Generated plans, zone kinds/bounds, road segments, homes, entry and POI coordinates are validated before the builder sees them; older v2 layouts remain compatible when additive fields are absent.
 - Settlement layout requests use a session generation guard. A late response from a previous connection or previous settlement cannot replace the active layout; failed layout requests are retried no more than once per 10 seconds per settlement, rather than on every snapshot.

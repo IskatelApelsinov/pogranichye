@@ -105,7 +105,7 @@ namespace Pogranichye.Client
             _trickFeint = Button("TrickFeint", "<Keyboard>/v");
             _trickBait = Button("TrickBait", "<Keyboard>/b");
             _trickSneak = Button("TrickSneak", "<Keyboard>/c");
-            _cycleStance = Button("CycleStance", "<Keyboard>/t");
+            _cycleStance = Button("CycleStance", "<Keyboard>/n");
             _startWoodcut = Button("StartWoodcut", "<Keyboard>/g");
             _startFishing = Button("StartFishing", "<Keyboard>/j");
             _lockTarget = _actions.AddAction("LockTarget", InputActionType.Button);
@@ -191,6 +191,7 @@ namespace Pogranichye.Client
                 if (keyboard.jKey.isPressed) keys.Add("J");
                 if (keyboard.capsLockKey.isPressed) keys.Add("Caps");
                 if (keyboard.tKey.isPressed) keys.Add("T");
+                if (keyboard.nKey.isPressed) keys.Add("N");
                 if (keyboard.hKey.isPressed) keys.Add("H");
                 if (keyboard.zKey.isPressed) keys.Add("Z");
                 if (keyboard.xKey.isPressed) keys.Add("X");
