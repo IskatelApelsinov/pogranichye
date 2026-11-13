@@ -58,7 +58,7 @@ namespace Pogranichye.Client.Presentation
 
         public static void Update(Transform parent, WorldManifestFrame manifest, WorldFrame frame)
         {
-            if (parent == null || manifest == null || frame?.Me?.WorldPosition == null ||
+            if (parent == null || manifest == null || manifest.WildSites == null || manifest.WildSites.Count == 0 || frame?.Me?.WorldPosition == null ||
                 frame.Me.Position == null || !frame.Me.WorldPosition.IsValid)
             {
                 if (_root != null) _root.gameObject.SetActive(false);
