@@ -85,6 +85,11 @@ namespace Pogranichye.Client.Networking
 
             if (frame == null)
                 throw new FormatException("Не удалось разобрать кадр сервера.");
+            if (frame.Me != null && frame.Me.WorldPosition != null && !frame.Me.WorldPosition.IsValid)
+                throw new FormatException("me.wpos: координаты, chunk и layer противоречат друг другу.");
+            if (frame.Place != null && frame.Place.Anchor != null && frame.Me != null &&
+                frame.Me.WorldPosition != null && frame.Place.Anchor.Frame != frame.Me.WorldPosition.Frame)
+                throw new FormatException("place.anchor.frame не совпадает с me.wpos.frame.");
             if (frame.Alive)
             {
                 ParseEntityId(frame.Me.Id, "me.id");
