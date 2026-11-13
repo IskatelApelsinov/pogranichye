@@ -2264,6 +2264,12 @@ namespace Pogranichye.Client
             _layoutRequestedFor = null;
             _layoutFailedFor = null;
             _layoutRetryAfter = 0f;
+            // Cache keys are settlement IDs, not world/session IDs. Never reuse roots from
+            // a previous login: another seed/account may reuse the same settlement ID.
+            _layoutCache?.Clear();
+            _prototypeSettlementId = null;
+            _layoutSettlementId = null;
+            _layout = null;
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
@@ -2317,10 +2323,12 @@ namespace Pogranichye.Client
                 _terrainAppliedAnchorUp = double.NaN;
                 // After a reconnect another settlement's layout may still be on screen: start again from
                 // the default one; EnsureLayoutForPlace switches to the right settlement on the first frame.
-                var replacing = _layoutSettlementId != null;
+                var hasExistingLayout = _presentationRoot != null &&
+                    _presentationRoot.Find("ServerLayoutV2") != null;
                 _layoutSettlementId = null;
+                _prototypeSettlementId = null;
                 _layoutRequestedFor = null;
-                if (replacing) WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                if (hasExistingLayout) WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
                 else WorldLayoutPresentationBuilder.Build(_presentationRoot, layout);
                 var presentationCamera = _cameraRig != null
                     ? _cameraRig.GetComponent<Camera>() : Camera.main;
