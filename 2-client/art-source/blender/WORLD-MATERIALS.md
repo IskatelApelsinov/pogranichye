@@ -22,14 +22,17 @@ blender --background --python 2-client/art-source/blender/generate_world_materia
 ```
 
 Output is written directly to
-`2-client/game/Assets/Art/Generated/WorldMaterials/`.
+`2-client/game/Assets/Resources/WorldMaterials/`. The PNG maps are therefore
+available through `Resources.Load` at runtime. Unity's
+`WorldMaterialTextureImporter` configures Repeat wrapping, mipmaps, normal-map
+import, and linear data-map colour space automatically.
 
 ## Unity import
 
 Unity imports the PNG files automatically. Set:
 - Albedo: sRGB enabled, Wrap Mode Repeat, mipmaps enabled.
 - Normal: Texture Type = Normal map.
-- Roughness and AO: sRGB disabled.
+- Roughness and AO: sRGB disabled automatically by the editor importer.
 - Roughness is not Unity's Smoothness. A shader/material setup must invert it
   when feeding a Smoothness slot (Smoothness = 1 - Roughness).
 
