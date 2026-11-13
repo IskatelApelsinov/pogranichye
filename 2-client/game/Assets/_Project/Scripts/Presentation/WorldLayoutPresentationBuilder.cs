@@ -226,12 +226,6 @@ namespace Pogranichye.Client.Presentation
         private static void BuildGeneratedCountryside(Transform world, WorldLayoutFrame layout)
         {
             var half = (float)layout.WorldHalf;
-            var trunkVertices = new System.Collections.Generic.List<Vector3>(12000);
-            var trunkTriangles = new System.Collections.Generic.List<int>(24000);
-            var canopyVertices = new System.Collections.Generic.List<Vector3>(48000);
-            var canopyTriangles = new System.Collections.Generic.List<int>(96000);
-            var bushVertices = new System.Collections.Generic.List<Vector3>(24000);
-            var bushTriangles = new System.Collections.Generic.List<int>(48000);
             var index = 0;
             if (layout.Zones != null)
             {
@@ -271,47 +265,66 @@ namespace Pogranichye.Client.Presentation
 
                     if (zone.Kind != "forest" && zone.Kind != "copse") continue;
 
-                    // Deterministic density is area-based, not a tiny fixed cap. Rejected samples
-                    // around buildings, roads and POIs are retried so usable woodland stays filled.
+                    // A real woodland is dense in its core and gradually thins at its perimeter.
+                    // Keep each zone in its own mesh batch so Unity can cull separate forest patches.
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
-                    var treeTarget = Mathf.Clamp((int)(area / 150f), 12, 260);
+                    var edgeFade = Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
+                    var zoneTrunks = new System.Collections.Generic.List<Vector3>();
+                    var zoneTrunkTriangles = new System.Collections.Generic.List<int>();
+                    var zoneCanopies = new System.Collections.Generic.List<Vector3>();
+                    var zoneCanopyTriangles = new System.Collections.Generic.List<int>();
+                    var zoneBushes = new System.Collections.Generic.List<Vector3>();
+                    var zoneBushTriangles = new System.Collections.Generic.List<int>();
+
+                    // Roughly 550 mature trees per hectare before edge/obstruction rejection.
+                    // Wide overlapping crowns create a continuous canopy instead of isolated props.
+                    var treeTarget = Mathf.Clamp((int)(area / 18f), 24, 1800);
                     var treeAdded = 0;
-                    for (var attempt = 0; attempt < treeTarget * 5 && treeAdded < treeTarget; attempt++)
+                    for (var attempt = 0; attempt < treeTarget * 12 && treeAdded < treeTarget; attempt++)
                     {
-                        var x = x0 + 2.5f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 5f);
-                        var z = z0 + 2.5f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 5f);
-                        if (VegetationBlocked(layout, x, z, 2.8f, 5.0f, 8.0f)) continue;
-                        var height = 4.0f + (float)random.NextDouble() * 5.0f;
-                        var radius = 1.55f + (float)random.NextDouble() * 1.05f;
-                        AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
+                        var x = x0 + 1.8f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 3.6f);
+                        var z = z0 + 1.8f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 3.6f);
+                        var edgeDistance = Mathf.Min(Mathf.Min(x - x0, x1 - x), Mathf.Min(z - z0, z1 - z));
+                        var edgeDensity = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDistance / edgeFade));
+                        if ((float)random.NextDouble() > edgeDensity) continue;
+                        if (VegetationBlocked(layout, x, z, 2.2f, 4.2f, 8.0f)) continue;
+
+                        // Mix tall narrow trees with shorter, broader crowns for a less repetitive skyline.
+                        var broadCanopy = random.NextDouble() < 0.38;
+                        var height = broadCanopy
+                            ? 6.0f + (float)random.NextDouble() * 3.8f
+                            : 8.0f + (float)random.NextDouble() * 4.5f;
+                        var radius = broadCanopy
+                            ? 2.45f + (float)random.NextDouble() * 1.25f
+                            : 1.85f + (float)random.NextDouble() * 0.95f;
+                        AddLowPolyTree(zoneTrunks, zoneTrunkTriangles, zoneCanopies, zoneCanopyTriangles,
                             new Vector3(x, 0f, z), height, radius, random);
                         treeAdded++;
                     }
 
-                    // Low shrubs fill the understorey without adding individual GameObjects or colliders.
-                    var bushTarget = Mathf.Clamp((int)(area / 38f), 20, 520);
+                    // Dense mixed undergrowth: rounded shrub clusters, with the same soft forest edge.
+                    var bushTarget = Mathf.Clamp((int)(area / 7f), 36, 2600);
                     var bushAdded = 0;
-                    for (var attempt = 0; attempt < bushTarget * 4 && bushAdded < bushTarget; attempt++)
+                    for (var attempt = 0; attempt < bushTarget * 10 && bushAdded < bushTarget; attempt++)
                     {
-                        var x = x0 + 1.5f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 3f);
-                        var z = z0 + 1.5f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 3f);
-                        if (VegetationBlocked(layout, x, z, 1.2f, 2.4f, 5.0f)) continue;
-                        AddLowPolyBush(bushVertices, bushTriangles, new Vector3(x, 0f, z),
-                            0.65f + (float)random.NextDouble() * 0.55f,
-                            0.45f + (float)random.NextDouble() * 0.35f, random);
+                        var x = x0 + 1.0f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 2f);
+                        var z = z0 + 1.0f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 2f);
+                        var edgeDistance = Mathf.Min(Mathf.Min(x - x0, x1 - x), Mathf.Min(z - z0, z1 - z));
+                        var edgeDensity = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDistance / (edgeFade * 0.72f)));
+                        if ((float)random.NextDouble() > edgeDensity) continue;
+                        if (VegetationBlocked(layout, x, z, 0.9f, 2.0f, 5.0f)) continue;
+                        AddLowPolyBush(zoneBushes, zoneBushTriangles, new Vector3(x, 0f, z),
+                            0.72f + (float)random.NextDouble() * 0.82f,
+                            0.52f + (float)random.NextDouble() * 0.52f, random);
                         bushAdded++;
                     }
+
+                    CreateCombinedMesh(world, "Woodland zone " + index + " • trunks", zoneTrunks, zoneTrunkTriangles, _trunk, false);
+                    CreateCombinedMesh(world, "Woodland zone " + index + " • layered canopy", zoneCanopies, zoneCanopyTriangles, _forest, true);
+                    CreateCombinedMesh(world, "Woodland zone " + index + " • dense undergrowth", zoneBushes, zoneBushTriangles, _grass, false);
                 }
             }
-            if (trunkVertices.Count > 0)
-            {
-                CreateCombinedMesh(world, "Generated woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
-                CreateCombinedMesh(world, "Generated woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
-            }
-            if (bushVertices.Count > 0)
-                CreateCombinedMesh(world, "Generated woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
-
             BuildGeneratedGroundCover(world, layout);
             BuildGeneratedYardProps(world, layout);
 
