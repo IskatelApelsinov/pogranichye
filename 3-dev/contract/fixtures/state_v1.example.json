@@ -396,7 +396,11 @@
     "rooms": {
       "total": 2,
       "vacant": 2,
-      "rent_price": 6
+      "rent_price": 6,
+      "items": [
+        {"id": "4101", "lease_state": "vacant", "rent_price": 6, "available": true},
+        {"id": "4102", "lease_state": "vacant", "rent_price": 6, "available": true}
+      ]
     }
   },
   "hour": 14
