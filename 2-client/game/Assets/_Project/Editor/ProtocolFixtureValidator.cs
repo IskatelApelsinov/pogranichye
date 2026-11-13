@@ -149,6 +149,8 @@ namespace Pogranichye.Client.Editor
                 new Vector2(310f, 20f), "north-east map corner");
             AssertMapPoint(WorldMapProjection.ToMapPoint(0d, 0d, 150d, map),
                 new Vector2(160f, 170f), "map centre");
+            AssertMapPoint(WorldMapProjection.ToMapPoint(300d, 0d, 150d, map),
+                new Vector2(460f, 170f), "off-screen map point remains unclamped for viewport clipping");
 
             var footprint = WorldMapProjection.ToMapRect(-10d, -20d, 10d, 20d, 150d, map);
             if (Mathf.Abs(footprint.x - 150f) > 0.01f ||
