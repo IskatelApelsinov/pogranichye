@@ -132,16 +132,22 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        public void Dispose()
+        public void Clear()
         {
             if (_disposed) return;
-            _disposed = true;
             foreach (var entry in _entries.Values)
             {
                 WorldLayoutPresentationBuilder.Cleanup(entry.Root);
                 if (entry.Root != null) UnityEngine.Object.Destroy(entry.Root.gameObject);
             }
             _entries.Clear();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            Clear();
+            _disposed = true;
         }
     }
 }
