@@ -60,6 +60,24 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
         // v1.19 canonical global position; null on older servers or while outside the world.
         [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
+        // v1.20 room lease and private chest state; absent/null on older servers or non-tenants.
+        [JsonProperty("room")] public RoomFrame Room { get; set; }
+    }
+
+    [Serializable]
+    public sealed class RoomFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("settlement")] public string Settlement { get; set; }
+        [JsonProperty("door_poi")] public string DoorPoi { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        [JsonProperty("paid_through_day")] public long PaidThroughDay { get; set; }
+        [JsonProperty("grace_until_day")] public long GraceUntilDay { get; set; }
+        [JsonProperty("lease_state")] public string LeaseState { get; set; }
+        [JsonProperty("indoor")] public bool Indoor { get; set; }
+        [JsonProperty("chest_cap")] public double ChestCapacity { get; set; }
+        [JsonProperty("chest_load")] public double ChestLoad { get; set; }
+        [JsonProperty("chest_items")] public Dictionary<string, int> ChestItems { get; set; }
     }
 
     [Serializable]
@@ -198,6 +216,16 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
         // v1.19 global anchor. Local pos remains settlement-relative.
         [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
+        // v1.20 public vacancy/price summary; intentionally contains no tenant or chest data.
+        [JsonProperty("rooms")] public PlaceRoomsFrame Rooms { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRoomsFrame
+    {
+        [JsonProperty("total")] public int Total { get; set; }
+        [JsonProperty("vacant")] public int Vacant { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
     }
 
     [Serializable]
@@ -254,6 +282,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("casting")] public string Casting { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        // v1.20 canonical global position; local pos remains authoritative for same-settlement movement.
+        [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
         [JsonProperty("gear")] public NeighborGearFrame Gear { get; set; }
     }
 
