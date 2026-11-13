@@ -48,6 +48,7 @@ namespace Pogranichye.Client.Networking
                 ValidateJournal(me["journal"], "me.journal");
                 ValidatePosition(me["pos"], "me.pos", true);
                 ValidateWorldPosition(me["wpos"], "me.wpos");
+                ValidateRoom(me["room"], "me.room");
 
                 var place = root["place"];
                 if (place != null && place.Type != JTokenType.Null)
@@ -55,6 +56,7 @@ namespace Pogranichye.Client.Networking
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
                     ValidateWorldAnchor(place["anchor"], "place.anchor");
+                    ValidatePlaceRooms(place["rooms"], "place.rooms");
                     var neighbors = place["neighbors"];
                     if (neighbors != null && neighbors.Type != JTokenType.Null)
                     {
@@ -68,6 +70,7 @@ namespace Pogranichye.Client.Networking
                                 throw new FormatException($"place.neighbors[{i}] должен быть объектом.");
                             RequireStringId(neighbor["id"], $"place.neighbors[{i}].id");
                             ValidatePosition(neighbor["pos"], $"place.neighbors[{i}].pos", false);
+                            ValidateWorldPosition(neighbor["wpos"], $"place.neighbors[{i}].wpos");
                         }
                     }
                 }
@@ -87,6 +90,36 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException("Не удалось разобрать кадр сервера.");
             if (frame.Me != null && frame.Me.WorldPosition != null && !frame.Me.WorldPosition.IsValid)
                 throw new FormatException("me.wpos: координаты, chunk и layer противоречат друг другу.");
+            if (frame.Me != null && frame.Me.Room != null)
+            {
+                ParseEntityId(frame.Me.Room.Id, "me.room.id");
+                ParseEntityId(frame.Me.Room.Settlement, "me.room.settlement");
+            }
+            if (frame.Place?.Neighbors != null)
+            {
+                for (var i = 0; i < frame.Place.Neighbors.Count; i++)
+                {
+                    var neighbor = frame.Place.Neighbors[i];
+                    if (neighbor?.WorldPosition != null && !neighbor.WorldPosition.IsValid)
+                        throw new FormatException($"place.neighbors[{i}].wpos: координаты, chunk и layer противоречат друг другу.");
+                    if (neighbor?.WorldPosition != null && frame.Place.Anchor != null &&
+                        neighbor.WorldPosition.Frame != frame.Place.Anchor.Frame)
+                        throw new FormatException($"place.neighbors[{i}].wpos.frame не совпадает с place.anchor.frame.");
+                    if (neighbor?.WorldPosition != null && neighbor.Position != null && frame.Place.Anchor != null &&
+                        (Math.Abs(neighbor.WorldPosition.East - frame.Place.Anchor.East - neighbor.Position.X) > 0.002d ||
+                         Math.Abs(neighbor.WorldPosition.North - frame.Place.Anchor.North - neighbor.Position.Y) > 0.002d))
+                        throw new FormatException($"place.neighbors[{i}].wpos не совпадает с anchor + локальная pos.");
+                }
+            }
+            if (frame.Place?.Rooms != null &&
+                (frame.Place.Rooms.Total < 0 || frame.Place.Rooms.Vacant < 0 ||
+                 frame.Place.Rooms.Vacant > frame.Place.Rooms.Total ||
+                 !IsFinite(frame.Place.Rooms.RentPrice) || frame.Place.Rooms.RentPrice < 0d))
+                throw new FormatException("place.rooms содержит некорректную сводку комнат.");
+            if (frame.Me != null && frame.Me.Room != null &&
+                (frame.Me.Room.LeaseState != "vacant" && frame.Me.Room.LeaseState != "active" &&
+                 frame.Me.Room.LeaseState != "grace" && frame.Me.Room.LeaseState != "expired"))
+                throw new FormatException("me.room.lease_state содержит неизвестное состояние аренды.");
             if (frame.Place != null && frame.Place.Anchor != null && frame.Me != null &&
                 frame.Me.WorldPosition != null && frame.Place.Anchor.Frame != frame.Me.WorldPosition.Frame)
                 throw new FormatException("place.anchor.frame не совпадает с me.wpos.frame.");
@@ -134,6 +167,43 @@ namespace Pogranichye.Client.Networking
             if (token["layer"] == null || token["layer"].Type != JTokenType.Integer ||
                 !long.TryParse(token["layer"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
                 throw new FormatException(fieldName + ".layer должен быть целым int64.");
+        }
+
+        private static void ValidateRoom(JToken token, string fieldName)
+        {
+            // Optional additive v1.20 field: null for players without a room and on old servers.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object)
+                throw new FormatException(fieldName + " должен быть объектом или null.");
+            RequireStringId(token["id"], fieldName + ".id");
+            RequireStringId(token["settlement"], fieldName + ".settlement");
+            if (token["door_poi"]?.Type != JTokenType.String ||
+                token["lease_state"]?.Type != JTokenType.String ||
+                token["indoor"]?.Type != JTokenType.Boolean)
+                throw new FormatException(fieldName + " должен содержать door_poi, lease_state и indoor.");
+            var state = token["lease_state"].Value<string>();
+            if (state != "vacant" && state != "active" && state != "grace" && state != "expired")
+                throw new FormatException(fieldName + ".lease_state содержит неизвестное состояние.");
+            foreach (var key in new[] { "rent_price", "chest_cap", "chest_load" })
+                if (token[key] != null && (!IsNumber(token[key]) || !IsFinite(token[key].Value<double>()) || token[key].Value<double>() < 0d))
+                    throw new FormatException(fieldName + "." + key + " должен быть неотрицательным конечным числом.");
+            foreach (var key in new[] { "paid_through_day", "grace_until_day" })
+                if (token[key] != null && (token[key].Type != JTokenType.Integer ||
+                    !long.TryParse(token[key].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var day) || day < 0))
+                    throw new FormatException(fieldName + "." + key + " должен быть неотрицательным целым числом.");
+            if (token["chest_items"] != null && token["chest_items"].Type != JTokenType.Object)
+                throw new FormatException(fieldName + ".chest_items должен быть объектом.");
+        }
+
+        private static void ValidatePlaceRooms(JToken token, string fieldName)
+        {
+            // Optional additive v1.20 summary. Never includes private chest contents.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object ||
+                token["total"]?.Type != JTokenType.Integer ||
+                token["vacant"]?.Type != JTokenType.Integer ||
+                !IsNumber(token["rent_price"]))
+                throw new FormatException(fieldName + " должен содержать total, vacant и rent_price.");
         }
 
         private static void ValidateWorldAnchor(JToken token, string fieldName)
