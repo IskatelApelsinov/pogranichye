@@ -305,8 +305,11 @@ search:
 		t.Fatal("пиво в лесу купить нельзя")
 	}
 	c.gotoAndWait("tavern")
-	var coins0 float64
-	c.world(func(e *core.Entity) { coins0 = core.Purse(e).Coins })
+	var coins0, beerStock0 float64
+	c.world(func(e *core.Entity) {
+		coins0 = core.Purse(e).Coins
+		beerStock0 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
+	})
 	ok, reason, buyReq := c.result(`"op":"buy","item":"beer"`)
 	if !ok {
 		t.Fatalf("покупка пива отклонена: %s", reason)
@@ -317,9 +320,13 @@ search:
 	if boughtMe["mug"] != true {
 		t.Fatalf("after buying beer me.mug must be true, got %v", boughtMe["mug"])
 	}
-	var coins1 float64
+	var coins1, beerStock1 float64
 	c.world(func(e *core.Entity) {
 		coins1 = core.Purse(e).Coins
+		beerStock1 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
+		if math.Abs(beerStock0-beerStock1-1) > 1e-9 {
+			t.Fatalf("покупка должна уменьшить запас пива на одну кружку: было %.2f, стало %.2f", beerStock0, beerStock1)
+		}
 		// The world keeps simulating while the WebSocket result is delivered. Wage/need
 		// systems may credit or debit the purse between snapshots, so exact net balance
 		// delta is asserted in sim/tavern_test.go; this E2E checks the authoritative mug
