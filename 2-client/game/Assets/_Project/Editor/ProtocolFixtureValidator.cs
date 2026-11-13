@@ -33,8 +33,13 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
                 if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count == 0 || frame.Place.Neighbors[0].Position == null)
                     throw new FormatException("The shared v1.1 fixture must include a positioned neighbor.");
-                if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null)
-                    throw new FormatException("The shared v1.7 fixture must include inventory and world data.");
+                if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null ||
+                    !frame.Me.Inventory.Items.TryGetValue("axe", out var fixtureAxeCount) || fixtureAxeCount != 1 ||
+                    frame.Me.Inventory.Hand != "axe")
+                    throw new FormatException("The shared v1.7 fixture must map carried item counts and hand equipment.");
+                if (frame.Me.Stash == null || !frame.Me.Stash.TryGetValue("bread", out var fixtureBreadCount) ||
+                    fixtureBreadCount != 4)
+                    throw new FormatException("The shared v1 fixture must keep bulk goods in me.stash, separate from me.inv.items.");
                 if (frame.Me.Desire == null || frame.Place.BeerPrice <= 0)
                     throw new FormatException("The shared v1.7 fixture must include desire and tavern price data.");
                 if (frame.Me.Task == null || frame.Me.Task.Stage < 1 || string.IsNullOrEmpty(frame.Me.Task.Text))
