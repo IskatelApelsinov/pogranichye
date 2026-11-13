@@ -1110,12 +1110,23 @@ namespace Pogranichye.Client.Presentation
     {
         private float _speed;
         public void Initialize(float speed) { _speed = speed; }
+        private const float WrapHalfExtent = 115f;
+        private const float WrapDiameter = WrapHalfExtent * 2f;
+
         private void Update()
         {
             var direction = WorldAtmosphereCycle.WindDirection;
             var drift = new Vector3(direction.x, 0f, direction.y);
             transform.position += drift * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
-            if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
+
+            // The cloud field is a repeating 230 m presentation tile. Wrap both axes in
+            // both directions so changing wind never lets clouds escape the atmosphere.
+            var position = transform.position;
+            if (position.x > WrapHalfExtent) position.x -= WrapDiameter;
+            else if (position.x < -WrapHalfExtent) position.x += WrapDiameter;
+            if (position.z > WrapHalfExtent) position.z -= WrapDiameter;
+            else if (position.z < -WrapHalfExtent) position.z += WrapDiameter;
+            transform.position = position;
         }
     }
 
