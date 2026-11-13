@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static Material _iron;
         private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
         // are owned by the layout root that created them, not by the most recently built layout.
@@ -48,6 +49,9 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
+            _iron = MakeTexturedMaterial("Forged iron • dark hoops", new Color(0.19f, 0.20f, 0.20f), 0, 1f, 1f);
+            if (_iron.HasProperty("_Metallic")) _iron.SetFloat("_Metallic", 0.72f);
+            if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
@@ -463,6 +467,9 @@ namespace Pogranichye.Client.Presentation
             var crateTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 144);
             var logVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 180);
             var logTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 240);
+            // Prefer the authored Blender barrel when the Resources pack is installed.
+            // Keep the procedural batch as a safe fallback for older or incomplete clones.
+            var authoredBarrel = Resources.Load<GameObject>("TavernProps/barrel_oak");
             var barrelVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 48);
             var barrelTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 72);
 
@@ -516,17 +523,62 @@ namespace Pogranichye.Client.Presentation
                 }
 
                 if (random.NextDouble() < 0.58)
-                    AppendBarrel(barrelVertices, barrelTriangles,
-                        new Vector3(yard.x + 1.02f, 0f, yard.y + 0.42f),
-                        0.27f, 0.78f);
+                {
+                    var barrelPosition = new Vector3(yard.x + 1.02f, 0f, yard.y + 0.42f);
+                    if (authoredBarrel != null)
+                        CreateAuthoredYardBarrel(world, authoredBarrel, barrelPosition, yaw);
+                    else
+                        AppendBarrel(barrelVertices, barrelTriangles, barrelPosition, 0.27f, 0.78f);
+                }
             }
 
             CreateCombinedMesh(world, "Village yards • stacked timber crates",
                 crateVertices, crateTriangles, _timber);
             CreateCombinedMesh(world, "Village yards • split firewood",
                 logVertices, logTriangles, _trunk);
-            CreateCombinedMesh(world, "Village yards • wooden barrels",
+            // This mesh is populated only when the authored Resources model is unavailable.
+            CreateCombinedMesh(world, "Village yards • wooden barrels (procedural fallback)",
                 barrelVertices, barrelTriangles, _trunk);
+        }
+
+        private static void CreateAuthoredYardBarrel(
+            Transform parent, GameObject prefab, Vector3 localPosition, float yaw)
+        {
+            if (parent == null || prefab == null) return;
+            var instance = UnityEngine.Object.Instantiate(prefab, parent, false);
+            instance.name = "Yard barrel • authored oak";
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = Quaternion.Euler(0f, yaw * Mathf.Rad2Deg, 0f);
+            // Match the former generated barrel: ~0.58 m maximum diameter and ~0.78 m height.
+            // The larger scale used by the tutorial village is intentionally not reused here.
+            instance.transform.localScale = new Vector3(1.33f, 2.17f, 1.33f);
+            instance.isStatic = true;
+
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                renderer.gameObject.isStatic = true;
+                var materials = renderer.sharedMaterials;
+                var changed = false;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var source = materials[materialIndex];
+                    if (source == null) continue;
+                    var materialName = source.name.ToLowerInvariant();
+                    Material replacement = null;
+                    if (materialName.Contains("iron"))
+                        replacement = _iron;
+                    else if (materialName.Contains("dark seam"))
+                        replacement = _trunk;
+                    else if (materialName.Contains("oak") || materialName.Contains("timber"))
+                        replacement = _timber;
+                    if (replacement == null) continue;
+                    materials[materialIndex] = replacement;
+                    changed = true;
+                }
+                if (changed) renderer.sharedMaterials = materials;
+            }
         }
 
         private static bool IsYardPointClear(WorldLayoutFrame layout, WorldRectFrame owner,
@@ -1616,6 +1668,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = null;
             _grass = null;
             _stone = null;
+            _iron = null;
             _flowers = null;
         }
 
