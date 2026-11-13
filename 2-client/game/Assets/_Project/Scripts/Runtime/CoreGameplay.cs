@@ -2166,19 +2166,22 @@ namespace Pogranichye.Client
                     ready ? objective + " · можно сдавать" : objective);
                 GUI.color = previous;
                 y += 26f;
+                // Keep only the personal errand in the world overlay. The full quest list
+                // remains in the journal, away from the player's field of view.
+                return;
             }
 
             var active = Arr(Obj(_me, "quests"), "active");
             if (active == null || active.Count == 0) return;
-            foreach (var quest in active)
-            {
-                var kind = Str(quest, "kind");
-                var progress = kind == "deliver" || kind == "cull"
-                    ? " (" + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) + "/" + (int)Num(quest, "qty") + ")"
-                    : string.Empty;
-                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 40f), (Flag(quest, "ready") ? "[готово] " : "- ") + Str(quest, "text") + progress);
-                y += 40f;
-            }
+            // One concise objective is enough for moment-to-moment play; never stack a
+            // wall of quest text over the world. Additional objectives remain in the journal.
+            var quest = active[0];
+            var kind = Str(quest, "kind");
+            var progress = kind == "deliver" || kind == "cull"
+                ? " (" + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) + "/" + (int)Num(quest, "qty") + ")"
+                : string.Empty;
+            GUI.Label(new Rect(Screen.width - 430f, y, 420f, 40f),
+                (Flag(quest, "ready") ? "[готово] " : "") + Str(quest, "text") + progress);
         }
 
         private static string OptionRu(string option)
