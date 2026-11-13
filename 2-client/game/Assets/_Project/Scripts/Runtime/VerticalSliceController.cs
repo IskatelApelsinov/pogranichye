@@ -1746,7 +1746,7 @@ namespace Pogranichye.Client
             var owned = _frame?.Me?.Room;
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("КОМНАТЫ НАД КОРЧМОЙ");
-            GUILayout.Label("Вход и сундук работают через сервер; отдельная 3D-геометрия интерьера ещё не подключена.");
+            GUILayout.Label("Гостевые комнаты видны в таверне; серверный вход пока не переносит персонажа в отдельную сцену.");
             if (rooms == null || rooms.Count == 0)
             {
                 GUILayout.Label("Каталог комнат пока не получен от сервера.");
@@ -1760,7 +1760,9 @@ namespace Pogranichye.Client
                 if (room == null || string.IsNullOrEmpty(room.Id)) continue;
                 var isMine = owned != null && string.Equals(owned.Id, room.Id, StringComparison.Ordinal);
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("Комната · " + room.LeaseState + " · " +
+                var roomNumber = i == 0 ? "I" : i == 1 ? "II" :
+                    (i + 1).ToString(CultureInfo.InvariantCulture);
+                GUILayout.Label("Комната " + roomNumber + " · " + room.LeaseState + " · " +
                     room.RentPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон.");
                 if (isMine)
                 {
