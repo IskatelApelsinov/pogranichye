@@ -50,6 +50,20 @@ namespace Pogranichye.Client.Networking
                     layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
 
+                if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
+                    !string.Equals(settlementId, layout.Settlement, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Сервер вернул раскладку другого поселения.");
+
+                if (layout.Anchor != null &&
+                    (layout.Anchor.Frame < 0 || !IsFinite(layout.Anchor.East) ||
+                     !IsFinite(layout.Anchor.North) || !IsFinite(layout.Anchor.Up)))
+                    throw new InvalidOperationException("Layout v2 содержит некорректный глобальный anchor.");
+
+                if (!string.IsNullOrEmpty(layout.Plan) && layout.Plan != "starter" &&
+                    layout.Plan != "street" && layout.Plan != "cross" &&
+                    layout.Plan != "ring" && layout.Plan != "scatter")
+                    throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
+
                 foreach (var building in layout.Buildings)
                 {
                     if (building == null || !IsFinite(building.X0) || !IsFinite(building.Y0) ||
@@ -59,6 +73,52 @@ namespace Pogranichye.Client.Networking
                         building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf)
                         throw new InvalidOperationException("Layout v2 содержит некорректный footprint здания.");
                 }
+
+                if (layout.Zones != null)
+                {
+                    foreach (var zone in layout.Zones)
+                    {
+                        if (zone == null || (zone.Kind != "forest" && zone.Kind != "copse" &&
+                            zone.Kind != "field" && zone.Kind != "meadow" && zone.Kind != "rock" && zone.Kind != "pond") ||
+                            !IsFinite(zone.X0) || !IsFinite(zone.Y0) || !IsFinite(zone.X1) || !IsFinite(zone.Y1) ||
+                            zone.X0 >= zone.X1 || zone.Y0 >= zone.Y1 ||
+                            zone.X0 < -layout.WorldHalf || zone.X1 > layout.WorldHalf ||
+                            zone.Y0 < -layout.WorldHalf || zone.Y1 > layout.WorldHalf)
+                            throw new InvalidOperationException("Layout v2 содержит некорректную природную зону.");
+                    }
+                }
+
+                if (layout.Roads != null)
+                {
+                    foreach (var road in layout.Roads)
+                    {
+                        if (road == null || road.Length != 4 ||
+                            !IsFinite(road[0]) || !IsFinite(road[1]) ||
+                            !IsFinite(road[2]) || !IsFinite(road[3]) ||
+                            Math.Abs(road[0]) > layout.WorldHalf || Math.Abs(road[1]) > layout.WorldHalf ||
+                            Math.Abs(road[2]) > layout.WorldHalf || Math.Abs(road[3]) > layout.WorldHalf ||
+                            (Math.Abs(road[0] - road[2]) < 0.001 && Math.Abs(road[1] - road[3]) < 0.001))
+                            throw new InvalidOperationException("Layout v2 содержит некорректный сегмент дороги.");
+                    }
+                }
+
+                if (layout.Homes != null)
+                    foreach (var home in layout.Homes)
+                        if (home == null || !IsFinite(home.X) || !IsFinite(home.Y) ||
+                            Math.Abs(home.X) > layout.WorldHalf || Math.Abs(home.Y) > layout.WorldHalf)
+                            throw new InvalidOperationException("Layout v2 содержит некорректную точку дома.");
+
+                if (layout.Entry != null &&
+                    (!IsFinite(layout.Entry.X) || !IsFinite(layout.Entry.Y) ||
+                     Math.Abs(layout.Entry.X) > layout.WorldHalf || Math.Abs(layout.Entry.Y) > layout.WorldHalf))
+                    throw new InvalidOperationException("Layout v2 содержит некорректную точку входа.");
+
+                foreach (var poi in layout.Pois)
+                    if (string.IsNullOrWhiteSpace(poi.Key) || poi.Value == null ||
+                        !IsFinite(poi.Value.X) || !IsFinite(poi.Value.Y) ||
+                        Math.Abs(poi.Value.X) > layout.WorldHalf || Math.Abs(poi.Value.Y) > layout.WorldHalf)
+                        throw new InvalidOperationException("Layout v2 содержит некорректную точку интереса.");
+
                 return layout;
             }
         }
