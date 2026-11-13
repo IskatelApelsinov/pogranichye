@@ -189,6 +189,7 @@ namespace Pogranichye.Client
         private readonly RaycastHit[] _visibilityHits = new RaycastHit[24];
         private readonly RaycastHit[] _aimHits = new RaycastHit[48];
         private bool _aimHitBufferSaturated;
+        private string _lockedFoeId;
         private RequestGate _gate;
         private int _chopSwings;
         private int _fishPhase; // 0 idle, 1 waiting for a bite, 2 bite window
@@ -786,6 +787,8 @@ namespace Pogranichye.Client
                 if (!_seen.Contains(pair.Key)) _stale.Add(pair.Key);
             foreach (var id in _stale)
             {
+                if (string.Equals(_lockedFoeId, id, StringComparison.Ordinal))
+                    ClearLockedTarget(false);
                 if (_foes[id].Root != null) Destroy(_foes[id].Root);
                 _foes.Remove(id);
             }
@@ -1192,6 +1195,8 @@ namespace Pogranichye.Client
             if (_input != null && _input.SecondaryReleased) ReleaseGuard();
 
             if (_input != null && _input.ToggleHintsPressed) _showHints = !_showHints;
+            if (_input != null && _input.LockTargetPressed && !PointerOverHud())
+                ToggleLockedTarget();
             if (_input != null && _input.DodgePressed)
             {
                 _viewsPlayerGesture("dodge");
@@ -1225,6 +1230,61 @@ namespace Pogranichye.Client
             if (motion != null) motion.SetGuarding(guarding);
         }
 
+        private void ToggleLockedTarget()
+        {
+            if (!string.IsNullOrEmpty(_lockedFoeId))
+            {
+                ClearLockedTarget(true);
+                return;
+            }
+
+            var cam = Camera.main;
+            var origin = _player != null ? _player.position : cam != null ? cam.transform.position : Vector3.zero;
+            var forward = cam != null ? cam.transform.forward : _player != null ? _player.forward : Vector3.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+            forward.Normalize();
+
+            FoeRec best = null;
+            var bestScore = float.MaxValue;
+            foreach (var pair in _foes)
+            {
+                var rec = pair.Value;
+                if (rec == null || rec.Root == null || rec.View == null || rec.View.Dead) continue;
+                var toFoe = rec.Root.transform.position - origin;
+                toFoe.y = 0f;
+                var distance = toFoe.magnitude;
+                if (distance < 0.1f || distance > 55f) continue;
+                var direction = toFoe / distance;
+                var dot = Vector3.Dot(forward, direction);
+                if (dot < 0.35f) continue;
+                var point = rec.Root.transform.position + Vector3.up * Mathf.Max(0.8f, rec.View.Height * 0.55f);
+                if (cam != null && IsWorldPointOccluded(cam, point, rec.Root.transform)) continue;
+                var score = distance * (1.25f - dot);
+                if (score >= bestScore) continue;
+                bestScore = score;
+                best = rec;
+            }
+
+            if (best == null)
+            {
+                Toast("Нет противника перед тобой — наведи камеру на врага.", 1.8f);
+                return;
+            }
+
+            _lockedFoeId = best.View.FoeId;
+            if (_rig != null) _rig.SetLockOnTarget(best.Root.transform);
+            Toast("Цель захвачена: " + best.View.DisplayName, 1.8f);
+        }
+
+        private void ClearLockedTarget(bool showToast)
+        {
+            var hadTarget = !string.IsNullOrEmpty(_lockedFoeId);
+            _lockedFoeId = null;
+            if (_rig != null) _rig.SetLockOnTarget(null);
+            if (showToast && hadTarget) Toast("Захват цели снят.", 1.2f);
+        }
+
         private bool AimFoe(out CoreFoeView view, out string part, out float accuracy, out float distance)
         {
             _aimHitBufferSaturated = false;
@@ -1234,6 +1294,26 @@ namespace Pogranichye.Client
             distance = 0f;
             var cam = Camera.main;
             if (cam == null) return false;
+            if (!string.IsNullOrEmpty(_lockedFoeId))
+            {
+                FoeRec locked;
+                if (_foes.TryGetValue(_lockedFoeId, out locked) && locked.Root != null &&
+                    locked.View != null && !locked.View.Dead)
+                {
+                    var lockedPoint = locked.Root.transform.position + Vector3.up * Mathf.Max(0.8f, locked.View.Height * 0.55f);
+                    if (IsWorldPointOccluded(cam, lockedPoint, locked.Root.transform))
+                        return false;
+                    var origin = _player != null ? _player.position : cam.transform.position;
+                    var flat = locked.Root.transform.position - origin;
+                    flat.y = 0f;
+                    distance = flat.magnitude;
+                    view = locked.View;
+                    part = "torso";
+                    accuracy = 0.82f;
+                    return true;
+                }
+                ClearLockedTarget(false);
+            }
             var ray = _firstPerson || Cursor.lockState == CursorLockMode.Locked
                 ? cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f))
                 : cam.ScreenPointToRay(_input != null ? _input.PointerPosition : Vector2.zero);
@@ -1804,6 +1884,7 @@ namespace Pogranichye.Client
             }
 
             DrawFoeLabels();
+            DrawLockedTargetMarker();
             DrawStatus();
             DrawWorldContextAction();
             DrawFeed();
@@ -1903,6 +1984,26 @@ namespace Pogranichye.Client
             return false;
         }
 
+        private void DrawLockedTargetMarker()
+        {
+            if (string.IsNullOrEmpty(_lockedFoeId)) return;
+            FoeRec rec;
+            if (!_foes.TryGetValue(_lockedFoeId, out rec) || rec.Root == null || rec.View == null || rec.View.Dead)
+                return;
+            var cam = Camera.main;
+            if (cam == null) return;
+            var point = rec.Root.transform.position + Vector3.up * Mathf.Max(0.8f, rec.View.Height * 0.55f);
+            var screen = cam.WorldToScreenPoint(point);
+            if (screen.z <= 0f) return;
+            var x = screen.x;
+            var y = Screen.height - screen.y;
+            var previous = GUI.color;
+            GUI.color = new Color(1f, 0.82f, 0.35f, 0.95f);
+            GUI.Box(new Rect(x - 17f, y - 17f, 34f, 34f), "+");
+            GUI.Label(new Rect(x - 72f, y - 42f, 144f, 20f), "ЦЕЛЬ · " + rec.View.DisplayName);
+            GUI.color = previous;
+        }
+
         private void DrawFoeLabels()
         {
             var cam = Camera.main;
@@ -1983,7 +2084,7 @@ namespace Pogranichye.Client
             GUI.Label(new Rect(x, y + 45f, 520f, 22f), line);
             if (_showHints)
                 GUI.Label(new Rect(x - 120f, y + 63f, 900f, 22f),
-                    "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка · H скрыть подсказки");
+                    "ЛКМ удар (зажать — тяжёлый/натяг) · ПКМ блок · CapsLock/СКМ захват цели · Q уворот · F укол · R плетение · Tab дела · Z песок · X толчок · V финт · B приманка · C красться · T стойка · H подсказки");
         }
 
         private void DrawFeed()
