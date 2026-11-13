@@ -580,6 +580,15 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0f, 2.70f, faceZ + end * 0.065f),
                     new Vector3(0.34f, 0.18f, 0.035f), _metalMaterial);
                 vent.isStatic = true;
+                // Recessed horizontal timber slats make the loft vent read as a
+                // ventilated opening rather than a flat dark decal.
+                for (var louvre = -1; louvre <= 1; louvre++)
+                {
+                    var slat = CreatePrimitive("Cottage gable • vent louvre", PrimitiveType.Cube, house,
+                        new Vector3(0f, 2.70f + louvre * 0.055f, faceZ + end * 0.095f),
+                        new Vector3(0.27f, 0.025f, 0.035f), _woodMaterial);
+                    slat.isStatic = true;
+                }
                 var ventLintel = CreatePrimitive("Cottage gable • vent lintel", PrimitiveType.Cube, house,
                     new Vector3(0f, 2.81f, faceZ + end * 0.085f),
                     new Vector3(0.46f, 0.055f, 0.045f), _woodMaterial);
