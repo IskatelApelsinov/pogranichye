@@ -821,6 +821,12 @@ namespace Pogranichye.Client
                     GUILayout.BeginVertical(GUI.skin.box);
                     GUILayout.Label("ПРИНЯТОЕ ЛИЧНОЕ ПОРУЧЕНИЕ · " + giver);
                     GUILayout.Label($"Принести: {good} — {Mathf.Max(0, errand.Have)}/{Mathf.Max(0, errand.Quantity)}");
+                    if (!string.IsNullOrWhiteSpace(errand.SettlementName))
+                        GUILayout.Label("Взято в: " + errand.SettlementName);
+                    else if (!string.IsNullOrWhiteSpace(errand.SettlementId))
+                        GUILayout.Label("Взято в поселении: " + errand.SettlementId);
+                    else
+                        GUILayout.Label("Место выдачи пока не передаётся сервером.");
                     GUILayout.Label(errand.Ready ? "Можно отнести поручение и получить плату." : "Поручение принято. Продолжай собирать нужное.");
                     GUILayout.Label($"Обещанная плата: {errand.Coins:0.##} монет");
                     GUILayout.EndVertical();
