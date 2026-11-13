@@ -2408,7 +2408,7 @@ namespace Pogranichye.Client
             var width = Mathf.Min(900f, Screen.width - 40f);
             var height = Mathf.Min(680f, Screen.height - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
-            GUI.Box(rect, "Дела  [Tab — закрыть]");
+            GUI.Box(rect, "Персонаж  [Tab — закрыть]");
             GUILayout.BeginArea(new Rect(rect.x + 14f, rect.y + 28f, rect.width - 28f, rect.height - 38f));
             _menuScroll = GUILayout.BeginScrollView(_menuScroll);
 
@@ -2418,6 +2418,11 @@ namespace Pogranichye.Client
             var hand = Str(inv, "hand");
             var stash = Obj(_me, "stash");
             var coins = Num(_me, "coins");
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("МОНЕТЫ ПРИ СЕБЕ: " + coins.ToString("0.#", CultureInfo.InvariantCulture));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
 
             GUILayout.Label("ЗДЕСЬ");
             if (_place != null)
@@ -2450,11 +2455,14 @@ namespace Pogranichye.Client
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
                 GUILayout.BeginHorizontal();
-                GUI.enabled = !Flag(_me, "mug") && Num(_place, "beer") >= 1f;
-                if (GUILayout.Button("Заказать пива (" + Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Ask("Пиво", "buy", "item", "beer");
-                GUI.enabled = Flag(_me, "mug");
+                var beerPrice = Num(_place, "beer_price");
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = previousEnabled && !Flag(_me, "mug") &&
+                    Num(_place, "beer") >= 1f && coins >= beerPrice;
+                if (GUILayout.Button("Заказать пива (" + beerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Ask("Пиво", "buy", "item", "beer");
+                GUI.enabled = previousEnabled && Flag(_me, "mug");
                 if (GUILayout.Button("Выпить")) Ask("Выпить", "consume", "item", "beer");
-                GUI.enabled = true;
+                GUI.enabled = previousEnabled;
                 GUILayout.EndHorizontal();
             }
 
@@ -2506,11 +2514,18 @@ namespace Pogranichye.Client
                     var good = Str(row, "good");
                     GUILayout.BeginHorizontal();
                     GUILayout.Label(Name(good) + " · склад " + (int)Num(row, "stock") + " · у тебя " + (int)Count(stash, good), GUILayout.Width(360f));
-                    GUI.enabled = Num(row, "stock") >= 1f;
-                    if (GUILayout.Button("купить " + Num(row, "price").ToString("0.#", CultureInfo.InvariantCulture))) Ask("Покупка", "trade", "good", good, "side", "buy", "qty", 1);
-                    GUI.enabled = Count(stash, good) >= 1f;
-                    if (GUILayout.Button("продать " + Num(row, "sell").ToString("0.#", CultureInfo.InvariantCulture))) Ask("Продажа", "trade", "good", good, "side", "sell", "qty", 1);
-                    GUI.enabled = true;
+                    var previousEnabled = GUI.enabled;
+                    var buyPrice = Num(row, "price");
+                    var canBuy = Num(row, "stock") >= 1f && coins >= buyPrice;
+                    GUI.enabled = previousEnabled && canBuy;
+                    if (GUILayout.Button("купить " + buyPrice.ToString("0.#", CultureInfo.InvariantCulture)))
+                        Ask("Покупка", "trade", "good", good, "side", "buy", "qty", 1);
+                    GUI.enabled = previousEnabled && Count(stash, good) >= 1f;
+                    if (GUILayout.Button("продать " + Num(row, "sell").ToString("0.#", CultureInfo.InvariantCulture)))
+                        Ask("Продажа", "trade", "good", good, "side", "sell", "qty", 1);
+                    GUI.enabled = previousEnabled;
+                    if (Num(row, "stock") >= 1f && coins < buyPrice)
+                        GUILayout.Label("Не хватает монет");
                     GUILayout.EndHorizontal();
                 }
             }
