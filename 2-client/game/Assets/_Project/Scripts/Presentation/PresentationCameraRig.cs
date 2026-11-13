@@ -27,6 +27,7 @@ namespace Pogranichye.Client.Presentation
         private float _defaultFieldOfView = 48f;
         private float _headBobPhase;
         private Transform _target;
+        private Transform _lockOnTarget;
         private bool _firstPerson;
         private float _yaw;
         private float _pitch;
@@ -70,6 +71,11 @@ namespace Pogranichye.Client.Presentation
             _pitch = _firstPerson ? 0f : 28f;
         }
 
+        public void SetLockOnTarget(Transform target)
+        {
+            _lockOnTarget = target;
+        }
+
         public void SetFirstPerson(bool enabled)
         {
             if (_firstPerson == enabled) return;
@@ -91,6 +97,30 @@ namespace Pogranichye.Client.Presentation
                 _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, blend);
             }
 
+            if (_lockOnTarget == null)
+            {
+                _lockOnTarget = null;
+            }
+            else if (!_captureMouseForGesture)
+            {
+                var aimPoint = _lockOnTarget.position + Vector3.up * 1.1f;
+                var aimOrigin = _firstPerson ? transform.position : _target.position;
+                var toTarget = aimPoint - aimOrigin;
+                var horizontal = new Vector2(toTarget.x, toTarget.z).magnitude;
+                if (horizontal > 0.05f)
+                {
+                    var playerToTarget = aimPoint - _target.position;
+                    var desiredYaw = Mathf.Atan2(playerToTarget.x, playerToTarget.z) * Mathf.Rad2Deg;
+                    var desiredPitch = _firstPerson
+                        ? -Mathf.Atan2(toTarget.y, horizontal) * Mathf.Rad2Deg
+                        : _pitch;
+                    var lockBlend = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
+                    _yaw = Mathf.LerpAngle(_yaw, desiredYaw, lockBlend);
+                    if (_firstPerson)
+                        _pitch = Mathf.Lerp(_pitch, desiredPitch, lockBlend);
+                }
+            }
+
             if (_firstPerson)
             {
                 if (!_captureMouseForGesture)
@@ -98,8 +128,9 @@ namespace Pogranichye.Client.Presentation
                     var look = _input != null ? _input.LookDelta : Vector2.zero;
                     _yaw += look.x * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f), -75f, 75f);
-                    _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
+                if (!_captureMouseForGesture)
+                    _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;

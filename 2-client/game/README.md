@@ -19,6 +19,21 @@ and log for each step.
 7. Feed and journal: no duplicates while full and fast frames arrive together.
 8. HUD: Tab window, F1, H (hints), text readable at the real resolution; nothing permanently covers the view.
 9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
+10. v1.19 world data: confirm `me.wpos`/`place.anchor`, inspect the current 256 m terrain mesh, cross a chunk edge and verify stale chunk responses do not replace the current terrain. Keep `-seamless=on` disabled.
+
+## v1.19 Unity world-data integration — PR in progress (2026-11-13)
+
+- `WorldFrame` now deserializes optional `me.wpos` and `place.anchor` as double-precision metre coordinates. The strict snapshot parser validates the scheme, frame, finite coordinates and signed 64-bit chunk/layer indices while keeping older v:1 frames valid when these additive fields are absent.
+- `HttpAuthClient` now reads and validates `/api/world` plus `/api/terrain`. Terrain chunks are checked for the 256 m extent, supported sample step, expected grid size and finite heights before use.
+- `VerticalSliceController` requests world metadata on connect (failure is non-fatal for the local village demo), then maintains a bounded 3×3 terrain-chunk window around the authoritative `me.wpos`. Stale asynchronous responses (including responses from a previous connection or settlement) are discarded; chunks outside the window are evicted. Terrain responses must match the requested frame, chunk ID and origin. A settlement change invalidates the old cache and request generation; old chunk meshes are cleared rather than re-based onto a different `place.anchor`.
+- The Editor shared-fixture validator now deserializes a generated settlement layout sample (`plan`, `has_river`, `zones`, `roads`, `homes`, `entry`, `settlement`, `anchor`) so field-name/type drift is caught when the menu validation is run.
+- The v1.19 layout DTO now reads the optional global `anchor`. `/api/layout?settlement=id` responses are checked against the requested settlement id and, when present, the active `place.anchor` (frame and 2 mm coordinate tolerance) before replacing scene geometry. Generated plans, zone kinds/bounds, road segments, homes, entry and POI coordinates are validated before the builder sees them; older v2 layouts remain compatible when additive fields are absent.
+- Settlement layout requests use a session generation guard. A late response from a previous connection or previous settlement cannot replace the active layout; failed layout requests are retried no more than once per 10 seconds per settlement, rather than on every snapshot.
+- `WorldTerrainChunkBuilder` renders server-generated terrain chunks as lightweight meshes and adds one static `MeshCollider` per chunk. This is local ground geometry only; it does not change server-authoritative movement or provide cross-settlement road/river navigation.
+- The full snapshot DTO now includes `me.weave` (node catalogue, known schemas, gift/limit/capacity, `can_learn`, `can_study`) and `neighbors[].casting`. Unity exposes the server-gated `act:study` action alongside meditation; the server remains authoritative about which schema is taught. Global doubles are kept until the final local mesh vertices are built; the mesh is rebased near the active settlement origin to avoid large Unity float coordinates.
+- Terrain streaming bounds in-flight `/api/terrain` requests to three, prioritizes the player's current chunk before its eight neighbors, and retries failed chunks after a 10-second cooldown. This limits request bursts during rapid chunk transitions; Unity runtime behavior still needs Editor/PlayMode verification.
+- This is the first streaming foundation, **not full seamless-world support**: only a bounded 3×3 window is loaded; dynamic entity collision, roads/river geometry between settlements, neighboring settlement presentation and floating-origin rebasing of all entities are still pending. Do not enable server `-seamless=on` for the Unity demo yet.
+- Verification remains blocked on an actual Unity 6000.6.7f1 Editor run. The fixture validator now includes v1.19 DTO checks, but the menu item has not been executed here.
 
 ## Core gameplay v1.10 — added 2026-11-10 (by Claude, with the owner's permission)
 
@@ -125,3 +140,23 @@ The broader keyboard/mouse scheme and intended weighty-but-responsive character 
 ## Verification status
 
 The source has **not yet been compiled or run inside Unity Editor 6000.6.7f1**. Parser hardening and Editor-side positive/negative fixture checks are source changes only until the menu action is actually run. URP package pin and setup instructions are committed as project configuration, but actual package resolution, asset assignment, scene generation, runtime compatibility and server integration still require an Editor run. Do not treat this branch as a tested Unity build.
+
+
+## v1.19 world presentation and contextual activity UX
+
+- Generated settlements now use deterministic area-based woodland density instead of a 90-tree cap per forest zone. Trees and low-poly shrub clusters are combined into a small number of meshes (no per-bush GameObjects/colliders); candidate placement avoids building footprints, road corridors, river obstruction and POI approaches. The starter woodland also has a denser tree/shrub pass, and legacy trees overlapping the settlement core/buildings/paths are culled.
+- Public generated buildings (tavern, smithy, granary and market) receive two-sided facade signs using the server-provided building name; the tutorial tavern sign now reads **КОРЧМА** and is larger.
+- The settlement map has a 1×–4× zoom control. Above 1× it follows the player's current local position; off-screen geometry is clipped instead of being clamped to the map edge.
+- Woodcutting and fishing are available through a compact contextual panel near the woods/river, independent of the Character tab. The panel offers server-backed purchase of an axe/rod, equip-to-hand, then starts the existing timing/bite minigame. G starts woodcutting and J starts fishing when the player is in the matching POI area and the correct tool is in hand. The minigame panel is rendered outside the tab scroll view.
+- The pointer becomes visible and camera look is paused while it is over interactive HUD/context/minigame surfaces; camera look resumes when the pointer leaves those surfaces.
+- Combat lock-on: Caps Lock or middle mouse button toggles the nearest visible hostile in the camera-forward cone (up to 55 m). The camera smoothly tracks the locked foe; first-person player facing follows the lock. Melee/ranged attacks and weave casts use the locked foe ID, while wall occlusion blocks the action. The lock clears when the foe dies, leaves the replicated scene, or the gameplay session resets. Server remains authoritative for hit, range, damage and spell outcome.
+- Seamless-world status: the target world is continuous across settlement borders; walking from one settlement to another must not hide/reload the scene, reset player/NPC presentation, or expose a loading transition. The current v1.19 settlement-scoped layout/terrain streaming path is only a staging foundation and is NOT seamless-ready: it still fetches layout by settlement identity and uses settlement-relative anchors. Do not enable `-seamless=on` or present settlement switching as seamless. Before enabling it, implement a continuous global coordinate frame, overlapping region/terrain streaming, seam-safe chunk collision, cross-border roads/rivers/POIs, and server AOI replication for players/NPCs across settlement boundaries. Keep old and new region data resident during overlap; retire old chunks only after the player and active entities are safely outside their streaming radius. `EntityViewRegistry` must preserve entity instances across `place.id` changes.
+- Inventory distinction: op take buys tools/equipment and increments me.inv.items; market op trade buys bulk goods into me.stash. The Inventory tab now explains the two destinations. The contextual field-tool buttons use the same result-gated take/equip requests; no local optimistic inventory mutation is performed.
+
+These are source-level changes only. Unity Editor 6000.6.7f1 and Play Mode are still required to verify vegetation clearance, building signs, cursor behaviour, purchase/minigame loops, lock-on camera/occlusion, terrain MeshCollider contact and settlement transitions. No Unity build or runtime pass is claimed.
+
+
+## Global world integration gate (2026-11-13)
+
+The cross-system integration matrix and acceptance gates are tracked in `3-dev/comms/0173-chatgpt-to-claude-global-world-integration-matrix.md`. This is the canonical checklist for coordinating global coordinates, chunk/region streaming, multi-layout presentation, floating origin, spatial AOI, NPC border crossing, navigation, world content and gameplay interactions. Treat any subsystem not marked global-aware by source-backed evidence as local/staging/missing. Keep `-seamless=on` disabled until every P0–P4 acceptance gate is implemented and tested. See also handoffs 0170 (owner requirement) and 0171 (source audit).
+

@@ -33,8 +33,13 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
                 if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count == 0 || frame.Place.Neighbors[0].Position == null)
                     throw new FormatException("The shared v1.1 fixture must include a positioned neighbor.");
-                if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null)
-                    throw new FormatException("The shared v1.7 fixture must include inventory and world data.");
+                if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null ||
+                    !frame.Me.Inventory.Items.TryGetValue("axe", out var fixtureAxeCount) || fixtureAxeCount != 1 ||
+                    frame.Me.Inventory.Hand != "axe")
+                    throw new FormatException("The shared v1.7 fixture must map carried item counts and hand equipment.");
+                if (frame.Me.Stash == null || !frame.Me.Stash.TryGetValue("bread", out var fixtureBreadCount) ||
+                    fixtureBreadCount != 4)
+                    throw new FormatException("The shared v1 fixture must keep bulk goods in me.stash, separate from me.inv.items.");
                 if (frame.Me.Desire == null || frame.Place.BeerPrice <= 0)
                     throw new FormatException("The shared v1.7 fixture must include desire and tavern price data.");
                 if (frame.Me.Task == null || frame.Me.Task.Stage < 1 || string.IsNullOrEmpty(frame.Me.Task.Text))
@@ -45,6 +50,16 @@ namespace Pogranichye.Client.Editor
                     throw new FormatException("The shared fixture must map neighbors[].player and neighbors[].want.");
                 if (frame.Place.Neighbors[0].Trait == null || frame.Me.Skills == null || frame.Me.SocialEvent == null || frame.Me.SocialEvent.Sequence != 7)
                     throw new FormatException("The shared v1.6 fixture must include skills and neighbor traits.");
+                if (frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid ||
+                    frame.Place.Anchor == null || frame.Place.Anchor.Frame != frame.Me.WorldPosition.Frame)
+                    throw new FormatException("The shared v1.19 fixture must include valid global me.wpos and place.anchor.");
+                if (frame.Me.Position == null ||
+                    Math.Abs(frame.Me.WorldPosition.East - frame.Place.Anchor.East - frame.Me.Position.X) > 0.002d ||
+                    Math.Abs(frame.Me.WorldPosition.North - frame.Place.Anchor.North - frame.Me.Position.Y) > 0.002d)
+                    throw new FormatException("v1.19 global position must equal settlement anchor plus local scene position (2 mm tolerance).");
+                if (frame.Me.Weave == null || frame.Me.Weave.Known == null ||
+                    frame.Me.Weave.Nodes == null || frame.Me.Weave.MaxLength <= 0)
+                    throw new FormatException("The shared v1 fixture must include the weave catalogue and known schemas.");
                 if (frame.Place.Life == null || frame.Place.Life.Population < 0 || frame.Place.Life.Working < 0 ||
                     frame.Place.Life.Activities == null || frame.Place.Life.Stock == null || frame.Place.Life.Activities.Maintenance < 0 ||
                     frame.Place.Life.Stock.Wood < 0 || frame.Place.Life.Stock.Metal < 0 || frame.Place.Beer < 0)
@@ -53,7 +68,8 @@ namespace Pogranichye.Client.Editor
                 ValidateNegativeCases();
                 ValidateJournalCases();
                 ValidateMapProjection();
-                Debug.Log($"v1.18 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
+                ValidateWorldV119Dtos();
+                Debug.Log($"v1.19 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
             }
             catch (Exception ex)
             {
@@ -71,6 +87,8 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":\"1\"}}}", "string movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":9223372036854775808}}}", "overflowing movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"18446744073709551616\"}}", "overflowing me.id");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":257,\"n\":-1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,-1],\"layer\":1}}}", "global chunk and layer inconsistent with coordinates");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":1,\"n\":1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":1,\"e\":0,\"n\":0,\"u\":120}}}", "settlement anchor frame mismatch");
             ExpectRejected("{\"v\":1,\"me\":{\"id\":\"42\"}}", "missing alive");
             ExpectRejected("{\"v\":\"1\",\"alive\":false}", "string version");
             ExpectRejected("{\"v\":2,\"alive\":false}", "unsupported version");
@@ -103,6 +121,30 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"journal\":[{\"seq\":1,\"day\":40,\"kind\":\"met\",\"text\":\" \"}]}}", "empty journal text");
         }
 
+        private static void ValidateWorldV119Dtos()
+        {
+            const string manifestJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"seamless\":false,\"frames\":[{\"id\":0,\"projection\":\"azimuthal-equidistant\",\"origin_lat\":0,\"origin_lon\":0,\"radius_m\":1000000}],\"rim_radius_m\":12000,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":256,\"n\":-256,\"u\":120,\"tier\":\"village\",\"terrain\":\"river\",\"plan\":\"cross\",\"cauldron\":true,\"half\":150,\"layout\":\"/api/layout?settlement=7\"}],\"roads\":[{\"a\":\"7\",\"b\":\"8\"}]}";
+            var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldManifestFrame>(manifestJson);
+            if (manifest == null || manifest.Version != 1 || manifest.ChunkMeters != 256 ||
+                manifest.Settlements == null || manifest.Settlements.Count != 1 ||
+                manifest.Settlements[0].Id != "7" || manifest.Settlements[0].East != 256d)
+                throw new FormatException("World manifest v1.19 DTO deserialization failed.");
+
+            const string terrainJson = "{\"id\":\"0:1:-1\",\"frame\":0,\"chunk\":[1,-1],\"origin\":{\"e\":256,\"n\":-256},\"size_m\":256,\"step_m\":64,\"side\":5,\"heights\":[120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120],\"settlements\":[]}";
+            var terrain = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.TerrainChunkFrame>(terrainJson);
+            if (terrain == null || !terrain.IsValid || terrain.Chunk[0] != 1 || terrain.Chunk[1] != -1)
+                throw new FormatException("Terrain chunk v1.19 DTO deserialization failed.");
+
+            const string layoutJson = "{\"version\":2,\"world_half\":150,\"village_half\":50,\"buildings\":[{\"name\":\"Tavern\",\"kind\":\"tavern\",\"x0\":10,\"y0\":6,\"x1\":24,\"y1\":18}],\"river\":{\"y0\":-190,\"y1\":-180,\"bridge_x0\":-6,\"bridge_x1\":6},\"pois\":{\"tavern\":{\"x\":17,\"y\":4},\"well\":{\"x\":0,\"y\":0},\"woods\":{\"x\":80,\"y\":10},\"garden\":{\"x\":0,\"y\":-80},\"river\":{\"x\":20,\"y\":70},\"mine\":{\"x\":-90,\"y\":-90}},\"plan\":\"cross\",\"has_river\":false,\"zones\":[{\"kind\":\"forest\",\"x0\":-120,\"y0\":-100,\"x1\":-40,\"y1\":100}],\"roads\":[[0,0,20,10]],\"homes\":[{\"x\":-10,\"y\":12}],\"entry\":{\"x\":0,\"y\":-120},\"open\":false,\"settlement\":\"7\",\"anchor\":{\"frame\":0,\"e\":256,\"n\":-256,\"u\":120}}";
+            var layout = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldLayoutFrame>(layoutJson);
+            if (layout == null || layout.Plan != "cross" || layout.HasRiver != false ||
+                layout.Settlement != "7" || layout.Anchor == null || layout.Anchor.Frame != 0 ||
+                layout.Zones == null || layout.Zones.Count != 1 || layout.Roads == null ||
+                layout.Roads.Count != 1 || layout.Homes == null || layout.Homes.Count != 1 ||
+                layout.Entry == null || layout.Entry.X != 0d || !layout.IsGenerated)
+                throw new FormatException("Settlement layout v1.19 DTO deserialization failed.");
+        }
+
         private static void ValidateMapProjection()
         {
             var map = new Rect(10f, 20f, 300f, 300f);
@@ -112,6 +154,8 @@ namespace Pogranichye.Client.Editor
                 new Vector2(310f, 20f), "north-east map corner");
             AssertMapPoint(WorldMapProjection.ToMapPoint(0d, 0d, 150d, map),
                 new Vector2(160f, 170f), "map centre");
+            AssertMapPoint(WorldMapProjection.ToMapPoint(300d, 0d, 150d, map),
+                new Vector2(460f, 170f), "off-screen map point remains unclamped for viewport clipping");
 
             var footprint = WorldMapProjection.ToMapRect(-10d, -20d, 10d, 20d, 150d, map);
             if (Mathf.Abs(footprint.x - 150f) > 0.01f ||

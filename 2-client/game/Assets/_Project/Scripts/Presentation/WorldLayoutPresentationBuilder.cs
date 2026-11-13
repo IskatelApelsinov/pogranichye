@@ -121,22 +121,38 @@ namespace Pogranichye.Client.Presentation
             AddRoad(world, bridgeCenter, new Vector2(bridgeCenter.x, -110f), 2.8f);
             AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, (float)layout.WorldHalf - 10f), 2.8f);
             var random = new System.Random(417);
-            var trunkVertices = new System.Collections.Generic.List<Vector3>(3000);
-            var trunkTriangles = new System.Collections.Generic.List<int>(6000);
-            var canopyVertices = new System.Collections.Generic.List<Vector3>(12000);
-            var canopyTriangles = new System.Collections.Generic.List<int>(24000);
-            for (var i = 0; i < 72; i++)
+            var trunkVertices = new System.Collections.Generic.List<Vector3>(9000);
+            var trunkTriangles = new System.Collections.Generic.List<int>(18000);
+            var canopyVertices = new System.Collections.Generic.List<Vector3>(36000);
+            var canopyTriangles = new System.Collections.Generic.List<int>(72000);
+            var bushVertices = new System.Collections.Generic.List<Vector3>(18000);
+            var bushTriangles = new System.Collections.Generic.List<int>(36000);
+            var treesAdded = 0;
+            for (var attempt = 0; attempt < 900 && treesAdded < 150; attempt++)
             {
                 var x = -145f + (float)random.NextDouble() * 70f;
                 var z = -142f + (float)random.NextDouble() * 284f;
-                if (Math.Abs(z + 84f) < 9f || Math.Abs(x) < 3f && z > -50f && z < 50f) continue;
+                if (VegetationBlocked(layout, x, z, 2.8f, 5.0f, 8.0f)) continue;
                 var height = 4f + (float)random.NextDouble() * 5f;
                 var radius = 1.65f + (float)random.NextDouble() * 1.05f;
                 AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
                     new Vector3(x, 0f, z), height, radius, random);
+                treesAdded++;
+            }
+            var bushesAdded = 0;
+            for (var attempt = 0; attempt < 1100 && bushesAdded < 300; attempt++)
+            {
+                var x = -145f + (float)random.NextDouble() * 70f;
+                var z = -142f + (float)random.NextDouble() * 284f;
+                if (VegetationBlocked(layout, x, z, 1.2f, 2.4f, 5.0f)) continue;
+                AddLowPolyBush(bushVertices, bushTriangles, new Vector3(x, 0f, z),
+                    0.65f + (float)random.NextDouble() * 0.55f,
+                    0.45f + (float)random.NextDouble() * 0.35f, random);
+                bushesAdded++;
             }
             CreateCombinedMesh(world, "Far woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
             CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
+            CreateCombinedMesh(world, "Far woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
         }
 
 
@@ -145,6 +161,15 @@ namespace Pogranichye.Client.Presentation
         /// settlement has its own server layout). The tutorial-only prototype dressing is hidden while
         /// a generated settlement is shown and restored on return.
         /// </summary>
+        public static void SetVisible(Transform root, bool visible)
+        {
+            if (root == null) return;
+            var serverLayout = root.Find("ServerLayoutV2");
+            if (serverLayout != null) serverLayout.gameObject.SetActive(visible);
+            var prototype = root.Find("PrototypeVillage");
+            if (prototype != null) prototype.gameObject.SetActive(visible && serverLayout == null);
+        }
+
         public static void Rebuild(Transform root, WorldLayoutFrame layout)
         {
             if (root == null || layout == null || layout.Version != 2) return;
@@ -168,10 +193,12 @@ namespace Pogranichye.Client.Presentation
         private static void BuildGeneratedCountryside(Transform world, WorldLayoutFrame layout)
         {
             var half = (float)layout.WorldHalf;
-            var trunkVertices = new System.Collections.Generic.List<Vector3>(3000);
-            var trunkTriangles = new System.Collections.Generic.List<int>(6000);
-            var canopyVertices = new System.Collections.Generic.List<Vector3>(12000);
-            var canopyTriangles = new System.Collections.Generic.List<int>(24000);
+            var trunkVertices = new System.Collections.Generic.List<Vector3>(12000);
+            var trunkTriangles = new System.Collections.Generic.List<int>(24000);
+            var canopyVertices = new System.Collections.Generic.List<Vector3>(48000);
+            var canopyTriangles = new System.Collections.Generic.List<int>(96000);
+            var bushVertices = new System.Collections.Generic.List<Vector3>(24000);
+            var bushTriangles = new System.Collections.Generic.List<int>(48000);
             var index = 0;
             if (layout.Zones != null)
             {
@@ -210,18 +237,37 @@ namespace Pogranichye.Client.Presentation
                         new Vector3(x1 - x0, thickness, z1 - z0), material, false);
 
                     if (zone.Kind != "forest" && zone.Kind != "copse") continue;
-                    // Deterministic woodland: the same zone always grows the same trees.
+
+                    // Deterministic density is area-based, not a tiny fixed cap. Rejected samples
+                    // around buildings, roads and POIs are retried so usable woodland stays filled.
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
-                    var count = Mathf.Clamp((int)((x1 - x0) * (z1 - z0) / 260f), 6, 90);
-                    for (var i = 0; i < count; i++)
+                    var area = (x1 - x0) * (z1 - z0);
+                    var treeTarget = Mathf.Clamp((int)(area / 150f), 12, 260);
+                    var treeAdded = 0;
+                    for (var attempt = 0; attempt < treeTarget * 5 && treeAdded < treeTarget; attempt++)
                     {
-                        var x = x0 + 2f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 4f);
-                        var z = z0 + 2f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 4f);
-                        var height = 4f + (float)random.NextDouble() * 5f;
-                        var radius = 1.65f + (float)random.NextDouble() * 1.05f;
-                        if (layout.IsBlocked(x, z) || NearAnyPoi(layout, x, z, 6f)) continue;
+                        var x = x0 + 2.5f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 5f);
+                        var z = z0 + 2.5f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 5f);
+                        if (VegetationBlocked(layout, x, z, 2.8f, 5.0f, 8.0f)) continue;
+                        var height = 4.0f + (float)random.NextDouble() * 5.0f;
+                        var radius = 1.55f + (float)random.NextDouble() * 1.05f;
                         AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
                             new Vector3(x, 0f, z), height, radius, random);
+                        treeAdded++;
+                    }
+
+                    // Low shrubs fill the understorey without adding individual GameObjects or colliders.
+                    var bushTarget = Mathf.Clamp((int)(area / 38f), 20, 520);
+                    var bushAdded = 0;
+                    for (var attempt = 0; attempt < bushTarget * 4 && bushAdded < bushTarget; attempt++)
+                    {
+                        var x = x0 + 1.5f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 3f);
+                        var z = z0 + 1.5f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 3f);
+                        if (VegetationBlocked(layout, x, z, 1.2f, 2.4f, 5.0f)) continue;
+                        AddLowPolyBush(bushVertices, bushTriangles, new Vector3(x, 0f, z),
+                            0.65f + (float)random.NextDouble() * 0.55f,
+                            0.45f + (float)random.NextDouble() * 0.35f, random);
+                        bushAdded++;
                     }
                 }
             }
@@ -230,6 +276,8 @@ namespace Pogranichye.Client.Presentation
                 CreateCombinedMesh(world, "Generated woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
                 CreateCombinedMesh(world, "Generated woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
             }
+            if (bushVertices.Count > 0)
+                CreateCombinedMesh(world, "Generated woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
 
             if (layout.Roads != null)
             {
@@ -255,6 +303,98 @@ namespace Pogranichye.Client.Presentation
                 if (dx * dx + dz * dz < radius * radius) return true;
             }
             return false;
+        }
+
+        private static bool VegetationBlocked(WorldLayoutFrame layout, float x, float z,
+            float buildingClearance, float roadClearance, float poiClearance)
+        {
+            if (layout == null || layout.IsBlocked(x, z) ||
+                NearAnyBuilding(layout, x, z, buildingClearance) ||
+                NearAnyPoi(layout, x, z, poiClearance) ||
+                NearAnyRoad(layout, x, z, roadClearance))
+                return true;
+            return false;
+        }
+
+        private static bool NearAnyBuilding(WorldLayoutFrame layout, float x, float z, float clearance)
+        {
+            if (layout.Buildings == null) return false;
+            foreach (var building in layout.Buildings)
+                if (building != null && x >= building.X0 - clearance && x <= building.X1 + clearance &&
+                    z >= building.Y0 - clearance && z <= building.Y1 + clearance)
+                    return true;
+            return false;
+        }
+
+        private static bool NearAnyRoad(WorldLayoutFrame layout, float x, float z, float clearance)
+        {
+            if (layout.Roads != null && layout.Roads.Count > 0)
+            {
+                foreach (var road in layout.Roads)
+                    if (road != null && road.Length == 4 &&
+                        NearSegment(x, z, (float)road[0], (float)road[1],
+                            (float)road[2], (float)road[3], clearance))
+                        return true;
+                return false;
+            }
+
+            // The hand-authored starter layout predates the road graph field.
+            if (Mathf.Abs(x) < 5.0f || Mathf.Abs(z) < 5.0f) return true;
+            if (layout.RiverPresent && z >= layout.River.Y0 - clearance &&
+                z <= layout.River.Y1 + clearance) return true;
+            if (layout.Pois != null && layout.Pois.TryGetValue("woods", out var woods) && woods != null &&
+                NearSegment(x, z, 0f, 0f, (float)woods.X, (float)woods.Y, clearance + 1.5f))
+                return true;
+            if (layout.Pois != null && layout.Pois.TryGetValue("garden", out var garden) && garden != null &&
+                NearSegment(x, z, 0f, 0f, (float)garden.X, (float)garden.Y, clearance + 1.5f))
+                return true;
+            return false;
+        }
+
+        private static bool NearSegment(float x, float z, float ax, float az, float bx, float bz, float radius)
+        {
+            var dx = bx - ax;
+            var dz = bz - az;
+            var lengthSq = dx * dx + dz * dz;
+            var t = lengthSq > 0.0001f
+                ? Mathf.Clamp01(((x - ax) * dx + (z - az) * dz) / lengthSq)
+                : 0f;
+            var px = ax + dx * t;
+            var pz = az + dz * t;
+            var ox = x - px;
+            var oz = z - pz;
+            return ox * ox + oz * oz <= radius * radius;
+        }
+
+        private static void AddLowPolyBush(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 position, float radius, float height, System.Random random)
+        {
+            // Three overlapping five-sided clumps form one small shrub cluster in the combined mesh.
+            for (var clump = 0; clump < 3; clump++)
+            {
+                var centerX = (clump - 1) * radius * 0.42f;
+                var centerZ = (float)random.NextDouble() * radius * 0.38f - radius * 0.19f;
+                var clumpRadius = radius * (0.42f + (float)random.NextDouble() * 0.18f);
+                var baseY = 0.08f + (float)random.NextDouble() * 0.10f;
+                var topY = baseY + height * (0.68f + (float)random.NextDouble() * 0.22f);
+                var start = vertices.Count;
+                const int sides = 5;
+                for (var side = 0; side < sides; side++)
+                {
+                    var angle = side * Mathf.PI * 2f / sides;
+                    vertices.Add(position + new Vector3(centerX + Mathf.Cos(angle) * clumpRadius,
+                        baseY, centerZ + Mathf.Sin(angle) * clumpRadius));
+                }
+                vertices.Add(position + new Vector3(centerX, topY, centerZ));
+                for (var side = 0; side < sides; side++)
+                {
+                    triangles.Add(start + side);
+                    triangles.Add(start + sides);
+                    triangles.Add(start + (side + 1) % sides);
+                }
+            }
         }
 
         /// <summary>
@@ -300,7 +440,11 @@ namespace Pogranichye.Client.Presentation
                 var inSettlementCore = Mathf.Abs(position.x) <= 55f && Mathf.Abs(position.z) <= 55f;
                 if (child.name == "Willow tree" || child.name == "Distant woodland mass")
                 {
-                    if (inSettlementCore) UnityEngine.Object.Destroy(child.gameObject);
+                    var overlapsBuilding = NearAnyBuilding(layout, position.x, position.z, 2.5f);
+                    var blocksAccess = NearAnyRoad(layout, position.x, position.z, 3.5f) ||
+                        NearAnyPoi(layout, position.x, position.z, 6f);
+                    if (inSettlementCore || overlapsBuilding || blocksAccess)
+                        UnityEngine.Object.Destroy(child.gameObject);
                     continue;
                 }
             }
@@ -826,14 +970,65 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
             ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
+            if (building.Kind == "tavern" || building.Kind == "smithy" ||
+                building.Kind == "granary" || building.Kind == "market")
+                CreateFootprintSign(root, BuildingDisplayName(building), width, depth, wallHeight);
+
             if (building.Kind == "tavern" || building.Kind == "smithy")
             {
-                var chimney = Create("Stone chimney stack", PrimitiveType.Cube, root,
+                Create("Stone chimney stack", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.28f, wallHeight + 0.92f, depth * 0.18f),
                     new Vector3(0.78f, 1.85f, 0.82f), _stone, false);
                 Create("Chimney crown", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.28f, wallHeight + 1.88f, depth * 0.18f),
                     new Vector3(0.98f, 0.16f, 1.02f), _trunk, false);
+            }
+        }
+
+        private static string BuildingDisplayName(WorldRectFrame building)
+        {
+            if (!string.IsNullOrWhiteSpace(building.Name)) return building.Name.ToUpperInvariant();
+            switch (building.Kind)
+            {
+                case "tavern": return "КОРЧМА";
+                case "smithy": return "КУЗНИЦА";
+                case "granary": return "АМБАР";
+                case "market": return "ЛАВКА";
+                default: return "ЗДАНИЕ";
+            }
+        }
+
+        private static void CreateFootprintSign(Transform parent, string title,
+            float width, float depth, float wallHeight)
+        {
+            var boardWidth = Mathf.Clamp(width * 0.68f, 2.8f, 6.2f);
+            var boardPosition = new Vector3(0f, wallHeight - 0.34f, -depth * 0.5f - 0.17f);
+            Create("Building name sign • board", PrimitiveType.Cube, parent,
+                boardPosition, new Vector3(boardWidth, 0.48f, 0.10f), _roof, false);
+            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, -0.06f), 0f, boardWidth);
+            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, 0.06f), 180f, boardWidth);
+        }
+
+        private static void CreateBuildingSignFace(Transform parent, string title,
+            Vector3 position, float yaw, float boardWidth)
+        {
+            var label = new GameObject("Building name sign • lettering").transform;
+            label.SetParent(parent, false);
+            label.localPosition = position;
+            label.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            var text = label.gameObject.AddComponent<TextMesh>();
+            text.text = title;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 42;
+            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(8f, title.Length * 2.4f), 0.14f, 0.28f);
+            text.color = new Color(1f, 0.88f, 0.62f);
+            text.richText = false;
+            var renderer = label.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
             }
         }
 

@@ -43,6 +43,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
         [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
@@ -57,6 +58,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("bleeding")] public double Bleeding { get; set; }
         [JsonProperty("stash")] public Dictionary<string, double> Stash { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        // v1.19 canonical global position; null on older servers or while outside the world.
+        [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
     }
 
     [Serializable]
@@ -88,6 +91,86 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
+    public sealed class WeaveFrame
+    {
+        [JsonProperty("nodes")] public List<WeaveNodeFrame> Nodes { get; set; }
+        [JsonProperty("capacity")] public double Capacity { get; set; }
+        [JsonProperty("max_len")] public int MaxLength { get; set; }
+        [JsonProperty("known")] public List<WeaveSchemaFrame> Known { get; set; }
+        [JsonProperty("gift")] public bool Gift { get; set; }
+        [JsonProperty("limit")] public double Limit { get; set; }
+        [JsonProperty("can_learn")] public bool CanLearn { get; set; }
+        [JsonProperty("can_study")] public bool CanStudy { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveNodeFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("hint")] public string Hint { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveSchemaFrame
+    {
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("nodes")] public List<string> Nodes { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldPositionFrame
+    {
+        [JsonProperty("scheme")] public string Scheme { get; set; }
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("ground")] public double Ground { get; set; }
+        [JsonProperty("z")] public double HeightAboveGround { get; set; }
+        [JsonProperty("chunk")] public long[] Chunk { get; set; }
+        [JsonProperty("layer")] public long Layer { get; set; }
+        [JsonProperty("lat")] public double Latitude { get; set; }
+        [JsonProperty("lon")] public double Longitude { get; set; }
+        public bool IsValid
+        {
+            get
+            {
+                if (Scheme != "yof-tangent" || Version != 1 || Frame < 0 || Chunk == null || Chunk.Length != 2 ||
+                    !IsFinite(East) || !IsFinite(North) || !IsFinite(Up) || !IsFinite(Ground) ||
+                    !IsFinite(HeightAboveGround) || !IsFinite(Latitude) || !IsFinite(Longitude) ||
+                    Math.Abs(East) > 1000000000d || Math.Abs(North) > 1000000000d ||
+                    Math.Abs(Up) > 1000000000d || Math.Abs(Ground) > 1000000000d ||
+                    Math.Abs(HeightAboveGround) > 1000000000d)
+                    return false;
+                // WorldPos uses floor division: negative coordinates just west/south of zero
+                // must belong to chunk -1, not chunk 0.
+                var expectedX = Math.Floor(East / 256d);
+                var expectedZ = Math.Floor(North / 256d);
+                var expectedLayer = Math.Floor(Up / 64d);
+                return expectedX >= long.MinValue && expectedX <= long.MaxValue &&
+                    expectedZ >= long.MinValue && expectedZ <= long.MaxValue &&
+                    expectedLayer >= long.MinValue && expectedLayer <= long.MaxValue &&
+                    Chunk[0] == (long)expectedX && Chunk[1] == (long)expectedZ &&
+                    Layer == (long)expectedLayer && Ground <= Up + 0.001 &&
+                    HeightAboveGround >= -0.001 &&
+                    Math.Abs((Ground + HeightAboveGround) - Up) <= 0.01;
+            }
+        }
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    [Serializable]
+    public sealed class WorldAnchorFrame
+    {
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+    }
+
+    [Serializable]
     public sealed class ScenePositionFrame
     {
         [JsonProperty("x")] public double X { get; set; }
@@ -113,6 +196,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
+        // v1.19 global anchor. Local pos remains settlement-relative.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
     }
 
     [Serializable]
@@ -167,6 +252,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("casting")] public string Casting { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
         [JsonProperty("gear")] public NeighborGearFrame Gear { get; set; }
     }
@@ -255,6 +341,100 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
+    public sealed class WorldManifestFrame
+    {
+        [JsonProperty("scheme")] public string Scheme { get; set; }
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("units")] public string Units { get; set; }
+        [JsonProperty("chunk_m")] public int ChunkMeters { get; set; }
+        [JsonProperty("layer_m")] public int LayerMeters { get; set; }
+        [JsonProperty("seamless")] public bool Seamless { get; set; }
+        [JsonProperty("frames")] public List<WorldMapFrame> Frames { get; set; }
+        [JsonProperty("rim_radius_m")] public double RimRadiusMeters { get; set; }
+        [JsonProperty("settlements")] public List<WorldSettlementFrame> Settlements { get; set; }
+        [JsonProperty("roads")] public List<WorldRoadFrame> Roads { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldMapFrame
+    {
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("projection")] public string Projection { get; set; }
+        [JsonProperty("origin_lat")] public double OriginLatitude { get; set; }
+        [JsonProperty("origin_lon")] public double OriginLongitude { get; set; }
+        [JsonProperty("radius_m")] public double RadiusMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldSettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("terrain")] public string Terrain { get; set; }
+        [JsonProperty("plan")] public string Plan { get; set; }
+        [JsonProperty("cauldron")] public bool Cauldron { get; set; }
+        [JsonProperty("half")] public double Half { get; set; }
+        [JsonProperty("layout")] public string LayoutPath { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRoadFrame
+    {
+        [JsonProperty("a")] public string From { get; set; }
+        [JsonProperty("b")] public string To { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TerrainChunkFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("chunk")] public long[] Chunk { get; set; }
+        [JsonProperty("origin")] public TerrainOriginFrame Origin { get; set; }
+        [JsonProperty("size_m")] public int SizeMeters { get; set; }
+        [JsonProperty("step_m")] public int StepMeters { get; set; }
+        [JsonProperty("side")] public int Side { get; set; }
+        [JsonProperty("heights")] public List<double> Heights { get; set; }
+        [JsonProperty("settlements")] public List<TerrainSettlementFrame> Settlements { get; set; }
+        public bool IsValid
+        {
+            get
+            {
+                if (Frame < 0 || Chunk == null || Chunk.Length != 2 || Origin == null ||
+                    !IsFinite(Origin.East) || !IsFinite(Origin.North) ||
+                    SizeMeters != 256 || (StepMeters != 8 && StepMeters != 16 && StepMeters != 32 && StepMeters != 64) ||
+                    Side != SizeMeters / StepMeters + 1 || Heights == null || Heights.Count != Side * Side ||
+                    !Heights.TrueForAll(IsFinite))
+                    return false;
+                var expectedEast = (double)Chunk[0] * SizeMeters;
+                var expectedNorth = (double)Chunk[1] * SizeMeters;
+                return Math.Abs(Origin.East - expectedEast) <= 0.001 &&
+                    Math.Abs(Origin.North - expectedNorth) <= 0.001;
+            }
+        }
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    [Serializable]
+    public sealed class TerrainOriginFrame
+    {
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TerrainSettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+    }
+
+    [Serializable]
     public sealed class WorldLayoutFrame
     {
         [JsonProperty("version")] public int Version { get; set; }
@@ -277,6 +457,8 @@ namespace Pogranichye.Client.Networking.Protocol
         /// <summary>Seamless world: land beyond world_half is open ground, not a wall.</summary>
         [JsonProperty("open")] public bool Open { get; set; }
         [JsonProperty("settlement")] public string Settlement { get; set; }
+        // v1.19: settlement-local layout origin in the same global frame as place.anchor.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
 
         /// <summary>True when the layout was generated for a non-tutorial settlement.</summary>
         public bool IsGenerated => !string.IsNullOrEmpty(Plan) && Plan != "starter";

@@ -47,12 +47,14 @@ namespace Pogranichye.Client.Networking
                 RequireStringId(me["id"], "me.id");
                 ValidateJournal(me["journal"], "me.journal");
                 ValidatePosition(me["pos"], "me.pos", true);
+                ValidateWorldPosition(me["wpos"], "me.wpos");
 
                 var place = root["place"];
                 if (place != null && place.Type != JTokenType.Null)
                 {
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
+                    ValidateWorldAnchor(place["anchor"], "place.anchor");
                     var neighbors = place["neighbors"];
                     if (neighbors != null && neighbors.Type != JTokenType.Null)
                     {
@@ -83,6 +85,11 @@ namespace Pogranichye.Client.Networking
 
             if (frame == null)
                 throw new FormatException("Не удалось разобрать кадр сервера.");
+            if (frame.Me != null && frame.Me.WorldPosition != null && !frame.Me.WorldPosition.IsValid)
+                throw new FormatException("me.wpos: координаты, chunk и layer противоречат друг другу.");
+            if (frame.Place != null && frame.Place.Anchor != null && frame.Me != null &&
+                frame.Me.WorldPosition != null && frame.Place.Anchor.Frame != frame.Me.WorldPosition.Frame)
+                throw new FormatException("place.anchor.frame не совпадает с me.wpos.frame.");
             if (frame.Alive)
             {
                 ParseEntityId(frame.Me.Id, "me.id");
@@ -100,6 +107,45 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+        private static void ValidateWorldPosition(JToken token, string fieldName)
+        {
+            // Optional additive v1.19 field: older v:1 servers remain compatible.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object ||
+                token["scheme"]?.Type != JTokenType.String || token["scheme"].Value<string>() != "yof-tangent" ||
+                token["v"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["v"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var version) || version != 1 ||
+                token["frame"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
+                throw new FormatException(fieldName + " имеет неподдерживаемую схему координат.");
+            foreach (var key in new[] { "e", "n", "u", "ground", "z" })
+            {
+                if (!IsNumber(token[key]) || !IsFinite(token[key].Value<double>()))
+                    throw new FormatException(fieldName + "." + key + " должен быть конечным числом в метрах.");
+            }
+            var chunk = token["chunk"];
+            if (chunk == null || chunk.Type != JTokenType.Array || ((JArray)chunk).Count != 2)
+                throw new FormatException(fieldName + ".chunk должен содержать два целых индекса.");
+            for (var i = 0; i < 2; i++)
+                if (chunk[i].Type != JTokenType.Integer ||
+                    !long.TryParse(chunk[i].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    throw new FormatException(fieldName + ".chunk содержит индекс вне диапазона int64.");
+            if (token["layer"] == null || token["layer"].Type != JTokenType.Integer ||
+                !long.TryParse(token["layer"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                throw new FormatException(fieldName + ".layer должен быть целым int64.");
+        }
+
+        private static void ValidateWorldAnchor(JToken token, string fieldName)
+        {
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object || token["frame"]?.Type != JTokenType.Integer ||
+                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
+                throw new FormatException(fieldName + " должен содержать неотрицательный целочисленный frame.");
+            foreach (var key in new[] { "e", "n", "u" })
+                if (!IsNumber(token[key]) || !IsFinite(token[key].Value<double>()))
+                    throw new FormatException(fieldName + "." + key + " должен быть конечным числом в метрах.");
+        }
 
         private static void ValidateJournal(JToken token, string fieldName)
         {

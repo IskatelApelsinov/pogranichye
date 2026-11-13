@@ -78,9 +78,28 @@ namespace Pogranichye.Client
         private string _goalToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
+        // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
+        private WorldManifestFrame _worldManifest;
+        private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
+        private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
+        private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
+        private const float TerrainChunkRetryDelaySeconds = 10f;
+        private const int MaxConcurrentTerrainChunkRequests = 3;
+        private int _terrainStreamGeneration;
+        private string _terrainStreamSettlementId;
+        private bool _hasTerrainCenter;
+        private long _terrainCenterX;
+        private long _terrainCenterZ;
+        private string _terrainAppliedSettlementId;
+        private double _terrainAppliedAnchorEast = double.NaN;
+        private double _terrainAppliedAnchorNorth = double.NaN;
+        private double _terrainAppliedAnchorUp = double.NaN;
         // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
         private string _layoutSettlementId;
         private string _layoutRequestedFor;
+        private int _layoutRequestGeneration;
+        private string _layoutFailedFor;
+        private float _layoutRetryAfter;
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
         private int _tutorialStep;
@@ -122,6 +141,7 @@ namespace Pogranichye.Client
         private float _movementPlayerYawDebug;
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
+        private float _mapZoom = 1f;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
         private GUIStyle _mapNeighborStyle;
@@ -227,9 +247,10 @@ namespace Pogranichye.Client
 
             // The title screen and chat are pointer-driven modes: never feed mouse delta
             // into the camera while either is active.
-            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen);
+            var pointerOverUi = IsPointerOverUi();
+            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi);
             Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen;
+            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
@@ -243,6 +264,13 @@ namespace Pogranichye.Client
                 UpdateJump();
                 UpdateMovement();
                 UpdateDialogueChoiceInput();
+                if (_core == null || !_core.CapturesInput)
+                {
+                    if (_input != null && _input.StartWoodcutPressed)
+                        StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+                    else if (_input != null && _input.StartFishingPressed)
+                        StartActivityMiniGame(ActivityMiniGame.Fishing);
+                }
             }
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
@@ -251,6 +279,38 @@ namespace Pogranichye.Client
                 _goalToSend = null;
                 _ = SendGoalAsync(goal);
             }
+        }
+
+        private bool IsPointerOverUi()
+        {
+            if (_chatOpen) return true;
+            if (_input == null) return false;
+            var pointer = _input.PointerPosition;
+            var guiPoint = new Vector2(pointer.x, Screen.height - pointer.y);
+
+            if (!_hudCollapsed)
+            {
+                var panelWidth = Mathf.Min(500f, Screen.width - 24f);
+                var panelHeight = Mathf.Min(620f, Screen.height - 24f);
+                if (new Rect(12f, 12f, panelWidth, panelHeight).Contains(guiPoint)) return true;
+            }
+
+            if (_frame?.Me == null) return false;
+            if (GetContextActionRect().Contains(guiPoint)) return true;
+
+            if (_activityMiniGame != ActivityMiniGame.None)
+            {
+                var miniWidth = Mathf.Min(420f, Screen.width - 24f);
+                if (new Rect((Screen.width - miniWidth) * 0.5f, Screen.height - 286f,
+                    miniWidth, 178f).Contains(guiPoint)) return true;
+            }
+
+            if (new Rect(Screen.width - 124f, 12f, 112f, 28f).Contains(guiPoint)) return true;
+            if (_frame.Me.Talk?.Options != null && _frame.Me.Talk.Options.Count > 0 &&
+                new Rect(Screen.width - 450f, Screen.height - 540f, 430f, 520f).Contains(guiPoint)) return true;
+            if (_frame.Me.InviteFrom != null &&
+                new Rect(Screen.width - 450f, Screen.height - 170f, 430f, 150f).Contains(guiPoint)) return true;
+            return false;
         }
 
         private void OnGUI()
@@ -360,8 +420,20 @@ namespace Pogranichye.Client
             DrawSocialOverlay();
             if (_chatOpen)
                 DrawChatOverlay();
-            else if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
-                SetChatOpen(true);
+            else
+            {
+                DrawContextActions();
+                if (_activityMiniGame != ActivityMiniGame.None)
+                {
+                    var miniWidth = Mathf.Min(420f, Screen.width - 24f);
+                    GUILayout.BeginArea(new Rect((Screen.width - miniWidth) * 0.5f,
+                        Screen.height - 286f, miniWidth, 178f));
+                    DrawActivityMiniGame();
+                    GUILayout.EndArea();
+                }
+                if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
+                    SetChatOpen(true);
+            }
         }
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
@@ -619,8 +691,33 @@ namespace Pogranichye.Client
             if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
             if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
             GUILayout.EndHorizontal();
-            DrawActivityMiniGame();
+            GUILayout.Label("G — начать рубку у леса · J — начать рыбалку у воды. Нужен топор/удочка в руке.");
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
+            if (me.Weave != null)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("ПЛЕТЕНИЯ");
+                GUILayout.Label("Дар: " + (me.Weave.Gift ? "пробуждён" : "не пробуждён") +
+                    " · предел сложности " + me.Weave.Limit.ToString("0.#") +
+                    " · ёмкость ума " + me.Weave.Capacity.ToString("0.#"));
+                if (me.Weave.Known != null && me.Weave.Known.Count > 0)
+                {
+                    GUILayout.Label("Знакомые узоры:");
+                    foreach (var schema in me.Weave.Known)
+                    {
+                        if (schema == null || string.IsNullOrWhiteSpace(schema.Name)) continue;
+                        var nodes = schema.Nodes != null ? string.Join(" → ", schema.Nodes.ToArray()) : "";
+                        GUILayout.Label("• " + schema.Name + (nodes.Length > 0 ? " — " + nodes : ""));
+                    }
+                }
+                else GUILayout.Label("Знакомые узоры пока не открыты.");
+                if (me.Weave.CanLearn && GUILayout.Button("Медитировать и постигать плетения"))
+                    QueueWorldAction("meditate");
+                if (me.Weave.CanStudy && GUILayout.Button("Учиться у мага рядом"))
+                    QueueWorldAction("study");
+                if (!me.Weave.CanLearn && !me.Weave.CanStudy)
+                    GUILayout.Label("Сейчас некому учить и нет места силы поблизости.");
+            }
         }
 
         private void DrawInventoryTab()
@@ -811,6 +908,15 @@ namespace Pogranichye.Client
         {
             GUILayout.Label("КАРТА ПОСЕЛЕНИЯ");
             GUILayout.Label("Схема построена по серверному Layout v2. Она показывает местные препятствия и точки интереса, а не придумывает проходимые пути.");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Масштаб: " + _mapZoom.ToString("0.0") + "×", GUILayout.Width(112f));
+            var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 4f);
+            if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.25f);
+            if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(4f, _mapZoom + 0.25f);
+            if (GUILayout.Button("Сброс", GUILayout.Width(54f))) nextZoom = 1f;
+            _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
+            GUILayout.EndHorizontal();
+            GUILayout.Label(_mapZoom > 1.01f ? "При увеличении карта центрируется на персонаже." : "Показано всё поселение.");
             if (_layout == null || _layout.Version != 2)
             {
                 GUILayout.Label("Серверная карта поселения пока недоступна.");
@@ -844,16 +950,20 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var half = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            var playerPosition = _frame?.Me?.Position;
+            var centerX = _mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d;
+            var centerY = _mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d;
+            var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
-                var riverRect = WorldMapProjection.ToMapRect(
-                    -half, _layout.River.Y0, half, _layout.River.Y1, half, mapRect);
+                var riverRect = MapViewportRect(-half - centerX, _layout.River.Y0 - centerY,
+                    half - centerX, _layout.River.Y1 - centerY, half, mapRect);
                 DrawMapFill(riverRect, new Color(0.20f, 0.43f, 0.52f, 0.95f));
 
-                var bridgeRect = WorldMapProjection.ToMapRect(
-                    _layout.River.BridgeX0, _layout.River.Y0 - 1.5d,
-                    _layout.River.BridgeX1, _layout.River.Y1 + 1.5d, half, mapRect);
+                var bridgeRect = MapViewportRect(_layout.River.BridgeX0 - centerX,
+                    _layout.River.Y0 - 1.5d - centerY, _layout.River.BridgeX1 - centerX,
+                    _layout.River.Y1 + 1.5d - centerY, half, mapRect);
                 DrawMapFill(bridgeRect, new Color(0.55f, 0.37f, 0.22f, 1f));
             }
 
@@ -862,8 +972,8 @@ namespace Pogranichye.Client
                 foreach (var building in _layout.Buildings)
                 {
                     if (building == null) continue;
-                    var footprint = WorldMapProjection.ToMapRect(
-                        building.X0, building.Y0, building.X1, building.Y1, half, mapRect);
+                    var footprint = MapViewportRect(building.X0 - centerX, building.Y0 - centerY,
+                        building.X1 - centerX, building.Y1 - centerY, half, mapRect);
                     DrawMapFill(footprint, new Color(0.30f, 0.23f, 0.18f, 0.98f));
                 }
             }
@@ -874,7 +984,8 @@ namespace Pogranichye.Client
                 foreach (var poiId in MapPoiOrder)
                 {
                     if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null) continue;
-                    var position = WorldMapProjection.ToMapPoint(point.X, point.Y, half, mapRect);
+                    var position = WorldMapProjection.ToMapPoint(point.X - centerX, point.Y - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
                     var previousBackground = GUI.backgroundColor;
                     var previousContent = GUI.contentColor;
@@ -895,7 +1006,8 @@ namespace Pogranichye.Client
                 {
                     if (neighbor?.Position == null) continue;
                     var position = WorldMapProjection.ToMapPoint(
-                        neighbor.Position.X, neighbor.Position.Y, half, mapRect);
+                        neighbor.Position.X - centerX, neighbor.Position.Y - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 4f, position.y - 4f, 8f, 8f);
                     var previousBackground = GUI.backgroundColor;
                     var previousContent = GUI.contentColor;
@@ -919,11 +1031,10 @@ namespace Pogranichye.Client
                 }
             }
 
-            var playerPosition = _frame?.Me?.Position;
             if (playerPosition != null)
             {
                 var position = WorldMapProjection.ToMapPoint(
-                    playerPosition.X, playerPosition.Y, half, mapRect);
+                    playerPosition.X - centerX, playerPosition.Y - centerY, half, mapRect);
                 var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
@@ -945,6 +1056,18 @@ namespace Pogranichye.Client
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private static Rect MapViewportRect(double x0, double y0, double x1, double y1,
+            double half, Rect viewport)
+        {
+            var projected = WorldMapProjection.ToMapRect(x0, y0, x1, y1, half, viewport);
+            var left = Mathf.Max(viewport.xMin, projected.xMin);
+            var top = Mathf.Max(viewport.yMin, projected.yMin);
+            var right = Mathf.Min(viewport.xMax, projected.xMax);
+            var bottom = Mathf.Min(viewport.yMax, projected.yMax);
+            return right <= left || bottom <= top ? new Rect(0f, 0f, 0f, 0f) :
+                Rect.MinMaxRect(left, top, right, bottom);
         }
 
         private static void DrawMapFill(Rect rect, Color color)
@@ -1507,11 +1630,175 @@ namespace Pogranichye.Client
             _views?.PlayPlayerActionGesture(gesture);
         }
 
+        private bool IsNearActivityPoi(string poiId, float radius)
+        {
+            var position = _frame?.Me?.Position;
+            if (position == null || _layout?.Pois == null ||
+                !_layout.Pois.TryGetValue(poiId, out var point) || point == null)
+                return false;
+            var dx = position.X - point.X;
+            var dy = position.Y - point.Y;
+            return dx * dx + dy * dy <= radius * radius;
+        }
+
+        private bool HasInventoryItem(string item)
+        {
+            return _frame?.Me?.Inventory?.Items != null &&
+                _frame.Me.Inventory.Items.TryGetValue(item, out var quantity) && quantity > 0;
+        }
+
+        private void QueueQuickItemRequest(string op, string item, string label)
+        {
+            if (_core == null || !_core.QueueRequest(InventoryRequestLabelPrefix + " " + label,
+                op, "item", item))
+            {
+                _status = "Не удалось отправить действие с предметом. Дождитесь ответа на предыдущее действие.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label + "…";
+        }
+
+        private Rect GetContextActionRect()
+        {
+            if (_frame?.Me == null || _frame.Place == null || _core == null ||
+                _activityMiniGame != ActivityMiniGame.None)
+                return new Rect(0f, 0f, 0f, 0f);
+
+            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
+            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
+            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
+            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
+            var atSmithy = IsNearActivityPoi("smithy", 10f);
+            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+            if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern)
+                return new Rect(0f, 0f, 0f, 0f);
+
+            var rows = 1 + ((atMine || atGarden || atSmithy) ? 1 : 0) + (atTavern ? 1 : 0);
+            var width = Mathf.Min(560f, Screen.width - 24f);
+            var height = 42f + rows * 34f;
+            return new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height);
+        }
+
+        private void DrawContextActions()
+        {
+            var panel = GetContextActionRect();
+            if (panel.width <= 0f) return;
+
+            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
+            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
+            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
+            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
+            var atSmithy = IsNearActivityPoi("smithy", 10f);
+            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+
+            GUILayout.BeginArea(panel);
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("МЕСТНОЕ ДЕЛО");
+            GUILayout.BeginHorizontal();
+            if (atWoods) DrawContextToolAction("axe", 8, "Топор", ActivityMiniGame.Woodcutting, "G");
+            if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "J");
+            GUILayout.EndHorizontal();
+
+            if (atMine || atGarden || atSmithy)
+            {
+                GUILayout.BeginHorizontal();
+                if (atMine && GUILayout.Button("⛏ Добыть руду")) QueueWorldAction("mine");
+                if (atGarden && GUILayout.Button("🌿 Собрать травы")) QueueWorldAction("gather");
+                if (atGarden && GUILayout.Button("🌾 Помочь в поле")) QueueWorldAction("farmwork");
+                if (atSmithy && GUILayout.Button("⚒ Помочь у горна")) QueueWorldAction("forge");
+                GUILayout.EndHorizontal();
+            }
+
+            if (atTavern)
+            {
+                GUILayout.BeginHorizontal();
+                if (_frame.Me.Mug)
+                {
+                    if (GUILayout.Button("🍺 Выпить пиво")) QueueContextItemAction("consume", "beer", "Выпить пиво");
+                }
+                else if (_frame.Place.Beer > 0)
+                {
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = _frame.Me.Coins >= _frame.Place.BeerPrice;
+                    if (GUILayout.Button("🍺 Заказать кружку · " +
+                        _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                        QueueContextItemAction("buy", "beer", "Заказать пиво");
+                    GUI.enabled = previousEnabled;
+                }
+                else GUILayout.Label("Пиво закончилось.");
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndVertical();
+            GUILayout.EndArea();
+        }
+
+        private void QueueContextItemAction(string op, string item, string label)
+        {
+            if (_core == null || !_core.QueueRequest(label, op, "item", item))
+            {
+                _status = "Не удалось отправить действие: дождитесь ответа на предыдущее.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label + "…";
+        }
+
+        private void DrawContextToolAction(string item, int price, string label,
+            ActivityMiniGame game, string hotkey)
+        {
+            if (!HasInventoryItem(item))
+            {
+                var previous = GUI.enabled;
+                GUI.enabled = _frame.Me.Coins >= price;
+                if (GUILayout.Button("Купить " + label + " · " + price + " мон."))
+                    QueueQuickItemRequest("take", item, "покупка " + label.ToLowerInvariant());
+                GUI.enabled = previous;
+                return;
+            }
+
+            if (!string.Equals(_frame.Me.Inventory.Hand, item, StringComparison.Ordinal))
+            {
+                if (GUILayout.Button("Взять " + label.ToLowerInvariant() + " в руку"))
+                    QueueQuickItemRequest("equip", item, "экипировка " + label.ToLowerInvariant());
+                return;
+            }
+
+            if (GUILayout.Button((game == ActivityMiniGame.Woodcutting ? "Рубить" : "Закинуть удочку") +
+                " [" + hotkey + "]"))
+                StartActivityMiniGame(game);
+        }
+
         private void StartActivityMiniGame(ActivityMiniGame game)
         {
             if (_connectionState != WorldConnectionState.Active || _core == null)
             {
                 _activityMiniGameFeedback = "Сначала подключитесь к миру.";
+                _status = _activityMiniGameFeedback;
+                return;
+            }
+            var poi = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
+            var feature = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
+            var tool = game == ActivityMiniGame.Woodcutting ? "axe" : "rod";
+            if (!_core.SupportsFeature(feature))
+            {
+                _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
+                    ? "В этих угодьях нет подходящего леса."
+                    : "В этом поселении нет подходящего водоёма.";
+                _status = _activityMiniGameFeedback;
+                return;
+            }
+            if (!IsNearActivityPoi(poi, 10f))
+            {
+                _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
+                    ? "Подойдите ближе к лесу, чтобы рубить."
+                    : "Подойдите к берегу, чтобы рыбачить.";
+                _status = _activityMiniGameFeedback;
+                return;
+            }
+            if (!string.Equals(_frame?.Me?.Inventory?.Hand, tool, StringComparison.Ordinal))
+            {
+                _activityMiniGameFeedback = "Сначала купите " + (tool == "axe" ? "топор" : "удочку") +
+                    " и возьмите его в руку.";
+                _status = _activityMiniGameFeedback;
                 return;
             }
             _activityMiniGame = game;
@@ -1966,6 +2253,10 @@ namespace Pogranichye.Client
                 return;
 
             ResetSessionJournal();
+            _layoutRequestGeneration++;
+            _layoutRequestedFor = null;
+            _layoutFailedFor = null;
+            _layoutRetryAfter = 0f;
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
@@ -1995,8 +2286,28 @@ namespace Pogranichye.Client
             try
             {
                 // Layout v2 is required before enabling prediction: local geometry must match the server.
-                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync();
+                var http = new HttpAuthClient(serverUrl);
+                var layout = await http.GetLayoutAsync();
                 _layout = layout;
+                // v1.19: read global map metadata before enabling the socket. Older compatible servers
+                // may not expose it, so this optional layer must never block the settlement demo.
+                try { _worldManifest = await http.GetWorldManifestAsync(); }
+                catch (Exception worldError)
+                {
+                    _worldManifest = null;
+                    Enqueue(() => Debug.LogWarning("Карта мира v1.19 пока недоступна; остаёмся в локальном режиме поселения: " + worldError.Message));
+                }
+                _terrainStreamGeneration++;
+                _terrainChunks.Clear();
+                _terrainChunkRequests.Clear();
+                _terrainChunkRetryAfter.Clear();
+                _hasTerrainCenter = false;
+                WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                _terrainAppliedSettlementId = null;
+                _terrainStreamSettlementId = null;
+                _terrainAppliedAnchorEast = double.NaN;
+                _terrainAppliedAnchorNorth = double.NaN;
+                _terrainAppliedAnchorUp = double.NaN;
                 // After a reconnect another settlement's layout may still be on screen: start again from
                 // the default one; EnsureLayoutForPlace switches to the right settlement on the first frame.
                 var replacing = _layoutSettlementId != null;
@@ -2081,6 +2392,7 @@ namespace Pogranichye.Client
 
                     _frame = frame;
                     EnsureLayoutForPlace(frame);
+                    EnsureTerrainChunkForFrame(frame);
                     if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
@@ -2431,6 +2743,8 @@ namespace Pogranichye.Client
 
         private void DisconnectWorld(string status)
         {
+            _layoutRequestGeneration++;
+            _layoutRequestedFor = null;
             _voiceChat?.StopVoice();
             var socket = _socket;
             _socket = null;
@@ -2485,40 +2799,222 @@ namespace Pogranichye.Client
         /// that settlement's layout and rebuild the presentation and local collision from it. The first
         /// frame after login also lands here, so the tutorial default is replaced only when needed.
         /// </summary>
-        private void EnsureLayoutForPlace(WorldFrame frame)
+        /// <summary>
+        /// Streams a bounded 3x3 terrain window around the authoritative player position. Server coordinates
+        /// stay double precision; only final chunk mesh vertices are rebased to the settlement anchor.
+        /// Seamless server travel remains disabled until neighboring settlement presentation and collision are complete.
+        /// </summary>
+        private void EnsureTerrainChunkForFrame(WorldFrame frame)
         {
-            var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
-            if (string.IsNullOrEmpty(placeId)) return;
-            if (placeId == _layoutSettlementId || placeId == _layoutRequestedFor) return;
-            // A server without per-settlement layouts sends no plan; the default layout is already right.
-            if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
+            if (frame == null || frame.Place == null) return;
+
+            var placeId = frame.Place.Id;
+            if (!string.Equals(_terrainStreamSettlementId, placeId, StringComparison.Ordinal))
             {
-                _layoutSettlementId = placeId;
-                return;
+                // Chunks and in-flight responses are scoped to a settlement presentation window.
+                // Never rebase old cached geometry onto a new settlement anchor, even if the new
+                // snapshot has not yet supplied a valid world position or optional terrain metadata.
+                _terrainStreamSettlementId = placeId;
+                _terrainStreamGeneration++;
+                _terrainChunks.Clear();
+                _terrainChunkRequests.Clear();
+                _terrainChunkRetryAfter.Clear();
+                _hasTerrainCenter = false;
+                WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                _terrainAppliedSettlementId = null;
+                _terrainAppliedAnchorEast = double.NaN;
+                _terrainAppliedAnchorNorth = double.NaN;
+                _terrainAppliedAnchorUp = double.NaN;
             }
-            _layoutRequestedFor = placeId;
-            _ = ReloadLayoutAsync(placeId);
+
+            if (_worldManifest == null || frame.Me == null || frame.Place.Anchor == null ||
+                frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid)
+                return;
+
+            var anchor = frame.Place.Anchor;
+            var position = frame.Me.WorldPosition;
+            if (anchor.Frame != position.Frame || position.Frame != 0) return;
+            var centerX = position.Chunk[0];
+            var centerZ = position.Chunk[1];
+            var centerChanged = !_hasTerrainCenter || centerX != _terrainCenterX || centerZ != _terrainCenterZ;
+            if (centerChanged)
+            {
+                _hasTerrainCenter = true;
+                _terrainCenterX = centerX;
+                _terrainCenterZ = centerZ;
+                // A moved window gets a fresh retry budget; old chunk failures must not accumulate.
+                _terrainChunkRetryAfter.Clear();
+                var stale = new List<string>();
+                foreach (var pair in _terrainChunks)
+                {
+                    if (Math.Abs((decimal)pair.Value.Chunk[0] - centerX) > 1m ||
+                        Math.Abs((decimal)pair.Value.Chunk[1] - centerZ) > 1m)
+                        stale.Add(pair.Key);
+                }
+                foreach (var id in stale)
+                {
+                    _terrainChunks.Remove(id);
+                    WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
+                }
+            }
+
+            var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
+                Math.Abs(_terrainAppliedAnchorEast - anchor.East) > 0.001 ||
+                Math.Abs(_terrainAppliedAnchorNorth - anchor.North) > 0.001 ||
+                Math.Abs(_terrainAppliedAnchorUp - anchor.Up) > 0.001;
+            if (changedAnchor)
+            {
+                foreach (var pair in _terrainChunks)
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                _terrainAppliedSettlementId = frame.Place.Id;
+                _terrainAppliedAnchorEast = anchor.East;
+                _terrainAppliedAnchorNorth = anchor.North;
+                _terrainAppliedAnchorUp = anchor.Up;
+            }
+
+            // Keep the request budget bounded even if the player crosses several chunks while
+            // older HTTP requests are still in flight. Request the center first, then its neighbors.
+            TryRequestTerrainChunk(centerX, centerZ, position.Frame);
+            for (var dz = -1; dz <= 1; dz++)
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dz == 0) continue;
+                TryRequestTerrainChunk(centerX + dx, centerZ + dz, position.Frame);
+            }
         }
 
-        private async Task ReloadLayoutAsync(string placeId)
+        private void TryRequestTerrainChunk(long chunkX, long chunkZ, int frame)
+        {
+            if (_terrainChunkRequests.Count >= MaxConcurrentTerrainChunkRequests) return;
+            var chunkId = frame + ":" + chunkX + ":" + chunkZ;
+            if (_terrainChunks.ContainsKey(chunkId) || _terrainChunkRequests.Contains(chunkId)) return;
+            if (_terrainChunkRetryAfter.TryGetValue(chunkId, out var retryAfter) && Time.unscaledTime < retryAfter) return;
+            _terrainChunkRetryAfter.Remove(chunkId);
+            if (!_terrainChunkRequests.Add(chunkId)) return;
+            _ = LoadTerrainChunkAsync(chunkX, chunkZ, frame, chunkId, _terrainStreamGeneration);
+        }
+
+        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, int expectedFrame, string chunkId, int generation)
         {
             try
             {
-                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(placeId);
+                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
+                if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
+                    throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
                 Enqueue(() =>
                 {
-                    if (_layoutRequestedFor != placeId) return;
-                    _layout = layout;
-                    _layoutSettlementId = placeId;
-                    _layoutRequestedFor = null;
-                    WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                    if (generation != _terrainStreamGeneration) return;
+                    _terrainChunkRequests.Remove(chunkId);
+                    if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > 1m ||
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) > 1m || _frame == null ||
+                        _frame.Place == null || _frame.Place.Anchor == null)
+                        return;
+                    _terrainChunkRetryAfter.Remove(chunkId);
+                    _terrainChunks[chunkId] = chunk;
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    _terrainAppliedSettlementId = _frame.Place.Id;
+                    _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
+                    _terrainAppliedAnchorNorth = _frame.Place.Anchor.North;
+                    _terrainAppliedAnchorUp = _frame.Place.Anchor.Up;
                 });
             }
             catch (Exception exception)
             {
                 Enqueue(() =>
                 {
-                    if (_layoutRequestedFor == placeId) _layoutRequestedFor = null;
+                    if (generation != _terrainStreamGeneration) return;
+                    _terrainChunkRequests.Remove(chunkId);
+                    if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= 1m &&
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) <= 1m)
+                    {
+                        _terrainChunkRetryAfter[chunkId] = Time.unscaledTime + TerrainChunkRetryDelaySeconds;
+                        Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + "; повтор через " +
+                            TerrainChunkRetryDelaySeconds.ToString("0") + " с: " + exception.Message);
+                    }
+                });
+            }
+        }
+
+        private void EnsureLayoutForPlace(WorldFrame frame)
+        {
+            var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
+            if (string.IsNullOrEmpty(placeId)) return;
+            if (placeId == _layoutSettlementId)
+            {
+                // The player may return before another settlement's layout request completes.
+                // Invalidate that request so a later revisit can request it again.
+                if (_layoutRequestedFor != null)
+                {
+                    _layoutRequestGeneration++;
+                    _layoutRequestedFor = null;
+                }
+                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+                return;
+            }
+            if (placeId == _layoutRequestedFor) return;
+            // A server without per-settlement layouts sends no plan; the default layout is already right.
+            if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
+            {
+                _layoutSettlementId = placeId;
+                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+                return;
+            }
+            // Never show one settlement's buildings while the server is already sending another
+            // settlement's NPCs and positions. The new layout is revealed only after anchor validation.
+            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
+            _status = "Подгружается раскладка поселения…";
+            if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
+            _layoutRequestedFor = placeId;
+            _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
+        }
+
+        private async Task ReloadLayoutAsync(string placeId, int generation)
+        {
+            try
+            {
+                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(placeId);
+                Enqueue(() =>
+                {
+                    if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId ||
+                        _frame == null || _frame.Place == null || _frame.Place.Id != placeId) return;
+                    var expectedAnchor = _frame.Place.Anchor;
+                    var anchorMismatch = expectedAnchor != null &&
+                        (layout.Anchor == null || layout.Anchor.Frame != expectedAnchor.Frame ||
+                         Math.Abs(layout.Anchor.East - expectedAnchor.East) > 0.002d ||
+                         Math.Abs(layout.Anchor.North - expectedAnchor.North) > 0.002d ||
+                         Math.Abs(layout.Anchor.Up - expectedAnchor.Up) > 0.002d);
+                    var settlementMismatch = !string.IsNullOrEmpty(layout.Settlement) &&
+                        !string.Equals(layout.Settlement, placeId, StringComparison.Ordinal);
+                    if (anchorMismatch || settlementMismatch)
+                    {
+                        _layoutRequestedFor = null;
+                        _layoutFailedFor = placeId;
+                        _layoutRetryAfter = Time.unscaledTime + 10f;
+                        _status = "Раскладка не совпала с поселением или якорем сервера. Повтор через 10 секунд.";
+                        Debug.LogWarning("Раскладка поселения " + placeId +
+                            " не совпадает с идентификатором/якорем полного кадра; старая геометрия не будет заменена.");
+                        return;
+                    }
+
+                    _layout = layout;
+                    _layoutSettlementId = placeId;
+                    _layoutRequestedFor = null;
+                    _layoutFailedFor = null;
+                    _layoutRetryAfter = 0f;
+                    WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                    WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+                    _status = "Поселение загружено: " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : placeId);
+                });
+            }
+            catch (Exception exception)
+            {
+                Enqueue(() =>
+                {
+                    if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId) return;
+                    _layoutRequestedFor = null;
+                    _layoutFailedFor = placeId;
+                    _layoutRetryAfter = Time.unscaledTime + 10f;
+                    _status = "Не удалось загрузить поселение; повтор через 10 секунд. " + exception.Message;
                     Debug.LogWarning("Не удалось получить раскладку поселения " + placeId + ": " + exception.Message);
                 });
             }
