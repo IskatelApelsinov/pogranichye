@@ -16,6 +16,8 @@ namespace Pogranichye.Client.Presentation
 
         private GameObject _label;
         private Renderer[] _renderers;
+        private EntityMotion _motion;
+        private int _animationTier;
         private bool _labelVisible = true;
         private bool _shadowsEnabled = true;
 
@@ -23,10 +25,13 @@ namespace Pogranichye.Client.Presentation
         {
             _label = label;
             _renderers = renderers;
+            _motion = GetComponent<EntityMotion>();
         }
 
         public void ApplyDistance(float distance)
         {
+            UpdateAnimationTier(distance);
+
             if (_label != null)
             {
                 if (_labelVisible && distance >= HideLabelDistance)
@@ -51,6 +56,31 @@ namespace Pogranichye.Client.Presentation
                 _shadowsEnabled = true;
                 SetShadowMode(true);
             }
+        }
+
+        private void UpdateAnimationTier(float distance)
+        {
+            // 0 = full rate, 1 = 20 Hz, 2 = approximately 8 Hz.
+            // Separate enter/exit thresholds prevent rapid switching near a boundary.
+            if (_animationTier == 0)
+            {
+                if (distance >= 42f) _animationTier = 2;
+                else if (distance >= 16f) _animationTier = 1;
+            }
+            else if (_animationTier == 1)
+            {
+                if (distance >= 42f) _animationTier = 2;
+                else if (distance <= 12f) _animationTier = 0;
+            }
+            else
+            {
+                if (distance <= 12f) _animationTier = 0;
+                else if (distance <= 38f) _animationTier = 1;
+            }
+
+            if (_motion != null)
+                _motion.SetPresentationUpdateInterval(_animationTier == 0 ? 0f :
+                    (_animationTier == 1 ? 0.05f : 0.12f));
         }
 
         private void SetShadowMode(bool enabled)
