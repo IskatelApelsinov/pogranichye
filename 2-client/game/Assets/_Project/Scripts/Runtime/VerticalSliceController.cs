@@ -2931,10 +2931,30 @@ namespace Pogranichye.Client
             }
         }
 
+        private bool TryKeepCurrentLayoutAtGlobalPosition(WorldFrame frame)
+        {
+            if (_layout == null || _layout.Anchor == null || frame == null ||
+                frame.Place == null || frame.Place.Anchor == null ||
+                _layout.Anchor.Frame != frame.Place.Anchor.Frame)
+                return false;
+
+            // Layout geometry is settlement-local. Move the previous settlement's root by
+            // (old global anchor - current global anchor), so it remains in the right place
+            // while the next layout is fetched. Never leave it at local (0,0,0) over the new town.
+            var offset = new Vector3(
+                (float)(_layout.Anchor.East - frame.Place.Anchor.East),
+                (float)(_layout.Anchor.Up - frame.Place.Anchor.Up),
+                (float)(_layout.Anchor.North - frame.Place.Anchor.North));
+            WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, offset);
+            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+            return true;
+        }
+
         private void EnsureLayoutForPlace(WorldFrame frame)
         {
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
+            var preservedPreviousLayout = TryKeepCurrentLayoutAtGlobalPosition(frame);
             if (placeId == _layoutSettlementId)
             {
                 // The player may return before another settlement's layout request completes.
@@ -2944,6 +2964,7 @@ namespace Pogranichye.Client
                     _layoutRequestGeneration++;
                     _layoutRequestedFor = null;
                 }
+                WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, Vector3.zero);
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
             }
@@ -2955,10 +2976,13 @@ namespace Pogranichye.Client
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
             }
-            // Never show one settlement's buildings while the server is already sending another
-            // settlement's NPCs and positions. The new layout is revealed only after anchor validation.
-            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
-            _status = "Подгружается раскладка поселения…";
+            // Keep the previous layout visible at its true global offset until the replacement
+            // has passed settlement/anchor validation. Hide only when there is no trustworthy anchor.
+            if (!preservedPreviousLayout)
+                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
+            _status = preservedPreviousLayout
+                ? "Подгружается соседнее поселение… прежняя геометрия сохранена."
+                : "Подгружается раскладка поселения…";
             if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
             _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
@@ -2994,6 +3018,7 @@ namespace Pogranichye.Client
 
                     _layout = layout;
                     _layoutSettlementId = placeId;
+                    WorldLayoutPresentationBuilder.SetPresentationOffset(_presentationRoot, Vector3.zero);
                     _layoutRequestedFor = null;
                     _layoutFailedFor = null;
                     _layoutRetryAfter = 0f;
