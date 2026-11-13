@@ -41,11 +41,8 @@ namespace Pogranichye.Client.Presentation
             _manifest = manifest;
             _root = new GameObject("WorldWildSites").transform;
             _root.SetParent(parent, false);
-            unchecked
+            foreach (var site in manifest.WildSites)
             {
-                var hash = 17;
-                foreach (var site in manifest.WildSites)
-                {
                     if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
                         continue;
                     var viewRoot = new GameObject("WildSite_" + site.Id).transform;
@@ -56,8 +53,6 @@ namespace Pogranichye.Client.Presentation
                         North = site.North, Up = site.Up, Ground = site.Ground, Type = site.Type,
                         Mana = site.Mana, Danger = site.Danger, Root = viewRoot
                     });
-                    hash = hash * 31 + site.Id.GetHashCode();
-                }
             }
         }
 
@@ -184,6 +179,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (Materials.TryGetValue(key, out var material) && material != null) return material;
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
             material = new Material(shader) { color = color };
             Materials[key] = material;
             return material;
