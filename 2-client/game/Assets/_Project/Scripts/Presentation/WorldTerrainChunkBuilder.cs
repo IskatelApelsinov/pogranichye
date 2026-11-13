@@ -153,13 +153,32 @@ namespace Pogranichye.Client.Presentation
                     UnityEngine.Object.Destroy(mesh);
                     return;
                 }
-                _material = new Material(shader) { name = "World terrain • seamless meadow ground" };
-                _groundTexture = CreateSeamlessGroundTexture();
+                _material = new Material(shader) { name = "World terrain • meadow PBR" };
+                // Generated maps are optional: the client remains playable before the
+                // Blender asset-generation step has been run on a developer machine.
+                _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
+                if (_groundTexture == null) _groundTexture = CreateSeamlessGroundTexture();
+                _groundTexture.wrapMode = TextureWrapMode.Repeat;
                 _material.mainTexture = _groundTexture;
                 if (_material.HasProperty("_BaseMap")) _material.SetTexture("_BaseMap", _groundTexture);
                 if (_material.HasProperty("_MainTex")) _material.SetTexture("_MainTex", _groundTexture);
                 if (_material.HasProperty("_BaseColor")) _material.SetColor("_BaseColor", Color.white);
                 else if (_material.HasProperty("_Color")) _material.color = Color.white;
+
+                var normal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
+                if (normal != null && _material.HasProperty("_BumpMap"))
+                {
+                    _material.SetTexture("_BumpMap", normal);
+                    _material.EnableKeyword("_NORMALMAP");
+                }
+                var ao = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_ao");
+                if (ao != null && _material.HasProperty("_OcclusionMap"))
+                {
+                    _material.SetTexture("_OcclusionMap", ao);
+                    _material.EnableKeyword("_OCCLUSIONMAP");
+                }
+                if (_material.HasProperty("_Metallic")) _material.SetFloat("_Metallic", 0f);
+                if (_material.HasProperty("_Smoothness")) _material.SetFloat("_Smoothness", 0.16f);
             }
             renderer.sharedMaterial = _material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;

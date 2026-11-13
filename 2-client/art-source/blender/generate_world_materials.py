@@ -19,7 +19,7 @@ import bpy
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-OUT = ROOT / "2-client" / "game" / "Assets" / "Art" / "Generated" / "WorldMaterials"
+OUT = ROOT / "2-client" / "game" / "Assets" / "Resources" / "WorldMaterials"
 TEXTURES = OUT / "Textures"
 SIZE = 512
 TAU = math.tau
