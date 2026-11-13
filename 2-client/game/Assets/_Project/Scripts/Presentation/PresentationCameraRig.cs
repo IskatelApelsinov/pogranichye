@@ -125,8 +125,9 @@ namespace Pogranichye.Client.Presentation
                     var look = _input != null ? _input.LookDelta : Vector2.zero;
                     _yaw += look.x * mouseSensitivity;
                     _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f), -75f, 75f);
-                    _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 }
+                if (!_captureMouseForGesture)
+                    _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
                 _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;
