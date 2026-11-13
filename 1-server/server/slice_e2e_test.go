@@ -339,8 +339,11 @@ search:
 		t.Fatal("повтор платного запроса с тем же reqid должен отвечать успехом")
 	}
 	c.world(func(e *core.Entity) {
-		if core.Purse(e).Coins != coins1 {
-			t.Fatalf("повтор платного reqid списал деньги второй раз: %.2f → %.2f", coins1, core.Purse(e).Coins)
+		if core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood] != beerStock1 {
+			t.Fatal("повтор reqid не должен списывать вторую кружку из запаса")
+		}
+		if !sim.Mug(e).Has {
+			t.Fatal("повтор reqid не должен менять подтверждённое состояние кружки")
 		}
 	})
 	consumeOK, reason, consumeReq := c.result(`"op":"consume","item":"beer"`)
