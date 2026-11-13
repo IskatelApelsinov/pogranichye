@@ -32,7 +32,7 @@ go run ./cmd/pogserver -starter -web ../thin-client/web   # сервер на :8
 | 9 | Купить пиво за монеты, получить кружку, выпить; повтор без второго списания | СЕРВЕР (e2e) | PASS | BLOCKED |
 | 10 | Подтверждённые вехи в летописи без дублей | СЕРВЕР (e2e: по одной вехе, `seq` растёт) | UI слит #209; браузерный ручной прогон не подтверждён | UI/parser слит #208; Unity Editor BLOCKED |
 | — | Опьянение | Есть `me.drunk` (v1.12), серверный спад со временем и штраф к точности/плетениям; `sim/v112_test.go:TestBeerMakesDrunkAndItPasses` | Показывает уровень хмеля | HUD-полоска есть в исходниках; runtime BLOCKED |
-| — | Летопись переживает перезапуск сервера | НЕТ | — | — |
+| — | Летопись переживает перезапуск сервера | PASS: `TestJournalSurvivesWorldRestart` проверяет `JournalC.Seq/Entries` через `SaveTo` → `LoadFrom` | UI отображает `me.journal` | UI есть; runtime BLOCKED |
 
 Проверка шагов 1, 4–10 одной командой:
 `cd 1-server && go test ./server/ -run VerticalSlice -count=1` (настоящие HTTP и WebSocket, семя
@@ -64,9 +64,9 @@ go run ./cmd/pogserver -starter -web ../thin-client/web   # сервер на :8
    `RequestGate` (#199). Но `VerticalSliceController` отправлял `talk/say` отдельным путём; PR #205
    перевёл начало разговора и все реплики NPC в тот же gate. Source-level путь теперь единый; реальная
    сборка/PlayMode всё ещё BLOCKED до проверки в Unity 6000.6.7f1.
-3. **Летопись отображается в обоих клиентах на уровне исходников** (#208 Unity, #209 thin client); остались Unity Editor/PlayMode и ручной браузерный прогон. Серверная летопись не переживает перезапуск процесса, пока нет disk persistence.
-4. **Опьянение** требуется описанием демо, но отсутствует в протоколе: нужно решение владельца.
-5. **Сохранение мира реализовано на сервере** (`SaveTo`/`LoadFrom`/`Autosave`, v1.12): есть `TestWorldSurvivesRestart` и `TestAutosaveZeroIntervalStillSavesOnClose`. Это не доказывает сохранение сетевых сессий: после перезапуска управление телами освобождается.
+3. **Летопись отображается в обоих клиентах на уровне исходников** (#208 Unity, #209 thin client); остались Unity Editor/PlayMode и ручной браузерный прогон. `JournalC` сериализуется в world snapshot; `TestJournalSurvivesWorldRestart` проверяет сохранение `Seq` и `Entries` через перезапуск сервера. Сетевые сессии/привязка контролируемого тела после перезапуска — отдельная задача.
+4. **Опьянение реализовано на сервере** (`me.drunk`, спад со временем, штраф к точности/плетениям; `TestBeerMakesDrunkAndItPasses`); тонкий клиент и Unity HUD показывают уровень. Unity runtime всё ещё требует ручной проверки.
+5. **Сохранение мира реализовано на сервере** (`SaveTo`/`LoadFrom`/`Autosave`, v1.12): тесты `TestWorldSurvivesRestart`, `TestJournalSurvivesWorldRestart` и `TestAutosaveZeroIntervalStillSavesOnClose`. Сетевые сессии не сохраняются: после перезапуска управление телами освобождается.
 6. Дорога между деревнями — только абстрактная (`journey`); физических дорог нет.
 
 ## 5. План небольших PR до рабочей демо
