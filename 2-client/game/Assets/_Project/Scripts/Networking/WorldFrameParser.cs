@@ -216,6 +216,8 @@ namespace Pogranichye.Client.Networking
                     throw new FormatException(fieldName + ".items[" + i + "] должен быть объектом.");
                 RequireStringId(entry["id"], fieldName + ".items[" + i + "].id");
                 var state = entry["lease_state"]?.Value<string>();
+                if (entry["available"]?.Type != JTokenType.Boolean)
+                    throw new FormatException(fieldName + ".items[" + i + "].available должен быть boolean.");
                 if (state != "vacant" && state != "active" && state != "grace" && state != "expired")
                     throw new FormatException(fieldName + ".items[" + i + "].lease_state содержит неизвестное состояние.");
                 if (!IsNumber(entry["rent_price"]) || !IsFinite(entry["rent_price"].Value<double>()) ||
