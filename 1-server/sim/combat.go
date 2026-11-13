@@ -218,7 +218,14 @@ func dropFoes(w *core.World, settlement core.ID) {
 
 // StepCombat продвигает бой на dt секунд: таймеры игроков, ИИ врагов, их удары. controlled(id) — тело
 // ведёт живой игрок. Враги есть только там, где есть игроки.
+// StepCombat сохраняет дневное поведение для старых callers и тестов.
 func StepCombat(w *core.World, dt float64, controlled func(core.ID) bool, s *dice.Stream) {
+	StepCombatAtHour(w, dt, 12, controlled, s)
+}
+
+// StepCombatAtHour учитывает серверный час суток при обнаружении игрока врагами.
+// Источник света вычисляется только из серверной экипировки/таймера плетения.
+func StepCombatAtHour(w *core.World, dt float64, hour int, controlled func(core.ID) bool, s *dice.Stream) {
 	if w == nil || dt <= 0 {
 		return
 	}
@@ -279,14 +286,57 @@ func StepCombat(w *core.World, dt float64, controlled func(core.ID) bool, s *dic
 			}
 			return
 		}
-		stepFoe(w, fe, f, ps, dt, s)
+		stepFoeAtHour(w, fe, f, ps, dt, hour, s)
 	})
 	for _, id := range append(gone, stale...) {
 		w.Remove(id)
 	}
 }
 
+// stepFoe сохраняет дневную семантику старых внутренних callers.
 func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt float64, s *dice.Stream) {
+	stepFoeAtHour(w, fe, f, ps, dt, 12, s)
+}
+
+
+// hasHeldLight is server-authoritative: a torch/lantern must be in Hand, not merely in Items.
+// Timed magical light is the existing CombatC.Light countdown.
+func hasHeldLight(e *core.Entity) bool {
+	if e == nil {
+		return false
+	}
+	if inv := Inv(e); inv != nil && (inv.Hand == "torch" || inv.Hand == "lantern") {
+		return true
+	}
+	if combat := Combat(e); combat != nil && combat.Light > 0 {
+		return true
+	}
+	return false
+}
+
+// foeAggroRadius applies a modest night visibility modifier before the existing sneak modifier.
+// 22:00–05:59 is deep night; 20:00–21:59 and 06:00–07:59 are twilight.
+func foeAggroRadius(e *core.Entity, base float64, hour int) float64 {
+	hour = ((hour % 24) + 24) % 24
+	multiplier := 1.0
+	switch {
+	case hour >= 22 || hour <= 5:
+		if hasHeldLight(e) {
+			multiplier = 1.15
+		} else {
+			multiplier = 0.65
+		}
+	case hour >= 20 || (hour >= 6 && hour <= 7):
+		if hasHeldLight(e) {
+			multiplier = 1.05
+		} else {
+			multiplier = 0.85
+		}
+	}
+	return base * multiplier
+}
+
+func stepFoeAtHour(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt float64, hour int, s *dice.Stream) {
 	l := LayoutOf(w, f.Settlement)
 	st := foeStats[f.Species]
 	f.CD = math.Max(0, f.CD-dt)
@@ -341,7 +391,7 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		wanderFoe(l, f, dt, s)
 		return
 	}
-	aggro := st.aggro
+	aggro := foeAggroRadius(near, st.aggro, hour)
 	if sneaking && !f.Aware {
 		aggro *= 0.4
 	}
