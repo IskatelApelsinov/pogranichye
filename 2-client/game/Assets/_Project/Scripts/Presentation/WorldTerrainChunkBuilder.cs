@@ -73,7 +73,12 @@ namespace Pogranichye.Client.Presentation
                 var shader = Shader.Find("Universal Render Pipeline/Lit");
                 if (shader == null) shader = Shader.Find("Standard");
                 if (shader == null) shader = Shader.Find("Sprites/Default");
-                if (shader == null) return;
+                if (shader == null)
+                {
+                    UnityEngine.Object.Destroy(go);
+                    UnityEngine.Object.Destroy(mesh);
+                    return;
+                }
                 _material = new Material(shader) { name = "World terrain • URP compatible" };
                 if (_material.HasProperty("_BaseColor"))
                     _material.SetColor("_BaseColor", new Color(0.31f, 0.37f, 0.24f));
