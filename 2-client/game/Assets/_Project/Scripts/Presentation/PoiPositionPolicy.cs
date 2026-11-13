@@ -47,12 +47,16 @@ namespace Pogranichye.Client.Presentation
             // caller must opt in to the legacy map only for starter/legacy places.
             var source = hasLayoutPois ? layoutPois : allowLegacyFallback ? legacyPois : null;
             if (source == null) return false;
-            if (source.TryGetValue(poiId, out coordinate)) return true;
+            // The server validates apiary work at the garden POI. A future Layout v2 may
+            // expose a dedicated apiary key, but the legacy visual hive offset is never an
+            // interaction anchor. This alias applies to both current and legacy layouts.
+            if (string.Equals(poiId, "apiary", StringComparison.Ordinal))
+            {
+                if (hasLayoutPois && source.TryGetValue("apiary", out coordinate)) return true;
+                return source.TryGetValue("garden", out coordinate);
+            }
 
-            // The server's apiary action is validated at the garden POI; the visual hive is a
-            // nearby presentation prop, not a separate Layout v2/navigation anchor.
-            return hasLayoutPois && string.Equals(poiId, "apiary", StringComparison.Ordinal) &&
-                source.TryGetValue("garden", out coordinate);
+            return source.TryGetValue(poiId, out coordinate);
         }
 
         public static bool IsWithin(double playerX, double playerY,
