@@ -55,6 +55,8 @@ namespace Pogranichye.Client.Presentation
         private float _diagnosticMaxPresentationGap;
         private float _diagnosticMaxTargetSpan;
         private float _diagnosticMaxViewSpan;
+        private float _diagnosticMaxWposSpan;
+        private float _diagnosticMaxLocalPosSpan;
 #endif
 
         public Transform PlayerTransform { get; private set; }
@@ -84,10 +86,16 @@ namespace Pogranichye.Client.Presentation
 #if UNITY_EDITOR
             var hasFrameTargetBounds = false;
             var hasFrameViewBounds = false;
+            var hasFrameWposBounds = false;
+            var hasFrameLocalPosBounds = false;
             var frameTargetMin = Vector3.zero;
             var frameTargetMax = Vector3.zero;
             var frameViewMin = Vector3.zero;
             var frameViewMax = Vector3.zero;
+            var frameWposMin = Vector3.zero;
+            var frameWposMax = Vector3.zero;
+            var frameLocalPosMin = Vector3.zero;
+            var frameLocalPosMax = Vector3.zero;
 #endif
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
@@ -157,8 +165,40 @@ namespace Pogranichye.Client.Presentation
                             : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
 #if UNITY_EDITOR
                     _diagnosticNpcSamples++;
-                    if (hasGlobalPosition) _diagnosticGlobalSamples++;
-                    else _diagnosticLocalSamples++;
+                    if (hasGlobalPosition)
+                    {
+                        _diagnosticGlobalSamples++;
+                        if (!hasFrameWposBounds)
+                        {
+                            frameWposMin = position;
+                            frameWposMax = position;
+                            hasFrameWposBounds = true;
+                        }
+                        else
+                        {
+                            frameWposMin = Vector3.Min(frameWposMin, position);
+                            frameWposMax = Vector3.Max(frameWposMax, position);
+                        }
+                    }
+                    else
+                    {
+                        _diagnosticLocalSamples++;
+                        if (neighbor.Position != null)
+                        {
+                            var localPosition = ToUnityPosition(neighbor.Position);
+                            if (!hasFrameLocalPosBounds)
+                            {
+                                frameLocalPosMin = localPosition;
+                                frameLocalPosMax = localPosition;
+                                hasFrameLocalPosBounds = true;
+                            }
+                            else
+                            {
+                                frameLocalPosMin = Vector3.Min(frameLocalPosMin, localPosition);
+                                frameLocalPosMax = Vector3.Max(frameLocalPosMax, localPosition);
+                            }
+                        }
+                    }
                     if (_diagnosticNpcTargets.TryGetValue(id, out var previousTarget) &&
                         (position - previousTarget).sqrMagnitude > 0.0025f)
                         _diagnosticNpcMoved++;
@@ -236,6 +276,12 @@ namespace Pogranichye.Client.Presentation
             if (hasFrameViewBounds)
                 _diagnosticMaxViewSpan = Mathf.Max(_diagnosticMaxViewSpan,
                     (frameViewMax - frameViewMin).magnitude);
+            if (hasFrameWposBounds)
+                _diagnosticMaxWposSpan = Mathf.Max(_diagnosticMaxWposSpan,
+                    (frameWposMax - frameWposMin).magnitude);
+            if (hasFrameLocalPosBounds)
+                _diagnosticMaxLocalPosSpan = Mathf.Max(_diagnosticMaxLocalPosSpan,
+                    (frameLocalPosMax - frameLocalPosMin).magnitude);
 #endif
             ApplyTalkPresentation(frame, player);
 
@@ -272,6 +318,8 @@ namespace Pogranichye.Client.Presentation
                         $"targetsMoved={_diagnosticNpcMoved}, viewsMoved={_diagnosticNpcViewsMoved}, " +
                         $"maxFrameTargetSpan={_diagnosticMaxTargetSpan:F2}m, " +
                         $"maxFrameViewSpan={_diagnosticMaxViewSpan:F2}m, " +
+                        $"maxFrameWposSpan={_diagnosticMaxWposSpan:F2}m, " +
+                        $"maxFrameLocalPosSpan={_diagnosticMaxLocalPosSpan:F2}m, " +
                         $"wpos={_diagnosticGlobalSamples}, localPos={_diagnosticLocalSamples}, " +
                         $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
                 _diagnosticNpcSamples = 0;
@@ -282,6 +330,8 @@ namespace Pogranichye.Client.Presentation
                 _diagnosticMaxPresentationGap = 0f;
                 _diagnosticMaxTargetSpan = 0f;
                 _diagnosticMaxViewSpan = 0f;
+                _diagnosticMaxWposSpan = 0f;
+                _diagnosticMaxLocalPosSpan = 0f;
             }
 #endif
         }
