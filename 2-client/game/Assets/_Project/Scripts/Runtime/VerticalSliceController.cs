@@ -295,8 +295,8 @@ namespace Pogranichye.Client
             }
 
             if (_frame?.Me == null) return false;
-            var atWoods = IsNearActivityPoi("woods", 10f);
-            var atRiver = IsNearActivityPoi("river", 10f);
+            var atWoods = _core != null && _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
+            var atRiver = _core != null && _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
             if ((atWoods || atRiver) && _activityMiniGame == ActivityMiniGame.None)
             {
                 var width = Mathf.Min(520f, Screen.width - 24f);
@@ -1719,7 +1719,16 @@ namespace Pogranichye.Client
                 return;
             }
             var poi = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
+            var feature = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
             var tool = game == ActivityMiniGame.Woodcutting ? "axe" : "rod";
+            if (!_core.SupportsFeature(feature))
+            {
+                _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
+                    ? "В этих угодьях нет подходящего леса."
+                    : "В этом поселении нет подходящего водоёма.";
+                _status = _activityMiniGameFeedback;
+                return;
+            }
             if (!IsNearActivityPoi(poi, 10f))
             {
                 _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
