@@ -205,6 +205,7 @@ namespace Pogranichye.Client
         // The outer HUD owns additional pointer surfaces (context actions, minigames, chat).
         // The controller reports those so this component never re-locks the cursor over them.
         private bool _externalUiCapture;
+        private bool _externalModalMenuOpen;
         private Vector2 _menuScroll;
         private float _regionMapZoom = 1f;
         private bool _weaveOpen;
@@ -216,11 +217,22 @@ namespace Pogranichye.Client
         private Light _handLight;
 
         /// <summary>True while the "Дела" window or the weave wheel owns the mouse.</summary>
-        public bool CapturesInput { get { return _menuOpen || _weaveOpen; } }
+        public bool CapturesInput { get { return _menuOpen || _weaveOpen || _externalModalMenuOpen; } }
 
         public void SetExternalUiCapture(bool captured)
         {
             _externalUiCapture = captured;
+        }
+
+        public void SetExternalModalMenuOpen(bool open)
+        {
+            _externalModalMenuOpen = open;
+            if (!open) return;
+            _menuOpen = false;
+            _holding = false;
+            _holdStart = 0f;
+            CloseWeave(false);
+            ReleaseGuard();
         }
 
         /// <summary>Raised on the Unity main thread when a queued result-bearing request resolves.</summary>
@@ -1100,6 +1112,17 @@ namespace Pogranichye.Client
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
             UpdateMount();
+
+            if (_externalModalMenuOpen)
+            {
+                _menuOpen = false;
+                _holding = false;
+                _holdStart = 0f;
+                CloseWeave(false);
+                ReleaseGuard();
+                UpdateCursor(true);
+                return;
+            }
 
             if (!Application.isFocused)
             {
