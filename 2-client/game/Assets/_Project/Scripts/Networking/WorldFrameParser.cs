@@ -204,6 +204,24 @@ namespace Pogranichye.Client.Networking
                 token["vacant"]?.Type != JTokenType.Integer ||
                 !IsNumber(token["rent_price"]))
                 throw new FormatException(fieldName + " должен содержать total, vacant и rent_price.");
+            var items = token["items"];
+            if (items == null || items.Type == JTokenType.Null) return;
+            if (items.Type != JTokenType.Array)
+                throw new FormatException(fieldName + ".items должен быть массивом.");
+            var entries = (JArray)items;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry == null || entry.Type != JTokenType.Object)
+                    throw new FormatException(fieldName + ".items[" + i + "] должен быть объектом.");
+                RequireStringId(entry["id"], fieldName + ".items[" + i + "].id");
+                var state = entry["lease_state"]?.Value<string>();
+                if (state != "vacant" && state != "active" && state != "grace" && state != "expired")
+                    throw new FormatException(fieldName + ".items[" + i + "].lease_state содержит неизвестное состояние.");
+                if (!IsNumber(entry["rent_price"]) || !IsFinite(entry["rent_price"].Value<double>()) ||
+                    entry["rent_price"].Value<double>() < 0d)
+                    throw new FormatException(fieldName + ".items[" + i + "].rent_price должен быть неотрицательным числом.");
+            }
         }
 
         private static void ValidateWorldAnchor(JToken token, string fieldName)
