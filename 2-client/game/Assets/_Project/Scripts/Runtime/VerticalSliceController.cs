@@ -246,9 +246,10 @@ namespace Pogranichye.Client
 
             // The title screen and chat are pointer-driven modes: never feed mouse delta
             // into the camera while either is active.
-            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen);
+            var pointerOverUi = IsPointerOverUi();
+            _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi);
             Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen;
+            Cursor.visible = _connectionState != WorldConnectionState.Active || _chatOpen || pointerOverUi;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
@@ -277,6 +278,46 @@ namespace Pogranichye.Client
                 _goalToSend = null;
                 _ = SendGoalAsync(goal);
             }
+        }
+
+        private bool IsPointerOverUi()
+        {
+            if (_chatOpen) return true;
+            if (_input == null) return false;
+            var pointer = _input.PointerPosition;
+            var guiPoint = new Vector2(pointer.x, Screen.height - pointer.y);
+
+            if (!_hudCollapsed)
+            {
+                var panelWidth = Mathf.Min(500f, Screen.width - 24f);
+                var panelHeight = Mathf.Min(620f, Screen.height - 24f);
+                if (new Rect(12f, 12f, panelWidth, panelHeight).Contains(guiPoint)) return true;
+            }
+
+            if (_frame?.Me == null) return false;
+            var atWoods = IsNearActivityPoi("woods", 10f);
+            var atRiver = IsNearActivityPoi("river", 10f);
+            if (atWoods || atRiver)
+            {
+                var width = Mathf.Min(520f, Screen.width - 24f);
+                var height = atWoods && atRiver ? 94f : 72f;
+                if (new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f,
+                    width, height).Contains(guiPoint)) return true;
+            }
+
+            if (_activityMiniGame != ActivityMiniGame.None)
+            {
+                var miniWidth = Mathf.Min(420f, Screen.width - 24f);
+                if (new Rect((Screen.width - miniWidth) * 0.5f, Screen.height - 286f,
+                    miniWidth, 178f).Contains(guiPoint)) return true;
+            }
+
+            if (new Rect(Screen.width - 124f, 12f, 112f, 28f).Contains(guiPoint)) return true;
+            if (_frame.Me.Talk?.Options != null && _frame.Me.Talk.Options.Count > 0 &&
+                new Rect(Screen.width - 450f, Screen.height - 540f, 430f, 520f).Contains(guiPoint)) return true;
+            if (_frame.Me.InviteFrom != null &&
+                new Rect(Screen.width - 450f, Screen.height - 170f, 430f, 150f).Contains(guiPoint)) return true;
+            return false;
         }
 
         private void OnGUI()
