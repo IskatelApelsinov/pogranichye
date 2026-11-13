@@ -80,6 +80,8 @@ namespace Pogranichye.Client
         private string _goalToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
+        // The no-id /api/layout response is retained for the tutorial place across settlement switches.
+        private WorldLayoutFrame _starterLayout;
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
@@ -2419,6 +2421,7 @@ namespace Pogranichye.Client
             _prototypeSettlementId = null;
             _layoutSettlementId = null;
             _layout = null;
+            _starterLayout = null;
             _busy = true;
             _connectionState = WorldConnectionState.Connecting;
             _frame = null;
@@ -2451,6 +2454,7 @@ namespace Pogranichye.Client
                 var http = new HttpAuthClient(serverUrl);
                 var layout = await http.GetLayoutAsync();
                 _layout = layout;
+                _starterLayout = SettlementLayoutSelectionPolicy.IsTutorialLayout(layout.Plan) ? layout : null;
                 // v1.19: read global map metadata before enabling the socket. Older compatible servers
                 // may not expose it, so this optional layer must never block the settlement demo.
                 try { _worldManifest = await http.GetWorldManifestAsync(); }
@@ -3104,11 +3108,11 @@ namespace Pogranichye.Client
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
 
-            // Starter tutorial geometry remains the authored prototype. Generated settlements
-            // are independent cached roots so a transition never destroys the previous layout.
-            if (frame.Place.Plan == "starter" ||
-                (_layoutSettlementId == null && frame.Place.Plan == null) ||
-                (!string.IsNullOrEmpty(_prototypeSettlementId) && placeId == _prototypeSettlementId))
+            // The default /api/layout document is the tutorial settlement's server geometry.
+            // Keep its collision, POI and map data active; generated settlements use cached per-place roots.
+            var isTutorialSettlement = SettlementLayoutSelectionPolicy.IsTutorialSettlement(
+                frame.Place.Plan, placeId, _prototypeSettlementId, _layoutSettlementId != null);
+            if (isTutorialSettlement)
             {
                 if (string.IsNullOrEmpty(_prototypeSettlementId) &&
                     (frame.Place.Plan == "starter" || frame.Place.Plan == null))
@@ -3119,7 +3123,8 @@ namespace Pogranichye.Client
                     _layoutRequestedFor = null;
                 }
                 _layoutSettlementId = placeId;
-                _layout = null;
+                _layout = SettlementLayoutSelectionPolicy.SelectForSettlement(
+                    isTutorialSettlement, _starterLayout, _layout);
                 _layoutCache?.Update(frame);
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
