@@ -2985,7 +2985,7 @@ namespace Pogranichye.Client
                     _layoutRetryAfter = 0f;
                     WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
                     WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
-                    _status = "Поселение загружено: " + (frame.Place.Name ?? placeId);
+                    _status = "Поселение загружено: " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : placeId);
                 });
             }
             catch (Exception exception)
