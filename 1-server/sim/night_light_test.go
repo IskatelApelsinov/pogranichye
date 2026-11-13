@@ -26,7 +26,8 @@ func TestFoeAggroRadiusUsesServerAuthoritativeLightAndTime(t *testing.T) {
 		{"dawn twilight", 6, base * 0.85},
 		{"morning", 8, base},
 		{"negative hour wraps", -1, base * 0.65},
-		{"hour wraps", 24, base},
+		{"hour wraps to midnight", 24, base * 0.65},
+		{"hour wraps to morning", 32, base},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
