@@ -144,10 +144,12 @@ func OpenFrontier(w *core.World, e *core.Entity, settlement core.ID) string {
 		X: nx, Y: ny, Mana: clampf(r.Mana*g.Uniform(0.7, 1.4), 0.3, 2.2)})
 	w.Attach(nre, &FrontierC{Ring: fr.Ring + 1})
 	roles := []string{"farmer", "farmer", "fisher", "smith", "hunter", "woodcutter", "miner", "weaver", "cook", "herder", "herbalist", "tavernkeeper"}
+	var placedXY [][2]float64 // позиции новых сёл этого края — чтобы дикие места легли в поле между ними
 	settle := func(nm string, folk int, city bool) {
 		se := NewSettlement(w, g, nm, nre)
 		s := core.Settle(se)
 		s.X, s.Y = nx+g.Uniform(-110, 110), ny+g.Uniform(-110, 110) // без зажима в стартовый квадрат карты
+		placedXY = append(placedXY, [2]float64{s.X, s.Y})
 		if city {
 			s.Tier = "city"
 		}
@@ -175,6 +177,7 @@ func OpenFrontier(w *core.World, e *core.Entity, settlement core.ID) string {
 	if withCity {
 		settle(procToponym(g), cfg.Folk*3, true)
 	}
+	scatterWildSites(w, g, nre, nx, ny, placedXY, 2+g.Intn(3)) // дикие места нового края — в поле между сёлами
 	if e != nil {
 		say(w, e, "road", "Местные говорят: за дальним перевалом лежат ещё земли — "+name+".")
 	}
