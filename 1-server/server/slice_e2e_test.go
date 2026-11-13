@@ -305,29 +305,55 @@ search:
 		t.Fatal("пиво в лесу купить нельзя")
 	}
 	c.gotoAndWait("tavern")
-	var coins0 float64
-	c.world(func(e *core.Entity) { coins0 = core.Purse(e).Coins })
+	var coins0, beerStock0 float64
+	c.world(func(e *core.Entity) {
+		coins0 = core.Purse(e).Coins
+		beerStock0 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
+	})
 	ok, reason, buyReq := c.result(`"op":"buy","item":"beer"`)
 	if !ok {
 		t.Fatalf("покупка пива отклонена: %s", reason)
 	}
-	var coins1 float64
+	// The full wire snapshot must expose the purchased beer as a mug, not as a generic item.
+	boughtFrame := c.full()
+	boughtMe := boughtFrame["me"].(map[string]any)
+	if boughtMe["mug"] != true {
+		t.Fatalf("after buying beer me.mug must be true, got %v", boughtMe["mug"])
+	}
+	var coins1, beerStock1 float64
 	c.world(func(e *core.Entity) {
 		coins1 = core.Purse(e).Coins
-		if math.Abs(coins0-coins1-sim.BeerPrice) > 1e-9 {
-			t.Fatalf("за пиво должно списаться %.2f: было %.2f, стало %.2f", sim.BeerPrice, coins0, coins1)
+		beerStock1 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
+		if math.Abs(beerStock0-beerStock1-1) > 1e-9 {
+			t.Fatalf("покупка должна уменьшить запас пива на одну кружку: было %.2f, стало %.2f", beerStock0, beerStock1)
+		}
+		// The world keeps simulating while the WebSocket result is delivered. Wage/need
+		// systems may credit or debit the purse between snapshots, so exact net balance
+		// delta is asserted in sim/tavern_test.go; this E2E checks the authoritative mug
+		// and stock transition plus idempotency over the real socket.
+		if coins1 > coins0+1e-6 {
+			t.Fatalf("покупка пива не должна увеличивать кошелёк: было %.2f, стало %.2f", coins0, coins1)
 		}
 	})
 	if ok, _, _ := c.resultWith(`"op":"buy","item":"beer"`, buyReq); !ok {
 		t.Fatal("повтор платного запроса с тем же reqid должен отвечать успехом")
 	}
 	c.world(func(e *core.Entity) {
-		if core.Purse(e).Coins != coins1 {
-			t.Fatalf("повтор платного reqid списал деньги второй раз: %.2f → %.2f", coins1, core.Purse(e).Coins)
+		if core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood] != beerStock1 {
+			t.Fatal("повтор reqid не должен списывать вторую кружку из запаса")
+		}
+		if !sim.Mug(e).Has {
+			t.Fatal("повтор reqid не должен менять подтверждённое состояние кружки")
 		}
 	})
-	if ok, reason, _ := c.result(`"op":"consume","item":"beer"`); !ok {
+	consumeOK, reason, consumeReq := c.result(`"op":"consume","item":"beer"`)
+	if !consumeOK {
 		t.Fatalf("выпить не удалось: %s", reason)
+	}
+	// Retrying the same consume reqid must acknowledge the original result without
+	// creating another drink event or another journal milestone.
+	if ok, retryReason, _ := c.resultWith(`"op":"consume","item":"beer"`, consumeReq); !ok {
+		t.Fatalf("повтор consume с тем же reqid должен быть идемпотентен: %s", retryReason)
 	}
 	// пустую кружку второй раз не выпить
 	if ok, _, _ := c.result(`"op":"consume","item":"beer"`); ok {
