@@ -1661,6 +1661,7 @@ namespace Pogranichye.Client.Presentation
         {
             _mesh = mesh;
             if (_mesh == null || tipIndices == null || tipIndices.Count == 0) return;
+            _mesh.MarkDynamic();
             _rest = _mesh.vertices;
             _vertices = new Vector3[_rest.Length];
             Array.Copy(_rest, _vertices, _rest.Length);
