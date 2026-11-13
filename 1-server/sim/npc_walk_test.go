@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"math"
 	"testing"
 
 	"pogranichye/core"
