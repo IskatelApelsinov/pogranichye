@@ -30,10 +30,10 @@ public static class PoiPositionPolicyCheck
         };
 
         PoiCoordinate point;
-        Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, true, out point) &&
+        Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, true, false, out point) &&
               point.X == 112d && point.Y == 86d,
             "current Layout v2 POI overrides the starter-layout mirror");
-        Check(PoiPositionPolicy.TryResolve("apiary", layout, legacy, true, out point) &&
+        Check(PoiPositionPolicy.TryResolve("apiary", layout, legacy, true, false, out point) &&
               point.X == 70d && point.Y == -20d,
             "apiary resolves to the server's garden POI, not its visual hive offset");
         var explicitApiary = new Dictionary<string, PoiCoordinate>
@@ -41,16 +41,18 @@ public static class PoiPositionPolicyCheck
             { "garden", new PoiCoordinate(70d, -20d) },
             { "apiary", new PoiCoordinate(73.6d, -20.9d) }
         };
-        Check(PoiPositionPolicy.TryResolve("apiary", explicitApiary, legacy, true, out point) &&
+        Check(PoiPositionPolicy.TryResolve("apiary", explicitApiary, legacy, true, false, out point) &&
               point.X == 73.6d && point.Y == -20.9d,
             "an explicit future Layout apiary anchor takes precedence over the garden alias");
-        Check(!PoiPositionPolicy.TryResolve("woods", layout, legacy, true, out point),
+        Check(!PoiPositionPolicy.TryResolve("woods", layout, legacy, true, false, out point),
             "a missing POI in a generated layout does not fall back to a stale starter coordinate");
-        Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, false, out point) &&
+        Check(PoiPositionPolicy.TryResolve("tavern", null, legacy, false, true, out point) &&
               point.X == -33d && point.Y == 12d,
-            "legacy starter coordinates remain available when no server POI map exists");
-        Check(!PoiPositionPolicy.TryResolve(null, layout, legacy, true, out point) &&
-              !PoiPositionPolicy.TryResolve("", layout, legacy, false, out point),
+            "legacy starter coordinates remain available when explicitly allowed");
+        Check(!PoiPositionPolicy.TryResolve("tavern", null, legacy, false, false, out point),
+            "generated settlement waiting for its layout never uses starter coordinates");
+        Check(!PoiPositionPolicy.TryResolve(null, layout, legacy, true, false, out point) &&
+              !PoiPositionPolicy.TryResolve("", layout, legacy, false, true, out point),
             "empty POI identifiers fail closed");
 
         Check(PoiPositionPolicy.IsWithin(114d, 86d, 112d, 86d, 2d),
