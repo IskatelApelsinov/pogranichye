@@ -36,7 +36,7 @@ namespace Pogranichye.Client.Presentation
             environment.SetParent(root, false);
             BuildSky(environment, camera);
             BuildDistantLandscape(environment);
-            BuildClouds(environment);
+            BuildClouds(environment, camera);
             BuildGrass(environment);
             BuildForest(environment);
             BuildRuralFields(environment);
@@ -230,7 +230,7 @@ namespace Pogranichye.Client.Presentation
             return _landscapeMaterials[index];
         }
 
-        private static void BuildClouds(Transform root)
+        private static void BuildClouds(Transform root, Camera camera)
         {
             var cloudShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             _cloudMaterial = new Material(cloudShader)
@@ -262,7 +262,8 @@ namespace Pogranichye.Client.Presentation
                     if (collider != null) UnityEngine.Object.Destroy(collider);
                     puff.GetComponent<Renderer>().sharedMaterial = _cloudMaterial;
                 }
-                cloud.gameObject.AddComponent<WorldCloudDrift>().Initialize(0.22f + (float)random.NextDouble() * 0.18f);
+                cloud.gameObject.AddComponent<WorldCloudDrift>().Initialize(
+                    0.22f + (float)random.NextDouble() * 0.18f, camera != null ? camera.transform : null);
             }
         }
 
@@ -1108,14 +1109,31 @@ namespace Pogranichye.Client.Presentation
 
     public sealed class WorldCloudDrift : MonoBehaviour
     {
+        private const float WrapHalfExtent = 115f;
+        private const float WrapDiameter = WrapHalfExtent * 2f;
         private float _speed;
-        public void Initialize(float speed) { _speed = speed; }
-        private void Update()
+        private Transform _camera;
+
+        public void Initialize(float speed, Transform camera)
         {
+            _speed = speed;
+            _camera = camera;
+        }
+
+        private void LateUpdate()
+        {
+            if (_camera == null && Camera.main != null) _camera = Camera.main.transform;
             var direction = WorldAtmosphereCycle.WindDirection;
             var drift = new Vector3(direction.x, 0f, direction.y);
             transform.position += drift * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
-            if (transform.position.x > 115f) transform.position += Vector3.left * 230f;
+
+            // Recenter the repeating cloud tile around the active camera. This keeps the
+            // atmosphere overhead during long-distance travel, not just around the starter village.
+            var center = _camera != null ? _camera.position : Vector3.zero;
+            var position = transform.position;
+            position.x = center.x + Mathf.Repeat(position.x - center.x + WrapHalfExtent, WrapDiameter) - WrapHalfExtent;
+            position.z = center.z + Mathf.Repeat(position.z - center.z + WrapHalfExtent, WrapDiameter) - WrapHalfExtent;
+            transform.position = position;
         }
     }
 
