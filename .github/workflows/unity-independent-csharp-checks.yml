@@ -17,6 +17,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
+      - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -49,6 +51,11 @@ jobs:
         run: |
           mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
           mono /tmp/npc-activity-sound.exe
+      - name: Drink presentation event regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/drink-presentation.exe Tests/DrinkPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs
+          mono /tmp/drink-presentation.exe
       - name: Hex cell coordinate regression checks
         working-directory: 2-client/game
         run: |
