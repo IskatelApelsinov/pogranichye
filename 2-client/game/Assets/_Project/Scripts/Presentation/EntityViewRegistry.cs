@@ -1646,7 +1646,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void SetLabel(GameObject go, string value)
         {
-            var text = go.GetComponentInChildren<TextMesh>();
+            var text = go.GetComponentInChildren<TextMesh>(true);
             if (text != null) text.text = value ?? string.Empty;
         }
     }
