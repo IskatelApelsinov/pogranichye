@@ -85,6 +85,10 @@ namespace Pogranichye.Client
         private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
         private const float TerrainChunkRetryDelaySeconds = 10f;
         private const int MaxConcurrentTerrainChunkRequests = 3;
+        // Keep a one-chunk retention halo around the requested 3x3 window. This lets
+        // neighboring global chunks overlap while the player crosses a chunk/settlement edge.
+        private const int TerrainChunkRequestRadius = 1;
+        private const int TerrainChunkRetentionRadius = 2;
         private int _terrainStreamGeneration;
         private string _terrainStreamSettlementId;
         private bool _hasTerrainCenter;
@@ -2811,20 +2815,12 @@ namespace Pogranichye.Client
             var placeId = frame.Place.Id;
             if (!string.Equals(_terrainStreamSettlementId, placeId, StringComparison.Ordinal))
             {
-                // Chunks and in-flight responses are scoped to a settlement presentation window.
-                // Never rebase old cached geometry onto a new settlement anchor, even if the new
-                // snapshot has not yet supplied a valid world position or optional terrain metadata.
+                // Terrain chunks are identified by canonical frame/chunk coordinates, not by
+                // settlement. Keep the overlap cache and in-flight global requests alive when
+                // Place.Id changes; the anchor rebase below moves every cached chunk into the
+                // new local presentation origin without changing its world-space location.
                 _terrainStreamSettlementId = placeId;
-                _terrainStreamGeneration++;
-                _terrainChunks.Clear();
-                _terrainChunkRequests.Clear();
                 _terrainChunkRetryAfter.Clear();
-                _hasTerrainCenter = false;
-                WorldTerrainChunkBuilder.Clear(_presentationRoot);
-                _terrainAppliedSettlementId = null;
-                _terrainAppliedAnchorEast = double.NaN;
-                _terrainAppliedAnchorNorth = double.NaN;
-                _terrainAppliedAnchorUp = double.NaN;
             }
 
             if (_worldManifest == null || frame.Me == null || frame.Place.Anchor == null ||
@@ -2847,8 +2843,8 @@ namespace Pogranichye.Client
                 var stale = new List<string>();
                 foreach (var pair in _terrainChunks)
                 {
-                    if (Math.Abs((decimal)pair.Value.Chunk[0] - centerX) > 1m ||
-                        Math.Abs((decimal)pair.Value.Chunk[1] - centerZ) > 1m)
+                    if (Math.Abs((decimal)pair.Value.Chunk[0] - centerX) > TerrainChunkRetentionRadius ||
+                        Math.Abs((decimal)pair.Value.Chunk[1] - centerZ) > TerrainChunkRetentionRadius)
                         stale.Add(pair.Key);
                 }
                 foreach (var id in stale)
@@ -2875,8 +2871,8 @@ namespace Pogranichye.Client
             // Keep the request budget bounded even if the player crosses several chunks while
             // older HTTP requests are still in flight. Request the center first, then its neighbors.
             TryRequestTerrainChunk(centerX, centerZ, position.Frame);
-            for (var dz = -1; dz <= 1; dz++)
-            for (var dx = -1; dx <= 1; dx++)
+            for (var dz = -TerrainChunkRequestRadius; dz <= TerrainChunkRequestRadius; dz++)
+            for (var dx = -TerrainChunkRequestRadius; dx <= TerrainChunkRequestRadius; dx++)
             {
                 if (dx == 0 && dz == 0) continue;
                 TryRequestTerrainChunk(centerX + dx, centerZ + dz, position.Frame);
@@ -2905,8 +2901,8 @@ namespace Pogranichye.Client
                 {
                     if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
-                    if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > 1m ||
-                        Math.Abs((decimal)chunkZ - _terrainCenterZ) > 1m || _frame == null ||
+                    if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > TerrainChunkRetentionRadius ||
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) > TerrainChunkRetentionRadius || _frame == null ||
                         _frame.Place == null || _frame.Place.Anchor == null)
                         return;
                     _terrainChunkRetryAfter.Remove(chunkId);
@@ -2924,8 +2920,8 @@ namespace Pogranichye.Client
                 {
                     if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
-                    if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= 1m &&
-                        Math.Abs((decimal)chunkZ - _terrainCenterZ) <= 1m)
+                    if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= TerrainChunkRetentionRadius &&
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) <= TerrainChunkRetentionRadius)
                     {
                         _terrainChunkRetryAfter[chunkId] = Time.unscaledTime + TerrainChunkRetryDelaySeconds;
                         Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + "; повтор через " +
