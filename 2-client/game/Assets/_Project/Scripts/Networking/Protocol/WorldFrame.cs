@@ -252,6 +252,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("role")] public string Role { get; set; }
         [JsonProperty("act")] public string Act { get; set; }
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("casting")] public string Casting { get; set; }
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
         [JsonProperty("gear")] public NeighborGearFrame Gear { get; set; }
     }
