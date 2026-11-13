@@ -19,6 +19,16 @@ and log for each step.
 7. Feed and journal: no duplicates while full and fast frames arrive together.
 8. HUD: Tab window, F1, H (hints), text readable at the real resolution; nothing permanently covers the view.
 9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
+10. v1.19 world data: confirm `me.wpos`/`place.anchor`, inspect the current 256 m terrain mesh, cross a chunk edge and verify stale chunk responses do not replace the current terrain. Keep `-seamless=on` disabled.
+
+## v1.19 Unity world-data integration — PR in progress (2026-11-13)
+
+- `WorldFrame` now deserializes optional `me.wpos` and `place.anchor` as double-precision metre coordinates. The strict snapshot parser validates the scheme, frame, finite coordinates and signed 64-bit chunk/layer indices while keeping older v:1 frames valid when these additive fields are absent.
+- `HttpAuthClient` now reads and validates `/api/world` plus `/api/terrain`. Terrain chunks are checked for the 256 m extent, supported sample step, expected grid size and finite heights before use.
+- `VerticalSliceController` requests world metadata on connect (failure is non-fatal for the local village demo), then requests only the chunk containing the authoritative `me.wpos`. Stale asynchronous chunk responses are discarded. When the player changes settlement, the cached chunk mesh is rebased against the new `place.anchor`.
+- `WorldTerrainChunkBuilder` renders the current server-generated terrain chunk as a lightweight presentation mesh. Global doubles are kept until the final local mesh vertices are built; the mesh is rebased near the active settlement origin to avoid large Unity float coordinates.
+- This is the first streaming foundation, **not full seamless-world support**: only the player's current chunk is loaded; adjacent-chunk prefetch, chunk eviction, terrain collision, roads/river geometry between settlements, neighboring settlement presentation and floating-origin rebasing of all entities are still pending. Do not enable server `-seamless=on` for the Unity demo yet.
+- Verification remains blocked on an actual Unity 6000.6.7f1 Editor run. The fixture validator now includes v1.19 DTO checks, but the menu item has not been executed here.
 
 ## Core gameplay v1.10 — added 2026-11-10 (by Claude, with the owner's permission)
 
