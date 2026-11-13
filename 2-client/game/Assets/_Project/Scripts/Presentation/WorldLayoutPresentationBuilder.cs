@@ -20,12 +20,16 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
-        private static readonly System.Collections.Generic.List<UnityEngine.Object> _generatedAssets =
-            new System.Collections.Generic.List<UnityEngine.Object>();
+        // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
+        // are owned by the layout root that created them, not by the most recently built layout.
+        private static readonly System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<UnityEngine.Object>> _assetsByLayoutRoot =
+            new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<UnityEngine.Object>>();
+        private static System.Collections.Generic.List<UnityEngine.Object> _activeBuildAssets;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
             if (root == null || layout == null || layout.Version != 2 || root.Find("ServerLayoutV2") != null) return;
+            _activeBuildAssets = new System.Collections.Generic.List<UnityEngine.Object>();
             var world = new GameObject("ServerLayoutV2").transform;
             world.SetParent(root, false);
             RemoveLegacyOverlappingSettlementAssets(root, layout);
@@ -86,6 +90,7 @@ namespace Pogranichye.Client.Presentation
             if (layout.IsGenerated)
             {
                 BuildGeneratedCountryside(world, layout);
+                RegisterAssets(root);
                 return;
             }
 
@@ -153,6 +158,7 @@ namespace Pogranichye.Client.Presentation
             CreateCombinedMesh(world, "Far woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
             CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
             CreateCombinedMesh(world, "Far woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
+            RegisterAssets(root);
         }
 
 
@@ -191,7 +197,7 @@ namespace Pogranichye.Client.Presentation
                 previous.name = "ServerLayoutV2 (replaced)";
                 UnityEngine.Object.Destroy(previous.gameObject);
             }
-            Cleanup();
+            Cleanup(root);
             Build(root, layout);
             var prototype = root.Find("PrototypeVillage");
             if (prototype != null) prototype.gameObject.SetActive(!layout.IsGenerated);
@@ -536,7 +542,7 @@ namespace Pogranichye.Client.Presentation
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            _generatedAssets.Add(mesh);
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
             var go = new GameObject(objectName);
             go.transform.SetParent(parent, false);
             go.isStatic = true;
@@ -1107,8 +1113,11 @@ namespace Pogranichye.Client.Presentation
         {
             var material = MakeMaterial(name, tint);
             var texture = MakeSurfaceTexture(name + " • 64px", pattern);
-            _generatedAssets.Add(material);
-            _generatedAssets.Add(texture);
+            if (_activeBuildAssets != null)
+            {
+                _activeBuildAssets.Add(material);
+                _activeBuildAssets.Add(texture);
+            }
             material.mainTexture = texture;
             material.mainTextureScale = new Vector2(tilingX, tilingY);
             if (material.HasProperty("_Smoothness"))
@@ -1168,14 +1177,42 @@ namespace Pogranichye.Client.Presentation
             return texture;
         }
 
-        public static void Cleanup()
+        private static void RegisterAssets(Transform root)
         {
-            for (var i = 0; i < _generatedAssets.Count; i++)
+            if (root == null || _activeBuildAssets == null) return;
+            var key = root.GetInstanceID();
+            CleanupAssetsForKey(key);
+            _assetsByLayoutRoot[key] = _activeBuildAssets;
+            _activeBuildAssets = null;
+        }
+
+        public static void Cleanup(Transform root)
+        {
+            if (root == null) return;
+            CleanupAssetsForKey(root.GetInstanceID());
+        }
+
+        private static void CleanupAssetsForKey(int key)
+        {
+            if (!_assetsByLayoutRoot.TryGetValue(key, out var assets)) return;
+            for (var i = 0; i < assets.Count; i++)
             {
-                var asset = _generatedAssets[i];
+                var asset = assets[i];
                 if (asset != null) UnityEngine.Object.Destroy(asset);
             }
-            _generatedAssets.Clear();
+            _assetsByLayoutRoot.Remove(key);
+        }
+
+        public static void Cleanup()
+        {
+            var keys = new System.Collections.Generic.List<int>(_assetsByLayoutRoot.Keys);
+            for (var i = 0; i < keys.Count; i++) CleanupAssetsForKey(keys[i]);
+            if (_activeBuildAssets != null)
+            {
+                for (var i = 0; i < _activeBuildAssets.Count; i++)
+                    if (_activeBuildAssets[i] != null) UnityEngine.Object.Destroy(_activeBuildAssets[i]);
+                _activeBuildAssets = null;
+            }
             _ground = null;
             _water = null;
             _timber = null;
