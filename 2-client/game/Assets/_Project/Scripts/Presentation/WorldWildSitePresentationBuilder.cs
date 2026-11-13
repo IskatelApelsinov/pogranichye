@@ -27,7 +27,6 @@ namespace Pogranichye.Client.Presentation
         private static readonly Dictionary<string, Material> Materials =
             new Dictionary<string, Material>(StringComparer.Ordinal);
         private static Transform _root;
-        private static int _manifestHash;
 
         public static void Rebuild(Transform parent, WorldManifestFrame manifest)
         {
@@ -52,7 +51,6 @@ namespace Pogranichye.Client.Presentation
                     });
                     hash = hash * 31 + site.Id.GetHashCode();
                 }
-                _manifestHash = hash;
             }
         }
 
@@ -114,7 +112,7 @@ namespace Pogranichye.Client.Presentation
                 case "tower":
                     Part(root, PrimitiveType.Cylinder, "TowerBody", new Vector3(0, 4f, 0), new Vector3(3.2f, 4f, 3.2f), stone);
                     Part(root, PrimitiveType.Cylinder, "TowerCrown", new Vector3(0, 8.1f, 0), new Vector3(4.1f, 0.55f, 4.1f), wood);
-                    Part(root, PrimitiveType.Cone, "TowerRoof", new Vector3(0, 9.5f, 0), new Vector3(4.4f, 2.4f, 4.4f), wood);
+                    Part(root, PrimitiveType.Cylinder, "TowerRoof", new Vector3(0, 9.35f, 0), new Vector3(3.7f, 1.1f, 3.7f), wood);
                     break;
                 case "ruins":
                     Part(root, PrimitiveType.Cube, "RuinWallA", new Vector3(-2.4f, 1.3f, 0), new Vector3(1f, 2.6f, 5f), stone);
@@ -180,7 +178,6 @@ namespace Pogranichye.Client.Presentation
             if (_root != null) UnityEngine.Object.Destroy(_root.gameObject);
             _root = null;
             Views.Clear();
-            _manifestHash = 0;
         }
     }
 }
