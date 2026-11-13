@@ -23,8 +23,8 @@ func StepMigrants(w *core.World) {
 	w.Each("migration", func(e *core.Entity) {
 		m := Migration(e)
 		if m == nil || Player(e) != nil || len(m.Route) < 2 || m.TotalHours <= 0 ||
-\t\t\tmath.IsNaN(m.TotalHours) || math.IsInf(m.TotalHours, 0) ||
-\t\t\tm.ProgressHours < 0 || math.IsNaN(m.ProgressHours) || math.IsInf(m.ProgressHours, 0) {
+			math.IsNaN(m.TotalHours) || math.IsInf(m.TotalHours, 0) ||
+			m.ProgressHours < 0 || math.IsNaN(m.ProgressHours) || math.IsInf(m.ProgressHours, 0) {
 			return
 		}
 
