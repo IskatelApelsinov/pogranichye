@@ -318,6 +318,13 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 		w.Spawn(&econ.ResourceNodeC{Node: econ.NodeMine, Good: econ.GoodOre,
 			Settlement: se.ID, Stock: g.Uniform(300, 600), Cap: 600, Regen: 0})
 	}
+	// Две комнаты наверху корчмы — каждое село со своей таверной (Tavern всегда true, см. выше)
+	// получает жильё на аренду с личным сундуком. Дверь — существующий POI "tavern"; отдельной
+	// внутренней геометрии пока нет (см. comms 0174), так что "войти" — серверный флаг, не вторая
+	// сцена.
+	for i := 0; i < 2; i++ {
+		CreateTavernRoom(w, se.ID)
+	}
 	return se
 }
 

@@ -37,6 +37,7 @@
     "stash": {
       "bread": 4
     },
+    "room": null,
     "pos": {
       "x": 0,
       "y": 0,
@@ -379,6 +380,11 @@
         "metal": 3,
         "herb": 5
       }
+    },
+    "rooms": {
+      "total": 2,
+      "vacant": 2,
+      "rent_price": 6
     }
   },
   "hour": 14

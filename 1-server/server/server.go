@@ -788,6 +788,19 @@ func (s *Server) applyCore(cid core.ID, op string, in coreIntent) {
 		}
 	case "horse":
 		ok, why = sim.Horse(w, e, in.Action, in.Good, in.Qty, in.ReqID)
+	case "room": // комната над корчмой: аренда/вход/выход/сундук (v1.20)
+		switch in.Action {
+		case "rent":
+			ok, why = sim.RentRoom(w, e, parseID(in.Target), day, in.ReqID)
+		case "enter":
+			ok, why = sim.EnterRoom(w, e, parseID(in.Target), day, in.ReqID)
+		case "exit":
+			ok, why = sim.ExitRoom(w, e, in.ReqID)
+		case "stow":
+			ok, why = sim.StowToChest(w, e, parseID(in.Target), in.Item, in.Qty, day, in.ReqID)
+		case "take":
+			ok, why = sim.TakeFromChest(w, e, parseID(in.Target), in.Item, in.Qty, day, in.ReqID)
+		}
 	case "craft":
 		ok, why = sim.Craft(w, e, in.Item, in.ReqID)
 	case "use":
@@ -883,6 +896,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
+			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
 			"wpos":         sim.WorldPosView(s.world, e),                  // v1.19: каноническое положение в мире (метры, высота, чанк)
 			"pos":          mePos(e),                                      // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 			"talk":         meTalk(s.world, e),                            // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
@@ -956,6 +970,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
 				"life":        s.placeLife(se),                           // агрегаты жизни общины (v1.18)
+				"rooms":       sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()), // комнаты над корчмой: всего/вакантно/цена (v1.20)
 			}
 		}
 	}
