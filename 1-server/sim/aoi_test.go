@@ -66,3 +66,25 @@ func TestAOINeighborsNoNearbySettlements(t *testing.T) {
 		t.Fatalf("ожидался только свой житель, получено %d", len(got))
 	}
 }
+
+
+// TestAOINeighborsIncludesPhysicalMigrantsBeyondAnchorPrefilter — a traveller's PlaceC belongs to
+// the nearest endpoint, but its actual body may be several kilometres from that settlement anchor.
+// Such a traveller must still appear when physically close to the viewer.
+func TestAOINeighborsIncludesPhysicalMigrantsBeyondAnchorPrefilter(t *testing.T) {
+	w := core.NewWorld("seed-aoi-migrant")
+	region := w.Spawn(&core.RegionC{Name: "Край", Biome: "plain", X: 500, Y: 500, Mana: 1})
+	a := w.Spawn(&core.SettlementC{Name: "Ближнее", X: 500, Y: 500, Region: region.ID})
+	b := w.Spawn(&core.SettlementC{Name: "Дальнее", X: 510, Y: 500, Region: region.ID}) // 2.5 км от A
+
+	viewer := w.Spawn(&core.IdentC{Name: "Смотрящий"}, &core.PlaceC{Settlement: a.ID}, &ScenePosC{})
+	migrant := w.Spawn(&core.IdentC{Name: "Путник"}, &core.PlaceC{Settlement: b.ID},
+		&ScenePosC{X: -2500, Y: 0, Facing: 0},
+		&MigrationC{From: b.ID, To: a.ID, Route: []core.ID{b.ID, a.ID}, TotalHours: 12})
+	w.Spawn(&core.IdentC{Name: "Далёкий житель"}, &core.PlaceC{Settlement: b.ID}, &ScenePosC{})
+
+	got := AOINeighbors(w, NewTerrain(w), viewer, a.ID, 24)
+	if len(got) != 1 || got[0].ID != migrant.ID {
+		t.Fatalf("физически близкий путник должен быть виден вне anchor-prefilter, получено %v", got)
+	}
+}
