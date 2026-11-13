@@ -9,6 +9,7 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/json"
 	"log"
+	"math"
 	"math/big"
 	"mime"
 	"net/http"
@@ -994,7 +995,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 							"wpos":     sim.WorldPosViewUsing(terrain, s.world, o), // v1.20: та же схема, что me.wpos (comms 0178) — сервер считает глобальную позицию сам, клиент не выводит её из place.anchor
 							"player":   s.ctl[o.ID] != 0,                           // presence: живой игрок, а не НПС (v1.5) — клиент рисует иначе и зовёт выпить только его
 							"casting":  sim.CastingSeen(e, o),                      // плетёт ли (опытный маг читает имя узора) — v1.10
-							"pos":      map[string]any{"x": round1(nx), "y": round1(ny), "facing": round0(nf)}})
+							"pos":      map[string]any{"x": round3(nx), "y": round3(ny), "facing": round0(nf)}})
 					}
 				}
 			}
@@ -1317,6 +1318,13 @@ func eid(id core.ID) string { return strconv.FormatUint(uint64(id), 10) }
 
 func round0(f float64) float64 { return float64(int(f + 0.5)) }
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
+
+// round3 — та же точность (мм), что у sim.r3 для wpos/anchor (sim/worldpos.go). Используется ТОЛЬКО
+// там, где клиент сверяет "anchor + pos == wpos" (сейчас — place.neighbors[].pos, см. комментарий
+// WorldFrameParser.cs: допуск 0.002 м). round1 (дециметр) там давал расхождение до 0.05 м — клиент
+// кидал FormatException "place.neighbors[i].wpos не совпадает с anchor + локальная pos" почти на
+// каждом кадре (скрин игрока, 2026-11-13). me.pos остаётся round1 — эта сверка на него не распространяется.
+func round3(f float64) float64 { return math.Round(f*1000) / 1000 }
 
 func meCoins(e *core.Entity) float64 {
 	if p := core.Purse(e); p != nil {

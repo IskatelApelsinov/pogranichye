@@ -71,8 +71,12 @@ func TestNeighborWposMatchesOwnSchemeAndAnchor(t *testing.T) {
 	}
 	wantE := anchor["e"].(float64) + npos["x"].(float64)
 	wantN := anchor["n"].(float64) + npos["y"].(float64)
-	if math.Abs(wpos["e"].(float64)-wantE) > 0.1 || math.Abs(wpos["n"].(float64)-wantN) > 0.1 {
-		t.Fatalf("wpos соседа должен быть anchor+pos (как и у себя): wpos=(%.2f,%.2f) ждали (%.2f,%.2f)",
+	// Допуск 0.002 м — ровно тот, что проверяет клиент (WorldFrameParser.cs: "place.neighbors[i].wpos
+	// не совпадает с anchor + локальная pos"). round1 (дециметр, 0.1 м) у pos.x/y давал расхождение до
+	// 0.05 м — клиент бросал FormatException почти на каждом кадре (игрок увидел это 2026-11-13).
+	// Фикс — round3 (мм) для neighbor.pos, см. server.go.
+	if math.Abs(wpos["e"].(float64)-wantE) > 0.002 || math.Abs(wpos["n"].(float64)-wantN) > 0.002 {
+		t.Fatalf("wpos соседа должен быть anchor+pos в пределах 0.002 м (допуск клиента): wpos=(%.4f,%.4f) ждали (%.4f,%.4f)",
 			wpos["e"], wpos["n"], wantE, wantN)
 	}
 	_ = settlement
