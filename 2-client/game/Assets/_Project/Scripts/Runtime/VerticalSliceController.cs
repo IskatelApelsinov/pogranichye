@@ -609,6 +609,7 @@ namespace Pogranichye.Client
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
+            GUILayout.Label("Голос: войдите в канал, затем включите микрофон. Это режим «вкл./выкл.», не удержание клавиши; говорите, пока микрофон включён.");
             GUILayout.EndArea();
         }
 
