@@ -294,6 +294,37 @@ func TestTwoPlayerCoDrinkWebSocket(t *testing.T) {
 	}, "incoming co-drink invitation")
 	if inviteFrame["me"].(map[string]any)["invite_from"] == nil { t.Fatal("invitee did not receive invitation") }
 
+	// Declining clears the invitation for both players without spending beer or coins.
+	writeClientFrame(t, b, "{\"op\":\"declinedrink\",\"reqid\":\"codrink-decline-1\"}")
+	declineFrame := readUntil(b, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); result, _ := me["result"].(map[string]any)
+		return result != nil && result["reqid"] == "codrink-decline-1"
+	}, "decline ACK")
+	if declineFrame["me"].(map[string]any)["result"].(map[string]any)["ok"] != true {
+		t.Fatalf("decline rejected: %v", declineFrame["me"].(map[string]any)["result"])
+	}
+	s.mu.Lock()
+	declinedA, declinedB := sim.CoDrink(s.world.Get(aID)), sim.CoDrink(s.world.Get(bID))
+	coinsA, coinsB := core.Purse(s.world.Get(aID)).Coins, core.Purse(s.world.Get(bID)).Coins
+	beerLeft := core.Settle(s.world.Get(settlementID)).Store[sim.BeerGood]
+	clear := declinedA != nil && declinedB != nil && declinedA.State == "" && declinedB.State == ""
+	s.mu.Unlock()
+	if !clear || coinsA != 10 || coinsB != 10 || beerLeft != 4 {
+		t.Fatalf("decline must clear both invitations without cost: clear=%v coins=(%.2f,%.2f) beer=%.1f", clear, coinsA, coinsB, beerLeft)
+	}
+
+	// The same pair can start a fresh invitation after a decline.
+	writeClientFrame(t, a, "{\"op\":\"invite\",\"target\":\""+strconv.FormatUint(uint64(bID), 10)+"\",\"reqid\":\"codrink-invite-2\"}")
+	inviteAck = readUntil(a, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); result, _ := me["result"].(map[string]any)
+		return result != nil && result["reqid"] == "codrink-invite-2"
+	}, "second invite ACK")
+	if inviteAck["me"].(map[string]any)["result"].(map[string]any)["ok"] != true {
+		t.Fatalf("second invite rejected: %v", inviteAck["me"].(map[string]any)["result"])
+	}
+	_ = readUntil(b, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); return me != nil && me["invite_from"] != nil
+	}, "second incoming co-drink invitation")
 	writeClientFrame(t, b, "{\"op\":\"accept\",\"reqid\":\"codrink-accept-1\"}")
 	acceptFrame := readUntil(b, func(frame map[string]any) bool {
 		me, _ := frame["me"].(map[string]any); event, _ := me["social_event"].(map[string]any)
