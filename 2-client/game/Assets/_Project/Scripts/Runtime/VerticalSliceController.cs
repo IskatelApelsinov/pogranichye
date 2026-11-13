@@ -82,6 +82,8 @@ namespace Pogranichye.Client
         private WorldManifestFrame _worldManifest;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
+        private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
+        private const float TerrainChunkRetryDelaySeconds = 10f;
         private int _terrainStreamGeneration;
         private bool _hasTerrainCenter;
         private long _terrainCenterX;
@@ -2053,6 +2055,7 @@ namespace Pogranichye.Client
                 _terrainStreamGeneration++;
                 _terrainChunks.Clear();
                 _terrainChunkRequests.Clear();
+                _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
                 _terrainAppliedSettlementId = null;
@@ -2573,6 +2576,8 @@ namespace Pogranichye.Client
                 _hasTerrainCenter = true;
                 _terrainCenterX = centerX;
                 _terrainCenterZ = centerZ;
+                // A moved window gets a fresh retry budget; old chunk failures must not accumulate.
+                _terrainChunkRetryAfter.Clear();
                 var stale = new List<string>();
                 foreach (var pair in _terrainChunks)
                 {
@@ -2609,7 +2614,10 @@ namespace Pogranichye.Client
                 var chunkX = centerX + dx;
                 var chunkZ = centerZ + dz;
                 var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
-                if (_terrainChunks.ContainsKey(chunkId) || !_terrainChunkRequests.Add(chunkId)) continue;
+                if (_terrainChunks.ContainsKey(chunkId) || _terrainChunkRequests.Contains(chunkId)) continue;
+                if (_terrainChunkRetryAfter.TryGetValue(chunkId, out var retryAfter) && Time.unscaledTime < retryAfter) continue;
+                _terrainChunkRetryAfter.Remove(chunkId);
+                if (!_terrainChunkRequests.Add(chunkId)) continue;
                 _ = LoadTerrainChunkAsync(chunkX, chunkZ, position.Frame, chunkId, _terrainStreamGeneration);
             }
         }
@@ -2629,6 +2637,7 @@ namespace Pogranichye.Client
                         Math.Abs((decimal)chunkZ - _terrainCenterZ) > 1m || _frame == null ||
                         _frame.Place == null || _frame.Place.Anchor == null)
                         return;
+                    _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
@@ -2643,7 +2652,13 @@ namespace Pogranichye.Client
                 {
                     if (generation != _terrainStreamGeneration) return;
                     _terrainChunkRequests.Remove(chunkId);
-                    Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + ": " + exception.Message);
+                    if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= 1m &&
+                        Math.Abs((decimal)chunkZ - _terrainCenterZ) <= 1m)
+                    {
+                        _terrainChunkRetryAfter[chunkId] = Time.unscaledTime + TerrainChunkRetryDelaySeconds;
+                        Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + "; повтор через " +
+                            TerrainChunkRetryDelaySeconds.ToString("0") + " с: " + exception.Message);
+                    }
                 });
             }
         }
