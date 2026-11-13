@@ -104,7 +104,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("layer")] public long Layer { get; set; }
         [JsonProperty("lat")] public double Latitude { get; set; }
         [JsonProperty("lon")] public double Longitude { get; set; }
-        public bool IsValid => Scheme == "yof-tangent" && Version == 1 && Chunk != null && Chunk.Length == 2 &&
+        public bool IsValid => Scheme == "yof-tangent" && Version == 1 && Frame >= 0 && Chunk != null && Chunk.Length == 2 &&
             IsFinite(East) && IsFinite(North) && IsFinite(Up) && IsFinite(Ground) && IsFinite(HeightAboveGround);
         private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
     }
@@ -348,7 +348,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("heights")] public List<double> Heights { get; set; }
         [JsonProperty("settlements")] public List<TerrainSettlementFrame> Settlements { get; set; }
         public bool IsValid => Frame >= 0 && Chunk != null && Chunk.Length == 2 && Origin != null &&
-            SizeMeters == 256 && (StepMeters == 8 || StepMeters == 16 || StepMeters == 32 || StepMeters == 64) &&
+            !double.IsNaN(Origin.East) && !double.IsInfinity(Origin.East) &&
+            !double.IsNaN(Origin.North) && !double.IsInfinity(Origin.North) && SizeMeters == 256 && (StepMeters == 8 || StepMeters == 16 || StepMeters == 32 || StepMeters == 64) &&
             Side == SizeMeters / StepMeters + 1 && Heights != null && Heights.Count == Side * Side &&
             Heights.TrueForAll(v => !double.IsNaN(v) && !double.IsInfinity(v));
     }
