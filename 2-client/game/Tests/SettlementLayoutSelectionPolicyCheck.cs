@@ -16,6 +16,7 @@ internal static class SettlementLayoutSelectionPolicyCheck
     {
         Check("explicit starter layout is tutorial", SettlementLayoutSelectionPolicy.IsTutorialLayout("starter"));
         Check("legacy default layout without plan is tutorial", SettlementLayoutSelectionPolicy.IsTutorialLayout(null));
+        Check("empty legacy plan is tutorial", SettlementLayoutSelectionPolicy.IsTutorialLayout(string.Empty));
         Check("generated layout is not tutorial", !SettlementLayoutSelectionPolicy.IsTutorialLayout("cross"));
 
         Check("explicit starter place is selected after another settlement",
@@ -39,7 +40,7 @@ internal static class SettlementLayoutSelectionPolicyCheck
             SettlementLayoutSelectionPolicy.SelectForSettlement(true, null, generated) == null);
 
         if (_failures == 0)
-            Console.WriteLine("SettlementLayoutSelectionPolicy: 11 checks passed");
+            Console.WriteLine("SettlementLayoutSelectionPolicy: 12 checks passed");
         return _failures == 0 ? 0 : 1;
     }
 }
