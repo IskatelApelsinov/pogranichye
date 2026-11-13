@@ -12,8 +12,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"strconv"
+	"time"
 
 	"pogranichye/core"
+	"pogranichye/sim"
 )
 
 // Сквозной тест сетевого слоя: регистрация → вход → websocket → кадр состояния → намерение.
@@ -203,6 +206,141 @@ func TestTwoPlayersShareOneWorld(t *testing.T) {
 	}
 }
 
+
+// TestTwoPlayerCoDrinkWebSocket covers invite -> accept -> retained social_event for both real WS clients.
+func TestTwoPlayerCoDrinkWebSocket(t *testing.T) {
+	s := NewStarter("two-player-codrink", "", []byte("secret"), "")
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+
+	login := func(name string) string {
+		t.Helper()
+		if r := post(t, ts.URL+"/api/register", "{\"login\":\""+name+"\",\"pass\":\"secret1\"}"); !r["ok"].(bool) {
+			t.Fatalf("register %s failed: %v", name, r)
+		}
+		r := post(t, ts.URL+"/api/login", "{\"login\":\""+name+"\",\"pass\":\"secret1\"}")
+		token, _ := r["token"].(string)
+		if token == "" { t.Fatalf("login %s returned no token: %v", name, r) }
+		return token
+	}
+	a := wsDial(t, ts.URL, "/ws?token="+login("codrink-a"))
+	defer a.Close()
+	_ = readServerFrame(t, a)
+	b := wsDial(t, ts.URL, "/ws?token="+login("codrink-b"))
+	defer b.Close()
+	_ = readServerFrame(t, b)
+
+	readState := func(conn net.Conn) map[string]any {
+		t.Helper()
+		if err := conn.SetReadDeadline(time.Now().Add(6 * time.Second)); err != nil { t.Fatal(err) }
+		defer conn.SetReadDeadline(time.Time{})
+		var frame map[string]any
+		if err := json.Unmarshal(readServerFrame(t, conn), &frame); err != nil {
+			t.Fatalf("invalid state frame: %v", err)
+		}
+		return frame
+	}
+	readUntil := func(conn net.Conn, accept func(map[string]any) bool, what string) map[string]any {
+		t.Helper()
+		deadline := time.Now().Add(6 * time.Second)
+		for time.Now().Before(deadline) {
+			frame := readState(conn)
+			if accept(frame) { return frame }
+		}
+		t.Fatalf("timed out waiting for %s", what)
+		return nil
+	}
+	meID := func(frame map[string]any) core.ID {
+		t.Helper()
+		me, _ := frame["me"].(map[string]any)
+		id, _ := me["id"].(string)
+		n, err := strconv.ParseUint(id, 10, 64)
+		if err != nil { t.Fatalf("invalid me.id %q: %v", id, err) }
+		return core.ID(n)
+	}
+	firstA := readState(a)
+	firstB := readState(b)
+	aID, bID := meID(firstA), meID(firstB)
+	if aID == bID { t.Fatal("two clients must control different bodies") }
+
+	// Put both independently controlled bodies at the same real tavern POI and fund them.
+	tx, ty := sim.StarterLayout().POI("tavern")
+	s.mu.Lock()
+	aEntity, bEntity := s.world.Get(aID), s.world.Get(bID)
+	if aEntity == nil || bEntity == nil { s.mu.Unlock(); t.Fatal("reserved player body missing") }
+	settlementID := core.Place(aEntity).Settlement
+	core.Place(bEntity).Settlement = settlementID
+	for _, e := range []*core.Entity{aEntity, bEntity} {
+		pos := sim.EnsureScenePos(s.world, e)
+		pos.X, pos.Y = tx, ty
+		purse := core.Purse(e)
+		if purse == nil { purse = &core.PurseC{Debts: map[string]float64{}}; s.world.Attach(e, purse) }
+		purse.Coins = 10
+	}
+	settlement := core.Settle(s.world.Get(settlementID))
+	settlement.Tavern = true
+	settlement.Store[sim.BeerGood] = 4
+	s.mu.Unlock()
+
+	writeClientFrame(t, a, "{\"op\":\"invite\",\"target\":\""+strconv.FormatUint(uint64(bID), 10)+"\",\"reqid\":\"codrink-invite-1\"}")
+	inviteAck := readUntil(a, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); result, _ := me["result"].(map[string]any)
+		return result != nil && result["reqid"] == "codrink-invite-1"
+	}, "invite ACK")
+	inviteResult := inviteAck["me"].(map[string]any)["result"].(map[string]any)
+	if inviteResult["ok"] != true { t.Fatalf("invite rejected: %v", inviteResult) }
+	inviteFrame := readUntil(b, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); return me != nil && me["invite_from"] != nil
+	}, "incoming co-drink invitation")
+	if inviteFrame["me"].(map[string]any)["invite_from"] == nil { t.Fatal("invitee did not receive invitation") }
+
+	writeClientFrame(t, b, "{\"op\":\"accept\",\"reqid\":\"codrink-accept-1\"}")
+	acceptFrame := readUntil(b, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); event, _ := me["social_event"].(map[string]any)
+		return event != nil && event["type"] == "codrink"
+	}, "invitee co-drink social event")
+	partnerFrame := readUntil(a, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); event, _ := me["social_event"].(map[string]any)
+		return event != nil && event["type"] == "codrink"
+	}, "inviter co-drink social event")
+	assertEvent := func(frame map[string]any, expectedWith core.ID) {
+		t.Helper()
+		me := frame["me"].(map[string]any)
+		event := me["social_event"].(map[string]any)
+		if event["with"] != strconv.FormatUint(uint64(expectedWith), 10) || event["seq"].(float64) < 1 {
+			t.Fatalf("wrong co-drink event: got %v, expected partner %d", event, expectedWith)
+		}
+	}
+	assertEvent(acceptFrame, aID)
+	assertEvent(partnerFrame, bID)
+	if acceptFrame["me"].(map[string]any)["result"].(map[string]any)["reqid"] != "codrink-accept-1" {
+		t.Fatalf("accept ACK missing: %v", acceptFrame["me"].(map[string]any)["result"])
+	}
+
+	s.mu.Lock()
+	coinsA, coinsB := core.Purse(s.world.Get(aID)).Coins, core.Purse(s.world.Get(bID)).Coins
+	beerLeft := core.Settle(s.world.Get(settlementID)).Store[sim.BeerGood]
+	s.mu.Unlock()
+	if coinsA != 10-sim.BeerPrice || coinsB != 10-sim.BeerPrice || beerLeft != 2 {
+		t.Fatalf("co-drink must charge both once and consume two beers: coins=(%.2f,%.2f), beer=%.1f", coinsA, coinsB, beerLeft)
+	}
+
+	// A second accept without a fresh invite must be rejected and cannot charge either player again.
+	writeClientFrame(t, b, "{\"op\":\"accept\",\"reqid\":\"codrink-accept-2\"}")
+	rejected := readUntil(b, func(frame map[string]any) bool {
+		me, _ := frame["me"].(map[string]any); result, _ := me["result"].(map[string]any)
+		return result != nil && result["reqid"] == "codrink-accept-2"
+	}, "duplicate accept rejection")
+	result := rejected["me"].(map[string]any)["result"].(map[string]any)
+	if result["ok"] != false { t.Fatalf("accept without invitation must reject: %v", result) }
+	s.mu.Lock()
+	coinsA, coinsB = core.Purse(s.world.Get(aID)).Coins, core.Purse(s.world.Get(bID)).Coins
+	beerLeft = core.Settle(s.world.Get(settlementID)).Store[sim.BeerGood]
+	s.mu.Unlock()
+	if coinsA != 10-sim.BeerPrice || coinsB != 10-sim.BeerPrice || beerLeft != 2 {
+		t.Fatalf("rejected accept changed economy: coins=(%.2f,%.2f), beer=%.1f", coinsA, coinsB, beerLeft)
+	}
+}
 
 // TestControllerLeaseReturnsSameSoulToAI verifies disconnect releases only the
 // controller lease; the entity and its persistent identity/state survive.
