@@ -46,3 +46,6 @@ jobs:
 
       - name: Test all packages
         run: go test ./... -count=1
+
+      - name: Repeat vertical slice WebSocket E2E to catch timing regressions
+        run: go test ./server -run '^TestVerticalSliceTalkWorkBeer -count=5
