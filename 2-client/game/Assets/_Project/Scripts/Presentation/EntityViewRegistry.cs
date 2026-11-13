@@ -53,12 +53,8 @@ namespace Pogranichye.Client.Presentation
         private int _diagnosticGlobalSamples;
         private int _diagnosticLocalSamples;
         private float _diagnosticMaxPresentationGap;
-        private Vector3 _diagnosticTargetMin;
-        private Vector3 _diagnosticTargetMax;
-        private Vector3 _diagnosticViewMin;
-        private Vector3 _diagnosticViewMax;
-        private bool _diagnosticHasTargetBounds;
-        private bool _diagnosticHasViewBounds;
+        private float _diagnosticMaxTargetSpan;
+        private float _diagnosticMaxViewSpan;
 #endif
 
         public Transform PlayerTransform { get; private set; }
@@ -85,6 +81,14 @@ namespace Pogranichye.Client.Presentation
             if (frame == null || !frame.Alive || frame.Me == null) return;
 
             var active = new HashSet<ulong>();
+#if UNITY_EDITOR
+            var hasFrameTargetBounds = false;
+            var hasFrameViewBounds = false;
+            var frameTargetMin = Vector3.zero;
+            var frameTargetMax = Vector3.zero;
+            var frameViewMin = Vector3.zero;
+            var frameViewMax = Vector3.zero;
+#endif
             var playerId = WorldFrameParser.ParseEntityId(frame.Me.Id, "me.id");
             active.Add(playerId);
 
@@ -159,16 +163,16 @@ namespace Pogranichye.Client.Presentation
                         (position - previousTarget).sqrMagnitude > 0.0025f)
                         _diagnosticNpcMoved++;
                     _diagnosticNpcTargets[id] = position;
-                    if (!_diagnosticHasTargetBounds)
+                    if (!hasFrameTargetBounds)
                     {
-                        _diagnosticTargetMin = position;
-                        _diagnosticTargetMax = position;
-                        _diagnosticHasTargetBounds = true;
+                        frameTargetMin = position;
+                        frameTargetMax = position;
+                        hasFrameTargetBounds = true;
                     }
                     else
                     {
-                        _diagnosticTargetMin = Vector3.Min(_diagnosticTargetMin, position);
-                        _diagnosticTargetMax = Vector3.Max(_diagnosticTargetMax, position);
+                        frameTargetMin = Vector3.Min(frameTargetMin, position);
+                        frameTargetMax = Vector3.Max(frameTargetMax, position);
                     }
                     if (_views.TryGetValue(id, out var diagnosticView) && diagnosticView != null)
                     {
@@ -177,16 +181,16 @@ namespace Pogranichye.Client.Presentation
                             (viewPosition - previousViewPosition).sqrMagnitude > 0.0025f)
                             _diagnosticNpcViewsMoved++;
                         _diagnosticNpcViews[id] = viewPosition;
-                        if (!_diagnosticHasViewBounds)
+                        if (!hasFrameViewBounds)
                         {
-                            _diagnosticViewMin = viewPosition;
-                            _diagnosticViewMax = viewPosition;
-                            _diagnosticHasViewBounds = true;
+                            frameViewMin = viewPosition;
+                            frameViewMax = viewPosition;
+                            hasFrameViewBounds = true;
                         }
                         else
                         {
-                            _diagnosticViewMin = Vector3.Min(_diagnosticViewMin, viewPosition);
-                            _diagnosticViewMax = Vector3.Max(_diagnosticViewMax, viewPosition);
+                            frameViewMin = Vector3.Min(frameViewMin, viewPosition);
+                            frameViewMax = Vector3.Max(frameViewMax, viewPosition);
                         }
                         _diagnosticMaxPresentationGap = Mathf.Max(_diagnosticMaxPresentationGap,
                             Vector3.Distance(viewPosition, position));
@@ -223,6 +227,16 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
+#if UNITY_EDITOR
+            // Measure spatial spread within each individual authoritative frame, then keep
+            // the largest observed frame span for this five-second diagnostic window.
+            if (hasFrameTargetBounds)
+                _diagnosticMaxTargetSpan = Mathf.Max(_diagnosticMaxTargetSpan,
+                    (frameTargetMax - frameTargetMin).magnitude);
+            if (hasFrameViewBounds)
+                _diagnosticMaxViewSpan = Mathf.Max(_diagnosticMaxViewSpan,
+                    (frameViewMax - frameViewMin).magnitude);
+#endif
             ApplyTalkPresentation(frame, player);
 
             var stale = new List<ulong>();
@@ -256,8 +270,8 @@ namespace Pogranichye.Client.Presentation
                 if (_diagnosticNpcSamples > 0)
                     Debug.Log($"[Pogranichye NPC replication] samples={_diagnosticNpcSamples}, " +
                         $"targetsMoved={_diagnosticNpcMoved}, viewsMoved={_diagnosticNpcViewsMoved}, " +
-                        $"targetSpan={(_diagnosticHasTargetBounds ? (_diagnosticTargetMax - _diagnosticTargetMin).magnitude : 0f):F2}m, " +
-                        $"viewSpan={(_diagnosticHasViewBounds ? (_diagnosticViewMax - _diagnosticViewMin).magnitude : 0f):F2}m, " +
+                        $"maxFrameTargetSpan={_diagnosticMaxTargetSpan:F2}m, " +
+                        $"maxFrameViewSpan={_diagnosticMaxViewSpan:F2}m, " +
                         $"wpos={_diagnosticGlobalSamples}, localPos={_diagnosticLocalSamples}, " +
                         $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
                 _diagnosticNpcSamples = 0;
@@ -266,12 +280,8 @@ namespace Pogranichye.Client.Presentation
                 _diagnosticGlobalSamples = 0;
                 _diagnosticLocalSamples = 0;
                 _diagnosticMaxPresentationGap = 0f;
-                _diagnosticTargetMin = Vector3.zero;
-                _diagnosticTargetMax = Vector3.zero;
-                _diagnosticViewMin = Vector3.zero;
-                _diagnosticViewMax = Vector3.zero;
-                _diagnosticHasTargetBounds = false;
-                _diagnosticHasViewBounds = false;
+                _diagnosticMaxTargetSpan = 0f;
+                _diagnosticMaxViewSpan = 0f;
             }
 #endif
         }
