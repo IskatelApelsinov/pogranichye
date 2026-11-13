@@ -14,48 +14,66 @@ import (
 
 const LayoutVersion = GeometryVersion
 
-// poiByKind — доступная точка POI данного вида (или колодец/площадь по умолчанию).
-func poiByKind(kind string) (x, y float64) {
-	if p, ok := POINamed[kind]; ok {
-		return p[0], p[1]
-	}
-	return POINamed["well"][0], POINamed["well"][1]
-}
+// poiByKind — точка POI стартовой раскладки (для тестов и инструментов стартовой сцены).
+func poiByKind(kind string) (x, y float64) { return StarterLayout().POI(kind) }
 
-// targetForGoal переводит ТЕКУЩУЮ цель жителя (из mind.Decide — не дублируем ИИ) и его ремесло в POI,
-// к которому он идёт. Цель решает «зачем», ремесло уточняет «где работает».
-func targetForGoal(role, goal string) (x, y float64) {
+// targetFor — куда идёт житель: цель (из mind.Decide — ИИ не дублируем) и ремесло дают POI, а сон и
+// отдых — порог СВОЕЙ избы. Раньше «отдых» вёл всех к одному дому старосты, а ночью все стояли у
+// колодца — деревня сбивалась в кучу. Второй результат — ключ точки для раздачи мест вокруг неё.
+func targetFor(l *Layout, e *core.Entity, role, goal, act string) (x, y float64) {
+	home := func() (float64, float64) { return l.HomeOf(uint64(e.ID)) }
+	if act == "sleep" {
+		return home()
+	}
 	switch goal {
 	case "eat", "socialize":
-		return poiByKind("tavern")
+		return l.POI("tavern")
 	case "rest", "seek_home":
-		return poiByKind("hearth")
+		return home()
 	case "wander":
-		return poiByKind("well")
+		// гуляют кто где: у колодца, у лавки, у своего двора, у околицы
+		switch (uint64(e.ID) * 2654435761 >> 11) % 4 {
+		case 0:
+			return l.POI("well")
+		case 1:
+			return l.POI("market")
+		case 2:
+			return home()
+		}
+		return l.POI("granary")
 	case "leave":
-		return poiByKind("woods")
+		return l.POI("woods")
 	case "work":
 		switch role {
 		case "smith":
-			return poiByKind("smithy")
+			return l.POI("smithy")
 		case "farmer", "herder", "herbalist":
-			return poiByKind("garden")
+			return l.POI("garden")
 		case "fisher":
-			return poiByKind("river")
+			return l.POI("river")
 		case "hunter", "woodcutter":
-			return poiByKind("woods")
+			return l.POI("woods")
 		case "miner":
-			return poiByKind("mine")
+			return l.POI("mine")
 		case "tavernkeeper", "cook":
-			return poiByKind("tavern")
+			return l.POI("tavern")
 		case "weaver":
-			return poiByKind("granary")
-		default:
-			return poiByKind("well")
+			return l.POI("granary")
 		}
-	default:
-		return poiByKind("well")
 	}
+	return l.POI("well")
+}
+
+// targetForGoal — прежняя форма для стартовой сцены без жителя (тесты).
+func targetForGoal(role, goal string) (x, y float64) {
+	l := StarterLayout()
+	switch goal {
+	case "rest", "seek_home":
+		return l.POI("hearth")
+	case "wander":
+		return l.POI("well")
+	}
+	return targetFor(l, &core.Entity{}, role, goal, "")
 }
 
 // GoTo — ДИСКРЕТНАЯ серверно-авторитетная навигация для менеджмент-клиента (тонкий web/mobile):
@@ -63,16 +81,13 @@ func targetForGoal(role, goal string) (x, y float64) {
 // остаётся владельцем позиции, просто навигация дискретная (в отличие от непрерывной ходьбы Unity).
 // Возвращает (ок, причина). Локации — ключи POINamed (tavern/smithy/river/woods/...).
 func GoTo(w *core.World, e *core.Entity, location string) (bool, string) {
-	p, ok := POINamed[location]
+	l := layoutFor(w, e)
+	p, ok := l.POIs[location]
 	if !ok {
 		return false, "нет такой локации"
 	}
 	sp := EnsureScenePos(w, e)
-	x, y := p[0], p[1]
-	if Blocked(x, y) { // точка POI должна быть проходимой; если вдруг нет — чуть сместим к центру
-		x, y = x*0.9, y*0.9
-	}
-	sp.X, sp.Y = x, y
+	sp.X, sp.Y = l.Free(p[0], p[1]) // точка POI проходима; если вдруг нет — ближайшее свободное место
 	return true, ""
 }
 
@@ -111,20 +126,5 @@ func idOffset(id uint64) (dx, dy float64) {
 	return rad * math.Cos(ang), rad * math.Sin(ang)
 }
 
-// SpawnSpot — детерминированное НАЧАЛЬНОЕ место жителя: разложены по ядру деревни (в проходимом месте,
-// не в стене). Стабильно между запусками (не RNG). Если выпало в здание — чуть толкаем наружу.
-func SpawnSpot(id uint64) (x, y float64) {
-	h := id*40503 + 12345
-	ang := float64(h%360) * math.Pi / 180
-	rad := 8 + float64((h/360)%380)/10.0 // 8..46 м от центра — по всей деревне
-	x, y = rad*math.Cos(ang), rad*math.Sin(ang)
-	for i := 0; i < 8 && Blocked(x, y); i++ { // не в стене/реке
-		rad -= 5
-		if rad < 2 {
-			x, y = 0, -4 // к колодцу как крайний случай
-			break
-		}
-		x, y = rad*math.Cos(ang), rad*math.Sin(ang)
-	}
-	return x, y
-}
+// SpawnSpot — начальное место жителя в стартовой раскладке (см. Layout.SpawnSpot).
+func SpawnSpot(id uint64) (x, y float64) { return StarterLayout().SpawnSpot(id) }

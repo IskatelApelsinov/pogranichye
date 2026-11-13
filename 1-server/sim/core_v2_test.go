@@ -241,7 +241,7 @@ func TestFoesSpawnFromFaunaOnlyNearPlayers(t *testing.T) {
 	n := 0
 	w.Each("foe", func(fe *core.Entity) {
 		n++
-		if f := Foe(fe); inVillageCore(f.X, f.Y) || Blocked(f.X, f.Y) {
+		if f := Foe(fe); LayoutOf(w, f.Settlement).InCore(f.X, f.Y) || LayoutOf(w, f.Settlement).Blocked(f.X, f.Y) {
 			t.Fatalf("враг появился в селе/в стене: %+v", f)
 		}
 	})

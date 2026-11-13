@@ -21,7 +21,7 @@ func TestErrandFromRealNeed(t *testing.T) {
 	np := EnsureScenePos(w, npc)
 	np.X, np.Y = p.X+1, p.Y
 	hasWork := func() bool {
-		for _, o := range TalkOptionsFor(e, npc) {
+		for _, o := range TalkOptionsFor(w, e, npc) {
 			if o.ID == "work" {
 				return true
 			}

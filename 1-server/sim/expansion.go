@@ -60,12 +60,12 @@ var itemPrice = map[string]float64{
 var wearSlot = map[string]string{"cloak": "body", "boots": "feet", "hat": "head"}
 var handItem = map[string]bool{"axe": true, "sword": true, "bow": true, "rod": true, "torch": true, "lantern": true}
 
-func atPoi(e *core.Entity, poi string) bool {
+func atPoi(w *core.World, e *core.Entity, poi string) bool {
 	p := ScenePos(e)
 	if p == nil {
 		return false
 	}
-	x, y := poiByKind(poi)
+	x, y := layoutFor(w, e).POI(poi)
 	return math.Hypot(p.X-x, p.Y-y) <= 10
 }
 
@@ -88,7 +88,7 @@ func Take(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
-	if !atPoi(e, src) {
+	if !atPoi(w, e, src) {
 		return false, "этого здесь нет — ищи у нужного торговца"
 	}
 	se := settlementEnt(w, e)
@@ -308,8 +308,13 @@ func round1x(v float64) float64 { return math.Round(v*10) / 10 }
 
 // isOuter — относится ли поселение к внешнему миру (регион помечен Outer). Без глобального состояния.
 func isOuter(w *core.World, s *core.SettlementC) bool {
-	if r := core.Region(w.Get(s.Region)); r != nil {
-		return r.Outer
+	if s == nil {
+		return false
+	}
+	if re := w.Get(s.Region); re != nil {
+		if r := core.Region(re); r != nil {
+			return r.Outer
+		}
 	}
 	return false
 }

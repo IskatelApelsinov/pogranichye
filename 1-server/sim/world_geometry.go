@@ -61,57 +61,14 @@ var POINamed = map[string][2]float64{
 	"mine":    {90, 40},   // рудник на северо-востоке
 }
 
-// Blocked — непроходима ли точка: за краем мира, внутри здания или в реке (кроме моста).
-func Blocked(x, y float64) bool {
-	if x < -WorldHalf || x > WorldHalf || y < -WorldHalf || y > WorldHalf {
-		return true
-	}
-	for _, b := range Buildings {
-		if b.contains(x, y) {
-			return true
-		}
-	}
-	if y >= riverY0 && y <= riverY1 {
-		if x < bridgeX0 || x > bridgeX1 { // мост — единственный проход
-			return true
-		}
-	}
-	return false
-}
+// Blocked/ResolveMove/LayoutJSON без раскладки — геометрия СТАРТОВОГО села (как до v1.19). Игровой код
+// берёт раскладку своего поселения (LayoutOf/layoutFor) и зовёт её методы; эти обёртки оставлены
+// для инструментов и тестов стартовой сцены.
+func Blocked(x, y float64) bool { return StarterLayout().Blocked(x, y) }
 
-// ResolveMove — коллизия скольжением: из (ox,oy) в желаемое (nx,ny). Если цель свободна — туда; иначе
-// пробуем двигаться только по X, затем только по Y (скользим вдоль стены); совсем некуда — остаёмся.
 func ResolveMove(ox, oy, nx, ny float64) (float64, float64) {
-	if !Blocked(nx, ny) {
-		return nx, ny
-	}
-	if !Blocked(nx, oy) {
-		return nx, oy
-	}
-	if !Blocked(ox, ny) {
-		return ox, ny
-	}
-	return ox, oy
+	return StarterLayout().ResolveMove(ox, oy, nx, ny)
 }
 
-// LayoutJSON — геометрия мира для клиента (эндпойнт /api/layout): всё в метрах, оси как в кадре.
-func LayoutJSON() map[string]any {
-	pois := map[string]map[string]float64{}
-	for k, p := range POINamed {
-		pois[k] = map[string]float64{"x": p[0], "y": p[1]}
-	}
-	return map[string]any{
-		"version":      GeometryVersion,
-		"world_half":   WorldHalf,   // мир [-world_half, world_half]^2
-		"village_half": VillageHalf, // ядро деревни
-		"buildings":    Buildings,   // прямоугольники-препятствия
-		"river":        map[string]float64{"y0": riverY0, "y1": riverY1, "bridge_x0": bridgeX0, "bridge_x1": bridgeX1},
-		"pois":         pois,
-	}
-}
-
-// inWoods / nearRiver — зоны действий (рубка у леса, рыбалка у реки).
-func inWoods(x, y float64) bool { _ = y; return x <= -70 }           // западный лес
-func nearRiver(x, y float64) bool {
-	return y >= riverY1-6 && y <= riverY1+6 // у северного берега реки (где стоят, не в воде)
-}
+// LayoutJSON — геометрия стартового села для клиента.
+func LayoutJSON() map[string]any { return StarterLayout().JSON() }

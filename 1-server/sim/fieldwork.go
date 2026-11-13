@@ -52,7 +52,7 @@ func Farmwork(w *core.World, e *core.Entity, season core.Season, reqid string) (
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
-	if OnRoad(e) || !atPoi(e, "garden") {
+	if OnRoad(e) || !atPoi(w, e, "garden") {
 		return false, "надо подойти к полю"
 	}
 	if why := siteLacks(w, e, "garden"); why != "" {
@@ -114,7 +114,7 @@ func Forge(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
-	if OnRoad(e) || !atPoi(e, "smithy") {
+	if OnRoad(e) || !atPoi(w, e, "smithy") {
 		return false, "нужна кузня"
 	}
 	v := core.Vitals(e)
@@ -173,7 +173,7 @@ func Apiary(w *core.World, e *core.Entity, season core.Season, reqid string) (bo
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
-	if OnRoad(e) || !atPoi(e, "garden") {
+	if OnRoad(e) || !atPoi(w, e, "garden") {
 		return false, "пасека стоит на лугу у полей — подойди ближе"
 	}
 	if why := siteLacks(w, e, "garden"); why != "" {

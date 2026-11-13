@@ -437,7 +437,7 @@ func StartDurak(w *core.World, e *core.Entity, reqid string, shuffle func([]Dura
 	if g := Ochko(e); g != nil && !g.Done {
 		return false, "сначала закончи партию в очко"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "за карты садятся в корчме"
 	}
 	if !inTavernSettlement(w, e) {
@@ -499,7 +499,7 @@ func ActDurak(w *core.World, e *core.Entity, action string, index int, reqid str
 	if g == nil || g.Done {
 		return false, "партия не идёт — начни заново"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "вернись к карточному столу в корчме"
 	}
 	if !inTavernSettlement(w, e) {

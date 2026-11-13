@@ -78,6 +78,9 @@ namespace Pogranichye.Client
         private string _goalToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
+        // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
+        private string _layoutSettlementId;
+        private string _layoutRequestedFor;
         private WorldConnectionState _connectionState = WorldConnectionState.Closed;
         private bool _busy;
         private int _tutorialStep;
@@ -842,7 +845,7 @@ namespace Pogranichye.Client
             }
 
             var half = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
-            if (_layout.River != null)
+            if (_layout.RiverPresent)
             {
                 var riverRect = WorldMapProjection.ToMapRect(
                     -half, _layout.River.Y0, half, _layout.River.Y1, half, mapRect);
@@ -1994,7 +1997,13 @@ namespace Pogranichye.Client
                 // Layout v2 is required before enabling prediction: local geometry must match the server.
                 var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync();
                 _layout = layout;
-                WorldLayoutPresentationBuilder.Build(_presentationRoot, layout);
+                // After a reconnect another settlement's layout may still be on screen: start again from
+                // the default one; EnsureLayoutForPlace switches to the right settlement on the first frame.
+                var replacing = _layoutSettlementId != null;
+                _layoutSettlementId = null;
+                _layoutRequestedFor = null;
+                if (replacing) WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                else WorldLayoutPresentationBuilder.Build(_presentationRoot, layout);
                 var presentationCamera = _cameraRig != null
                     ? _cameraRig.GetComponent<Camera>() : Camera.main;
                 RuralHorizonBackdrop.Build(_presentationRoot, presentationCamera, (float)layout.WorldHalf);
@@ -2071,6 +2080,7 @@ namespace Pogranichye.Client
                         return;
 
                     _frame = frame;
+                    EnsureLayoutForPlace(frame);
                     if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
@@ -2469,6 +2479,50 @@ namespace Pogranichye.Client
         }
 
         private void Enqueue(Action action) => _mainThread.Enqueue(action);
+
+        /// <summary>
+        /// v1.19: every settlement has its own server layout. When the confirmed place changes, fetch
+        /// that settlement's layout and rebuild the presentation and local collision from it. The first
+        /// frame after login also lands here, so the tutorial default is replaced only when needed.
+        /// </summary>
+        private void EnsureLayoutForPlace(WorldFrame frame)
+        {
+            var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
+            if (string.IsNullOrEmpty(placeId)) return;
+            if (placeId == _layoutSettlementId || placeId == _layoutRequestedFor) return;
+            // A server without per-settlement layouts sends no plan; the default layout is already right.
+            if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
+            {
+                _layoutSettlementId = placeId;
+                return;
+            }
+            _layoutRequestedFor = placeId;
+            _ = ReloadLayoutAsync(placeId);
+        }
+
+        private async Task ReloadLayoutAsync(string placeId)
+        {
+            try
+            {
+                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(placeId);
+                Enqueue(() =>
+                {
+                    if (_layoutRequestedFor != placeId) return;
+                    _layout = layout;
+                    _layoutSettlementId = placeId;
+                    _layoutRequestedFor = null;
+                    WorldLayoutPresentationBuilder.Rebuild(_presentationRoot, layout);
+                });
+            }
+            catch (Exception exception)
+            {
+                Enqueue(() =>
+                {
+                    if (_layoutRequestedFor == placeId) _layoutRequestedFor = null;
+                    Debug.LogWarning("Не удалось получить раскладку поселения " + placeId + ": " + exception.Message);
+                });
+            }
+        }
 
         private void SetupPresentationScene()
         {

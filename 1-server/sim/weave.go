@@ -289,7 +289,7 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 		f := Foe(fe)
 		dx, dy := f.X-p.X, f.Y-p.Y
 		d := math.Max(0.1, math.Hypot(dx, dy))
-		f.X, f.Y = ResolveMove(f.X, f.Y, f.X+dx/d*5, f.Y+dy/d*5)
+		f.X, f.Y = layoutFor(w, e).ResolveMove(f.X, f.Y, f.X+dx/d*5, f.Y+dy/d*5)
 		f.Stun, f.Aware, f.Target = math.Max(f.Stun, math.Min(5, power)), true, e.ID
 		Emit(w, e, FeedItem{Kind: "weave", Text: name + ": " + FoeName(f.Species) + " отброшен и оглушён.", Foe: eidStr(fe.ID)})
 	case "harm":

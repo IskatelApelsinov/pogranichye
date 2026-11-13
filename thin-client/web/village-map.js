@@ -41,8 +41,38 @@ function nearPoi(layout,x,y,ignore,radius){
   }
   return false;
 }
+// v1.19: у каждого села своя раскладка. Сгенерированная (plan не starter) несёт угодья (zones) и
+// дороги (roads) — рисуем по ним, а не по зашитым координатам стартового села.
+function generated(layout){return !!(layout&&layout.plan&&layout.plan!=='starter'&&Array.isArray(layout.zones));}
+function zonesOf(layout){
+  return (Array.isArray(layout&&layout.zones)?layout.zones:[]).filter(z=>z&&[z.x0,z.y0,z.x1,z.y1].every(v=>num(v)!==null))
+    .map(z=>({kind:String(z.kind||''),x0:Number(z.x0),y0:Number(z.y0),x1:Number(z.x1),y1:Number(z.y1)}));
+}
+function zoneDecorations(layout){
+  const out=[];
+  for(const z of zonesOf(layout)){
+    if(z.kind==='forest'||z.kind==='copse'){
+      for(let gx=z.x0+6;gx<=z.x1-4;gx+=12)for(let gy=z.y0+6;gy<=z.y1-4;gy+=13){
+        const seed=hash(gx,gy);if(seed%5===0)continue;
+        const x=gx+(seed>>>3)%5-2,y=gy+(seed>>>7)%5-2;
+        if(!blocked(layout,x,y)&&!nearPoi(layout,x,y,'',7))out.push({kind:'tree',x,y,size:20+seed%9});
+      }
+    }else if(z.kind==='field'){
+      for(let gx=z.x0+6;gx<=z.x1-4;gx+=9)for(let gy=z.y0+6;gy<=z.y1-4;gy+=8){
+        if(hash(gx,gy)%3===0)continue;
+        if(!blocked(layout,gx,gy)&&!nearPoi(layout,gx,gy,'',5))out.push({kind:'crop',x:gx,y:gy,size:18});
+      }
+    }
+  }
+  const tavern=layout.pois&&layout.pois.tavern;
+  if(tavern&&!blocked(layout,Number(tavern.x)+4,Number(tavern.y)))out.push({kind:'barrel',x:Number(tavern.x)+4,y:Number(tavern.y),size:18});
+  const woods=layout.pois&&layout.pois.woods;
+  if(woods&&!blocked(layout,Number(woods.x)+5,Number(woods.y)-4))out.push({kind:'wood',x:Number(woods.x)+5,y:Number(woods.y)-4,size:22});
+  return out;
+}
 function decorations(layout){
   const out=[];if(!layout||Number(layout.version)!==2||!(num(layout.world_half)>0))return out;
+  if(generated(layout))return zoneDecorations(layout);
   for(let gx=-138;gx<=-76;gx+=12)for(let gy=-65;gy<=65;gy+=13){
     const seed=hash(gx,gy);if(seed%5===0)continue;
     const x=gx+(seed>>>3)%5-2,y=gy+(seed>>>7)%5-2;
@@ -81,6 +111,8 @@ function buildScene(layout,snapshot,selected){
   return {version:Number(layout.version)||0,half:Number(layout.world_half),villageHalf:num(layout.village_half)||0,buildings,pois,neighbors,foes,
     player:validPos(me.pos)?{x:Number(me.pos.x),y:Number(me.pos.y),facing:num(me.pos.facing)||0}:null,
     river:{y0:num(river.y0),y1:num(river.y1),bridgeX0:num(river.bridge_x0),bridgeX1:num(river.bridge_x1)},
+    generated:generated(layout),zones:zonesOf(layout),
+    roads:(Array.isArray(layout.roads)?layout.roads:[]).filter(r=>Array.isArray(r)&&r.length===4&&r.every(v=>num(v)!==null)).map(r=>r.map(Number)),
     decorations:decorations(layout)};
 }
 function sprite(ctx,atlas,name,x,y,w,h,fallback){
@@ -93,7 +125,24 @@ function background(ctx,s,atlas,w,h){
   if(atlas&&atlas.complete&&Number(atlas.naturalWidth)>=384)
     for(let y=0;y<h;y+=32)for(let x=0;x<w;x+=32)sprite(ctx,atlas,'grass',x,y,32,32);
   else{ctx.fillStyle='#71834b';ctx.fillRect(0,0,w,h);}
-  if(s.version===2){
+  if(s.generated){
+    const tint={forest:'rgba(42,74,45,.42)',copse:'rgba(42,74,45,.34)',field:'rgba(196,170,84,.30)',meadow:'rgba(150,178,96,.22)',rock:'rgba(110,104,96,.45)',pond:'#477d83'};
+    for(const z of s.zones){
+      const a=project(Math.max(z.x0,-s.half),Math.min(z.y1,s.half),s.half,w,h),b=project(Math.min(z.x1,s.half),Math.max(z.y0,-s.half),s.half,w,h);
+      if(a&&b&&tint[z.kind]){ctx.fillStyle=tint[z.kind];ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);}
+    }
+    if(s.villageHalf>0){
+      const a=project(-s.villageHalf,s.villageHalf,s.half,w,h),b=project(s.villageHalf,-s.villageHalf,s.half,w,h);
+      if(a&&b){ctx.fillStyle='rgba(190,171,112,.13)';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);}
+    }
+    // дороги — настоящий граф сервера (по нему ходят жители)
+    ctx.lineCap='round';ctx.lineJoin='round';
+    for(const pass of [['#765b3d',7],['#b99a6c',4]]){
+      ctx.strokeStyle=pass[0];ctx.lineWidth=pass[1];ctx.beginPath();
+      for(const r of s.roads){const a=project(r[0],r[1],s.half,w,h),b=project(r[2],r[3],s.half,w,h);if(a&&b){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);}}
+      ctx.stroke();
+    }
+  }else if(s.version===2){
     const edge=project(-70,0,s.half,w,h);
     if(edge){ctx.fillStyle='rgba(42,74,45,.42)';ctx.fillRect(0,0,edge.x,h);}
     if(s.villageHalf>0){
@@ -113,7 +162,7 @@ function background(ctx,s,atlas,w,h){
       ctx.strokeStyle='#765b3d';ctx.lineWidth=10;ctx.stroke();ctx.strokeStyle='#b99a6c';ctx.lineWidth=6;ctx.stroke();
     }
   }
-  if(s.river.y0!==null&&s.river.y1!==null){
+  if(s.river.y0!==null&&s.river.y1!==null&&s.river.y1>-s.half&&s.river.y0<s.half){
     const top=project(0,s.river.y1,s.half,w,h),bottom=project(0,s.river.y0,s.half,w,h);
     if(top&&bottom){
       for(let y=top.y;y<bottom.y;y+=26)for(let x=0;x<w;x+=26)sprite(ctx,atlas,'water',x,y,26,26,'#477d83');

@@ -71,3 +71,23 @@ test('zoom viewport keeps map centre fixed at one-to-one scale',()=>{
   const p=VillageMap.viewProject(0,0,150,640,640,view);
   assert.deepEqual(p,{x:320,y:320});
 });
+
+// v1.19: сгенерированная раскладка рисуется по своим угодьям и дорогам, а не по координатам стартового села.
+test('generated layouts draw from their own zones and roads',()=>{
+  const gen={version:2,world_half:150,village_half:50,plan:'street',has_river:false,
+    buildings:[{name:'Корчма',kind:'tavern',x0:10,y0:6,x1:24,y1:18}],
+    river:{y0:-190,y1:-180,bridge_x0:-6,bridge_x1:6},
+    pois:{tavern:{x:17,y:4},well:{x:0,y:0},woods:{x:80,y:10},garden:{x:0,y:-80},river:{x:20,y:70},mine:{x:-90,y:-90}},
+    zones:[{kind:'forest',x0:75,y0:-150,x1:150,y1:150},{kind:'field',x0:-60,y0:-130,x1:60,y1:-66},{kind:'pond',x0:11,y0:74,x1:29,y1:86}],
+    roads:[[0,0,16,0],[16,0,17,4]]};
+  const s=VillageMap.buildScene(gen,{place:{},me:{}},null);
+  assert.equal(s.generated,true);
+  assert.equal(s.zones.length,3);
+  assert.deepEqual(s.roads,[[0,0,16,0],[16,0,17,4]]);
+  const trees=s.decorations.filter(d=>d.kind==='tree'),crops=s.decorations.filter(d=>d.kind==='crop');
+  assert.ok(trees.length>10&&trees.every(d=>d.x>=75));          // лес там, где он у ЭТОГО села
+  assert.ok(crops.length>10&&crops.every(d=>d.y<=-66&&d.y>=-130));
+  assert.deepEqual(VillageMap.buildScene(gen,{place:{},me:{}},null).decorations,s.decorations); // детерминированно
+  // стартовая раскладка рисуется по-прежнему
+  assert.equal(VillageMap.buildScene(layout,{place:{},me:{}},null).generated,false);
+});

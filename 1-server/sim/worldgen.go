@@ -2,6 +2,7 @@ package sim
 
 import (
 	"fmt"
+	"math"
 
 	"pogranichye/arcane"
 	"pogranichye/battle"
@@ -167,7 +168,7 @@ func generateOuterWorld(w *core.World, g *dice.Stream) {
 		var first *core.Entity
 		for j := 0; j < n; j++ {
 			role := roles[(i+j)%len(roles)]
-			sex := sexes[(i + j) % 2]
+			sex := sexes[(i+j)%2]
 			age := 18 + float64((i*7+j*5)%50)
 			p := starterPerson(w, g, se.ID, role, sex, age, j%3 == 0)
 			if first == nil {
@@ -187,7 +188,7 @@ func generateOuterWorld(w *core.World, g *dice.Stream) {
 		var first *core.Entity
 		for j := 0; j < n; j++ {
 			role := roles[(i*3+j)%len(roles)]
-			sex := sexes[(i + j) % 2]
+			sex := sexes[(i+j)%2]
 			age := 18 + float64((i*11+j*3)%55)
 			p := starterPerson(w, g, se.ID, role, sex, age, j%3 == 0)
 			if first == nil {
@@ -247,6 +248,26 @@ func NewSettlement(w *core.World, g *dice.Stream, name string, region *core.Enti
 			}
 		}
 		regID = region.ID
+	}
+	// Земли сёл не должны налезать друг на друга: сцена села — 300 м, а в бесшовном мире они лежат на
+	// одной плоскости. Если место выпало вплотную к соседу — отодвигаем. Кости при этом не тратятся
+	// сверх прежнего, так что миры без таких совпадений генерируются как раньше.
+	{
+		const minUnits = 2.0 // 500 м при 250 м в единице карты (PlanetC.KmPerUnit)
+		for try := 0; try < 16; try++ {
+			clash := false
+			w.Each("settlement", func(o *core.Entity) {
+				if os := core.Settle(o); math.Hypot(os.X-x, os.Y-y) < minUnits {
+					clash = true
+				}
+			})
+			if !clash {
+				break
+			}
+			a := float64(try) * 2.399963 // золотой угол: обходим соседа по спирали
+			x += math.Cos(a) * minUnits * (1 + float64(try)/4)
+			y += math.Sin(a) * minUnits * (1 + float64(try)/4)
+		}
 	}
 	coastal := biome == "coast" || (biome != "hills" && g.Chance(0.25))
 	mountain := biome == "hills" || (biome != "coast" && g.Chance(0.2))

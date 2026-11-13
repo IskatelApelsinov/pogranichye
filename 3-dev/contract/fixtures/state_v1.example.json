@@ -44,6 +44,23 @@
       "stam": 1,
       "seq": 0
     },
+    "wpos": {
+      "scheme": "yof-tangent",
+      "v": 1,
+      "frame": 0,
+      "e": 650.0,
+      "n": -27225.0,
+      "u": 131.42,
+      "ground": 131.42,
+      "z": 0.0,
+      "chunk": [
+        2,
+        -107
+      ],
+      "layer": 2,
+      "lat": 47.9553,
+      "lon": 12.5087
+    },
     "talk": null,
     "invite_from": null,
     "social_event": {
@@ -318,6 +335,13 @@
       "lon": 12.5,
       "cauldron": true
     },
+    "anchor": {
+      "frame": 0,
+      "e": 650.0,
+      "n": -27225.0,
+      "u": 131.42
+    },
+    "plan": "starter",
     "exits": [
       {
         "to": "9",

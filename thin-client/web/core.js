@@ -356,7 +356,17 @@ function drawParty(s){
 // ---------- живая карта окрестностей (вид сверху) ----------
 // Тот же мир, что видит толстый клиент: дома, река, жители, звери — по кадру сервера. Тап по зверю
 // выбирает цель, тап по месту ведёт к ближайшей локации. Ходьбы по-прежнему нет (ADR 0002).
-let LAY = null, layAsked = false;
+let LAY = null, layAsked = false, layFor = '';
+// v1.19: у каждого поселения своя раскладка — берём её по id места и перезапрашиваем, когда пришли в другое.
+function ensureLayout(s){
+  const id = (s && s.place && s.place.id) ? String(s.place.id) : '';
+  if(LAY && layFor === id) return;
+  if(layAsked) return;
+  layAsked = true;
+  fetch('/api/layout' + (id ? '?settlement=' + encodeURIComponent(id) : '')).then(r => r.json())
+    .then(j => { LAY = j; layFor = id; layAsked = false; if(last) drawLiveMap(last); })
+    .catch(() => { layAsked = false; });
+}
 const MAPLOC = ['well','tavern','river','woods','garden','smithy','granary','mine','hearth','market'];
 let villageAtlas = null;
 const villageMapView = {zoom:1,panX:0,panY:0};
@@ -410,7 +420,7 @@ function villageMapReset(){villageMapView.zoom=1;villageMapView.panX=0;villageMa
 function drawLiveMap(s){
   const cv = document.getElementById('livemap'); if(!cv) return;
   bindVillageMap(cv);
-  if(!LAY && !layAsked){ layAsked = true; fetch('/api/layout').then(r => r.json()).then(j => { LAY = j; if(last) drawLiveMap(last); }).catch(() => { layAsked = false; }); }
+  ensureLayout(s);
   if(!LAY || !s.place || !(Number(LAY.world_half)>0)) return;
   if(window.PogranichyeVillageMap) window.PogranichyeVillageMap.draw(cv,LAY,s,villageAtlas,selFoe,villageMapView);
   const zoomLabel=document.getElementById('mapzoomlevel');if(zoomLabel)zoomLabel.textContent=villageMapView.zoom.toFixed(1).replace('.0','')+'×';
@@ -433,7 +443,7 @@ function drawLiveMap(s){
 }
 function drawLiveMap(s){
   const cv = document.getElementById('livemap'); if(!cv) return;
-  if(!LAY && !layAsked){ layAsked = true; fetch('/api/layout').then(r => r.json()).then(j => { LAY = j; if(last) drawLiveMap(last); }).catch(() => { layAsked = false; }); }
+  ensureLayout(s);
   if(!LAY || !s.place || !(Number(LAY.world_half)>0)) return;
   if(window.PogranichyeVillageMap) window.PogranichyeVillageMap.draw(cv,LAY,s,villageAtlas,selFoe);
   const W=cv.width,H=cv.height,half=Number(LAY.world_half);

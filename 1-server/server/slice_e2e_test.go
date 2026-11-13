@@ -253,7 +253,12 @@ search:
 		}
 	}
 	var woodBefore, coinsBefore float64
-	c.world(func(e *core.Entity) { woodBefore, coinsBefore = stashOf(e, econ.GoodWood), core.Purse(e).Coins })
+	c.world(func(e *core.Entity) {
+		woodBefore, coinsBefore = stashOf(e, econ.GoodWood), core.Purse(e).Coins
+		// кошель жителя читаем прямо перед сдачей: мир идёт (400 мс на игровой час), и житель
+		// между делом сам тратит монеты на еду — это не часть проверяемого перевода
+		npcCoins = core.Purse(s.world.Get(parseID(npc))).Coins
+	})
 	ok, reason, turnReq := c.result(fmt.Sprintf(`"op":"quest","action":"turnin","quest":"%s"`, errandID))
 	if !ok {
 		t.Fatalf("сдать поручение: %s", reason)
@@ -267,8 +272,8 @@ search:
 			if got := stashOf(n, econ.GoodWood); got != npcHad+2 {
 				t.Fatalf("%s: дрова должны лечь в закрома жителя: %.0f", when, got)
 			}
-			if core.Purse(e).Coins != coinsBefore+2 || core.Purse(n).Coins != npcCoins-2 {
-				t.Fatalf("%s: 2 монеты должны перейти от жителя игроку", when)
+			if core.Purse(e).Coins != coinsBefore+2 || core.Purse(n).Coins > npcCoins-2 {
+				t.Fatalf("%s: 2 монеты должны перейти от жителя игроку (игрок %.2f→%.2f, житель %.2f→%.2f)", when, coinsBefore, core.Purse(e).Coins, npcCoins, core.Purse(n).Coins)
 			}
 		})
 	}

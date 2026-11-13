@@ -71,7 +71,7 @@ func TestNavReachAllPOI(t *testing.T) {
 		if !ok {
 			t.Fatalf("нет узла %s", key)
 		}
-		if navRoute(start, g) == nil {
+		if StarterLayout().route(start, g) == nil {
 			t.Fatalf("нет маршрута well -> %s", key)
 		}
 	}

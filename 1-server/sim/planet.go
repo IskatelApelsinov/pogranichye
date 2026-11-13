@@ -45,6 +45,7 @@ type PlanetC struct {
 	CauldronLon float64 `json:"cauldron_lon"`
 	CauldronKm  float64 `json:"cauldron_km"` // поперечник чаши
 	KmPerUnit   float64 `json:"km_per_unit"` // сколько километров в единице карты мира
+	Seamless    bool    `json:"seamless,omitempty"` // бесшовный мир: между сёлами ходят ногами (worldpos.go)
 }
 
 func (c *PlanetC) Kind() string { return "planet" }
