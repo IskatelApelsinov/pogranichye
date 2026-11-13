@@ -94,7 +94,7 @@ namespace Pogranichye.Client.Presentation
                 var anchor = entry.Layout?.Anchor;
                 if (anchor == null || anchor.Frame != current.Frame)
                 {
-                    entry.Root.gameObject.SetActive(false);
+                    WorldLayoutPresentationBuilder.SetVisible(entry.Root, false);
                     continue;
                 }
 
