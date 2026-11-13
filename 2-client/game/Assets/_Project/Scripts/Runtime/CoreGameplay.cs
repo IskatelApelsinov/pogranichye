@@ -581,6 +581,7 @@ namespace Pogranichye.Client
 
         private void OnDestroy()
         {
+            ClearLockedTarget(false);
             _viewsPlayerGuard(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
