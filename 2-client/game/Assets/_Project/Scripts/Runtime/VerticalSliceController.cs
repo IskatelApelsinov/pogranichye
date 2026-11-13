@@ -1746,6 +1746,7 @@ namespace Pogranichye.Client
             var owned = _frame?.Me?.Room;
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("КОМНАТЫ НАД КОРЧМОЙ");
+            GUILayout.Label("Вход и сундук работают через сервер; отдельная 3D-геометрия интерьера ещё не подключена.");
             if (rooms == null || rooms.Count == 0)
             {
                 GUILayout.Label("Каталог комнат пока не получен от сервера.");
