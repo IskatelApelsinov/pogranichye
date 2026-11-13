@@ -161,6 +161,15 @@ namespace Pogranichye.Client.Presentation
         /// settlement has its own server layout). The tutorial-only prototype dressing is hidden while
         /// a generated settlement is shown and restored on return.
         /// </summary>
+        public static void SetVisible(Transform root, bool visible)
+        {
+            if (root == null) return;
+            var serverLayout = root.Find("ServerLayoutV2");
+            if (serverLayout != null) serverLayout.gameObject.SetActive(visible);
+            var prototype = root.Find("PrototypeVillage");
+            if (prototype != null) prototype.gameObject.SetActive(visible && serverLayout == null);
+        }
+
         public static void Rebuild(Transform root, WorldLayoutFrame layout)
         {
             if (root == null || layout == null || layout.Version != 2) return;
