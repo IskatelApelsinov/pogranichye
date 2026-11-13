@@ -269,7 +269,7 @@ namespace Pogranichye.Client.Presentation
                 action != "attack" && action != "heavy_attack" && action != "thrust" &&
                 action != "bow_shot" && action != "dodge" && action != "guard" &&
                 action != "apiary" && action != "farmwork" && action != "forge" &&
-                action != "mine" && action != "gather" && action != "meditate" &&
+                action != "mine" && action != "gather" && action != "meditate" && action != "study" &&
                 action != "hunt" && action != "cook" && action != "herd" &&
                 action != "build" && action != "craft" && action != "trade" &&
                 action != "fish") return;
@@ -283,7 +283,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (action != "chop" && action != "forge" && action != "mine" &&
                 action != "farmwork" && action != "gather" && action != "apiary" &&
-                action != "meditate" && action != "hunt" && action != "cook" &&
+                action != "meditate" && action != "study" && action != "hunt" && action != "cook" &&
                 action != "herd" && action != "build" && action != "craft" &&
                 action != "trade") return;
             PlayActionGesture(action);
@@ -679,7 +679,7 @@ namespace Pogranichye.Client.Presentation
                 leftArmAngle = -18f - reach * 22f;
                 _body.localRotation = Quaternion.Euler(12f + reach * 5f, 0f, 0f);
             }
-            else if (_actionGestureRemaining > 0f && _actionGesture == "meditate")
+            else if (_actionGestureRemaining > 0f && (_actionGesture == "meditate" || _actionGesture == "study"))
             {
                 var progress = ActionProgress(0.78f);
                 var breathe = Mathf.Sin(progress * Mathf.PI * 2f);
