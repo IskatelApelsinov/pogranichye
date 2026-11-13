@@ -47,12 +47,14 @@ namespace Pogranichye.Client.Networking
                 RequireStringId(me["id"], "me.id");
                 ValidateJournal(me["journal"], "me.journal");
                 ValidatePosition(me["pos"], "me.pos", true);
+                ValidateWorldPosition(me["wpos"], "me.wpos");
 
                 var place = root["place"];
                 if (place != null && place.Type != JTokenType.Null)
                 {
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
+                    ValidateWorldAnchor(place["anchor"], "place.anchor");
                     var neighbors = place["neighbors"];
                     if (neighbors != null && neighbors.Type != JTokenType.Null)
                     {
@@ -100,6 +102,63 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+
+        private static void ValidateWorldPosition(JToken token, string fieldName)
+        {
+            // v1.19 is additive: old v1 servers legitimately omit this field.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object)
+                throw new FormatException(fieldName + " должен быть объектом.");
+
+            var scheme = token["scheme"];
+            var version = token["v"];
+            var frame = token["frame"];
+            if (scheme == null || scheme.Type != JTokenType.String || scheme.Value<string>() != "yof-tangent" ||
+                version == null || version.Type != JTokenType.Integer || version.Value<int>() != 1 ||
+                frame == null || frame.Type != JTokenType.Integer)
+                throw new FormatException(fieldName + " содержит неподдерживаемую схему координат.");
+
+            RequireFiniteNumber(token, "e", fieldName);
+            RequireFiniteNumber(token, "n", fieldName);
+            RequireFiniteNumber(token, "u", fieldName);
+            RequireFiniteNumber(token, "ground", fieldName);
+            RequireFiniteNumber(token, "z", fieldName);
+            RequireFiniteNumber(token, "lat", fieldName);
+            RequireFiniteNumber(token, "lon", fieldName);
+
+            var chunk = token["chunk"];
+            if (chunk == null || chunk.Type != JTokenType.Array || ((JArray)chunk).Count != 2 ||
+                !IsInteger(chunk[0]) || !IsInteger(chunk[1]))
+                throw new FormatException(fieldName + ".chunk должен содержать два целых индекса.");
+            if (!IsInteger(token["layer"]))
+                throw new FormatException(fieldName + ".layer должен быть целым числом.");
+        }
+
+        private static void ValidateWorldAnchor(JToken token, string fieldName)
+        {
+            // Older v1 servers have no global settlement anchor.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Object)
+                throw new FormatException(fieldName + " должен быть объектом.");
+            if (!IsInteger(token["frame"]))
+                throw new FormatException(fieldName + ".frame должен быть целым числом.");
+            RequireFiniteNumber(token, "e", fieldName);
+            RequireFiniteNumber(token, "n", fieldName);
+            RequireFiniteNumber(token, "u", fieldName);
+        }
+
+        private static void RequireFiniteNumber(JToken obj, string property, string fieldName)
+        {
+            var value = obj[property];
+            if (!IsNumber(value) || !IsFinite(value.Value<double>()))
+                throw new FormatException(fieldName + "." + property + " должен быть конечным числом.");
+        }
+
+        private static bool IsInteger(JToken token)
+        {
+            return token != null && token.Type == JTokenType.Integer;
+        }
 
         private static void ValidateJournal(JToken token, string fieldName)
         {
