@@ -210,7 +210,9 @@ namespace Pogranichye.Client.Presentation
             house.SetParent(root, false);
             house.position = position;
             house.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
-            house.localScale = new Vector3(3.4f, 1f, 3.4f);
+            // Keep authored dimensions in metres: NPCs are about 1.8m tall, so a 1.2x cottage
+            // scale yields a ~1.74m doorway instead of the previous ~4.9m oversized opening.
+            house.localScale = new Vector3(1.2f, 1f, 1.2f);
             CreateCameraObstacle(house, "Camera collision • cottage", Vector3.zero, new Vector3(3.5f, 2.7f, 2.9f));
 
             // Stone plinth lifts the timber frame clear of the damp ground.
