@@ -382,8 +382,8 @@ namespace Pogranichye.Client.Presentation
                 for (var side = 0; side < sides; side++)
                 {
                     triangles.Add(start + side);
-                    triangles.Add(start + (side + 1) % sides);
                     triangles.Add(start + sides);
+                    triangles.Add(start + (side + 1) % sides);
                 }
             }
         }
@@ -431,7 +431,11 @@ namespace Pogranichye.Client.Presentation
                 var inSettlementCore = Mathf.Abs(position.x) <= 55f && Mathf.Abs(position.z) <= 55f;
                 if (child.name == "Willow tree" || child.name == "Distant woodland mass")
                 {
-                    if (inSettlementCore) UnityEngine.Object.Destroy(child.gameObject);
+                    var overlapsBuilding = NearAnyBuilding(layout, position.x, position.z, 2.5f);
+                    var blocksAccess = NearAnyRoad(layout, position.x, position.z, 3.5f) ||
+                        NearAnyPoi(layout, position.x, position.z, 6f);
+                    if (inSettlementCore || overlapsBuilding || blocksAccess)
+                        UnityEngine.Object.Destroy(child.gameObject);
                     continue;
                 }
             }
