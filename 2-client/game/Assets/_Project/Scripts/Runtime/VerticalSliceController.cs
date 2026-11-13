@@ -1772,12 +1772,15 @@ namespace Pogranichye.Client
                             QueueRoomAction("rent", owned.Id, null, 0, "Продлить аренду");
                         GUI.enabled = previousEnabled;
                     }
-                    else if (owned.Indoor)
+
+                    // Expiration must never trap a tenant who was already inside when the lease ended.
+                    // ExitRoom is allowed regardless of lease state; chest access remains blocked.
+                    if (owned.Indoor)
                     {
                         if (GUILayout.Button("Выйти"))
                             QueueRoomAction("exit", null, null, 0, "Выйти из комнаты");
                     }
-                    else if (GUILayout.Button("Войти"))
+                    else if (owned.LeaseState != "expired" && GUILayout.Button("Войти"))
                     {
                         QueueRoomAction("enter", owned.Id, null, 0, "Войти в комнату");
                     }
