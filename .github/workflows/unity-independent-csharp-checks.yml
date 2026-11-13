@@ -16,6 +16,10 @@ on:
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
+      - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
@@ -61,6 +65,11 @@ jobs:
         run: |
           mcs -out:/tmp/hex-cell-coordinate.exe Tests/HexCellCoordinateCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs
           mono /tmp/hex-cell-coordinate.exe
+      - name: Layout POI position regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/poi-position.exe Tests/PoiPositionPolicyCheck.cs Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs
+          mono /tmp/poi-position.exe
       - name: Hex cell streaming policy regression checks
         working-directory: 2-client/game
         run: |

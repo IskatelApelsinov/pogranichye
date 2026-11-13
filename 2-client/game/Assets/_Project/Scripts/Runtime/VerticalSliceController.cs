@@ -256,6 +256,7 @@ namespace Pogranichye.Client
             if (_core != null)
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
+            _core?.SetLayout(_layout);
             UpdateTalkConfirmationTimeout();
             if (_connectionState != WorldConnectionState.Active)
                 SetChatOpen(false);
