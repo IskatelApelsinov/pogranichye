@@ -396,6 +396,24 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("rim_radius_m")] public double RimRadiusMeters { get; set; }
         [JsonProperty("settlements")] public List<WorldSettlementFrame> Settlements { get; set; }
         [JsonProperty("roads")] public List<WorldRoadFrame> Roads { get; set; }
+        // v1.21: deterministic wilderness landmarks outside settlement layouts.
+        [JsonProperty("wildsites")] public List<WorldWildSiteFrame> WildSites { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldWildSiteFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("wild_type")] public string Type { get; set; }
+        [JsonProperty("region")] public string RegionId { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("ground")] public double Ground { get; set; }
+        [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("danger")] public double Danger { get; set; }
     }
 
     [Serializable]

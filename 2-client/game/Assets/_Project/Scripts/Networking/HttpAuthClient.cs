@@ -168,6 +168,26 @@ namespace Pogranichye.Client.Networking
                     if (road == null || string.IsNullOrWhiteSpace(road.From) ||
                         string.IsNullOrWhiteSpace(road.To) || road.From == road.To)
                         throw new InvalidOperationException("Карта мира содержит некорректную дорогу.");
+
+                // Older v1.19 manifests may omit wildsites. When present, validate them strictly:
+                // invalid wilderness data must not leak NaN/Infinity or unknown landmark types into rendering.
+                if (manifest.WildSites != null)
+                {
+                    var wildSiteIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var site in manifest.WildSites)
+                    {
+                        if (site == null || string.IsNullOrWhiteSpace(site.Id) ||
+                            string.IsNullOrWhiteSpace(site.Name) || string.IsNullOrWhiteSpace(site.RegionId) ||
+                            !wildSiteIds.Add(site.Id) || !frameIds.Contains(site.Frame) ||
+                            (site.Type != "cave" && site.Type != "tower" && site.Type != "ruins" &&
+                             site.Type != "grove" && site.Type != "spring") ||
+                            !IsFinite(site.East) || !IsFinite(site.North) || !IsFinite(site.Up) ||
+                            !IsFinite(site.Ground) || !IsFinite(site.Mana) || !IsFinite(site.Danger) ||
+                            site.Mana < 0.1 || site.Mana > 3.0 || site.Danger < 0.0 || site.Danger > 1.0 ||
+                            site.Up < site.Ground - 30.0 || site.Up > site.Ground + 45.0)
+                            throw new InvalidOperationException("Карта мира содержит некорректное дикое место.");
+                    }
+                }
                 return manifest;
             }
         }
