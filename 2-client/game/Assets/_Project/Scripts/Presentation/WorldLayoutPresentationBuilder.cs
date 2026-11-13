@@ -1012,7 +1012,7 @@ namespace Pogranichye.Client.Presentation
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
             text.fontSize = 42;
-            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(8f, title.Length * 1.35f), 0.045f, 0.09f);
+            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(8f, title.Length * 2.4f), 0.14f, 0.28f);
             text.color = new Color(1f, 0.88f, 0.62f);
             text.richText = false;
             var renderer = label.GetComponent<MeshRenderer>();
