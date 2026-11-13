@@ -12,6 +12,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
+      - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
@@ -45,3 +47,8 @@ jobs:
         run: |
           mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
           mono /tmp/npc-activity-sound.exe
+      - name: Hex cell coordinate regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/hex-cell-coordinate.exe Tests/HexCellCoordinateCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs
+          mono /tmp/hex-cell-coordinate.exe
