@@ -18,7 +18,7 @@ from pathlib import Path
 import bpy
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]
+ROOT = HERE.parents[2]
 OUT = ROOT / "2-client" / "game" / "Assets" / "Art" / "Generated" / "WorldMaterials"
 TEXTURES = OUT / "Textures"
 SIZE = 512
