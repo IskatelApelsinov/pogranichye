@@ -140,20 +140,20 @@ func TestRentRoomRejectsWhenAlreadyTenantOfAnother(t *testing.T) {
 }
 
 func TestExpiredRoomLeaseDoesNotBlockRentingAnotherRoom(t *testing.T) {
-    w, e, se := starterPlayer(t)
-    rooms := tavernRoomsOf(w, se.ID)
-    GoTo(w, e, "tavern")
-    if ok, why := RentRoom(w, e, rooms[0], 10, "r-expired"); !ok {
-        t.Fatalf("первая аренда должна пройти: %q", why)
+	w, e, se := starterPlayer(t)
+	rooms := tavernRoomsOf(w, se.ID)
+	GoTo(w, e, "tavern")
+	if ok, why := RentRoom(w, e, rooms[0], 10, "r-expired"); !ok {
+		t.Fatalf("первая аренда должна пройти: %q", why)
     }
     if state := RoomLeaseStateAt(Room(w.Get(rooms[0])), 20); state != RoomLeaseExpired {
-        t.Fatalf("первая аренда должна истечь к 20-му дню, состояние %q", state)
+		t.Fatalf("первая аренда должна истечь к 20-му дню, состояние %q", state)
     }
     if ok, why := RentRoom(w, e, rooms[1], 20, "r-new"); !ok {
-        t.Fatalf("истёкшая аренда не должна блокировать новую комнату: %q", why)
+		t.Fatalf("истёкшая аренда не должна блокировать новую комнату: %q", why)
     }
     if Room(w.Get(rooms[1])).Tenant != e.ID {
-        t.Fatal("новая комната должна быть закреплена за игроком")
+		t.Fatal("новая комната должна быть закреплена за игроком")
     }
 }
 
