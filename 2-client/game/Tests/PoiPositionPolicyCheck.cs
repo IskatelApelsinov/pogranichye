@@ -59,8 +59,8 @@ public static class PoiPositionPolicyCheck
             { "apiary", new PoiCoordinate(73.6d, -20.9d) }
         };
         Check(PoiPositionPolicy.TryResolve("apiary", explicitApiary, legacy, true, false, out point) &&
-              point.X == 73.6d && point.Y == -20.9d,
-            "an explicit future Layout apiary anchor takes precedence over the garden alias");
+              point.X == 70d && point.Y == -20d,
+            "a visual apiary key cannot override the server's current garden interaction anchor");
         Check(!PoiPositionPolicy.TryResolve("woods", layout, legacy, true, false, out point),
             "a missing POI in a generated layout does not fall back to a stale starter coordinate");
         Check(PoiPositionPolicy.TryResolve("tavern", null, legacy, false, true, out point) &&
