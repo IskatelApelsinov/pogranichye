@@ -14,6 +14,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("day")] public int Day { get; set; }
         [JsonProperty("year")] public int Year { get; set; }
         [JsonProperty("season")] public string Season { get; set; }
+        // Optional additive v1 field: older servers may omit the authoritative hour.
+        [JsonProperty("hour")] public int? Hour { get; set; }
         [JsonProperty("me")] public CharacterFrame Me { get; set; }
         [JsonProperty("place")] public PlaceFrame Place { get; set; }
     }
