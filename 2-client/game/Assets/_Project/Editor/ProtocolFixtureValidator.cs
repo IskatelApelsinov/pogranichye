@@ -148,14 +148,16 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateWorldV120Dtos()
         {
-            const string frameJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"room\":{\"id\":\"9001\",\"settlement\":\"7\",\"door_poi\":\"tavern\",\"rent_price\":6,\"paid_through_day\":40,\"grace_until_day\":41,\"lease_state\":\"active\",\"indoor\":true,\"chest_cap\":40,\"chest_load\":1,\"chest_items\":{\"torch\":1}},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":1,\"n\":1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":0,\"e\":0,\"n\":0,\"u\":120},\"rooms\":{\"total\":2,\"vacant\":1,\"rent_price\":6},\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":2,\"y\":3,\"facing\":90},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":2,\"n\":3,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}}]}}";
+            const string frameJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"room\":{\"id\":\"9001\",\"settlement\":\"7\",\"door_poi\":\"tavern\",\"rent_price\":6,\"paid_through_day\":40,\"grace_until_day\":41,\"lease_state\":\"active\",\"indoor\":true,\"chest_cap\":40,\"chest_load\":1,\"chest_items\":{\"torch\":1}},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":1,\"n\":1,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":0,\"e\":0,\"n\":0,\"u\":120},\"rooms\":{\"total\":2,\"vacant\":1,\"rent_price\":6,\"items\":[{\"id\":\"9001\",\"lease_state\":\"vacant\",\"rent_price\":6},{\"id\":\"9002\",\"lease_state\":\"active\",\"rent_price\":6}]},\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":2,\"y\":3,\"facing\":90},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":2,\"n\":3,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}}]}}";
             var frame = WorldFrameParser.Parse(frameJson);
             if (frame.Me.Room == null || frame.Me.Room.Id != "9001" ||
                 frame.Me.Room.LeaseState != "active" || !frame.Me.Room.Indoor ||
                 frame.Me.Room.ChestItems == null || frame.Me.Room.ChestItems["torch"] != 1)
                 throw new FormatException("v1.20 me.room DTO deserialization failed.");
             if (frame.Place.Rooms == null || frame.Place.Rooms.Total != 2 ||
-                frame.Place.Rooms.Vacant != 1 || frame.Place.Rooms.RentPrice != 6d)
+                frame.Place.Rooms.Vacant != 1 || frame.Place.Rooms.RentPrice != 6d ||
+                frame.Place.Rooms.Items == null || frame.Place.Rooms.Items.Count != 2 ||
+                frame.Place.Rooms.Items[0].Id != "9001" || frame.Place.Rooms.Items[0].LeaseState != "vacant")
                 throw new FormatException("v1.20 place.rooms DTO deserialization failed.");
             if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count != 1 ||
                 frame.Place.Neighbors[0].WorldPosition == null || !frame.Place.Neighbors[0].WorldPosition.IsValid)
