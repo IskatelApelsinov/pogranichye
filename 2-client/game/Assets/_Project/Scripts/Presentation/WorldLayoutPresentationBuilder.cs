@@ -1666,6 +1666,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = null;
             _grass = null;
             _stone = null;
+            _iron = null;
             _flowers = null;
         }
 
