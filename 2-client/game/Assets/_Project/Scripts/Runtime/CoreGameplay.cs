@@ -202,6 +202,9 @@ namespace Pogranichye.Client
         private float _hitMarker;
 
         private bool _menuOpen;
+        // The outer HUD owns additional pointer surfaces (context actions, minigames, chat).
+        // The controller reports those so this component never re-locks the cursor over them.
+        private bool _externalUiCapture;
         private Vector2 _menuScroll;
         private float _regionMapZoom = 1f;
         private bool _weaveOpen;
@@ -214,6 +217,11 @@ namespace Pogranichye.Client
 
         /// <summary>True while the "Дела" window or the weave wheel owns the mouse.</summary>
         public bool CapturesInput { get { return _menuOpen || _weaveOpen; } }
+
+        public void SetExternalUiCapture(bool captured)
+        {
+            _externalUiCapture = captured;
+        }
 
         /// <summary>Raised on the Unity main thread when a queued result-bearing request resolves.</summary>
         public event Action<string, RequestGate.Outcome, string> RequestResolved;
@@ -1160,7 +1168,7 @@ namespace Pogranichye.Client
         {
             // First person with the HUD folded away is the "immersive" state: the pointer is captured
             // and the crosshair aims. Any window that needs clicking releases it.
-            var capture = _firstPerson && _hudCollapsed && !needsPointer;
+            var capture = _firstPerson && _hudCollapsed && !needsPointer && !_externalUiCapture;
             Cursor.lockState = capture ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !capture;
         }
