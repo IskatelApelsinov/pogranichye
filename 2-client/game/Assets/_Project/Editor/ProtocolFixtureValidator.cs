@@ -107,6 +107,21 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"journal\":[{\"seq\":1,\"day\":40,\"kind\":\"met\",\"text\":\" \"}]}}", "empty journal text");
         }
 
+        private static void ValidateWorldV119Dtos()
+        {
+            const string manifestJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"seamless\":false,\"frames\":[{\"id\":0,\"projection\":\"azimuthal-equidistant\",\"origin_lat\":0,\"origin_lon\":0,\"radius_m\":1000000}],\"rim_radius_m\":12000,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":256,\"n\":-256,\"u\":120,\"tier\":\"village\",\"terrain\":\"river\",\"plan\":\"cross\",\"cauldron\":true,\"half\":150,\"layout\":\"/api/layout?settlement=7\"}],\"roads\":[{\"a\":\"7\",\"b\":\"8\"}]}";
+            var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldManifestFrame>(manifestJson);
+            if (manifest == null || manifest.Version != 1 || manifest.ChunkMeters != 256 ||
+                manifest.Settlements == null || manifest.Settlements.Count != 1 ||
+                manifest.Settlements[0].Id != "7" || manifest.Settlements[0].East != 256d)
+                throw new FormatException("World manifest v1.19 DTO deserialization failed.");
+
+            const string terrainJson = "{\"id\":\"0:1:-1\",\"frame\":0,\"chunk\":[1,-1],\"origin\":{\"e\":256,\"n\":-256},\"size_m\":256,\"step_m\":64,\"side\":5,\"heights\":[120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120,120],\"settlements\":[]}";
+            var terrain = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.TerrainChunkFrame>(terrainJson);
+            if (terrain == null || !terrain.IsValid || terrain.Chunk[0] != 1 || terrain.Chunk[1] != -1)
+                throw new FormatException("Terrain chunk v1.19 DTO deserialization failed.");
+        }
+
         private static void ValidateMapProjection()
         {
             var map = new Rect(10f, 20f, 300f, 300f);
