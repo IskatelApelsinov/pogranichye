@@ -2933,13 +2933,6 @@ namespace Pogranichye.Client
             }
         }
 
-        private bool TryKeepCurrentLayoutAtGlobalPosition(WorldFrame frame)
-        {
-            if (_layoutCache == null || frame?.Place?.Anchor == null) return false;
-            _layoutCache.Update(frame);
-            return true;
-        }
-
         private void EnsureLayoutForPlace(WorldFrame frame)
         {
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
@@ -2947,7 +2940,7 @@ namespace Pogranichye.Client
 
             // Starter tutorial geometry remains the authored prototype. Generated settlements
             // are independent cached roots so a transition never destroys the previous layout.
-            if (frame.Place.Plan == null || frame.Place.Plan == "starter")
+            if (frame.Place.Plan == "starter" || (_layoutSettlementId == null && frame.Place.Plan == null))
             {
                 if (_layoutRequestedFor != null)
                 {
