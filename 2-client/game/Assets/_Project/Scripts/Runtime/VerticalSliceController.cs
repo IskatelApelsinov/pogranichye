@@ -280,6 +280,20 @@ namespace Pogranichye.Client
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
+            if (_activityMiniGame != ActivityMiniGame.None && _input != null)
+            {
+                if (_input.CancelPressed)
+                {
+                    _activityMiniGame = ActivityMiniGame.None;
+                    _activityMiniGameFeedback = "Работа прервана.";
+                }
+                else if (_input.JumpPressed)
+                {
+                    // Space is the primary mini-game action while a mini-game owns input;
+                    // it must never leak through as a character jump.
+                    HandleActivityMiniGamePrimaryAction();
+                }
+            }
             if (_input != null && _input.ToggleDiagnosticsPressed) _movementDebugVisible = !_movementDebugVisible;
             if (_input != null && _input.ToggleFullscreenPressed) ToggleFullscreen();
             if (_interactionProbe != null)
@@ -1999,25 +2013,11 @@ namespace Pogranichye.Client
             {
                 GUILayout.Label("РУБКА · РИТМ УДАРОВ");
                 var phase = Mathf.PingPong(elapsed * 0.85f, 1f);
-                GUILayout.Label("Точные удары: " + _woodcuttingGoodHits + " / 3");
+                GUILayout.Label("Точные удары: " + _woodcuttingGoodHits + " / 3 · Space — ударить · Esc — отойти");
                 DrawTimingTrack(phase, 0.40f, 0.18f);
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Ударить", GUILayout.Height(34f)))
-                {
-                    _views?.PlayPlayerActionGesture("chop");
-                    if (Mathf.Abs(phase - 0.40f) <= 0.09f)
-                    {
-                        _woodcuttingGoodHits++;
-                        _activityMiniGameFeedback = "Точный удар!";
-                        if (_woodcuttingGoodHits >= 3)
-                        {
-                            _activityMiniGame = ActivityMiniGame.None;
-                            _activityMiniGameFeedback = "Ритм выдержан. Сервер проверяет инструмент, место и результат…";
-                            QueueWorldAction("chop");
-                        }
-                    }
-                    else _activityMiniGameFeedback = "Удар пришёлся мимо ритма. Попробуйте ещё раз.";
-                }
+                if (GUILayout.Button("Ударить [Space]", GUILayout.Height(34f)))
+                    HandleActivityMiniGamePrimaryAction();
                 if (GUILayout.Button("Отойти", GUILayout.Width(90f)))
                 {
                     _activityMiniGame = ActivityMiniGame.None;
@@ -2034,19 +2034,14 @@ namespace Pogranichye.Client
                 {
                     GUILayout.Label("Поплавок спокойно покачивается…");
                     GUILayout.HorizontalSlider(Mathf.Clamp01(elapsed / biteAt), 0f, 1f);
-                    GUILayout.Label("Ждите поклёвку.");
+                    GUILayout.Label("Ждите поклёвку. Space — подсечь, когда клюнет · Esc — свернуть.");
                 }
                 else if (elapsed <= biteAt + biteDuration)
                 {
                     GUILayout.Label("ПОКЛЁВКА! Подсекайте!");
                     GUILayout.HorizontalSlider((biteAt + biteDuration - elapsed) / biteDuration, 0f, 1f);
-                    if (GUILayout.Button("Подсечь!", GUILayout.Height(38f)))
-                    {
-                        _views?.PlayPlayerActionGesture("fish_reel");
-                        _activityMiniGame = ActivityMiniGame.None;
-                        _activityMiniGameFeedback = "Подсечка выполнена. Сервер проверяет водоём, снасти и улов…";
-                        QueueWorldAction("fish");
-                    }
+                    if (GUILayout.Button("Подсечь! [Space]", GUILayout.Height(38f)))
+                        HandleActivityMiniGamePrimaryAction();
                 }
                 else
                 {
@@ -2063,6 +2058,49 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(_activityMiniGameFeedback))
                 GUILayout.Label(_activityMiniGameFeedback);
             GUILayout.EndVertical();
+        }
+
+        private void HandleActivityMiniGamePrimaryAction()
+        {
+            if (_activityMiniGame == ActivityMiniGame.None) return;
+            var elapsed = Mathf.Max(0f, Time.realtimeSinceStartup - _activityMiniGameStartedAt);
+            if (_activityMiniGame == ActivityMiniGame.Woodcutting)
+            {
+                var phase = Mathf.PingPong(elapsed * 0.85f, 1f);
+                _views?.PlayPlayerActionGesture("chop");
+                if (Mathf.Abs(phase - 0.40f) <= 0.09f)
+                {
+                    _woodcuttingGoodHits++;
+                    _activityMiniGameFeedback = "Точный удар!";
+                    if (_woodcuttingGoodHits >= 3)
+                    {
+                        _activityMiniGame = ActivityMiniGame.None;
+                        _activityMiniGameFeedback = "Ритм выдержан. Сервер проверяет инструмент, место и результат…";
+                        QueueWorldAction("chop");
+                    }
+                }
+                else _activityMiniGameFeedback = "Удар пришёлся мимо ритма. Попробуйте ещё раз.";
+                return;
+            }
+
+            const float biteAt = 2.0f;
+            const float biteDuration = 2.6f;
+            if (elapsed < biteAt)
+            {
+                _activityMiniGameFeedback = "Пока рано — дождитесь поклёвки.";
+                return;
+            }
+            if (elapsed <= biteAt + biteDuration)
+            {
+                _views?.PlayPlayerActionGesture("fish_reel");
+                _activityMiniGame = ActivityMiniGame.None;
+                _activityMiniGameFeedback = "Подсечка выполнена. Сервер проверяет водоём, снасти и улов…";
+                QueueWorldAction("fish");
+            }
+            else
+            {
+                _activityMiniGameFeedback = "Рыба ушла. Забросьте удочку ещё раз.";
+            }
         }
 
         private static void DrawTimingTrack(float marker, float targetCenter, float targetWidth)
