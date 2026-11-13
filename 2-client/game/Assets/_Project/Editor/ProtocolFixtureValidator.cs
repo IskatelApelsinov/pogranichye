@@ -87,7 +87,12 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"neighbors\":[{\"id\":43}]}}", "numeric neighbor.id");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"neighbors\":{}}}", "non-array neighbors");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0}}}", "incomplete me.pos");
-            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":31,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":0}}}", "out-of-bounds scene position");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":151,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":0}}}", "out-of-bounds scene position");
+            const string extendedScenePosition = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":151,\"y\":0,\"facing\":90,\"stam\":1,\"seq\":1},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":151,\"n\":0,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":0,\"e\":0,\"n\":0,\"u\":120}}}";
+            var extendedFrame = WorldFrameParser.Parse(extendedScenePosition);
+            if (extendedFrame.Me.Position == null || extendedFrame.Me.Position.X != 151d)
+                throw new FormatException("A seamless player position outside the settlement footprint must parse when anchor + me.pos matches me.wpos.");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":151,\"y\":0,\"facing\":90,\"stam\":1,\"seq\":1},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":152,\"n\":0,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[0,0],\"layer\":1}},\"place\":{\"anchor\":{\"frame\":0,\"e\":0,\"n\":0,\"u\":120}}}", "extended scene position inconsistent with global position");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":\"1\"}}}", "string movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":9223372036854775808}}}", "overflowing movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"18446744073709551616\"}}", "overflowing me.id");
