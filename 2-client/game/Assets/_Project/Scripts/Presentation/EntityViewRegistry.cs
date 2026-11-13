@@ -14,8 +14,13 @@ namespace Pogranichye.Client.Presentation
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-        private readonly Dictionary<ulong, GameObject> _views = new Dictionary<ulong, GameObject>();
-        private readonly Dictionary<ulong, string> _neighborEquipmentSignatures = new Dictionary<ulong, string>();
+        private readonly Dictionary<ulong, GameObject> _views = new Dictionary<ulong, GameObject>(32);
+        private readonly Dictionary<ulong, string> _neighborEquipmentSignatures = new Dictionary<ulong, string>(32);
+        // Reuse per-snapshot scratch collections: full frames arrive repeatedly and should
+        // not allocate fresh HashSet/List instances on every network update.
+        private readonly HashSet<ulong> _activeIds = new HashSet<ulong>();
+        private readonly List<ulong> _staleIds = new List<ulong>(32);
+        private const int MaxRemoteNeighborViews = 24;
         // Full snapshots are 1 Hz. Retain a missing neighbor briefly to bridge one transient
         // AOI/snapshot gap at a settlement seam; server presence remains authoritative.
         private readonly Dictionary<ulong, float> _neighborLastSeenAt = new Dictionary<ulong, float>();
@@ -82,7 +87,9 @@ namespace Pogranichye.Client.Presentation
         {
             if (frame == null || !frame.Alive || frame.Me == null) return;
 
-            var active = new HashSet<ulong>();
+            var active = _activeIds;
+            active.Clear();
+            _staleIds.Clear();
 #if UNITY_EDITOR
             var hasFrameTargetBounds = false;
             var hasFrameViewBounds = false;
@@ -145,7 +152,11 @@ namespace Pogranichye.Client.Presentation
             if (neighbors != null)
             {
                 var visibleCount = 0;
-                for (var i = 0; i < neighbors.Count; i++)
+                // The server currently advertises at most 24 AOI neighbors. Keep this
+                // client-side ceiling too, so malformed/future oversized snapshots cannot
+                // instantiate an unbounded number of animated GameObjects and colliders.
+                var neighborCount = Mathf.Min(neighbors.Count, MaxRemoteNeighborViews);
+                for (var i = 0; i < neighborCount; i++)
                 {
                     var neighbor = neighbors[i];
                     if (neighbor == null) continue;
@@ -285,7 +296,7 @@ namespace Pogranichye.Client.Presentation
 #endif
             ApplyTalkPresentation(frame, player);
 
-            var stale = new List<ulong>();
+            var stale = _staleIds;
             foreach (var pair in _views)
             {
                 if (active.Contains(pair.Key)) continue;
