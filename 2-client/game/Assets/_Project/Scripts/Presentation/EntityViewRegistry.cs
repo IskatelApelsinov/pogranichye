@@ -45,12 +45,20 @@ namespace Pogranichye.Client.Presentation
         // Editor-only telemetry for the reported "all NPCs stand still" issue. It observes
         // authoritative projected targets without changing movement or creating client simulation.
         private readonly Dictionary<ulong, Vector3> _diagnosticNpcTargets = new Dictionary<ulong, Vector3>();
+        private readonly Dictionary<ulong, Vector3> _diagnosticNpcViews = new Dictionary<ulong, Vector3>();
         private float _nextNpcDiagnosticAt;
         private int _diagnosticNpcSamples;
         private int _diagnosticNpcMoved;
+        private int _diagnosticNpcViewsMoved;
         private int _diagnosticGlobalSamples;
         private int _diagnosticLocalSamples;
         private float _diagnosticMaxPresentationGap;
+        private Vector3 _diagnosticTargetMin;
+        private Vector3 _diagnosticTargetMax;
+        private Vector3 _diagnosticViewMin;
+        private Vector3 _diagnosticViewMax;
+        private bool _diagnosticHasTargetBounds;
+        private bool _diagnosticHasViewBounds;
 #endif
 
         public Transform PlayerTransform { get; private set; }
@@ -151,9 +159,38 @@ namespace Pogranichye.Client.Presentation
                         (position - previousTarget).sqrMagnitude > 0.0025f)
                         _diagnosticNpcMoved++;
                     _diagnosticNpcTargets[id] = position;
+                    if (!_diagnosticHasTargetBounds)
+                    {
+                        _diagnosticTargetMin = position;
+                        _diagnosticTargetMax = position;
+                        _diagnosticHasTargetBounds = true;
+                    }
+                    else
+                    {
+                        _diagnosticTargetMin = Vector3.Min(_diagnosticTargetMin, position);
+                        _diagnosticTargetMax = Vector3.Max(_diagnosticTargetMax, position);
+                    }
                     if (_views.TryGetValue(id, out var diagnosticView) && diagnosticView != null)
+                    {
+                        var viewPosition = diagnosticView.transform.position;
+                        if (_diagnosticNpcViews.TryGetValue(id, out var previousViewPosition) &&
+                            (viewPosition - previousViewPosition).sqrMagnitude > 0.0025f)
+                            _diagnosticNpcViewsMoved++;
+                        _diagnosticNpcViews[id] = viewPosition;
+                        if (!_diagnosticHasViewBounds)
+                        {
+                            _diagnosticViewMin = viewPosition;
+                            _diagnosticViewMax = viewPosition;
+                            _diagnosticHasViewBounds = true;
+                        }
+                        else
+                        {
+                            _diagnosticViewMin = Vector3.Min(_diagnosticViewMin, viewPosition);
+                            _diagnosticViewMax = Vector3.Max(_diagnosticViewMax, viewPosition);
+                        }
                         _diagnosticMaxPresentationGap = Mathf.Max(_diagnosticMaxPresentationGap,
-                            Vector3.Distance(diagnosticView.transform.position, position));
+                            Vector3.Distance(viewPosition, position));
+                    }
 #endif
                     var view = GetOrCreate(id, neighbor.Name, neighbor.Role, position, neighbor.Controlled, false);
                     SetActivityCode(view, neighbor.ActivityCode);
@@ -206,6 +243,7 @@ namespace Pogranichye.Client.Presentation
                 _neighborLastSeenAt.Remove(id);
 #if UNITY_EDITOR
                 _diagnosticNpcTargets.Remove(id);
+                _diagnosticNpcViews.Remove(id);
 #endif
             }
 
@@ -217,13 +255,23 @@ namespace Pogranichye.Client.Presentation
                 _nextNpcDiagnosticAt = Time.unscaledTime + 5f;
                 if (_diagnosticNpcSamples > 0)
                     Debug.Log($"[Pogranichye NPC replication] samples={_diagnosticNpcSamples}, " +
-                        $"targetsMoved={_diagnosticNpcMoved}, wpos={_diagnosticGlobalSamples}, " +
-                        $"localPos={_diagnosticLocalSamples}, maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
+                        $"targetsMoved={_diagnosticNpcMoved}, viewsMoved={_diagnosticNpcViewsMoved}, " +
+                        $"targetSpan={(_diagnosticHasTargetBounds ? (_diagnosticTargetMax - _diagnosticTargetMin).magnitude : 0f):F2}m, " +
+                        $"viewSpan={(_diagnosticHasViewBounds ? (_diagnosticViewMax - _diagnosticViewMin).magnitude : 0f):F2}m, " +
+                        $"wpos={_diagnosticGlobalSamples}, localPos={_diagnosticLocalSamples}, " +
+                        $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
                 _diagnosticNpcSamples = 0;
                 _diagnosticNpcMoved = 0;
+                _diagnosticNpcViewsMoved = 0;
                 _diagnosticGlobalSamples = 0;
                 _diagnosticLocalSamples = 0;
                 _diagnosticMaxPresentationGap = 0f;
+                _diagnosticTargetMin = Vector3.zero;
+                _diagnosticTargetMax = Vector3.zero;
+                _diagnosticViewMin = Vector3.zero;
+                _diagnosticViewMax = Vector3.zero;
+                _diagnosticHasTargetBounds = false;
+                _diagnosticHasViewBounds = false;
             }
 #endif
         }
