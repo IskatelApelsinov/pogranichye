@@ -32,6 +32,8 @@ namespace Pogranichye.Client.Presentation
             _activeBuildAssets = new System.Collections.Generic.List<UnityEngine.Object>();
             var world = new GameObject("ServerLayoutV2").transform;
             world.SetParent(root, false);
+            try
+            {
             RemoveLegacyOverlappingSettlementAssets(root, layout);
             _ground = MakeTexturedMaterial("Layout ground • meadow", new Color(0.36f, 0.43f, 0.25f), 0, 10f, 10f);
             _water = MakeTexturedMaterial("Layout river • current", new Color(0.17f, 0.36f, 0.43f), 5, 2f, 18f);
@@ -159,6 +161,18 @@ namespace Pogranichye.Client.Presentation
             CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
             CreateCombinedMesh(world, "Far woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
             RegisterAssets(root);
+            }
+            catch
+            {
+                if (_activeBuildAssets != null)
+                {
+                    for (var i = 0; i < _activeBuildAssets.Count; i++)
+                        if (_activeBuildAssets[i] != null) UnityEngine.Object.Destroy(_activeBuildAssets[i]);
+                    _activeBuildAssets = null;
+                }
+                if (world != null) UnityEngine.Object.Destroy(world.gameObject);
+                throw;
+            }
         }
 
 
