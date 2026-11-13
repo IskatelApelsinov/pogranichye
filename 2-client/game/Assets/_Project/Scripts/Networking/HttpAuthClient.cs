@@ -62,6 +62,61 @@ namespace Pogranichye.Client.Networking
             }
         }
 
+        /// <summary>Loads the v1.19 world manifest. This is streaming metadata, not player knowledge.</summary>
+        public async Task<WorldManifestFrame> GetWorldManifestAsync()
+        {
+            using (var request = UnityWebRequest.Get(_baseUrl + "/api/world"))
+            {
+                request.timeout = 15;
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/world: " + request.error);
+                var manifest = JsonConvert.DeserializeObject<WorldManifestFrame>(request.downloadHandler.text);
+                if (manifest == null || manifest.Scheme != "yof-tangent" || manifest.Version != 1 ||
+                    manifest.Units != "m" || manifest.ChunkMeters != 256 || manifest.LayerMeters != 64 ||
+                    manifest.Frames == null || manifest.Settlements == null || manifest.Roads == null)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую карту мира v1.19.");
+                foreach (var settlement in manifest.Settlements)
+                    if (settlement == null || string.IsNullOrEmpty(settlement.Id) ||
+                        !IsFinite(settlement.East) || !IsFinite(settlement.North) ||
+                        !IsFinite(settlement.Up) || !IsFinite(settlement.Half))
+                        throw new InvalidOperationException("Карта мира содержит некорректное поселение.");
+                return manifest;
+            }
+        }
+
+        /// <summary>
+        /// Loads one deterministic 256 m terrain chunk. Heights are south-to-north rows,
+        /// west-to-east within each row; shared border samples make adjacent chunks seamless.
+        /// </summary>
+        public async Task<TerrainChunkFrame> GetTerrainChunkAsync(long chunkX, long chunkZ, int stepMeters = 16)
+        {
+            if (stepMeters != 8 && stepMeters != 16 && stepMeters != 32 && stepMeters != 64)
+                throw new ArgumentOutOfRangeException(nameof(stepMeters), "Шаг рельефа: 8, 16, 32 или 64 м.");
+            var url = _baseUrl + "/api/terrain?cx=" +
+                chunkX.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&cz=" + chunkZ.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&step=" + stepMeters.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/terrain: " + request.error);
+                var chunk = JsonConvert.DeserializeObject<TerrainChunkFrame>(request.downloadHandler.text);
+                if (chunk == null || !chunk.IsValid || chunk.Chunk[0] != chunkX ||
+                    chunk.Chunk[1] != chunkZ || chunk.StepMeters != stepMeters)
+                    throw new InvalidOperationException("Сервер вернул некорректный или неожиданный чанк рельефа.");
+                return chunk;
+            }
+        }
+
         private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
         public Task<AuthResponse> RegisterAsync(string login, string password)
