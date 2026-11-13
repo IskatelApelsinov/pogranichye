@@ -79,7 +79,15 @@ func RentRoom(w *core.World, e *core.Entity, roomID core.ID, day int64, reqid st
 		return false, "нужно быть у входа в корчму"
 	}
 	if room.Tenant != 0 && room.Tenant != e.ID {
-		return false, "комната уже занята"
+		state := RoomLeaseStateAt(room, day)
+		if state == RoomLeaseActive || state == RoomLeaseGrace {
+			return false, "комната уже занята"
+		}
+		// Expired tenants keep ownership of their stored items until they renew and retrieve
+		// them. Never hand a new tenant another player's chest contents.
+		if chest := Container(w.Get(room.ChestID)); chest != nil && chest.Load() > 1e-9 {
+			return false, "в сундуке остались вещи прежнего жильца"
+		}
 	}
 	if room.Tenant != e.ID && otherActiveRoom(w, e.ID, roomID, day) {
 		return false, "у тебя уже есть другая снятая комната"
@@ -274,7 +282,13 @@ func PlaceRoomsView(w *core.World, settlement core.ID, day int64) map[string]any
 			return
 		}
 		total++
-		if RoomLeaseStateAt(r, day) != RoomLeaseActive && RoomLeaseStateAt(r, day) != RoomLeaseGrace {
+		state := RoomLeaseStateAt(r, day)
+		available := state == RoomLeaseVacant
+		if state == RoomLeaseExpired {
+			chest := Container(w.Get(r.ChestID))
+			available = chest == nil || chest.Load() <= 1e-9
+		}
+		if available {
 			vacant++
 		}
 		rent = r.RentPrice

@@ -139,6 +139,57 @@ func TestRentRoomRejectsWhenAlreadyTenantOfAnother(t *testing.T) {
 	}
 }
 
+func TestExpiredRoomWithStoredItemsCannotBeReassigned(t *testing.T) {
+	w, previousTenant, se := starterPlayer(t)
+	newTenant := secondPlayer(t, w, se, previousTenant.ID)
+	rooms := tavernRoomsOf(w, se.ID)
+	GoTo(w, previousTenant, "tavern")
+	GoTo(w, newTenant, "tavern")
+
+	if ok, why := RentRoom(w, previousTenant, rooms[0], 10, "old-rent"); !ok {
+		t.Fatalf("первая аренда должна пройти: %q", why)
+	}
+	if ok, why := EnterRoom(w, previousTenant, rooms[0], 10, "old-enter"); !ok {
+		t.Fatalf("старый арендатор должен войти: %q", why)
+	}
+	ensureInv(w, previousTenant).Items["torch"] = 1
+	if ok, why := StowToChest(w, previousTenant, rooms[0], "torch", 1, 10, "old-stow"); !ok {
+		t.Fatalf("старый арендатор должен положить вещь в сундук: %q", why)
+	}
+
+	if state := RoomLeaseStateAt(Room(w.Get(rooms[0])), 12); state != RoomLeaseExpired {
+		t.Fatalf("к 12-му дню аренда должна истечь, состояние %q", state)
+	}
+	if ok, why := RentRoom(w, newTenant, rooms[0], 12, "new-rent-blocked"); ok || why == "" {
+		t.Fatal("новый арендатор не должен получать сундук с чужими вещами")
+	}
+	if summary := PlaceRoomsView(w, se.ID, 12); summary["vacant"] != 1 {
+		t.Fatalf("комната с чужими вещами не должна считаться вакантной: %#v", summary)
+	}
+
+	// Старый арендатор может продлить именно эту комнату, забрать вещи и освободить сундук.
+	if ok, why := RentRoom(w, previousTenant, rooms[0], 12, "old-renew"); !ok {
+		t.Fatalf("старый арендатор должен иметь возможность продлить комнату: %q", why)
+	}
+	if ok, why := EnterRoom(w, previousTenant, rooms[0], 12, "old-reenter"); !ok {
+		t.Fatalf("старый арендатор должен снова войти: %q", why)
+	}
+	if ok, why := TakeFromChest(w, previousTenant, rooms[0], "torch", 1, 12, "old-take"); !ok {
+		t.Fatalf("старый арендатор должен забрать свою вещь: %q", why)
+	}
+	if ok, why := ExitRoom(w, previousTenant, "old-exit"); !ok {
+		t.Fatalf("старый арендатор должен выйти: %q", why)
+	}
+
+	// После следующего истечения пустая комната безопасно передаётся новому арендатору.
+	if ok, why := RentRoom(w, newTenant, rooms[0], 14, "new-rent"); !ok {
+		t.Fatalf("пустую комнату после истечения можно пересдать: %q", why)
+	}
+	if Room(w.Get(rooms[0])).Tenant != newTenant.ID {
+		t.Fatal("после пересдачи владельцем комнаты должен стать новый арендатор")
+	}
+}
+
 func TestExpiredRoomLeaseDoesNotBlockRentingAnotherRoom(t *testing.T) {
 	w, e, se := starterPlayer(t)
 	rooms := tavernRoomsOf(w, se.ID)
