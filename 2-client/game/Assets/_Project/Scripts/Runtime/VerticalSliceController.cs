@@ -2554,6 +2554,7 @@ namespace Pogranichye.Client
                     if (!ReferenceEquals(_socket, socket) || _connectionState == WorldConnectionState.Closed)
                         return;
 
+                    var enteringWorld = _connectionState != WorldConnectionState.Active;
                     _frame = frame;
                     // Keep presentation lighting aligned with authoritative world time.
                     // Legacy v1 servers without hour retain the local visual preview cycle.
@@ -2586,6 +2587,9 @@ namespace Pogranichye.Client
                     }
                     else
                     {
+                        // Immersive default: enter the world with the large journal/menu closed.
+                        // F1 (or the compact corner control) still opens it on demand.
+                        if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
                         if (_core != null) _core.ApplyFrame(json);
