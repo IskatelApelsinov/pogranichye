@@ -26,6 +26,8 @@ public static class PoiPositionPolicyCheck
         var legacy = new Dictionary<string, PoiCoordinate>
         {
             { "tavern", new PoiCoordinate(-33d, 12d) },
+            { "garden", new PoiCoordinate(70d, -20d) },
+            { "apiary", new PoiCoordinate(73.6d, -20.9d) },
             { "woods", new PoiCoordinate(-95d, 10d) }
         };
 
@@ -64,6 +66,9 @@ public static class PoiPositionPolicyCheck
         Check(PoiPositionPolicy.TryResolve("tavern", null, legacy, false, true, out point) &&
               point.X == -33d && point.Y == 12d,
             "legacy starter coordinates remain available when explicitly allowed");
+        Check(PoiPositionPolicy.TryResolve("apiary", null, legacy, false, true, out point) &&
+              point.X == 70d && point.Y == -20d,
+            "legacy apiary affordance uses the server's garden anchor, not the visual hive offset");
         Check(!PoiPositionPolicy.TryResolve("tavern", null, legacy, false, false, out point),
             "generated settlement waiting for its layout never uses starter coordinates");
         Check(!PoiPositionPolicy.TryResolve(null, layout, legacy, true, false, out point) &&
