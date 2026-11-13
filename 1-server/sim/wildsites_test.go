@@ -1,9 +1,9 @@
 package sim
 
 import (
-	"testing"
 	"fmt"
 	"math"
+	"testing"
 
 	"pogranichye/core"
 	"pogranichye/dice"
