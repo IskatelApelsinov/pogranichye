@@ -2931,8 +2931,11 @@ namespace Pogranichye.Client
                 }
             }
 
+            // In third-person the body performs the visible jump while the camera stays
+            // level; moving both together made the jump read as a camera bob instead of a
+            // character leaving the ground. First-person keeps the camera offset for eye height.
             if (_views != null) _views.SetPlayerPresentationOffset(Vector3.up * _jumpOffset);
-            if (_cameraRig != null) _cameraRig.SetJumpOffset(_jumpOffset);
+            if (_cameraRig != null) _cameraRig.SetJumpOffset(_firstPerson ? _jumpOffset : 0f);
         }
 
         private void UpdateMovement()
