@@ -678,8 +678,6 @@ namespace Pogranichye.Client.Presentation
             reverb.reflectionsDelay = 0.018f;
             reverb.reverb = -420;
             reverb.reverbDelay = 0.025f;
-            reverb.hfReference = 5000f;
-            reverb.lfReference = 250f;
             reverb.roomLF = -180;
             CreateCameraObstacle(tavern, "Camera collision • back wall", new Vector3(0, 1.35f, 1.95f), new Vector3(5.2f, 2.7f, 0.18f));
             CreateCameraObstacle(tavern, "Camera collision • left wall", new Vector3(-2.52f, 1.35f, 0), new Vector3(0.18f, 2.7f, 4.0f));
