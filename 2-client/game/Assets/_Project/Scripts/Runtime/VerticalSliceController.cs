@@ -2942,7 +2942,12 @@ namespace Pogranichye.Client
             if (placeId == _layoutSettlementId)
             {
                 // The player may return before another settlement's layout request completes.
-                // Re-show the still-valid cached layout instead of leaving the scene blank.
+                // Invalidate that request so a later revisit can request it again.
+                if (_layoutRequestedFor != null)
+                {
+                    _layoutRequestGeneration++;
+                    _layoutRequestedFor = null;
+                }
                 WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
             }
