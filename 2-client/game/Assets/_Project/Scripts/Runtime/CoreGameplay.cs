@@ -206,6 +206,9 @@ namespace Pogranichye.Client
         // The controller reports those so this component never re-locks the cursor over them.
         private bool _externalUiCapture;
         private bool _externalModalMenuOpen;
+        private GUIStyle _questTitleStyle;
+        private GUIStyle _questBodyStyle;
+        private GUIStyle _hintTextStyle;
         private Vector2 _menuScroll;
         private float _regionMapZoom = 1f;
         private bool _weaveOpen;
@@ -2145,17 +2148,24 @@ namespace Pogranichye.Client
                 shield > 0f || (stance.Length > 0 && stance != "balanced");
             if (combatIsNotable)
             {
-                var line = (string.IsNullOrEmpty(weapon) ? "К бою" : Name(weapon))
+                var line = "В руках: " + (string.IsNullOrEmpty(weapon) ? "оружие не выбрано" : Name(weapon))
                     + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
                     + (stance == "aggressive" ? " · яростная стойка" : stance == "defensive" ? " · осторожная стойка" : "")
                     + (guard ? " · блок" : "") + (sneak ? " · скрытность" : "")
                     + (feint ? " · финт" : "") + (shield > 0f ? " · щит " + (int)shield : "");
-                GUI.Label(new Rect(x - 150f, y - 22f, width + 300f, 18f), line);
+                GUI.Label(new Rect(x - 150f, y - 24f, width + 300f, 24f), line);
             }
 
             if (_showHints)
-                GUI.Label(new Rect(12f, Screen.height - 34f, Screen.width - 24f, 24f),
-                    "ЛКМ удар · ПКМ блок · CapsLock/СКМ захват · Q уворот · F укол · R плетение · Tab дела · H подсказки");
+            {
+                EnsureHudTextStyles();
+                var hintRect = new Rect(12f, Screen.height - 66f, Mathf.Min(390f, Screen.width - 24f), 54f);
+                GUI.Box(hintRect, GUIContent.none, GUI.skin.box);
+                GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 4f, hintRect.width - 16f, 22f),
+                    "WASD — ходить · E — действие · T — чат · Tab — персонаж", _hintTextStyle);
+                GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 27f, hintRect.width - 16f, 22f),
+                    "ЛКМ — удар · ПКМ — блок · Q — уворот · F — укол · H — скрыть", _hintTextStyle);
+            }
         }
 
         private void DrawFeed()
@@ -2173,46 +2183,86 @@ namespace Pogranichye.Client
             }
         }
 
+        private void EnsureHudTextStyles()
+        {
+            if (_questTitleStyle == null)
+            {
+                _questTitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 12,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = false
+                };
+            }
+            if (_questBodyStyle == null)
+            {
+                _questBodyStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 12,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = true
+                };
+            }
+            if (_hintTextStyle == null)
+            {
+                _hintTextStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 10,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = true
+                };
+            }
+        }
+
         private void DrawQuestTracker()
         {
             if (_me == null || _menuOpen) return;
-            var y = 14f;
             var task = Obj(_me, "task");
             var issued = Obj(task, "issued");
+            string title;
+            string objective;
+            var ready = false;
+
             if (issued != null && !Flag(task, "errand_done"))
             {
                 var good = Str(issued, "good");
                 var have = Mathf.Max(0f, Num(issued, "have"));
                 var qty = Mathf.Max(0f, Num(issued, "qty"));
-                var ready = Flag(issued, "ready");
+                ready = Flag(issued, "ready");
                 var giver = Str(issued, "giver_name");
-                var title = string.IsNullOrEmpty(giver) ? "Поручение" : "Поручение · " + giver;
-                var objective = "Принести: " + Name(good) + " · " +
+                title = string.IsNullOrEmpty(giver) ? "ПОРУЧЕНИЕ" : "ПОРУЧЕНИЕ · " + giver;
+                objective = "Принести: " + Name(good) + " · " +
                     Mathf.Min((int)have, (int)qty) + "/" + (int)qty;
-                var previous = GUI.color;
-                GUI.color = ready ? new Color(0.91f, 0.74f, 0.4f) : Color.white;
-                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 22f), title);
-                y += 20f;
-                GUI.Label(new Rect(Screen.width - 430f, y, 420f, 22f),
-                    ready ? objective + " · можно сдавать" : objective);
-                GUI.color = previous;
-                y += 26f;
-                // Keep only the personal errand in the world overlay. The full quest list
-                // remains in the journal, away from the player's field of view.
-                return;
+                var sourceSettlement = Str(issued, "settlement_name");
+                if (!string.IsNullOrWhiteSpace(sourceSettlement))
+                    objective += " · взято: " + sourceSettlement;
+                if (ready) objective += " · можно сдавать";
+            }
+            else
+            {
+                var active = Arr(Obj(_me, "quests"), "active");
+                if (active == null || active.Count == 0) return;
+                var quest = active[0];
+                var kind = Str(quest, "kind");
+                var progress = kind == "deliver" || kind == "cull"
+                    ? " · " + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) +
+                      "/" + (int)Num(quest, "qty")
+                    : string.Empty;
+                title = "ЗАДАЧА";
+                objective = (Flag(quest, "ready") ? "Готово · " : "") + Str(quest, "text") + progress;
+                ready = Flag(quest, "ready");
             }
 
-            var active = Arr(Obj(_me, "quests"), "active");
-            if (active == null || active.Count == 0) return;
-            // One concise objective is enough for moment-to-moment play; never stack a
-            // wall of quest text over the world. Additional objectives remain in the journal.
-            var quest = active[0];
-            var kind = Str(quest, "kind");
-            var progress = kind == "deliver" || kind == "cull"
-                ? " (" + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) + "/" + (int)Num(quest, "qty") + ")"
-                : string.Empty;
-            GUI.Label(new Rect(Screen.width - 430f, y, 420f, 40f),
-                (Flag(quest, "ready") ? "[готово] " : "") + Str(quest, "text") + progress);
+            EnsureHudTextStyles();
+            var width = Mathf.Min(460f, Screen.width - 24f);
+            var rect = new Rect(Screen.width - width - 12f, 12f, width, 68f);
+            var previousColor = GUI.color;
+            GUI.color = ready ? new Color(0.34f, 0.30f, 0.20f, 0.96f) : new Color(0.10f, 0.13f, 0.12f, 0.94f);
+            GUI.Box(rect, GUIContent.none, GUI.skin.box);
+            GUI.color = previousColor;
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 5f, rect.width - 20f, 20f), title, _questTitleStyle);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 26f, rect.width - 20f, 38f), objective, _questBodyStyle);
         }
 
         private static string OptionRu(string option)
