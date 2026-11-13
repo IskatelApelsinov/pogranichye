@@ -4024,12 +4024,11 @@ namespace Pogranichye.Client.Presentation
             CreatePrimitive("Sign board", PrimitiveType.Cube, parent, position,
                 new Vector3(width * 2.2f, 0.38f, 0.1f), _roofMaterial);
 
-            // TextMesh is a flat surface. A single face can appear mirrored when viewed
-            // from behind, so place a correctly oriented inscription on each side of the board.
-            // TextMesh front faces local -Z: the negative-Z side uses identity,
-            // while the positive-Z side needs a 180-degree yaw.
-            CreateSignFace(parent, title, position + new Vector3(0f, 0f, -0.07f), 0f, "front");
-            CreateSignFace(parent, title, position + new Vector3(0f, 0f, 0.07f), 180f, "back");
+            // TextMesh front faces local +Z. Turn the inscription on the negative-Z
+            // side outward by 180 degrees; the positive-Z side keeps identity rotation.
+            // SignFaceVisibility then enables only the outward-facing inscription.
+            CreateSignFace(parent, title, position + new Vector3(0f, 0f, -0.07f), 180f, "front");
+            CreateSignFace(parent, title, position + new Vector3(0f, 0f, 0.07f), 0f, "back");
         }
 
         private static void CreateSignFace(Transform parent, string title, Vector3 localPosition,
