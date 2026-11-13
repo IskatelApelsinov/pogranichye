@@ -78,6 +78,14 @@ namespace Pogranichye.Client
         private string _goalToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
+        // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
+        private WorldManifestFrame _worldManifest;
+        private TerrainChunkFrame _terrainChunk;
+        private string _terrainChunkRequestedId;
+        private string _terrainAppliedSettlementId;
+        private double _terrainAppliedAnchorEast = double.NaN;
+        private double _terrainAppliedAnchorNorth = double.NaN;
+        private double _terrainAppliedAnchorUp = double.NaN;
         // v1.19: id of the settlement whose layout is currently built; null means the tutorial default.
         private string _layoutSettlementId;
         private string _layoutRequestedFor;
@@ -1995,8 +2003,23 @@ namespace Pogranichye.Client
             try
             {
                 // Layout v2 is required before enabling prediction: local geometry must match the server.
-                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync();
+                var http = new HttpAuthClient(serverUrl);
+                var layout = await http.GetLayoutAsync();
                 _layout = layout;
+                // v1.19: read global map metadata before enabling the socket. Older compatible servers
+                // may not expose it, so this optional layer must never block the settlement demo.
+                try { _worldManifest = await http.GetWorldManifestAsync(); }
+                catch (Exception worldError)
+                {
+                    _worldManifest = null;
+                    Enqueue(() => Debug.LogWarning("Карта мира v1.19 пока недоступна; остаёмся в локальном режиме поселения: " + worldError.Message));
+                }
+                _terrainChunk = null;
+                _terrainChunkRequestedId = null;
+                _terrainAppliedSettlementId = null;
+                _terrainAppliedAnchorEast = double.NaN;
+                _terrainAppliedAnchorNorth = double.NaN;
+                _terrainAppliedAnchorUp = double.NaN;
                 // After a reconnect another settlement's layout may still be on screen: start again from
                 // the default one; EnsureLayoutForPlace switches to the right settlement on the first frame.
                 var replacing = _layoutSettlementId != null;
@@ -2081,6 +2104,7 @@ namespace Pogranichye.Client
 
                     _frame = frame;
                     EnsureLayoutForPlace(frame);
+                    EnsureTerrainChunkForFrame(frame);
                     if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
@@ -2485,6 +2509,78 @@ namespace Pogranichye.Client
         /// that settlement's layout and rebuild the presentation and local collision from it. The first
         /// frame after login also lands here, so the tutorial default is replaced only when needed.
         /// </summary>
+        /// <summary>
+        /// Streams only the chunk containing the authoritative player position. Server coordinates stay
+        /// double precision; only the final chunk mesh is rebased to the current settlement anchor.
+        /// Seamless server travel remains disabled until multi-chunk presentation and collision are complete.
+        /// </summary>
+        private void EnsureTerrainChunkForFrame(WorldFrame frame)
+        {
+            if (_worldManifest == null || frame == null || frame.Me == null ||
+                frame.Place == null || frame.Place.Anchor == null ||
+                frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid)
+                return;
+
+            var anchor = frame.Place.Anchor;
+            var position = frame.Me.WorldPosition;
+            if (anchor.Frame != position.Frame || position.Frame != 0) return;
+            var chunkX = position.Chunk[0];
+            var chunkZ = position.Chunk[1];
+            var chunkId = position.Frame + ":" + chunkX + ":" + chunkZ;
+            if (_terrainChunk != null && _terrainChunk.Id == chunkId)
+            {
+                var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
+                    Math.Abs(_terrainAppliedAnchorEast - anchor.East) > 0.001 ||
+                    Math.Abs(_terrainAppliedAnchorNorth - anchor.North) > 0.001 ||
+                    Math.Abs(_terrainAppliedAnchorUp - anchor.Up) > 0.001;
+                if (changedAnchor)
+                {
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, _terrainChunk, anchor);
+                    _terrainAppliedSettlementId = frame.Place.Id;
+                    _terrainAppliedAnchorEast = anchor.East;
+                    _terrainAppliedAnchorNorth = anchor.North;
+                    _terrainAppliedAnchorUp = anchor.Up;
+                }
+                return;
+            }
+            if (_terrainChunkRequestedId == chunkId) return;
+            _terrainChunkRequestedId = chunkId;
+            _ = LoadTerrainChunkAsync(chunkX, chunkZ, chunkId);
+        }
+
+        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, string chunkId)
+        {
+            try
+            {
+                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 16);
+                Enqueue(() =>
+                {
+                    if (_terrainChunkRequestedId != chunkId || _frame == null ||
+                        _frame.Me == null || _frame.Me.WorldPosition == null ||
+                        _frame.Me.WorldPosition.Chunk == null ||
+                        _frame.Me.WorldPosition.Chunk[0] != chunkX ||
+                        _frame.Me.WorldPosition.Chunk[1] != chunkZ ||
+                        _frame.Place == null || _frame.Place.Anchor == null)
+                        return;
+                    _terrainChunk = chunk;
+                    _terrainChunkRequestedId = null;
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    _terrainAppliedSettlementId = _frame.Place.Id;
+                    _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
+                    _terrainAppliedAnchorNorth = _frame.Place.Anchor.North;
+                    _terrainAppliedAnchorUp = _frame.Place.Anchor.Up;
+                });
+            }
+            catch (Exception exception)
+            {
+                Enqueue(() =>
+                {
+                    if (_terrainChunkRequestedId == chunkId) _terrainChunkRequestedId = null;
+                    Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + ": " + exception.Message);
+                });
+            }
+        }
+
         private void EnsureLayoutForPlace(WorldFrame frame)
         {
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
