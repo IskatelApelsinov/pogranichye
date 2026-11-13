@@ -123,6 +123,13 @@ func NewStarter(seed, accPath string, secret []byte, webDir string) *Server {
 	}
 }
 
+// SetSeamless включает или выключает бесшовный мир (хранится в мире и в сохранении).
+func (s *Server) SetSeamless(on bool) {
+	s.mu.Lock()
+	sim.SetSeamless(s.world, on)
+	s.mu.Unlock()
+}
+
 // SetFrontier задаёт настройки бесконечного мира: потолок числа поселений (0 — мир не растёт) и
 // сколько деревень в каждом новом краю. Внешний мир растёт туда, куда приходят игроки.
 func (s *Server) SetFrontier(max, villages int) {
@@ -205,6 +212,26 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/ws", s.handleWS)
 	mux.HandleFunc("/api/layout", s.handleLayout)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) { // схема координат, якоря сёл, тракты
+		s.mu.Lock()
+		v := sim.WorldManifest(s.world)
+		s.mu.Unlock()
+		writeJSON(w, v)
+	})
+	mux.HandleFunc("/api/terrain", func(w http.ResponseWriter, r *http.Request) { // высоты земли одного чанка
+		q := r.URL.Query()
+		cx, err1 := strconv.ParseInt(q.Get("cx"), 10, 64)
+		cz, err2 := strconv.ParseInt(q.Get("cz"), 10, 64)
+		if err1 != nil || err2 != nil || cx < -1<<30 || cx > 1<<30 || cz < -1<<30 || cz > 1<<30 {
+			http.Error(w, "нужны целые cx и cz", http.StatusBadRequest)
+			return
+		}
+		step, _ := strconv.Atoi(q.Get("step"))
+		s.mu.Lock()
+		v := sim.TerrainChunk(s.world, cx, cz, step)
+		s.mu.Unlock()
+		writeJSON(w, v)
+	})
 	mux.HandleFunc("/api/planet", func(w http.ResponseWriter, r *http.Request) { // служебная сводка планеты
 		s.mu.Lock()
 		out := sim.PlanetView(s.world)
@@ -261,6 +288,7 @@ func (s *Server) fastStep(dt float64) {
 	// тела под управлением игроков пропускаем (их ведёт сам игрок)
 	sim.StepNPCMovement(s.world, dt, ctl)
 	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
+	sim.StepLands(s.world, ctl) // бесшовный мир: идущий переходит в земли ближайшего села
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
@@ -492,7 +520,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			if !sim.OnRoad(e) {
 				p := sim.EnsureScenePos(s.world, e)
-				sim.ApplyMove(p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq, in.Fast)
+				sim.ApplyMove(sim.LayoutFor(s.world, e), p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq, in.Fast)
 			}
 		}
 		s.mu.Unlock()
@@ -845,6 +873,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
+			"wpos":         sim.WorldPosView(s.world, e),                  // v1.19: каноническое положение в мире (метры, высота, чанк)
 			"pos":          mePos(e),                                      // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 			"talk":         meTalk(s.world, e),                            // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
 			"invite_from":  meInvite(s.world, e),                          // кто зовёт выпить вместе (co-drink, v1.4)
@@ -861,7 +890,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"combat":  sim.CombatView(s.world, e),                                                           // стойка/блок/щит/стрелы/убитые
 			"feed":    sim.Feed(e),                                                                          // лента подтверждённых событий (монотонный seq)
 			"quests":  sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
-			"recipes": sim.RecipesView(e),                                                                   // ремесло: рецепты и хватает ли сырья
+			"recipes": sim.RecipesView(s.world, e),                                                                   // ремесло: рецепты и хватает ли сырья
 			"journey": sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
 			"horse":   sim.HorseView(s.world, e),                                                            // лошадь и седельная сумка (v1.13; null — нет)
 			"bag":     sim.BagView(e),                                                                       // сума: загрузка/вместимость от силы (v1.13)
@@ -880,7 +909,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			for _, o := range s.nearest(e, pl.Settlement, neighborCap) {
 				{
 					if oi := core.Ident(o); oi != nil {
-						nx, ny, nf := neighborPos(o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
+						nx, ny, nf := neighborPos(s.world, o) // РЕАЛЬНАЯ позиция НПС в сцене (ходит сервером)
 						om := core.Mind(o)
 						// знакомство (v1.4): имя видно только знакомым; иначе аноним + обезличенное desc
 						known := sim.Knows(e, o.ID)
@@ -912,6 +941,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"foes":        sim.FoesView(s.world, pl.Settlement),     // звери/лихие люди сцены (v1.10)
 				"exits":       sim.ExitsView(s.world, e, pl.Settlement), // выезды: тракты к соседям и перевал (v1.15)
 				"site":        sim.SiteView(s.world, se),                // место на планете и характер села (v1.14)
+				"anchor":      sim.AnchorView(s.world, pl.Settlement),   // v1.19: центр села в мире; мир = anchor + pos
+				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan, // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":      sim.StableView(se),                       // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                    // прилавок: запас и цены (v1.10)
 				"life":        s.placeLife(se),                           // агрегаты жизни общины (v1.18)
@@ -931,7 +962,7 @@ func (s *Server) nearest(e *core.Entity, settlement core.ID, n int) []*core.Enti
 	if n <= 0 || e == nil {
 		return nil
 	}
-	px, py, _ := neighborPos(e)
+	px, py, _ := neighborPos(s.world, e)
 	type row struct {
 		e *core.Entity
 		d float64
@@ -949,7 +980,7 @@ func (s *Server) nearest(e *core.Entity, settlement core.ID, n int) []*core.Enti
 		if p == nil || p.Settlement != settlement || core.Ident(o) == nil {
 			return
 		}
-		x, y, _ := neighborPos(o)
+		x, y, _ := neighborPos(s.world, o)
 		candidate := row{o, (x-px)*(x-px) + (y-py)*(y-py)}
 		at := len(rows)
 		for i := range rows {
@@ -995,7 +1026,7 @@ func (s *Server) fastJSON(cid core.ID) string {
 	if pl := core.Place(e); pl != nil && pl.Settlement != 0 && !sim.OnRoad(e) {
 		ns := []map[string]any{}
 		for _, o := range s.nearest(e, pl.Settlement, neighborCap) {
-			x, y, f := neighborPos(o)
+			x, y, f := neighborPos(s.world, o)
 			ns = append(ns, map[string]any{"id": eid(o.ID), "pos": map[string]any{"x": round1(x), "y": round1(y), "facing": round0(f)}})
 		}
 		out["place"] = map[string]any{"neighbors": ns, "foes": sim.FoesView(s.world, pl.Settlement)}
@@ -1025,7 +1056,7 @@ func meTalk(w *core.World, e *core.Entity) any {
 		}
 	}
 	opts := []map[string]any{}
-	for _, o := range sim.TalkOptionsFor(e, tgt) {
+	for _, o := range sim.TalkOptionsFor(w, e, tgt) {
 		opts = append(opts, map[string]any{"id": o.ID, "text": o.Text})
 	}
 	return map[string]any{"with": eid(t.With), "who": who, "known": known, "line": t.Line, "options": opts}
@@ -1127,18 +1158,30 @@ func meMana(e *core.Entity) float64 {
 
 // handleLayout отдаёт ВЕРСИОНИРОВАННУЮ геометрию мира (границы, деревня, здания, река, POI) — её и
 // сервер, и клиент берут за единую истину (сервер — для коллизий, Unity/web — для отрисовки).
+//
+// v1.19: у каждого поселения своя раскладка. `?settlement=<id>` — раскладка этого поселения (id из
+// place.id кадра). Без параметра — стартовое село, как отдавалось раньше: старый клиент не ломается.
 func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, sim.LayoutJSON())
+	id := parseID(r.URL.Query().Get("settlement"))
+	s.mu.Lock()
+	l := sim.LayoutOf(s.world, id)
+	out := l.JSON()
+	if se := s.world.Get(id); se != nil && core.Settle(se) != nil {
+		out["settlement"] = eid(id)
+		out["anchor"] = sim.AnchorView(s.world, id)
+	}
+	s.mu.Unlock()
+	writeJSON(w, out)
 }
 
 // neighborPos — позиция соседа для кадра: реальная ScenePos (её ведёт StepNPCMovement). Если житель
 // ещё не получил сцену (не попал под шаг движения), отдаём его детерминированное стартовое место —
 // то же, куда его поставит система ходьбы, чтобы не было «прыжка из центра».
-func neighborPos(e *core.Entity) (x, y, facing float64) {
+func neighborPos(w *core.World, e *core.Entity) (x, y, facing float64) {
 	if p := sim.ScenePos(e); p != nil {
 		return p.X, p.Y, p.Facing
 	}
-	sx, sy := sim.SpawnSpot(uint64(e.ID))
+	sx, sy := sim.LayoutFor(w, e).SpawnSpot(uint64(e.ID))
 	return sx, sy, 90
 }
 

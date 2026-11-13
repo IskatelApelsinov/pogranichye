@@ -137,7 +137,7 @@ func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid st
 		if h != nil {
 			return false, "у тебя уже есть лошадь"
 		}
-		if s == nil || !atPoi(e, stablePOI) {
+		if s == nil || !atPoi(w, e, stablePOI) {
 			return false, "лошадей продают у конюшни возле амбара"
 		}
 		if stableStock(s) < 1 {

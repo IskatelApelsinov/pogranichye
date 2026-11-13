@@ -25,13 +25,13 @@ type Exit struct {
 
 const exitReach = 5.0 // м — дошёл до выезда
 
-func exitPoint(from, to *core.SettlementC) (float64, float64) {
+func exitPoint(l *Layout, from, to *core.SettlementC) (float64, float64) {
 	ang := math.Atan2(to.Y-from.Y, to.X-from.X)
-	r := WorldHalf - 6
+	r := l.Half - 6
 	c, s := math.Cos(ang), math.Sin(ang)
 	k := r / math.Max(math.Abs(c), math.Abs(s)) // точка на краю квадрата земли
 	x, y := c*k, s*k
-	for i := 0; i < 30 && Blocked(x, y); i++ { // не в реке и не в стене: сдвигаем вдоль края
+	for i := 0; i < 30 && l.Blocked(x, y); i++ { // не в реке и не в стене: сдвигаем вдоль края
 		if math.Abs(c) > math.Abs(s) {
 			y += 4
 		} else {
@@ -70,6 +70,7 @@ func Exits(w *core.World, settlement core.ID) []Exit {
 	if s == nil {
 		return nil
 	}
+	l := LayoutOf(w, settlement)
 	var out []Exit
 	for _, r := range RoadGraph(w, isOuter(w, s)) {
 		other := core.ID(0)
@@ -79,7 +80,7 @@ func Exits(w *core.World, settlement core.ID) []Exit {
 			other = r.A
 		}
 		if other != 0 {
-			x, y := exitPoint(s, core.Settle(w.Get(other)))
+			x, y := exitPoint(l, s, core.Settle(w.Get(other)))
 			out = append(out, Exit{To: other, X: x, Y: y})
 		}
 	}
@@ -88,7 +89,7 @@ func Exits(w *core.World, settlement core.ID) []Exit {
 		if settlement == o {
 			to = in
 		}
-		x, y := exitPoint(s, core.Settle(w.Get(to)))
+		x, y := exitPoint(l, s, core.Settle(w.Get(to)))
 		out = append(out, Exit{To: to, X: x, Y: y, Pass: true})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].To < out[j].To })
@@ -103,14 +104,21 @@ func StepExits(w *core.World, controlled func(core.ID) bool, hub func(core.ID) *
 			walkers = append(walkers, e)
 		}
 	})
+	seamless := Seamless(w)
 	for _, e := range walkers {
 		p := ScenePos(e)
 		if math.Abs(p.X) < WorldHalf-14 && math.Abs(p.Y) < WorldHalf-14 {
 			continue // не у края — выездов рядом нет
 		}
+		if seamless && (math.Abs(p.X) > WorldHalf+10 || math.Abs(p.Y) > WorldHalf+10) {
+			continue // уже в поле за околицей
+		}
 		for _, ex := range Exits(w, core.Place(e).Settlement) {
 			if math.Hypot(p.X-ex.X, p.Y-ex.Y) > exitReach {
 				continue
+			}
+			if seamless && !ex.Pass {
+				continue // в бесшовном мире по тракту идут ногами; перевал через горы — по-прежнему переход
 			}
 			if pc, _ := e.Get("party").(*PartyC); pc != nil && pc.Leader != 0 && pc.Leader != e.ID {
 				break // отряд ведёт вожак
@@ -155,7 +163,7 @@ func arriveSpot(w *core.World, to, from core.ID) (float64, float64, bool) {
 			d := math.Hypot(ex.X, ex.Y)
 			k := (d - 12) / d
 			x, y := ex.X*k, ex.Y*k
-			if !Blocked(x, y) {
+			if !LayoutOf(w, to).Blocked(x, y) {
 				return x, y, true
 			}
 		}

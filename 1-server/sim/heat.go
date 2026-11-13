@@ -218,12 +218,13 @@ func materializeResidents(w *core.World, res []*core.Entity, controlled func(cor
 		if id == nil || m == nil {
 			continue
 		}
-		bx, by := targetForGoal(id.Role, m.Goal)
+		l := LayoutOf(w, core.Place(e).Settlement)
+		bx, by := targetFor(l, e, id.Role, m.Goal, m.ActCode)
 		key := [2]float64{bx, by}
 		ox, oy := parkingSlot(rank[key])
 		rank[key]++
 		x, y := bx+ox, by+oy
-		if Blocked(x, y) {
+		if l.Blocked(x, y) || !l.segmentClear(bx, by, x, y) {
 			x, y = bx, by
 		}
 		p := ScenePos(e)
@@ -253,7 +254,7 @@ func ensureHotResidentBody(w *core.World, e *core.Entity) {
 	if h == nil || h.Level < 2 {
 		return
 	}
-	sx, sy := SpawnSpot(uint64(e.ID))
+	sx, sy := LayoutOf(w, pl.Settlement).SpawnSpot(uint64(e.ID))
 	w.Attach(e, &ScenePosC{X: sx, Y: sy, Facing: 90, Stam: 1})
 }
 

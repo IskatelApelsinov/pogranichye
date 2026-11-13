@@ -100,6 +100,9 @@ namespace Pogranichye.Client.Networking.Protocol
     [Serializable]
     public sealed class PlaceFrame
     {
+        [JsonProperty("id")] public string Id { get; set; }
+        /// <summary>v1.19: settlement plan ("starter", "street", "cross", "ring", "scatter").</summary>
+        [JsonProperty("plan")] public string Plan { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; }
         [JsonProperty("food")] public double Food { get; set; }
@@ -261,13 +264,34 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("river")] public WorldRiverFrame River { get; set; }
         [JsonProperty("pois")] public Dictionary<string, WorldPointFrame> Pois { get; set; }
 
+        // v1.19 (additive): every settlement has its own layout, fetched with ?settlement=<place.id>.
+        /// <summary>"starter" for the hand-made tutorial village; otherwise a generated plan.</summary>
+        [JsonProperty("plan")] public string Plan { get; set; }
+        /// <summary>Null on pre-v1.19 servers, where the river always exists.</summary>
+        [JsonProperty("has_river")] public bool? HasRiver { get; set; }
+        [JsonProperty("zones")] public List<WorldZoneFrame> Zones { get; set; }
+        /// <summary>Road graph edges as [x0, y0, x1, y1] in settlement-local metres.</summary>
+        [JsonProperty("roads")] public List<double[]> Roads { get; set; }
+        [JsonProperty("homes")] public List<WorldPointFrame> Homes { get; set; }
+        [JsonProperty("entry")] public WorldPointFrame Entry { get; set; }
+        /// <summary>Seamless world: land beyond world_half is open ground, not a wall.</summary>
+        [JsonProperty("open")] public bool Open { get; set; }
+        [JsonProperty("settlement")] public string Settlement { get; set; }
+
+        /// <summary>True when the layout was generated for a non-tutorial settlement.</summary>
+        public bool IsGenerated => !string.IsNullOrEmpty(Plan) && Plan != "starter";
+
+        /// <summary>True when the river band is real geometry inside the settlement land.</summary>
+        public bool RiverPresent => River != null && (HasRiver ?? true);
+
         public bool IsBlocked(double x, double y)
         {
-            if (x < -WorldHalf || x > WorldHalf || y < -WorldHalf || y > WorldHalf) return true;
+            var inside = x >= -WorldHalf && x <= WorldHalf && y >= -WorldHalf && y <= WorldHalf;
+            if (!inside && !Open) return true;
             if (Buildings != null)
                 foreach (var b in Buildings)
                     if (b != null && x >= b.X0 && x <= b.X1 && y >= b.Y0 && y <= b.Y1) return true;
-            return River != null && y >= River.Y0 && y <= River.Y1 &&
+            return inside && RiverPresent && y >= River.Y0 && y <= River.Y1 &&
                 (x < River.BridgeX0 || x > River.BridgeX1);
         }
 
@@ -284,6 +308,17 @@ namespace Pogranichye.Client.Networking.Protocol
     public sealed class WorldRectFrame
     {
         [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("x0")] public double X0 { get; set; }
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("x1")] public double X1 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldZoneFrame
+    {
+        /// <summary>forest | copse | field | meadow | rock | pond</summary>
         [JsonProperty("kind")] public string Kind { get; set; }
         [JsonProperty("x0")] public double X0 { get; set; }
         [JsonProperty("y0")] public double Y0 { get; set; }

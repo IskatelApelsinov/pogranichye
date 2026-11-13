@@ -41,12 +41,12 @@ func TestHorseLoop(t *testing.T) {
 	p := ScenePos(e)
 	p.X, p.Y = 0, -60
 	UpdateBurden(w, 0.1)
-	ApplyMove(p, 1, 0, false, 0, 0.2, 1)
+	ApplyMove(nil, p, 1, 0, false, 0, 0.2, 1)
 	foot := p.X
 	Horse(w, e, "mount", "", 0, "h5")
 	UpdateBurden(w, 0.1)
 	p.X = 0
-	ApplyMove(p, 1, 0, false, 0, 0.2, 2)
+	ApplyMove(nil, p, 1, 0, false, 0, 0.2, 2)
 	if p.X <= foot*1.5 {
 		t.Fatalf("верхом должно быть быстрее: пешком %.2f, верхом %.2f", foot, p.X)
 	}
@@ -55,7 +55,7 @@ func TestHorseLoop(t *testing.T) {
 	addStash(w, e, econ.GoodOre, 500)
 	UpdateBurden(w, 0.1)
 	p.X = 0
-	ApplyMove(p, 1, 0, true, 0, 0.2, 3)
+	ApplyMove(nil, p, 1, 0, true, 0, 0.2, 3)
 	if p.X >= foot {
 		t.Fatal("с перегруженной сумой идут медленнее и не бегают")
 	}

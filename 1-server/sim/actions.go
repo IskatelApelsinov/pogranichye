@@ -139,8 +139,9 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if p == nil {
 		return false, "нет тела в сцене"
 	}
-	wx, wy := poiByKind("woods")
-	if !inWoods(p.X, p.Y) && math.Hypot(p.X-wx, p.Y-wy) > actReach {
+	l := layoutFor(w, e)
+	wx, wy := l.POI("woods")
+	if !l.InWoods(p.X, p.Y) && math.Hypot(p.X-wx, p.Y-wy) > actReach {
 		return false, "надо подойти к лесу"
 	}
 	v := core.Vitals(e)
@@ -170,8 +171,9 @@ func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if p == nil {
 		return false, "нет тела в сцене"
 	}
-	rx, ry := poiByKind("river")
-	if !nearRiver(p.X, p.Y) && math.Hypot(p.X-rx, p.Y-ry) > actReach {
+	l := layoutFor(w, e)
+	rx, ry := l.POI("river")
+	if !l.NearWater(p.X, p.Y) && math.Hypot(p.X-rx, p.Y-ry) > actReach {
 		return false, "надо встать у реки"
 	}
 	v := core.Vitals(e)
@@ -196,7 +198,7 @@ func CastSpark(w *core.World, e *core.Entity, reqid string) (bool, string) {
 		return true, ""
 	}
 	p := ScenePos(e)
-	if p == nil || Blocked(p.X, p.Y) {
+	if p == nil || layoutFor(w, e).Blocked(p.X, p.Y) {
 		return false, "негде творить разряд"
 	}
 	pl := core.Place(e)

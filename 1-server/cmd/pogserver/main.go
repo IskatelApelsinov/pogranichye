@@ -39,6 +39,8 @@ func main() {
 	frontierVillages := flag.Int("frontier-villages", 4, "бесконечный мир: деревень в каждом новом краю")
 	savePath := flag.String("save", "world.sav", "файл сохранения мира (\"\" — не сохранять)")
 	saveEvery := flag.Int("save-every", 120, "автосохранение мира, секунд")
+	seamless := flag.String("seamless", "keep", "бесшовный мир: on — между сёлами ходят ногами, край сцены не стена; off — по-старому; keep — как записано в сохранении (новый мир — off)")
+	uniform := flag.Bool("uniform-layouts", false, "предохранитель: все сёла со стартовой раскладкой, как до v1.19")
 	flag.Parse()
 
 	if *demo {
@@ -56,6 +58,17 @@ func main() {
 			*addr, *seed, *villages, *addr)
 	}
 	srv.SetFrontier(*frontierMax, *frontierVillages)
+	sim.UniformLayouts = *uniform
+	applySeamless := func() {
+		switch *seamless {
+		case "on":
+			srv.SetSeamless(true)
+			log.Printf("бесшовный мир ВКЛЮЧЁН: между сёлами ходят ногами")
+		case "off":
+			srv.SetSeamless(false)
+		}
+	}
+	applySeamless()
 	if *tickMs > 0 {
 		srv.SetTick(time.Duration(*tickMs) * time.Millisecond)
 		log.Printf("Демо-темп: %d мс на игровой час", *tickMs)
@@ -64,6 +77,7 @@ func main() {
 		if ok, err := srv.LoadFrom(*savePath); err != nil {
 			log.Fatalf("сохранение %s не читается: %v (удали файл, чтобы начать новый мир)", *savePath, err)
 		} else if ok {
+			applySeamless() // флаг сильнее записанного в сохранении
 			log.Printf("мир поднят из сохранения %s", *savePath)
 		} else {
 			log.Printf("сохранения нет — новый мир; будет записан в %s", *savePath)

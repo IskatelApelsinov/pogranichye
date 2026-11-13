@@ -136,22 +136,23 @@ var wildZones = map[string][]wildZone{
 	"bandit": {{-60, -140, -20, -105}},
 }
 
-func foeSpot(species string, settlement core.ID, n int) (float64, float64) {
-	zs := wildZones[species]
+func foeSpot(l *Layout, species string, settlement core.ID, n int) (float64, float64) {
+	zs := l.Wild[species]
+	if len(zs) == 0 {
+		zs = wildZones[species]
+	}
 	h := uint64(settlement)*2654435761 + uint64(n)*40503 + hashReq(species)
 	z := zs[int(h%uint64(len(zs)))]
 	fx := float64((h/7)%1000) / 1000
 	fy := float64((h/7919)%1000) / 1000
 	x, y := z.x0+(z.x1-z.x0)*fx, z.y0+(z.y1-z.y0)*fy
-	if Blocked(x, y) {
-		x, y = (z.x0+z.x1)/2, (z.y0+z.y1)/2
+	if l.Blocked(x, y) {
+		x, y = l.Free((z.x0+z.x1)/2, (z.y0+z.y1)/2)
 	}
 	return x, y
 }
 
-func inVillageCore(x, y float64) bool {
-	return math.Abs(x) <= VillageHalf && math.Abs(y) <= VillageHalf
-}
+
 
 // --- подсев врагов из поголовья угодий ---
 
@@ -192,7 +193,7 @@ func populateFoes(w *core.World, se *core.Entity, dt float64) {
 			want = st.cap
 		}
 		for n := alive[sp]; n < want && total < 12; n++ {
-			x, y := foeSpot(sp, se.ID, n+int(camp.Bandits*10)+total)
+			x, y := foeSpot(LayoutOf(w, se.ID), sp, se.ID, n+int(camp.Bandits*10)+total)
 			w.Spawn(&FoeC{Species: sp, Settlement: se.ID, X: x, Y: y, HomeX: x, HomeY: y,
 				HP: st.hp, Max: st.hp, State: "roam", WX: x, WY: y})
 			total++
@@ -286,6 +287,7 @@ func StepCombat(w *core.World, dt float64, controlled func(core.ID) bool, s *dic
 }
 
 func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt float64, s *dice.Stream) {
+	l := LayoutOf(w, f.Settlement)
 	st := foeStats[f.Species]
 	f.CD = math.Max(0, f.CD-dt)
 	f.Blind = math.Max(0, f.Blind-dt)
@@ -332,18 +334,18 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		}
 		if nd < r {
 			f.State, f.Aware = "flee", true
-			moveFoe(f, f.X-(pp.X-f.X), f.Y-(pp.Y-f.Y), speed*dt)
+			moveFoe(l, f, f.X-(pp.X-f.X), f.Y-(pp.Y-f.Y), speed*dt)
 			return
 		}
 		f.Aware = false
-		wanderFoe(f, dt, s)
+		wanderFoe(l, f, dt, s)
 		return
 	}
 	aggro := st.aggro
 	if sneaking && !f.Aware {
 		aggro *= 0.4
 	}
-	safe := inVillageCore(pp.X, pp.Y) // село под защитой людей — зверь туда не идёт
+	safe := l.InCore(pp.X, pp.Y) // село под защитой людей — зверь туда не идёт
 	leash := math.Hypot(f.X-f.HomeX, f.Y-f.HomeY) > 75
 	hunting := (f.Aware || nd <= aggro) && !safe && !leash
 	if f.Species == "wolf" && f.HP < f.Max*0.25 { // подранок уходит
@@ -351,25 +353,25 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 		if nd < 20 {
 			f.Windup = 0
 			f.State = "flee"
-			moveFoe(f, f.X-(pp.X-f.X), f.Y-(pp.Y-f.Y), speed*dt)
+			moveFoe(l, f, f.X-(pp.X-f.X), f.Y-(pp.Y-f.Y), speed*dt)
 			return
 		}
 	}
 	if !hunting {
 		f.Windup = 0
 		f.Aware, f.Target = false, 0
-		wanderFoe(f, dt, s)
+		wanderFoe(l, f, dt, s)
 		return
 	}
 	f.Aware, f.Target, f.State = true, near.ID, "chase"
 	if f.Blind > 0 { // ослеплён — мечется
 		f.Windup = 0
-		moveFoe(f, f.X+s.Uniform(-1, 1), f.Y+s.Uniform(-1, 1), speed*0.5*dt)
+		moveFoe(l, f, f.X+s.Uniform(-1, 1), f.Y+s.Uniform(-1, 1), speed*0.5*dt)
 		return
 	}
 	if nd > st.reach {
 		f.Windup = 0 // цель успела выйти из радиуса — атака сорвана
-		moveFoe(f, pp.X, pp.Y, math.Min(speed*dt, nd-st.reach*0.8))
+		moveFoe(l, f, pp.X, pp.Y, math.Min(speed*dt, nd-st.reach*0.8))
 		return
 	}
 	f.Facing = facingDeg(pp.X-f.X, pp.Y-f.Y, f.Facing)
@@ -389,28 +391,28 @@ func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt floa
 	}
 }
 
-func moveFoe(f *FoeC, tx, ty, step float64) {
+func moveFoe(l *Layout, f *FoeC, tx, ty, step float64) {
 	dx, dy := tx-f.X, ty-f.Y
 	d := math.Hypot(dx, dy)
 	if d < 1e-6 || step <= 0 {
 		return
 	}
-	nx, ny := ResolveMove(f.X, f.Y, f.X+dx/d*step, f.Y+dy/d*step)
-	if inVillageCore(nx, ny) && !inVillageCore(f.X, f.Y) {
+	nx, ny := l.ResolveMove(f.X, f.Y, f.X+dx/d*step, f.Y+dy/d*step)
+	if l.InCore(nx, ny) && !l.InCore(f.X, f.Y) {
 		return // в село не заходим
 	}
 	f.X, f.Y = nx, ny
 	f.Facing = facingDeg(dx, dy, f.Facing)
 }
 
-func wanderFoe(f *FoeC, dt float64, s *dice.Stream) {
+func wanderFoe(l *Layout, f *FoeC, dt float64, s *dice.Stream) {
 	f.State = "roam"
 	f.WT -= dt
 	if f.WT <= 0 || math.Hypot(f.WX-f.X, f.WY-f.Y) < 1 {
 		f.WT = s.Uniform(4, 10)
 		f.WX, f.WY = f.HomeX+s.Uniform(-14, 14), f.HomeY+s.Uniform(-14, 14)
 	}
-	moveFoe(f, f.WX, f.WY, foeStats[f.Species].speed*0.3*dt)
+	moveFoe(l, f, f.WX, f.WY, foeStats[f.Species].speed*0.3*dt)
 }
 
 // foeStrike — удар врага по игроку: уворот, блок, щит-плетение, доспех, рана в часть тела.
@@ -899,7 +901,7 @@ func Trick(w *core.World, e *core.Entity, name, reqid string) (bool, string) {
 		f := Foe(fe)
 		dx, dy := f.X-p.X, f.Y-p.Y
 		d := math.Max(0.1, math.Hypot(dx, dy))
-		f.X, f.Y = ResolveMove(f.X, f.Y, f.X+dx/d*4, f.Y+dy/d*4)
+		f.X, f.Y = layoutFor(w, e).ResolveMove(f.X, f.Y, f.X+dx/d*4, f.Y+dy/d*4)
 		f.Stun, f.Aware, f.Target = math.Max(f.Stun, 1.3), true, e.ID
 		Emit(w, e, FeedItem{Kind: "hit", Text: "Ты отшвырнул врага: " + FoeName(f.Species) + " пошатнулся.", Foe: eidStr(fe.ID)})
 		return done()
@@ -987,7 +989,7 @@ func Approach(w *core.World, e *core.Entity, foe core.ID, dist float64) (bool, s
 		dx, dy, d = 1, 0, 1
 	}
 	x, y := f.X+dx/d*dist, f.Y+dy/d*dist
-	if Blocked(x, y) {
+	if layoutFor(w, e).Blocked(x, y) {
 		x, y = f.X, f.Y
 	}
 	p.X, p.Y = x, y

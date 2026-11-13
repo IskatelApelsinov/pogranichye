@@ -105,7 +105,7 @@ func StartOchko(w *core.World, e *core.Entity, reqid string, shuffle func([]Ochk
 	if g := Durak(e); g != nil && !g.Done {
 		return false, "сначала закончи партию в дурака"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "за карты садятся у карточного стола в корчме"
 	}
 	if !inTavernSettlement(w, e) {
@@ -228,7 +228,7 @@ func changeOchko(w *core.World, e *core.Entity, reqid string, change func(*Ochko
 	if g == nil || g.Done {
 		return false, "партия не идёт — начни заново"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "вернись к карточному столу в корчме"
 	}
 	if !inTavernSettlement(w, e) {

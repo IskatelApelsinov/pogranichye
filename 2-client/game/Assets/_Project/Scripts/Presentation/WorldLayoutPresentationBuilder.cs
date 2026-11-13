@@ -42,17 +42,21 @@ namespace Pogranichye.Client.Presentation
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
 
-            // Water and bridge are placed from the exact server geometry.
-            var river = Create("River • server layout", PrimitiveType.Cube, world,
-                new Vector3(0f, 0.025f, (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
-                new Vector3((float)(layout.WorldHalf * 2), 0.05f, (float)(layout.River.Y1 - layout.River.Y0)), _water, false);
-            var bridgeWidth = (float)(layout.River.BridgeX1 - layout.River.BridgeX0);
-            Create("Bridge • server layout", PrimitiveType.Cube, world,
-                new Vector3((float)((layout.River.BridgeX0 + layout.River.BridgeX1) * 0.5), 0.12f,
-                    (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
-                new Vector3(bridgeWidth, 0.24f, (float)(layout.River.Y1 - layout.River.Y0) + 0.8f), _timber, false);
-            BuildRiverSurface(world, layout);
-            BuildRiverBankDetails(world, layout);
+            // Water and bridge are placed from the exact server geometry. Settlements without a river
+            // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
+            if (layout.RiverPresent)
+            {
+                Create("River • server layout", PrimitiveType.Cube, world,
+                    new Vector3(0f, 0.025f, (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
+                    new Vector3((float)(layout.WorldHalf * 2), 0.05f, (float)(layout.River.Y1 - layout.River.Y0)), _water, false);
+                var bridgeWidth = (float)(layout.River.BridgeX1 - layout.River.BridgeX0);
+                Create("Bridge • server layout", PrimitiveType.Cube, world,
+                    new Vector3((float)((layout.River.BridgeX0 + layout.River.BridgeX1) * 0.5), 0.12f,
+                        (float)((layout.River.Y0 + layout.River.Y1) * 0.5)),
+                    new Vector3(bridgeWidth, 0.24f, (float)(layout.River.Y1 - layout.River.Y0) + 0.8f), _timber, false);
+                BuildRiverSurface(world, layout);
+                BuildRiverBankDetails(world, layout);
+            }
 
             if (layout.Buildings != null)
             {
@@ -75,6 +79,14 @@ namespace Pogranichye.Client.Presentation
                     // these footprint-sized shells.
                     BuildFootprintBuilding(world, b, width, depth);
                 }
+            }
+
+            // v1.19: a generated settlement brings its own zones and roads. The hard-coded countryside
+            // below belongs to the tutorial village only.
+            if (layout.IsGenerated)
+            {
+                BuildGeneratedCountryside(world, layout);
+                return;
             }
 
             // Broad, readable agricultural and woodland zones establish the scale of the 300 m world.
@@ -127,6 +139,123 @@ namespace Pogranichye.Client.Presentation
             CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
         }
 
+
+        /// <summary>
+        /// Replaces the presentation when the player arrives in another settlement (v1.19: every
+        /// settlement has its own server layout). The tutorial-only prototype dressing is hidden while
+        /// a generated settlement is shown and restored on return.
+        /// </summary>
+        public static void Rebuild(Transform root, WorldLayoutFrame layout)
+        {
+            if (root == null || layout == null || layout.Version != 2) return;
+            var previous = root.Find("ServerLayoutV2");
+            if (previous != null)
+            {
+                // Destroy is deferred to the end of the frame; rename so Build does not see the old root.
+                previous.name = "ServerLayoutV2 (replaced)";
+                UnityEngine.Object.Destroy(previous.gameObject);
+            }
+            Cleanup();
+            Build(root, layout);
+            var prototype = root.Find("PrototypeVillage");
+            if (prototype != null) prototype.gameObject.SetActive(!layout.IsGenerated);
+        }
+
+        /// <summary>
+        /// Countryside of a generated settlement, driven only by server data: zone patches, the road
+        /// graph residents actually walk, and woodland inside forest zones. Presentation-only.
+        /// </summary>
+        private static void BuildGeneratedCountryside(Transform world, WorldLayoutFrame layout)
+        {
+            var half = (float)layout.WorldHalf;
+            var trunkVertices = new System.Collections.Generic.List<Vector3>(3000);
+            var trunkTriangles = new System.Collections.Generic.List<int>(6000);
+            var canopyVertices = new System.Collections.Generic.List<Vector3>(12000);
+            var canopyTriangles = new System.Collections.Generic.List<int>(24000);
+            var index = 0;
+            if (layout.Zones != null)
+            {
+                foreach (var zone in layout.Zones)
+                {
+                    if (zone == null) continue;
+                    index++;
+                    var x0 = Mathf.Max((float)zone.X0, -half);
+                    var x1 = Mathf.Min((float)zone.X1, half);
+                    var z0 = Mathf.Max((float)zone.Y0, -half);
+                    var z1 = Mathf.Min((float)zone.Y1, half);
+                    if (x1 <= x0 || z1 <= z0) continue;
+                    var material = _grass;
+                    var thickness = 0.10f;
+                    switch (zone.Kind)
+                    {
+                        case "forest":
+                        case "copse":
+                            material = _forest;
+                            thickness = 0.12f;
+                            break;
+                        case "field":
+                            material = _field;
+                            break;
+                        case "rock":
+                            material = _stone;
+                            thickness = 0.16f;
+                            break;
+                        case "pond":
+                            material = _water;
+                            thickness = 0.06f;
+                            break;
+                    }
+                    Create("Zone • " + zone.Kind + " " + index, PrimitiveType.Cube, world,
+                        new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
+                        new Vector3(x1 - x0, thickness, z1 - z0), material, false);
+
+                    if (zone.Kind != "forest" && zone.Kind != "copse") continue;
+                    // Deterministic woodland: the same zone always grows the same trees.
+                    var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
+                    var count = Mathf.Clamp((int)((x1 - x0) * (z1 - z0) / 260f), 6, 90);
+                    for (var i = 0; i < count; i++)
+                    {
+                        var x = x0 + 2f + (float)random.NextDouble() * Mathf.Max(0.1f, x1 - x0 - 4f);
+                        var z = z0 + 2f + (float)random.NextDouble() * Mathf.Max(0.1f, z1 - z0 - 4f);
+                        var height = 4f + (float)random.NextDouble() * 5f;
+                        var radius = 1.65f + (float)random.NextDouble() * 1.05f;
+                        if (layout.IsBlocked(x, z) || NearAnyPoi(layout, x, z, 6f)) continue;
+                        AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles,
+                            new Vector3(x, 0f, z), height, radius, random);
+                    }
+                }
+            }
+            if (trunkVertices.Count > 0)
+            {
+                CreateCombinedMesh(world, "Generated woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
+                CreateCombinedMesh(world, "Generated woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
+            }
+
+            if (layout.Roads != null)
+            {
+                foreach (var road in layout.Roads)
+                {
+                    if (road == null || road.Length != 4) continue;
+                    var start = new Vector2((float)road[0], (float)road[1]);
+                    var end = new Vector2((float)road[2], (float)road[3]);
+                    if ((end - start).sqrMagnitude < 0.25f) continue;
+                    AddRoad(world, start, end, 2.6f);
+                }
+            }
+        }
+
+        private static bool NearAnyPoi(WorldLayoutFrame layout, float x, float z, float radius)
+        {
+            if (layout.Pois == null) return false;
+            foreach (var poi in layout.Pois.Values)
+            {
+                if (poi == null) continue;
+                var dx = (float)poi.X - x;
+                var dz = (float)poi.Y - z;
+                if (dx * dx + dz * dz < radius * radius) return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// The pre-Layout-v2 prototype built a second village at hard-coded coordinates.

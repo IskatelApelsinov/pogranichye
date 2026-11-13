@@ -32,6 +32,9 @@ const (
 type ScenePosC struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
+	// Z — высота тела НАД ЗЕМЛЁЙ в этой точке, м (v1.19): 0 — на земле, плюс — этаж башни или
+	// галерея, минус — подвал, подземелье. Высота самой земли берётся из рельефа (worldpos.go).
+	Z      float64 `json:"z,omitempty"`
 	Facing float64 `json:"facing"`
 	Stam   float64 `json:"stam"`
 	Seq    int64   `json:"seq"`
@@ -53,7 +56,12 @@ func EnsureScenePos(w *core.World, e *core.Entity) *ScenePosC {
 	if p := ScenePos(e); p != nil {
 		return p
 	}
-	p := &ScenePosC{X: 0, Y: -8, Facing: 90, Stam: 1} // у колодца, лицом на север (в деревню)
+	l := layoutFor(w, e)
+	x, y := 0.0, -8.0 // стартовое село: у колодца, лицом на север (в деревню)
+	if l.Plan != "starter" || l.Blocked(x, y) {
+		x, y = l.Entry()
+	}
+	p := &ScenePosC{X: x, Y: y, Facing: 90, Stam: 1}
 	w.Attach(e, p)
 	return p
 }
@@ -61,7 +69,10 @@ func EnsureScenePos(w *core.World, e *core.Entity) *ScenePosC {
 // ApplyMove — АВТОРИТЕТНОЕ применение ввода движения: нормализует направление, считает скорость
 // (бег тратит запал, без запала — только шаг), интегрирует за ограниченный dt, держит в границах
 // площадки, ставит взгляд и запоминает seq. Клиент не телепортируется — только задаёт намерение.
-func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64, seq int64, fastMode ...bool) {
+func ApplyMove(l *Layout, p *ScenePosC, mx, my float64, run bool, face float64, dt float64, seq int64, fastMode ...bool) {
+	if l == nil {
+		l = StarterLayout()
+	}
 	if p == nil {
 		return
 	}
@@ -77,8 +88,8 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 		dt = moveMaxDt
 	}
 	// направление движения — единичный вектор (игнорируем длину, чтобы нельзя было «разогнаться» вводом)
-	if l := math.Hypot(mx, my); l > 1e-6 {
-		mx, my = mx/l, my/l
+	if n := math.Hypot(mx, my); n > 1e-6 {
+		mx, my = mx/n, my/n
 		speed := walkSpeed
 		if p.Mult > 0 {
 			speed *= p.Mult
@@ -105,7 +116,10 @@ func ApplyMove(p *ScenePosC, mx, my float64, run bool, face float64, dt float64,
 			}
 		}
 		// коллизия (v1.3): пробуем шаг, но не сквозь стены/реку/край мира — скользим вдоль преград
-		p.X, p.Y = ResolveMove(p.X, p.Y, p.X+mx*speed*dt, p.Y+my*speed*dt)
+		if l.Blocked(p.X, p.Y) { // тело оказалось в стене (раскладка села сменилась) — выносим наружу
+			p.X, p.Y = l.Free(p.X, p.Y)
+		}
+		p.X, p.Y = l.ResolveMove(p.X, p.Y, p.X+mx*speed*dt, p.Y+my*speed*dt)
 	} else {
 		// стоит — запал восстанавливается
 		p.Stam += stamRegen * dt

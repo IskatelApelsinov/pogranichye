@@ -11,9 +11,9 @@ func TestApplyMovePaceSpeeds(t *testing.T) {
 	walk := &ScenePosC{Stam: 1}
 	jog := &ScenePosC{Stam: 1}
 	sprint := &ScenePosC{Stam: 1}
-	ApplyMove(walk, 1, 0, false, 0, 0.2, 1)
-	ApplyMove(jog, 1, 0, true, 0, 0.2, 1)
-	ApplyMove(sprint, 1, 0, true, 0, 0.2, 1, true)
+	ApplyMove(nil, walk, 1, 0, false, 0, 0.2, 1)
+	ApplyMove(nil, jog, 1, 0, true, 0, 0.2, 1)
+	ApplyMove(nil, sprint, 1, 0, true, 0, 0.2, 1, true)
 	if !(walk.X < jog.X && jog.X < sprint.X) {
 		t.Fatalf("expected walk < jog < sprint, got %.3f, %.3f, %.3f", walk.X, jog.X, sprint.X)
 	}
@@ -30,7 +30,7 @@ func TestApplyMovePaceSpeeds(t *testing.T) {
 
 func TestApplyMoveWalks(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, false, 45, moveMaxDt, 1)
+	ApplyMove(nil, p, 1, 0, false, 45, moveMaxDt, 1)
 	if math.Abs(p.X-walkSpeed*moveMaxDt) > 1e-6 || p.Y != 0 {
 		t.Fatalf("шаг на восток ≈ walkSpeed*dt: x=%.3f y=%.3f", p.X, p.Y)
 	}
@@ -42,7 +42,7 @@ func TestApplyMoveWalks(t *testing.T) {
 // Большой dt клампится: за один вызов нельзя «проскочить» дальше walkSpeed*moveMaxDt.
 func TestMoveClampsDt(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, false, 0, 100.0, 1) // якобы 100 секунд за один кадр
+	ApplyMove(nil, p, 1, 0, false, 0, 100.0, 1) // якобы 100 секунд за один кадр
 	if p.X > walkSpeed*moveMaxDt+1e-6 {
 		t.Fatalf("огромный dt должен клампиться: x=%.3f", p.X)
 	}
@@ -52,8 +52,8 @@ func TestMoveClampsDt(t *testing.T) {
 func TestMoveNormalized(t *testing.T) {
 	a := &ScenePosC{Stam: 1}
 	b := &ScenePosC{Stam: 1}
-	ApplyMove(a, 1, 0, false, 0, 1.0, 1)
-	ApplyMove(b, 99, 0, false, 0, 1.0, 1) // огромный вектор
+	ApplyMove(nil, a, 1, 0, false, 0, 1.0, 1)
+	ApplyMove(nil, b, 99, 0, false, 0, 1.0, 1) // огромный вектор
 	if math.Abs(a.X-b.X) > 1e-9 {
 		t.Fatalf("скорость не должна зависеть от длины ввода: %.3f vs %.3f", a.X, b.X)
 	}
@@ -63,7 +63,7 @@ func TestMoveNormalized(t *testing.T) {
 func TestRunStaminaSupportsLongerSprint(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
 	for i := int64(1); i <= 20; i++ {
-		ApplyMove(p, 1, 0, true, 0, moveMaxDt, i)
+		ApplyMove(nil, p, 1, 0, true, 0, moveMaxDt, i)
 	}
 	// Five seconds of uninterrupted running should consume about half the bar.
 	if p.Stam < 0.49 || p.Stam > 0.51 {
@@ -73,7 +73,7 @@ func TestRunStaminaSupportsLongerSprint(t *testing.T) {
 
 func TestRunDrainsStamina(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, true, 0, moveMaxDt, 1)
+	ApplyMove(nil, p, 1, 0, true, 0, moveMaxDt, 1)
 	if p.X <= walkSpeed*moveMaxDt {
 		t.Fatalf("бег должен быть быстрее шага: x=%.3f", p.X)
 	}
@@ -81,7 +81,7 @@ func TestRunDrainsStamina(t *testing.T) {
 		t.Fatalf("бег должен тратить запал: stam=%.3f", p.Stam)
 	}
 	before := p.Stam
-	ApplyMove(p, 0, 0, false, 0, moveMaxDt, 2) // стоим
+	ApplyMove(nil, p, 0, 0, false, 0, moveMaxDt, 2) // стоим
 	if p.Stam <= before {
 		t.Fatal("стоя запал должен восстанавливаться")
 	}
@@ -91,7 +91,7 @@ func TestRunDrainsStamina(t *testing.T) {
 func TestSceneBounds(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
 	for i := 0; i < 20000; i++ {
-		ApplyMove(p, 1, 0, false, 0, moveMaxDt, int64(i+1))
+		ApplyMove(nil, p, 1, 0, false, 0, moveMaxDt, int64(i+1))
 	}
 	if p.X > WorldHalf+1e-6 {
 		t.Fatalf("за край мира выходить нельзя: x=%.3f (half=%.0f)", p.X, WorldHalf)
@@ -101,8 +101,8 @@ func TestSceneBounds(t *testing.T) {
 // Устаревший (меньший) seq не откатывает подтверждённый номер ввода.
 func TestSeqMonotonic(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, false, 0, 0.1, 10)
-	ApplyMove(p, 1, 0, false, 0, 0.1, 3) // пришёл с опозданием
+	ApplyMove(nil, p, 1, 0, false, 0, 0.1, 10)
+	ApplyMove(nil, p, 1, 0, false, 0, 0.1, 3) // пришёл с опозданием
 	if p.Seq != 10 {
 		t.Fatalf("seq не должен откатываться: %d", p.Seq)
 	}
@@ -111,13 +111,13 @@ func TestSeqMonotonic(t *testing.T) {
 // #16: устаревший И равный seq не меняют НИ ОДНО поле состояния (не только Seq).
 func TestStaleSeqNoStateChange(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, true, 33, moveMaxDt, 5) // приняли seq=5
+	ApplyMove(nil, p, 1, 0, true, 33, moveMaxDt, 5) // приняли seq=5
 	snap := *p
-	ApplyMove(p, 0, 1, true, 180, moveMaxDt, 5) // дубль (равный seq) — всё игнор
+	ApplyMove(nil, p, 0, 1, true, 180, moveMaxDt, 5) // дубль (равный seq) — всё игнор
 	if *p != snap {
 		t.Fatalf("равный seq не должен менять состояние: было %+v стало %+v", snap, *p)
 	}
-	ApplyMove(p, 0, 1, true, 180, moveMaxDt, 2) // опоздавший (меньший) — тоже игнор
+	ApplyMove(nil, p, 0, 1, true, 180, moveMaxDt, 2) // опоздавший (меньший) — тоже игнор
 	if *p != snap {
 		t.Fatalf("меньший seq не должен менять состояние: было %+v стало %+v", snap, *p)
 	}
@@ -126,7 +126,7 @@ func TestStaleSeqNoStateChange(t *testing.T) {
 // #16: при начальном seq=0 первый ввод с seq=0 отвергается (первый принимаемый — строго >0).
 func TestInitialSeqZeroRejected(t *testing.T) {
 	p := &ScenePosC{Stam: 1}
-	ApplyMove(p, 1, 0, false, 10, moveMaxDt, 0) // seq=0 при p.Seq=0 → отказ
+	ApplyMove(nil, p, 1, 0, false, 10, moveMaxDt, 0) // seq=0 при p.Seq=0 → отказ
 	if p.X != 0 || p.Y != 0 || p.Facing != 0 || p.Seq != 0 {
 		t.Fatalf("seq=0 не должен применяться первым: %+v", *p)
 	}
@@ -137,7 +137,7 @@ func TestNoWalkThroughWall(t *testing.T) {
 	// корчма: X[-40,-26] Y[14,26]. Встаём точно под ней и ломимся на север сквозь стену.
 	p := &ScenePosC{X: -33, Y: 10, Stam: 1}
 	for i := 0; i < 400; i++ {
-		ApplyMove(p, 0, 1, false, 90, moveMaxDt, int64(i+1))
+		ApplyMove(nil, p, 0, 1, false, 90, moveMaxDt, int64(i+1))
 	}
 	if Blocked(p.X, p.Y) {
 		t.Fatalf("тело оказалось внутри здания: (%.2f,%.2f)", p.X, p.Y)
@@ -153,7 +153,7 @@ func TestSlideAlongWall(t *testing.T) {
 	// идём на северо-восток: север блокируется стеной, но на восток вдоль стены — скользим
 	startX := p.X
 	for i := 0; i < 200; i++ {
-		ApplyMove(p, 1, 1, false, 45, moveMaxDt, int64(i+1))
+		ApplyMove(nil, p, 1, 1, false, 45, moveMaxDt, int64(i+1))
 	}
 	if p.X <= startX {
 		t.Fatalf("вдоль стены тело должно скользить на восток: x %.2f→%.2f", startX, p.X)

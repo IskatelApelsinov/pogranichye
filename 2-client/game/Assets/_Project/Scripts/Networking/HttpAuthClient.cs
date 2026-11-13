@@ -19,9 +19,16 @@ namespace Pogranichye.Client.Networking
             _baseUrl = baseUrl.TrimEnd('/');
         }
 
-        public async Task<WorldLayoutFrame> GetLayoutAsync()
+        /// <summary>
+        /// Fetches settlement geometry. Without an id the server returns the tutorial village (pre-v1.19
+        /// behaviour); with <paramref name="settlementId"/> (place.id) it returns that settlement's own layout.
+        /// </summary>
+        public async Task<WorldLayoutFrame> GetLayoutAsync(string settlementId = null)
         {
-            using (var request = UnityWebRequest.Get(_baseUrl + "/api/layout"))
+            var url = _baseUrl + "/api/layout";
+            if (!string.IsNullOrEmpty(settlementId))
+                url += "?settlement=" + UnityWebRequest.EscapeURL(settlementId);
+            using (var request = UnityWebRequest.Get(url))
             {
                 request.timeout = 15;
                 var operation = request.SendWebRequest();
@@ -33,7 +40,7 @@ namespace Pogranichye.Client.Networking
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
                     layout.Buildings == null || layout.River == null || layout.Pois == null ||
-                    layout.Buildings.Count != 8 || !layout.Pois.ContainsKey("tavern") ||
+                    layout.Buildings.Count < 1 || !layout.Pois.ContainsKey("tavern") ||
                     !layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
                     !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river") ||
                     !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||

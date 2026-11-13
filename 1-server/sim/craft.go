@@ -86,7 +86,7 @@ func Craft(w *core.World, e *core.Entity, id, reqid string) (bool, string) {
 	if r == nil {
 		return false, "нет такого рецепта"
 	}
-	if OnRoad(e) || !atPoi(e, r.At) {
+	if OnRoad(e) || !atPoi(w, e, r.At) {
 		return false, "это делают не здесь: " + poiRu(r.At)
 	}
 	v := core.Vitals(e)
@@ -142,7 +142,7 @@ func gatherAt(w *core.World, e *core.Entity, reqid, poi, good string, energy flo
 	if pc.alreadyDone(reqid) {
 		return true, ""
 	}
-	if OnRoad(e) || !atPoi(e, poi) {
+	if OnRoad(e) || !atPoi(w, e, poi) {
 		return false, far
 	}
 	if why := siteLacks(w, e, poi); why != "" {
@@ -215,12 +215,12 @@ func Use(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 }
 
 // RecipesView — рецепты для кадра (me.recipes): что можно сделать и хватает ли сырья/места.
-func RecipesView(e *core.Entity) []map[string]any {
+func RecipesView(w *core.World, e *core.Entity) []map[string]any {
 	out := make([]map[string]any, 0, len(Recipes))
 	for i := range Recipes {
 		r := &Recipes[i]
 		out = append(out, map[string]any{"id": r.ID, "name": r.Name, "at": r.At, "needs": r.Needs,
-			"gives": r.Gives, "qty": r.Qty, "can": canCraft(e, r), "here": atPoi(e, r.At)})
+			"gives": r.Gives, "qty": r.Qty, "can": canCraft(e, r), "here": atPoi(w, e, r.At)})
 	}
 	return out
 }

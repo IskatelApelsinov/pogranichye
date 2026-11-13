@@ -77,12 +77,12 @@ func (BrewSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 // atTavern — стоит ли тело у стойки корчмы (по сцене). ОГРАНИЧЕНИЕ: координаты стойки берутся из
 // общей раскладки одной стартовой сцены (poiByKind). Для мира с несколькими поселениями, у каждого
 // со своей корчмой, нужна сцена на поселение — отдельная веха; здесь предполагается одна активная сцена.
-func atTavern(e *core.Entity) bool {
+func atTavern(w *core.World, e *core.Entity) bool {
 	p := ScenePos(e)
 	if p == nil {
 		return false
 	}
-	tx, ty := poiByKind("tavern")
+	tx, ty := layoutFor(w, e).POI("tavern")
 	return math.Hypot(p.X-tx, p.Y-ty) <= tavernReach
 }
 
@@ -103,7 +103,7 @@ func BuyBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if mug.Has {
 		return false, "кружка уже в руке"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "надо подойти к стойке корчмы"
 	}
 	pl := core.Place(e)

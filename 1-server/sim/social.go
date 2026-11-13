@@ -128,8 +128,8 @@ func DescFor(role string) string {
 }
 
 // reachTo — круг общения: у корчмы шире.
-func reachFor(p *ScenePosC) float64 {
-	tx, ty := poiByKind("tavern")
+func reachFor(w *core.World, e *core.Entity, p *ScenePosC) float64 {
+	tx, ty := layoutFor(w, e).POI("tavern")
 	if p != nil && math.Hypot(p.X-tx, p.Y-ty) <= tavernReach+2 {
 		return talkReachBar
 	}
@@ -159,8 +159,8 @@ func talkOptions(known, atTavern bool) []DialogOption {
 }
 
 // TalkOptionsFor — доступные реплики игрока к этому собеседнику сейчас (по знакомству и месту).
-func TalkOptionsFor(e, tgt *core.Entity) []DialogOption {
-	opts := talkOptions(Knows(e, tgt.ID), atTavern(e))
+func TalkOptionsFor(w *core.World, e, tgt *core.Entity) []DialogOption {
+	opts := talkOptions(Knows(e, tgt.ID), atTavern(w, e))
 	if text := errandOption(e, tgt); text != "" { // поручение: только знакомому и только если есть настоящая нужда
 		work := DialogOption{ID: "work", Text: text}
 		if n := len(opts); n > 0 { // перед прощанием
@@ -185,7 +185,7 @@ func canInteract(w *core.World, e, tgt *core.Entity) (bool, string) {
 		return false, "собеседника нет рядом"
 	}
 	p, tp := ScenePos(e), ScenePos(tgt)
-	if p == nil || tp == nil || math.Hypot(p.X-tp.X, p.Y-tp.Y) > reachFor(p) {
+	if p == nil || tp == nil || math.Hypot(p.X-tp.X, p.Y-tp.Y) > reachFor(w, e, p) {
 		return false, "слишком далеко — подойди"
 	}
 	return true, ""
@@ -289,7 +289,7 @@ func treatNPC(w *core.World, e, tgt *core.Entity, reqid string) (bool, string) {
 	if !Knows(e, tgt.ID) {
 		return false, "сперва познакомься"
 	}
-	if !atTavern(e) {
+	if !atTavern(w, e) {
 		return false, "угощать можно у стойки корчмы"
 	}
 	pl := core.Place(e)
@@ -371,7 +371,7 @@ func InviteCoDrink(w *core.World, e *core.Entity, target core.ID, controlled fun
 	if pe, pt := core.Place(e), core.Place(tgt); pe == nil || pt == nil || pe.Settlement == 0 || pe.Settlement != pt.Settlement {
 		return false, "вы в разных поселениях" // #40/co-drink: сверяем settlement, не только локальные координаты
 	}
-	if !atTavern(e) || !atTavern(tgt) {
+	if !atTavern(w, e) || !atTavern(w, tgt) {
 		return false, "оба должны быть у стойки корчмы"
 	}
 	p, tp := ScenePos(e), ScenePos(tgt)
@@ -414,7 +414,7 @@ func AcceptCoDrink(w *core.World, e *core.Entity) (bool, string) {
 		ClearCoDrink(w, e)
 		return false, "приглашение уже недействительно"
 	}
-	if !atTavern(e) || !atTavern(a) {
+	if !atTavern(w, e) || !atTavern(w, a) {
 		return false, "оба должны быть у стойки"
 	}
 	pl := core.Place(e)

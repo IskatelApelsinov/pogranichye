@@ -25,13 +25,13 @@ func TestNearestReturnsBoundedStableClosestResidents(t *testing.T) {
 		e *core.Entity
 		d float64
 	}
-	px, py, _ := neighborPos(player)
+	px, py, _ := neighborPos(w, player)
 	all := make([]candidate, 0, 80)
 	w.Each("place", func(e *core.Entity) {
 		if e.ID == player.ID || core.Place(e).Settlement != 1 {
 			return
 		}
-		x, y, _ := neighborPos(e)
+		x, y, _ := neighborPos(w, e)
 		all = append(all, candidate{e, (x-px)*(x-px) + (y-py)*(y-py)})
 	})
 	sort.Slice(all, func(i, j int) bool {
