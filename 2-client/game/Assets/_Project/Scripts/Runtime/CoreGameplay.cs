@@ -216,7 +216,7 @@ namespace Pogranichye.Client
         private bool _guardSent;
         private Light _handLight;
 
-        /// <summary>True while the "Дела" window or the weave wheel owns the mouse.</summary>
+        /// <summary>True while the character menu, weave wheel, or external modal menu owns gameplay input.</summary>
         public bool CapturesInput { get { return _menuOpen || _weaveOpen || _externalModalMenuOpen; } }
 
         public void SetExternalUiCapture(bool captured)
