@@ -2695,6 +2695,21 @@ namespace Pogranichye.Client
                 {
                     if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId ||
                         _frame == null || _frame.Place == null || _frame.Place.Id != placeId) return;
+                    var expectedAnchor = _frame.Place.Anchor;
+                    if (layout.Anchor != null && expectedAnchor != null &&
+                        (layout.Anchor.Frame != expectedAnchor.Frame ||
+                         Math.Abs(layout.Anchor.East - expectedAnchor.East) > 0.002d ||
+                         Math.Abs(layout.Anchor.North - expectedAnchor.North) > 0.002d ||
+                         Math.Abs(layout.Anchor.Up - expectedAnchor.Up) > 0.002d))
+                    {
+                        _layoutRequestedFor = null;
+                        _layoutFailedFor = placeId;
+                        _layoutRetryAfter = Time.unscaledTime + 10f;
+                        Debug.LogWarning("Раскладка поселения " + placeId +
+                            " не совпадает с якорем полного кадра; старая геометрия не будет заменена.");
+                        return;
+                    }
+
                     _layout = layout;
                     _layoutSettlementId = placeId;
                     _layoutRequestedFor = null;
