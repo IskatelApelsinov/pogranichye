@@ -1402,6 +1402,12 @@ namespace Pogranichye.Client
                 return;
             }
             var weapon = Str(combat, "weapon");
+            var lockedReach = ranged ? 50f : 3.0f;
+            if (aimed && !string.IsNullOrEmpty(_lockedFoeId) && distance > lockedReach)
+            {
+                Toast(ranged ? "Враг слишком далеко для выстрела." : "Подойди ближе к захваченной цели.", 1.4f);
+                return;
+            }
             var pos = Obj(_me, "pos");
             if (!aimed && weapon == "axe" && pos != null && (Num(pos, "x") <= -70f || Near("woods", 8f)))
             {
