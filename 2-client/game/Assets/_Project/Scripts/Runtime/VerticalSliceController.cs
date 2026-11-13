@@ -2939,7 +2939,14 @@ namespace Pogranichye.Client
         {
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
-            if (placeId == _layoutSettlementId || placeId == _layoutRequestedFor) return;
+            if (placeId == _layoutSettlementId)
+            {
+                // The player may return before another settlement's layout request completes.
+                // Re-show the still-valid cached layout instead of leaving the scene blank.
+                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
+                return;
+            }
+            if (placeId == _layoutRequestedFor) return;
             // A server without per-settlement layouts sends no plan; the default layout is already right.
             if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
             {
