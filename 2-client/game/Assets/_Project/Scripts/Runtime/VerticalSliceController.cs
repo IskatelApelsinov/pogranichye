@@ -145,6 +145,7 @@ namespace Pogranichye.Client
         private const string TalkRequestLabelPrefix = "Разговор NPC:";
         private bool _firstPerson;
         private bool _hudCollapsed;
+        private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
         private Vector2 _movementInputDebug;
@@ -267,27 +268,31 @@ namespace Pogranichye.Client
             UpdateTalkConfirmationTimeout();
             if (_connectionState != WorldConnectionState.Active)
                 SetChatOpen(false);
-            else if (!_chatOpen && _input != null && _input.ChatPressed)
+            else if (!_chatOpen && !_systemMenuOpen && _input != null && _input.ChatPressed)
                 SetChatOpen(true);
-            else if (_chatOpen && _input != null && _input.CancelPressed)
-                SetChatOpen(false);
 
-            // The title screen and chat are pointer-driven modes: never feed mouse delta
-            // into the camera while either is active.
+            if (_input != null && _input.ToggleHudPressed)
+                SetSystemMenuOpen(!_systemMenuOpen);
+            else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
+            {
+                if (_chatOpen) SetChatOpen(false);
+                else SetSystemMenuOpen(!_systemMenuOpen);
+            }
+
+            // F1/Esc opens a modal system menu; TAB remains the character menu.
+            // Any open gameplay/system window owns input and prevents movement/camera leakage.
             var pointerOverUi = IsPointerOverUi();
-            // Any open gameplay window (TAB character menu, weave wheel, chat, contextual
-            // panel or mini-game) owns input. Do not let WASD/Space or camera look leak through
-            // while the player is interacting with UI.
-            var gameplayInputBlocked = _chatOpen || pointerOverUi ||
+            var gameplayInputBlocked = _systemMenuOpen || _chatOpen || pointerOverUi ||
                 (_core != null && _core.CapturesInput) ||
                 _activityMiniGame != ActivityMiniGame.None;
-            _core?.SetExternalUiCapture(_chatOpen || pointerOverUi || _activityMiniGame != ActivityMiniGame.None);
+            _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || pointerOverUi ||
+                _activityMiniGame != ActivityMiniGame.None);
+            _core?.SetExternalModalMenuOpen(_systemMenuOpen);
             _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = _connectionState != WorldConnectionState.Active || gameplayInputBlocked;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
-            if (_input != null && _input.ToggleHudPressed) _hudCollapsed = !_hudCollapsed;
             if (_activityMiniGame != ActivityMiniGame.None && _input != null)
             {
                 if (_input.CancelPressed)
@@ -331,7 +336,7 @@ namespace Pogranichye.Client
 
         private bool IsPointerOverUi()
         {
-            if (_chatOpen) return true;
+            if (_systemMenuOpen || _chatOpen) return true;
             if (_input == null) return false;
             var pointer = _input.PointerPosition;
             var guiPoint = new Vector2(pointer.x, Screen.height - pointer.y);
@@ -364,73 +369,36 @@ namespace Pogranichye.Client
         private void OnGUI()
         {
             CoreGameplay.ApplyUiTheme();
-            if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive)
+            if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive || _systemMenuOpen)
             {
                 DrawTitleLoadingBackdrop();
                 DrawMovementDebugOverlay();
                 return;
             }
+
             if (_hudCollapsed)
             {
-                if (GUI.Button(new Rect(12, 12, 38, 30), new GUIContent("≡", "Открыть меню (F1)")))
+                if (GUI.Button(new Rect(12, 12, 38, 30), new GUIContent("≡", "Открыть панель мира")))
                     _hudCollapsed = false;
             }
             else
             {
-            var panelWidth = Mathf.Min(500f, Screen.width - 24f);
-            var panelHeight = Mathf.Min(620f, Screen.height - 24f);
-            GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПОГРАНИЧЬЕ  /  ЖИВОЙ МИР");
-            GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
-            _hudScroll = GUILayout.BeginScrollView(_hudScroll,
-                GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
-            if (GUILayout.Button("Свернуть панель [F1]", GUILayout.Height(26))) _hudCollapsed = true;
-            if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(24))) ToggleFullscreen();
-            GUILayout.Label("Сервер");
-            GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
-            serverUrl = GUILayout.TextField(serverUrl);
-            GUI.enabled = true;
-
-            if (string.IsNullOrEmpty(_token))
-            {
-                GUILayout.Space(8);
-                GUILayout.Label("Логин");
-                _login = GUILayout.TextField(_login);
-                GUILayout.Label("Пароль");
-                _password = GUILayout.PasswordField(_password, '*');
-                GUI.enabled = !_busy;
-                if (GUILayout.Button("Войти")) _ = LoginAsync();
-                if (GUILayout.Button("Зарегистрировать")) _ = RegisterAsync();
-                GUI.enabled = true;
-            }
-            else if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive)
-            {
-                GUILayout.Space(10);
-                GUILayout.Label(ConnectionStateLabel());
-                if (_connectionState == WorldConnectionState.Closed)
-                {
-                    GUI.enabled = !_busy;
-                    if (GUILayout.Button("Подключиться к миру")) _ = ConnectAsync();
-                    GUI.enabled = true;
-                }
-                else if (GUILayout.Button("Отменить подключение"))
-                {
-                    DisconnectWorld("Подключение отменено.");
-                }
-
-                if (GUILayout.Button("Выйти из аккаунта")) Logout();
-            }
-            else
-            {
-                GUILayout.Label($"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}");
+                var panelWidth = Mathf.Min(500f, Screen.width - 24f);
+                var panelHeight = Mathf.Min(620f, Screen.height - 24f);
+                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПОГРАНИЧЬЕ  /  ЖИВОЙ МИР");
+                GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
+                _hudScroll = GUILayout.BeginScrollView(_hudScroll,
+                    GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
+                if (GUILayout.Button("Свернуть панель мира", GUILayout.Height(26)))
+                    _hudCollapsed = true;
                 if (_frame.Place != null)
-                    GUILayout.Label($"⌖  {_frame.Place.Name}  ·  {_frame.Place.Tier}");
+                    GUILayout.Label($"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}");
 
                 GUILayout.BeginHorizontal();
-                DrawHudTabButton("Персонаж", HudTab.Character);
+                DrawHudTabButton("Сводка", HudTab.Character);
                 DrawHudTabButton("Инвентарь", HudTab.Inventory);
                 DrawHudTabButton("Журнал", HudTab.Journal);
                 DrawHudTabButton("Карта", HudTab.Map);
-                DrawHudTabButton("Настройки", HudTab.Settings);
                 GUILayout.EndHorizontal();
                 GUILayout.Space(8f);
 
@@ -448,20 +416,13 @@ namespace Pogranichye.Client
                     case HudTab.Map:
                         DrawMapTab();
                         break;
-                    case HudTab.Settings:
-                        DrawSettingsTab();
-                        break;
                 }
 
                 GUILayout.Space(8f);
-                if (GUILayout.Button("Отключиться от мира")) DisconnectWorld("Отключено от мира. Можно подключиться снова.");
-                if (GUILayout.Button("Выйти из аккаунта")) Logout();
-            }
-
-            GUILayout.Space(8);
-            GUILayout.Label(_status, GUILayout.Height(56));
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
+                GUILayout.Label("F1 / Esc — системное меню · Tab — персонаж");
+                GUILayout.Label(_status, GUILayout.Height(56));
+                GUILayout.EndScrollView();
+                GUILayout.EndArea();
             }
 
             DrawMovementDebugOverlay();
@@ -534,6 +495,19 @@ namespace Pogranichye.Client
                     if (GUILayout.Button(_busy ? "Подождите…" : "Войти", GUILayout.Height(42f))) _ = LoginAsync();
                     if (GUILayout.Button("Создать учётную запись", GUILayout.Height(36f))) _ = RegisterAsync();
                     GUI.enabled = previousEnabled;
+                }
+                else if (_connectionState == WorldConnectionState.Active && _frame != null && _frame.Alive)
+                {
+                    GUILayout.Label("СИСТЕМНАЯ ИНФОРМАЦИЯ");
+                    GUILayout.Label("Аккаунт: " + _login);
+                    GUILayout.Label("Состояние: в мире");
+                    GUILayout.Label("Место: " + (_frame.Place != null ? _frame.Place.Name : "не определено"));
+                    GUILayout.Label("Сервер: " + serverUrl);
+                    if (GUILayout.Button("Продолжить игру [F1 / Esc]", GUILayout.Height(42f)))
+                        SetSystemMenuOpen(false);
+                    if (GUILayout.Button("Отключиться от мира", GUILayout.Height(34f)))
+                        DisconnectWorld("Отключено от мира. Можно подключиться снова.");
+                    if (GUILayout.Button("Выйти из аккаунта", GUILayout.Height(32f))) Logout();
                 }
                 else
                 {
@@ -649,6 +623,24 @@ namespace Pogranichye.Client
             _chatInput = "";
             _ = SendChatMessageAsync(text);
             _chatFocusPending = true;
+        }
+
+        private void SetSystemMenuOpen(bool open)
+        {
+            if (_systemMenuOpen == open) return;
+            _systemMenuOpen = open;
+            if (open)
+            {
+                SetChatOpen(false);
+                if (_activityMiniGame != ActivityMiniGame.None)
+                {
+                    _activityMiniGame = ActivityMiniGame.None;
+                    _activityMiniGameFeedback = "Работа прервана.";
+                }
+            }
+            _core?.SetExternalModalMenuOpen(open);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         private void SetChatOpen(bool open)
