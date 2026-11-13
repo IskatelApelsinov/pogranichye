@@ -1391,6 +1391,11 @@ namespace Pogranichye.Client
             string part;
             float accuracy, distance;
             var aimed = AimFoe(out foe, out part, out accuracy, out distance);
+            if (!aimed && !string.IsNullOrEmpty(_lockedFoeId))
+            {
+                Toast("Цель закрыта препятствием — найди угол для атаки.", 1.4f);
+                return;
+            }
             if (_aimHitBufferSaturated)
             {
                 Toast("Слишком много объектов на линии прицела", 1.1f);
@@ -1724,7 +1729,13 @@ namespace Pogranichye.Client
             CoreFoeView foe;
             string part;
             float accuracy, distance;
-            var target = AimFoe(out foe, out part, out accuracy, out distance) ? foe.FoeId : string.Empty;
+            var aimed = AimFoe(out foe, out part, out accuracy, out distance);
+            if (!aimed && !string.IsNullOrEmpty(_lockedFoeId))
+            {
+                Toast("Цель закрыта препятствием — выбери другую позицию.", 1.8f);
+                return;
+            }
+            var target = aimed ? foe.FoeId : string.Empty;
             Ask("Плетение", "weave", "nodes", _pattern.ToArray(), "target", target);
         }
 
