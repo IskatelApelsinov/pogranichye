@@ -15,13 +15,18 @@ namespace Pogranichye.Client.Presentation
         private void Awake()
         {
             _renderer = GetComponent<Renderer>();
-            _outwardNormal = transform.rotation * Vector3.back;
+            // TextMesh's visible face points along local +Z.
+            _outwardNormal = transform.rotation * Vector3.forward;
         }
 
         private void LateUpdate()
         {
             if (_renderer == null) _renderer = GetComponent<Renderer>();
-            if (_camera == null) _camera = Camera.main;
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+                if (_camera == null) _camera = FindFirstObjectByType<Camera>();
+            }
             if (_renderer == null || _camera == null) return;
 
             var towardViewer = _camera.transform.position - transform.position;
