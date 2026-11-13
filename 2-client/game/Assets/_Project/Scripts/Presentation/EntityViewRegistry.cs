@@ -1226,7 +1226,7 @@ namespace Pogranichye.Client.Presentation
             var leftLegPivot = new GameObject("Left leg").transform;
             leftLegPivot.SetParent(visualRoot, false);
             leftLegPivot.localPosition = new Vector3(-0.14f, 0.64f, 0f);
-            CreatePart("Left lower leg", PrimitiveType.Capsule, leftLegPivot,
+            var leftLeg = CreatePart("Left lower leg", PrimitiveType.Capsule, leftLegPivot,
                 new Vector3(0f, -0.28f, 0f), new Vector3(0.18f, 0.36f, 0.18f));
             var leftBoot = CreatePart("Left boot", PrimitiveType.Cube, leftLegPivot,
                 new Vector3(0f, -0.60f, 0.055f), new Vector3(0.19f, 0.10f, 0.30f));
@@ -1235,7 +1235,7 @@ namespace Pogranichye.Client.Presentation
             var rightLegPivot = new GameObject("Right leg").transform;
             rightLegPivot.SetParent(visualRoot, false);
             rightLegPivot.localPosition = new Vector3(0.14f, 0.64f, 0f);
-            CreatePart("Right lower leg", PrimitiveType.Capsule, rightLegPivot,
+            var rightLeg = CreatePart("Right lower leg", PrimitiveType.Capsule, rightLegPivot,
                 new Vector3(0f, -0.28f, 0f), new Vector3(0.18f, 0.36f, 0.18f));
             var rightBoot = CreatePart("Right boot", PrimitiveType.Cube, rightLegPivot,
                 new Vector3(0f, -0.60f, 0.055f), new Vector3(0.19f, 0.10f, 0.30f));
