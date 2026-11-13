@@ -262,6 +262,13 @@ namespace Pogranichye.Client
                 UpdateJump();
                 UpdateMovement();
                 UpdateDialogueChoiceInput();
+                if (_core == null || !_core.CapturesInput)
+                {
+                    if (_input != null && _input.StartWoodcutPressed)
+                        StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+                    else if (_input != null && _input.StartFishingPressed)
+                        StartActivityMiniGame(ActivityMiniGame.Fishing);
+                }
             }
 
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
@@ -379,8 +386,20 @@ namespace Pogranichye.Client
             DrawSocialOverlay();
             if (_chatOpen)
                 DrawChatOverlay();
-            else if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
-                SetChatOpen(true);
+            else
+            {
+                DrawContextActions();
+                if (_activityMiniGame != ActivityMiniGame.None)
+                {
+                    var miniWidth = Mathf.Min(420f, Screen.width - 24f);
+                    GUILayout.BeginArea(new Rect((Screen.width - miniWidth) * 0.5f,
+                        Screen.height - 190f, miniWidth, 178f));
+                    DrawActivityMiniGame();
+                    GUILayout.EndArea();
+                }
+                if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
+                    SetChatOpen(true);
+            }
         }
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
@@ -638,7 +657,7 @@ namespace Pogranichye.Client
             if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
             if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
             GUILayout.EndHorizontal();
-            DrawActivityMiniGame();
+            GUILayout.Label("G — начать рубку у леса · J — начать рыбалку у воды. Нужен топор/удочка в руке.");
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
             if (me.Weave != null)
             {
@@ -1577,11 +1596,99 @@ namespace Pogranichye.Client
             _views?.PlayPlayerActionGesture(gesture);
         }
 
+        private bool IsNearActivityPoi(string poiId, float radius)
+        {
+            var position = _frame?.Me?.Position;
+            if (position == null || _layout?.Pois == null ||
+                !_layout.Pois.TryGetValue(poiId, out var point) || point == null)
+                return false;
+            var dx = position.X - point.X;
+            var dy = position.Y - point.Y;
+            return dx * dx + dy * dy <= radius * radius;
+        }
+
+        private bool HasInventoryItem(string item)
+        {
+            return _frame?.Me?.Inventory?.Items != null &&
+                _frame.Me.Inventory.Items.TryGetValue(item, out var quantity) && quantity > 0;
+        }
+
+        private void QueueQuickItemRequest(string op, string item, string label)
+        {
+            if (_core == null || !_core.QueueRequest(InventoryRequestLabelPrefix + " " + label,
+                op, "item", item))
+            {
+                _status = "Не удалось отправить действие с предметом. Дождитесь ответа на предыдущее действие.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label + "…";
+        }
+
+        private void DrawContextActions()
+        {
+            if (_frame?.Me == null || _core == null) return;
+            var atWoods = IsNearActivityPoi("woods", 10f);
+            var atRiver = IsNearActivityPoi("river", 10f);
+            if (!atWoods && !atRiver) return;
+
+            var width = Mathf.Min(520f, Screen.width - 24f);
+            var height = atWoods && atRiver ? 94f : 72f;
+            GUILayout.BeginArea(new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height));
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("МЕСТНОЕ ДЕЛО");
+            GUILayout.BeginHorizontal();
+            if (atWoods) DrawContextToolAction("axe", 8, "Топор", ActivityMiniGame.Woodcutting, "G");
+            if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "J");
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+            GUILayout.EndArea();
+        }
+
+        private void DrawContextToolAction(string item, int price, string label,
+            ActivityMiniGame game, string hotkey)
+        {
+            if (!HasInventoryItem(item))
+            {
+                var previous = GUI.enabled;
+                GUI.enabled = _frame.Me.Coins >= price;
+                if (GUILayout.Button("Купить " + label + " · " + price + " мон."))
+                    QueueQuickItemRequest("take", item, "покупка " + label.ToLowerInvariant());
+                GUI.enabled = previous;
+                return;
+            }
+
+            if (!string.Equals(_frame.Me.Inventory.Hand, item, StringComparison.Ordinal))
+            {
+                if (GUILayout.Button("Взять " + label.ToLowerInvariant() + " в руку"))
+                    QueueQuickItemRequest("equip", item, "экипировка " + label.ToLowerInvariant());
+                return;
+            }
+
+            if (GUILayout.Button((game == ActivityMiniGame.Woodcutting ? "Рубить" : "Закинуть удочку") +
+                " [" + hotkey + "]"))
+                StartActivityMiniGame(game);
+        }
+
         private void StartActivityMiniGame(ActivityMiniGame game)
         {
             if (_connectionState != WorldConnectionState.Active || _core == null)
             {
                 _activityMiniGameFeedback = "Сначала подключитесь к миру.";
+                return;
+            }
+            var poi = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
+            var tool = game == ActivityMiniGame.Woodcutting ? "axe" : "rod";
+            if (!IsNearActivityPoi(poi, 10f))
+            {
+                _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
+                    ? "Подойдите ближе к лесу, чтобы рубить."
+                    : "Подойдите к берегу, чтобы рыбачить.";
+                return;
+            }
+            if (!string.Equals(_frame?.Me?.Inventory?.Hand, tool, StringComparison.Ordinal))
+            {
+                _activityMiniGameFeedback = "Сначала купите " + (tool == "axe" ? "топор" : "удочку") +
+                    " и возьмите его в руку.";
                 return;
             }
             _activityMiniGame = game;
