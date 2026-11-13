@@ -15,7 +15,8 @@ namespace Pogranichye.Client.Presentation
         private void Awake()
         {
             _renderer = GetComponent<Renderer>();
-            _outwardNormal = transform.rotation * Vector3.back;
+            // TextMesh's visible face points along local +Z.
+            _outwardNormal = transform.rotation * Vector3.forward;
         }
 
         private void LateUpdate()
