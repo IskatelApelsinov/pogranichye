@@ -911,25 +911,40 @@ namespace Pogranichye.Client
             telegraph.gameObject.SetActive(false);
             view.FoeId = id;
             view.Kind = kind;
-            view.DisplayName = string.IsNullOrEmpty(displayName) ? kind : displayName;
+            view.DisplayName = FoePresentationPolicy.ResolveDisplayName(kind, displayName);
 
-            _surface = kind == "bandit" ? "cloth" : "fur";
-            if (kind == "bandit")
+            _surface = FoePresentationPolicy.IsHumanoid(kind) ? "cloth" : "fur";
+            if (FoePresentationPolicy.IsHumanoid(kind))
             {
                 view.Humanoid = true;
-                view.Height = 1.9f;
+                view.Height = FoePresentationPolicy.BanditHeight;
                 var cloth = new Color(0.35f, 0.12f, 0.10f);
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.4f, 0f), new Vector3(0.42f, 0.4f, 0.42f), new Color(0.2f, 0.17f, 0.14f));
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
-                Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.7f, 0f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
-                Part(root.transform, PrimitiveType.Cube, new Vector3(0.36f, 1.05f, 0.3f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
-                // hood, arms, belt and eyes: a readable silhouette from a distance
+                var torso = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
+                var head = Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.7f, 0f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
+                // Hood, articulated limbs, belt and eyes keep the hostile human silhouette readable.
                 Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.76f, -0.04f), new Vector3(0.48f, 0.42f, 0.48f), new Color(0.16f, 0.12f, 0.1f));
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                var leftArm = Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                var rightArm = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                // A short wooden club follows the right hand instead of floating beside the body.
+                Part(rightArm, PrimitiveType.Cube, new Vector3(0f, -0.04f, 0.36f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
+                var rightLeg = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.17f, 0.34f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
+                var leftLeg = Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.17f, 0.34f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.86f, 0f), new Vector3(0.6f, 0.04f, 0.6f), new Color(0.12f, 0.09f, 0.07f));
                 Part(root.transform, PrimitiveType.Sphere, new Vector3(-0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
                 Part(root.transform, PrimitiveType.Sphere, new Vector3(0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
+
+                var gait = root.AddComponent<ProceduralGait>();
+                gait.Humanoid = true;
+                gait.LegLength = FoePresentationPolicy.BanditLimbLength;
+                gait.StrideDegrees = FoePresentationPolicy.BanditStrideDegrees;
+                // ProceduralGait's humanoid phase alternates by index: pair left arm with right leg.
+                gait.Legs.Add(leftArm);
+                gait.Legs.Add(rightArm);
+                gait.Legs.Add(rightLeg);
+                gait.Legs.Add(leftLeg);
+                gait.Body = torso;
+                gait.Head = head;
             }
             else
             {
