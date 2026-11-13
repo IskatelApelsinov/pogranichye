@@ -28,7 +28,13 @@ namespace Pogranichye.Client.Presentation
             if (string.IsNullOrEmpty(poiId)) return false;
 
             var source = hasLayoutPois ? layoutPois : legacyPois;
-            return source != null && source.TryGetValue(poiId, out coordinate);
+            if (source == null) return false;
+            if (source.TryGetValue(poiId, out coordinate)) return true;
+
+            // The server's apiary action is validated at the garden POI; the visual hive is a
+            // nearby presentation prop, not a separate Layout v2/navigation anchor.
+            return hasLayoutPois && string.Equals(poiId, "apiary", StringComparison.Ordinal) &&
+                source.TryGetValue("garden", out coordinate);
         }
 
         public static bool IsWithin(double playerX, double playerY,

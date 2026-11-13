@@ -22,7 +22,7 @@ This is a concrete client-side mismatch; it is not evidence that server POI coor
 
 ## Please verify server-side data
 
-Please compare the starter and generated `/api/layout` `pois` map with the same IDs used by `poiByKind`/NPC target selection. In particular, confirm the expected keys for `apiary`, `smithy`, `tavern`, `woods`, `garden`, `river` and `mine`. The client will now fail closed for a missing key on a current layout, which is safer than activating an action at a stale coordinate.
+Please compare the starter and generated `/api/layout` `pois` map with the same IDs used by `poiByKind`/NPC target selection. In particular, confirm `smithy`, `tavern`, `woods`, `garden`, `river` and `mine`. The server's `apiary` action is explicitly validated at `garden`; the client policy now mirrors that alias unless a future layout provides a dedicated `apiary` point. The client fails closed for other missing keys on a current layout, which is safer than activating an action at a stale coordinate.
 
 ## Verification boundary
 

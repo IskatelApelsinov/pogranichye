@@ -20,7 +20,8 @@ public static class PoiPositionPolicyCheck
     {
         var layout = new Dictionary<string, PoiCoordinate>
         {
-            { "tavern", new PoiCoordinate(112d, 86d) }
+            { "tavern", new PoiCoordinate(112d, 86d) },
+            { "garden", new PoiCoordinate(70d, -20d) }
         };
         var legacy = new Dictionary<string, PoiCoordinate>
         {
@@ -32,6 +33,17 @@ public static class PoiPositionPolicyCheck
         Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, true, out point) &&
               point.X == 112d && point.Y == 86d,
             "current Layout v2 POI overrides the starter-layout mirror");
+        Check(PoiPositionPolicy.TryResolve("apiary", layout, legacy, true, out point) &&
+              point.X == 70d && point.Y == -20d,
+            "apiary resolves to the server's garden POI, not its visual hive offset");
+        var explicitApiary = new Dictionary<string, PoiCoordinate>
+        {
+            { "garden", new PoiCoordinate(70d, -20d) },
+            { "apiary", new PoiCoordinate(73.6d, -20.9d) }
+        };
+        Check(PoiPositionPolicy.TryResolve("apiary", explicitApiary, legacy, true, out point) &&
+              point.X == 73.6d && point.Y == -20.9d,
+            "an explicit future Layout apiary anchor takes precedence over the garden alias");
         Check(!PoiPositionPolicy.TryResolve("woods", layout, legacy, true, out point),
             "a missing POI in a generated layout does not fall back to a stale starter coordinate");
         Check(PoiPositionPolicy.TryResolve("tavern", layout, legacy, false, out point) &&
