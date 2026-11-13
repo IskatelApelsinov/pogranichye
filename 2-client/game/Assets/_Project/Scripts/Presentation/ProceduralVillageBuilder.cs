@@ -254,6 +254,20 @@ namespace Pogranichye.Client.Presentation
             var door = CreatePrimitive("Door • open", PrimitiveType.Cube, house,
                 new Vector3(-0.92f, 0.72f, -1.34f), new Vector3(0.62f, 1.45f, 0.08f), _roofMaterial);
             door.transform.localRotation = Quaternion.Euler(0f, -62f, 0f);
+            // Individually readable vertical boards and forged straps make the open door
+            // read as a timber object rather than a single dark placeholder slab.
+            for (var plank = -1; plank <= 1; plank++)
+            {
+                var doorBoard = CreatePrimitive("Door • vertical oak board", PrimitiveType.Cube, door.transform,
+                    new Vector3(plank * 0.18f, 0f, -0.052f), new Vector3(0.16f, 1.34f, 0.025f), _woodMaterial);
+                doorBoard.isStatic = true;
+            }
+            foreach (var strapY in new[] { -0.48f, 0.48f })
+            {
+                var strap = CreatePrimitive("Door • iron strap hinge", PrimitiveType.Cube, door.transform,
+                    new Vector3(-0.18f, strapY, -0.075f), new Vector3(0.38f, 0.055f, 0.035f), _metalMaterial);
+                strap.isStatic = true;
+            }
             CreatePrimitive("Door handle", PrimitiveType.Sphere, house,
                 new Vector3(-1.14f, 0.72f, -1.52f), new Vector3(0.07f, 0.07f, 0.04f), _metalMaterial);
             BuildYardApron(house, name);
@@ -266,10 +280,18 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(windowX, 1.45f, -1.55f), new Vector3(0.40f, 0.48f, 0.035f), _metalMaterial);
                 CreatePrimitive("Window crossbar", PrimitiveType.Cube, house,
                     new Vector3(windowX, 1.45f, -1.58f), new Vector3(0.42f, 0.045f, 0.04f), _woodMaterial);
+                CreatePrimitive("Window mullion", PrimitiveType.Cube, house,
+                    new Vector3(windowX, 1.45f, -1.59f), new Vector3(0.045f, 0.50f, 0.04f), _woodMaterial);
                 for (var shutterSide = -1; shutterSide <= 1; shutterSide += 2)
-                    CreatePrimitive("Window shutter", PrimitiveType.Cube, house,
+                {
+                    var shutter = CreatePrimitive("Window shutter", PrimitiveType.Cube, house,
                         new Vector3(windowX + shutterSide * 0.34f, 1.45f, -1.50f),
                         new Vector3(0.12f, 0.58f, 0.12f), _woodMaterial);
+                    var brace = CreatePrimitive("Window shutter • diagonal brace", PrimitiveType.Cube, house,
+                        new Vector3(windowX + shutterSide * 0.34f, 1.45f, -1.575f),
+                        new Vector3(0.085f, 0.48f, 0.035f), _roofMaterial);
+                    brace.transform.localRotation = Quaternion.Euler(0f, 0f, shutterSide * -28f);
+                }
             }
             CreatePrimitive("Chimney", PrimitiveType.Cube, house, new Vector3(1.0f, 3.0f, 0.45f),
                 new Vector3(0.45f, 1.1f, 0.45f), _stoneMaterial);
@@ -288,6 +310,17 @@ namespace Pogranichye.Client.Presentation
             if (villageAmbient != null) villageAmbient.RegisterLight(houseLight, 0.06f, 1.6f);
             CreatePrimitive("Roof ridge", PrimitiveType.Cube, house, new Vector3(0, 3.02f, 0),
                 new Vector3(0.18f, 0.18f, 3.35f), _woodMaterial);
+            // Continuous eave fascia hides the raw slab edges and gives the roof a
+            // believable overhang line along both long sides of the cottage.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var fascia = CreatePrimitive("Roof • timber eave fascia", PrimitiveType.Cube, house,
+                    new Vector3(side * 1.94f, 2.08f, 0f), new Vector3(0.14f, 0.16f, 3.38f), _roofMaterial);
+                fascia.isStatic = true;
+                var eaveUnderside = CreatePrimitive("Roof • eave underside beam", PrimitiveType.Cube, house,
+                    new Vector3(side * 1.76f, 1.98f, 0f), new Vector3(0.20f, 0.09f, 3.24f), _woodMaterial);
+                eaveUnderside.isStatic = true;
+            }
             BuildCottageGables(house);
             CreatePrimitive("Front timber beam", PrimitiveType.Cube, house, new Vector3(0, 2.05f, -1.44f),
                 new Vector3(3.35f, 0.13f, 0.12f), _roofMaterial);
