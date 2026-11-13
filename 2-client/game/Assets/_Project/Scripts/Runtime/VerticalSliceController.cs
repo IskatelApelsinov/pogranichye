@@ -140,6 +140,7 @@ namespace Pogranichye.Client
         private float _movementPlayerYawDebug;
         private float _movementServerFacingDebug;
         private Vector2 _hudScroll;
+        private float _mapZoom = 1f;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
         private GUIStyle _mapNeighborStyle;
@@ -854,6 +855,15 @@ namespace Pogranichye.Client
         {
             GUILayout.Label("КАРТА ПОСЕЛЕНИЯ");
             GUILayout.Label("Схема построена по серверному Layout v2. Она показывает местные препятствия и точки интереса, а не придумывает проходимые пути.");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Масштаб: " + _mapZoom.ToString("0.0") + "×", GUILayout.Width(112f));
+            var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 4f);
+            if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.25f);
+            if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(4f, _mapZoom + 0.25f);
+            if (GUILayout.Button("Сброс", GUILayout.Width(54f))) nextZoom = 1f;
+            _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
+            GUILayout.EndHorizontal();
+            GUILayout.Label(_mapZoom > 1.01f ? "При увеличении карта центрируется на персонаже." : "Показано всё поселение.");
             if (_layout == null || _layout.Version != 2)
             {
                 GUILayout.Label("Серверная карта поселения пока недоступна.");
@@ -887,16 +897,20 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var half = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            var playerPosition = _frame?.Me?.Position;
+            var centerX = _mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d;
+            var centerY = _mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d;
+            var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
-                var riverRect = WorldMapProjection.ToMapRect(
-                    -half, _layout.River.Y0, half, _layout.River.Y1, half, mapRect);
+                var riverRect = MapViewportRect(-half - centerX, _layout.River.Y0 - centerY,
+                    half - centerX, _layout.River.Y1 - centerY, half, mapRect);
                 DrawMapFill(riverRect, new Color(0.20f, 0.43f, 0.52f, 0.95f));
 
-                var bridgeRect = WorldMapProjection.ToMapRect(
-                    _layout.River.BridgeX0, _layout.River.Y0 - 1.5d,
-                    _layout.River.BridgeX1, _layout.River.Y1 + 1.5d, half, mapRect);
+                var bridgeRect = MapViewportRect(_layout.River.BridgeX0 - centerX,
+                    _layout.River.Y0 - 1.5d - centerY, _layout.River.BridgeX1 - centerX,
+                    _layout.River.Y1 + 1.5d - centerY, half, mapRect);
                 DrawMapFill(bridgeRect, new Color(0.55f, 0.37f, 0.22f, 1f));
             }
 
@@ -905,8 +919,8 @@ namespace Pogranichye.Client
                 foreach (var building in _layout.Buildings)
                 {
                     if (building == null) continue;
-                    var footprint = WorldMapProjection.ToMapRect(
-                        building.X0, building.Y0, building.X1, building.Y1, half, mapRect);
+                    var footprint = MapViewportRect(building.X0 - centerX, building.Y0 - centerY,
+                        building.X1 - centerX, building.Y1 - centerY, half, mapRect);
                     DrawMapFill(footprint, new Color(0.30f, 0.23f, 0.18f, 0.98f));
                 }
             }
@@ -917,7 +931,8 @@ namespace Pogranichye.Client
                 foreach (var poiId in MapPoiOrder)
                 {
                     if (!_layout.Pois.TryGetValue(poiId, out var point) || point == null) continue;
-                    var position = WorldMapProjection.ToMapPoint(point.X, point.Y, half, mapRect);
+                    var position = WorldMapProjection.ToMapPoint(point.X - centerX, point.Y - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
                     var previousBackground = GUI.backgroundColor;
                     var previousContent = GUI.contentColor;
@@ -938,7 +953,8 @@ namespace Pogranichye.Client
                 {
                     if (neighbor?.Position == null) continue;
                     var position = WorldMapProjection.ToMapPoint(
-                        neighbor.Position.X, neighbor.Position.Y, half, mapRect);
+                        neighbor.Position.X - centerX, neighbor.Position.Y - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 4f, position.y - 4f, 8f, 8f);
                     var previousBackground = GUI.backgroundColor;
                     var previousContent = GUI.contentColor;
@@ -962,11 +978,10 @@ namespace Pogranichye.Client
                 }
             }
 
-            var playerPosition = _frame?.Me?.Position;
             if (playerPosition != null)
             {
                 var position = WorldMapProjection.ToMapPoint(
-                    playerPosition.X, playerPosition.Y, half, mapRect);
+                    playerPosition.X - centerX, playerPosition.Y - centerY, half, mapRect);
                 var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
@@ -988,6 +1003,18 @@ namespace Pogranichye.Client
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private static Rect MapViewportRect(double x0, double y0, double x1, double y1,
+            double half, Rect viewport)
+        {
+            var projected = WorldMapProjection.ToMapRect(x0, y0, x1, y1, half, viewport);
+            var left = Mathf.Max(viewport.xMin, projected.xMin);
+            var top = Mathf.Max(viewport.yMin, projected.yMin);
+            var right = Mathf.Min(viewport.xMax, projected.xMax);
+            var bottom = Mathf.Min(viewport.yMax, projected.yMax);
+            return right <= left || bottom <= top ? new Rect(0f, 0f, 0f, 0f) :
+                Rect.MinMaxRect(left, top, right, bottom);
         }
 
         private static void DrawMapFill(Rect rect, Color color)
