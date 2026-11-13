@@ -16,6 +16,8 @@ on:
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
+      - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
@@ -66,3 +68,8 @@ jobs:
         run: |
           mcs -out:/tmp/hex-cell-streaming-policy.exe Tests/HexCellStreamingPolicyCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs
           mono /tmp/hex-cell-streaming-policy.exe
+      - name: Settlement map label layout regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
+          mono /tmp/map-label-layout.exe
