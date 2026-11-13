@@ -31,6 +31,13 @@ namespace Pogranichye.Client.Editor
 
                 if (frame.Me.Position == null || frame.Me.Position.Sequence != 0)
                     throw new FormatException("The shared v1.1 fixture must include me.pos with sequence 0.");
+                if (frame.Me.WorldPosition == null || frame.Me.WorldPosition.Scheme != "yof-tangent" ||
+                    frame.Me.WorldPosition.Version != 1 || frame.Me.WorldPosition.Chunk == null || frame.Me.WorldPosition.Chunk.Length != 2 ||
+                    frame.Place.Anchor == null || frame.Me.WorldPosition.Frame != frame.Place.Anchor.Frame)
+                    throw new FormatException("The shared v1.19 fixture must deserialize me.wpos and place.anchor.");
+                if (Math.Abs(frame.Me.WorldPosition.East - frame.Place.Anchor.East - frame.Me.Position.X) > 0.002d ||
+                    Math.Abs(frame.Me.WorldPosition.North - frame.Place.Anchor.North - frame.Me.Position.Y) > 0.002d)
+                    throw new FormatException("v1.19 global position must equal settlement anchor plus local scene position.");
                 if (frame.Place.Neighbors == null || frame.Place.Neighbors.Count == 0 || frame.Place.Neighbors[0].Position == null)
                     throw new FormatException("The shared v1.1 fixture must include a positioned neighbor.");
                 if (frame.Me.Inventory == null || frame.Me.Inventory.Items == null || frame.Me.World == null)
@@ -53,7 +60,7 @@ namespace Pogranichye.Client.Editor
                 ValidateNegativeCases();
                 ValidateJournalCases();
                 ValidateMapProjection();
-                Debug.Log($"v1.18 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
+                Debug.Log($"v1.19 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
             }
             catch (Exception ex)
             {
@@ -70,14 +77,16 @@ namespace Pogranichye.Client.Editor
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":31,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":0}}}", "out-of-bounds scene position");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":\"1\"}}}", "string movement sequence");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"pos\":{\"x\":0,\"y\":0,\"facing\":90,\"stam\":1.0,\"seq\":9223372036854775808}}}", "overflowing movement sequence");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"unknown\",\"v\":1,\"frame\":0}}}", "unsupported world coordinate scheme");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":0,\"n\":0,\"u\":0,\"ground\":0,\"z\":0,\"chunk\":[0],\"layer\":0,\"lat\":0,\"lon\":0}}}", "malformed world chunk");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"18446744073709551616\"}}", "overflowing me.id");
             ExpectRejected("{\"v\":1,\"me\":{\"id\":\"42\"}}", "missing alive");
             ExpectRejected("{\"v\":\"1\",\"alive\":false}", "string version");
             ExpectRejected("{\"v\":2,\"alive\":false}", "unsupported version");
 
             var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}");
-            if (legacy.Me == null || legacy.Me.Position != null)
-                throw new FormatException("A legacy v1.0 frame without pos must remain parseable.");
+            if (legacy.Me == null || legacy.Me.Position != null || legacy.Me.WorldPosition != null || legacy.Place?.Anchor != null)
+                throw new FormatException("A legacy v1.0 frame without pos/wpos/anchor must remain parseable.");
 
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)
