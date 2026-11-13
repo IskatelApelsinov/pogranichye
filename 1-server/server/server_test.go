@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"pogranichye/core"
+	"pogranichye/econ"
 	"pogranichye/sim"
 )
 
@@ -370,6 +372,133 @@ func TestTwoPlayerCoDrinkWebSocket(t *testing.T) {
 	s.mu.Unlock()
 	if coinsA != 10-sim.BeerPrice || coinsB != 10-sim.BeerPrice || beerLeft != 2 {
 		t.Fatalf("rejected accept changed economy: coins=(%.2f,%.2f), beer=%.1f", coinsA, coinsB, beerLeft)
+	}
+}
+
+// TestTakeTradeWebSocket verifies that equipment purchases and market trades are distinct,
+// server-authoritative transactions with reqid idempotency over the real WebSocket endpoint.
+func TestTakeTradeWebSocket(t *testing.T) {
+	s := NewStarter("take-trade-ws", "", []byte("secret"), "")
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+	if r := post(t, ts.URL+"/api/register", "{\"login\":\"market-player\",\"pass\":\"secret1\"}"); r["ok"] != true {
+		t.Fatalf("register failed: %v", r)
+	}
+	login := post(t, ts.URL+"/api/login", "{\"login\":\"market-player\",\"pass\":\"secret1\"}")
+	token, _ := login["token"].(string)
+	if token == "" { t.Fatalf("login returned no token: %v", login) }
+	conn := wsDial(t, ts.URL, "/ws?token="+token)
+	defer conn.Close()
+	_ = readServerFrame(t, conn)
+
+	readState := func() map[string]any {
+		t.Helper()
+		if err := conn.SetReadDeadline(time.Now().Add(6 * time.Second)); err != nil { t.Fatal(err) }
+		defer conn.SetReadDeadline(time.Time{})
+		var frame map[string]any
+		if err := json.Unmarshal(readServerFrame(t, conn), &frame); err != nil { t.Fatalf("invalid state frame: %v", err) }
+		return frame
+	}
+	waitResult := func(reqid string) map[string]any {
+		t.Helper()
+		deadline := time.Now().Add(6 * time.Second)
+		for time.Now().Before(deadline) {
+			frame := readState()
+			me, _ := frame["me"].(map[string]any)
+			result, _ := me["result"].(map[string]any)
+			if result != nil && result["reqid"] == reqid { return result }
+		}
+		t.Fatalf("no me.result for reqid %s", reqid)
+		return nil
+	}
+	first := readState()
+	me := first["me"].(map[string]any)
+	idNum, err := strconv.ParseUint(me["id"].(string), 10, 64)
+	if err != nil { t.Fatalf("invalid player id: %v", err) }
+	playerID := core.ID(idNum)
+	tx, ty := sim.StarterLayout().POI("market")
+
+	s.mu.Lock()
+	player := s.world.Get(playerID)
+	if player == nil { s.mu.Unlock(); t.Fatal("reserved player body missing") }
+	pos := sim.EnsureScenePos(s.world, player)
+	pos.X, pos.Y = tx, ty
+	purse := core.Purse(player)
+	if purse == nil { purse = &core.PurseC{Debts: map[string]float64{}}; s.world.Attach(player, purse) }
+	purse.Coins = 100
+	settlementID := core.Place(player).Settlement
+	settlement := core.Settle(s.world.Get(settlementID))
+	if settlement.Store == nil { settlement.Store = map[string]float64{} }
+	settlement.Store[econ.GoodWood] = 10
+	woodPrice := econ.Price(s.world.Get(settlementID), econ.GoodWood)
+	if woodPrice <= 0 { s.mu.Unlock(); t.Fatalf("invalid wood market price: %.2f", woodPrice) }
+	s.mu.Unlock()
+
+	// Take buys a carried item into me.inv.items; repeating the same reqid is free.
+	writeClientFrame(t, conn, "{\"op\":\"take\",\"item\":\"torch\",\"reqid\":\"take-torch-1\"}")
+	if result := waitResult("take-torch-1"); result["ok"] != true { t.Fatalf("torch purchase rejected: %v", result) }
+	s.mu.Lock()
+	coinsAfterTake := core.Purse(s.world.Get(playerID)).Coins
+	torchCount := sim.Inv(s.world.Get(playerID)).Items["torch"]
+	s.mu.Unlock()
+	if coinsAfterTake != 98 || torchCount != 1 { t.Fatalf("take should cost 2 and add one torch: coins=%.2f torch=%d", coinsAfterTake, torchCount) }
+	writeClientFrame(t, conn, "{\"op\":\"take\",\"item\":\"torch\",\"reqid\":\"take-torch-1\"}")
+	if result := waitResult("take-torch-1"); result["ok"] != true { t.Fatalf("idempotent take retry rejected: %v", result) }
+	s.mu.Lock()
+	coinsAfterRetry := core.Purse(s.world.Get(playerID)).Coins
+	torchAfterRetry := sim.Inv(s.world.Get(playerID)).Items["torch"]
+	s.mu.Unlock()
+	if coinsAfterRetry != coinsAfterTake || torchAfterRetry != torchCount { t.Fatal("same take reqid charged or granted twice") }
+
+	// A product sourced from the woods cannot be bought at the market.
+	writeClientFrame(t, conn, "{\"op\":\"take\",\"item\":\"axe\",\"reqid\":\"take-axe-wrong-place\"}")
+	if result := waitResult("take-axe-wrong-place"); result["ok"] != false { t.Fatalf("axe purchase at market should reject: %v", result) }
+	s.mu.Lock()
+	coinsAfterWrongPlace := core.Purse(s.world.Get(playerID)).Coins
+	axeCount := sim.Inv(s.world.Get(playerID)).Items["axe"]
+	s.mu.Unlock()
+	if coinsAfterWrongPlace != coinsAfterTake || axeCount != 0 { t.Fatal("rejected take changed money or inventory") }
+
+	// Equip consumes no stock: it selects the already purchased item in the hand slot.
+	writeClientFrame(t, conn, "{\"op\":\"equip\",\"item\":\"torch\",\"reqid\":\"equip-torch-1\"}")
+	if result := waitResult("equip-torch-1"); result["ok"] != true { t.Fatalf("equip rejected: %v", result) }
+	s.mu.Lock()
+	hand := sim.Inv(s.world.Get(playerID)).Hand
+	s.mu.Unlock()
+	if hand != "torch" { t.Fatalf("equip should set hand=torch, got %q", hand) }
+
+	// Trade buys bulk goods into me.stash, not into the equipment inventory.
+	writeClientFrame(t, conn, "{\"op\":\"trade\",\"good\":\""+econ.GoodWood+"\",\"side\":\"buy\",\"qty\":2,\"reqid\":\"trade-wood-buy-1\"}")
+	if result := waitResult("trade-wood-buy-1"); result["ok"] != true { t.Fatalf("market buy rejected: %v", result) }
+	s.mu.Lock()
+	coinsAfterBuy := core.Purse(s.world.Get(playerID)).Coins
+	woodInStash := econ.Stash(s.world.Get(playerID)).Goods[econ.GoodWood]
+	woodInMarket := core.Settle(s.world.Get(settlementID)).Store[econ.GoodWood]
+	s.mu.Unlock()
+	if math.Abs(coinsAfterBuy-(coinsAfterTake-2*woodPrice)) > 1e-9 || woodInStash != 2 || woodInMarket != 8 {
+		t.Fatalf("market buy mismatch: coins=%.2f stash=%.1f market=%.1f price=%.2f", coinsAfterBuy, woodInStash, woodInMarket, woodPrice)
+	}
+	writeClientFrame(t, conn, "{\"op\":\"trade\",\"good\":\""+econ.GoodWood+"\",\"side\":\"buy\",\"qty\":2,\"reqid\":\"trade-wood-buy-1\"}")
+	if result := waitResult("trade-wood-buy-1"); result["ok"] != true { t.Fatalf("idempotent market retry rejected: %v", result) }
+	s.mu.Lock()
+	coinsAfterBuyRetry := core.Purse(s.world.Get(playerID)).Coins
+	woodAfterBuyRetry := econ.Stash(s.world.Get(playerID)).Goods[econ.GoodWood]
+	marketAfterBuyRetry := core.Settle(s.world.Get(settlementID)).Store[econ.GoodWood]
+	s.mu.Unlock()
+	if coinsAfterBuyRetry != coinsAfterBuy || woodAfterBuyRetry != woodInStash || marketAfterBuyRetry != woodInMarket {
+		t.Fatal("same trade reqid repeated the purchase")
+	}
+
+	// Selling returns bulk goods to market stock and pays the player once (10% merchant fee).
+	writeClientFrame(t, conn, "{\"op\":\"trade\",\"good\":\""+econ.GoodWood+"\",\"side\":\"sell\",\"qty\":1,\"reqid\":\"trade-wood-sell-1\"}")
+	if result := waitResult("trade-wood-sell-1"); result["ok"] != true { t.Fatalf("market sell rejected: %v", result) }
+	s.mu.Lock()
+	coinsAfterSell := core.Purse(s.world.Get(playerID)).Coins
+	woodAfterSell := econ.Stash(s.world.Get(playerID)).Goods[econ.GoodWood]
+	marketAfterSell := core.Settle(s.world.Get(settlementID)).Store[econ.GoodWood]
+	s.mu.Unlock()
+	if math.Abs(coinsAfterSell-(coinsAfterBuy+woodPrice*0.9)) > 1e-9 || woodAfterSell != 1 || marketAfterSell != 9 {
+		t.Fatalf("market sell mismatch: coins=%.2f stash=%.1f market=%.1f", coinsAfterSell, woodAfterSell, marketAfterSell)
 	}
 }
 
