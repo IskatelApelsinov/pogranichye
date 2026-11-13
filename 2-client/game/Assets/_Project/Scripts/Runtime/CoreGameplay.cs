@@ -779,6 +779,8 @@ namespace Pogranichye.Client
                         rec.Gait.Eating = rec.State == "eat";
                     }
                     rec.View.Dead = rec.State == "dead";
+                    if (rec.View.Dead && string.Equals(_lockedFoeId, id, StringComparison.Ordinal))
+                        ClearLockedTarget(false);
                 }
             }
 
@@ -1993,6 +1995,7 @@ namespace Pogranichye.Client
             var cam = Camera.main;
             if (cam == null) return;
             var point = rec.Root.transform.position + Vector3.up * Mathf.Max(0.8f, rec.View.Height * 0.55f);
+            if (IsWorldPointOccluded(cam, point, rec.Root.transform)) return;
             var screen = cam.WorldToScreenPoint(point);
             if (screen.z <= 0f) return;
             var x = screen.x;
