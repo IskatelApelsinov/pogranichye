@@ -24,8 +24,8 @@ namespace Pogranichye.Client.Presentation
         private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
         // are owned by the layout root that created them, not by the most recently built layout.
-        private static readonly System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<UnityEngine.Object>> _assetsByLayoutRoot =
-            new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<UnityEngine.Object>>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.EntityId, System.Collections.Generic.List<UnityEngine.Object>> _assetsByLayoutRoot =
+            new System.Collections.Generic.Dictionary<UnityEngine.EntityId, System.Collections.Generic.List<UnityEngine.Object>>();
         private static System.Collections.Generic.List<UnityEngine.Object> _activeBuildAssets;
 
         public static void Build(Transform root, WorldLayoutFrame layout)
@@ -1717,10 +1717,10 @@ namespace Pogranichye.Client.Presentation
         public static void Cleanup(Transform root)
         {
             if (root == null) return;
-            CleanupAssetsForKey(root.GetInstanceID());
+            CleanupAssetsForKey(root.GetEntityId());
         }
 
-        private static void CleanupAssetsForKey(int key)
+        private static void CleanupAssetsForKey(UnityEngine.EntityId key)
         {
             if (!_assetsByLayoutRoot.TryGetValue(key, out var assets)) return;
             for (var i = 0; i < assets.Count; i++)
@@ -1733,7 +1733,7 @@ namespace Pogranichye.Client.Presentation
 
         public static void Cleanup()
         {
-            var keys = new System.Collections.Generic.List<int>(_assetsByLayoutRoot.Keys);
+            var keys = new System.Collections.Generic.List<UnityEngine.EntityId>(_assetsByLayoutRoot.Keys);
             for (var i = 0; i < keys.Count; i++) CleanupAssetsForKey(keys[i]);
             if (_activeBuildAssets != null)
             {
