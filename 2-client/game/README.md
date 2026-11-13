@@ -160,3 +160,8 @@ These are source-level changes only. Unity Editor 6000.6.7f1 and Play Mode are s
 
 The cross-system integration matrix and acceptance gates are tracked in `3-dev/comms/0173-chatgpt-to-claude-global-world-integration-matrix.md`. This is the canonical checklist for coordinating global coordinates, chunk/region streaming, multi-layout presentation, floating origin, spatial AOI, NPC border crossing, navigation, world content and gameplay interactions. Treat any subsystem not marked global-aware by source-backed evidence as local/staging/missing. Keep `-seamless=on` disabled until every P0–P4 acceptance gate is implemented and tested. See also handoffs 0170 (owner requirement) and 0171 (source audit).
 
+
+
+## Experimental server seamless mode
+
+The server now defaults to `-seamless=on` at the owner's request. Use `-seamless=off` for the previous settlement-edge behavior or `-seamless=keep` to respect the save. This is server-side experimental activation only: Unity still lacks complete global floating-origin, neighbor-region geometry, terrain collision and seam-safe navigation. Do not interpret this flag as client seamless readiness; expect incomplete/empty terrain outside the currently streamed area until the client streaming slices land.
