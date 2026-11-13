@@ -367,6 +367,7 @@ namespace Pogranichye.Client
 
             GUILayout.Space(6f);
             GUILayout.Label("ЗАПАСЫ И МАТЕРИАЛЫ В ЗАКРОМАХ");
+            GUILayout.Label("Купленные на рынке ресурсы попадают в закрома. Инструменты и экипировка после покупки отображаются в «Предметах персонажа» выше.");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasGoods = false;
             if (stash != null)
