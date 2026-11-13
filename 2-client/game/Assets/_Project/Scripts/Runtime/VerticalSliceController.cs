@@ -151,7 +151,10 @@ namespace Pogranichye.Client
         private float _mapZoom = 1f;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
+        private GUIStyle _mapPoiLabelRightStyle;
         private GUIStyle _mapNeighborStyle;
+        private GUIStyle _mapNeighborLabelStyle;
+        private GUIStyle _mapNeighborLabelRightStyle;
         private GUIStyle _mapPlayerStyle;
         private readonly List<string> _sessionJournal = new List<string>();
         private string _lastJournalAction;
@@ -1015,8 +1018,13 @@ namespace Pogranichye.Client
                     GUI.Box(marker, MapPoiGlyph(poiId), _mapPoiStyle);
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
-                    var labelRect = new Rect(position.x + 10f, position.y - 8f, 112f, 16f);
-                    GUI.Label(labelRect, MapPoiName(poiId), _mapPoiLabelStyle);
+                    if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
+                        position.x, position.y, 112f, 18f, 4f, out var poiLabel))
+                    {
+                        var labelRect = new Rect(poiLabel.X, poiLabel.Y, poiLabel.Width, poiLabel.Height);
+                        GUI.Label(labelRect, MapPoiName(poiId),
+                            poiLabel.AlignRight ? _mapPoiLabelRightStyle : _mapPoiLabelStyle);
+                    }
                 }
             }
 
@@ -1048,7 +1056,14 @@ namespace Pogranichye.Client
                     var residentLabel = string.IsNullOrEmpty(activity)
                         ? residentName
                         : residentName + " · " + activity;
-                    GUI.Label(new Rect(position.x + 5f, position.y - 7f, 128f, 14f), residentLabel, _mapPoiLabelStyle);
+                    if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
+                        position.x, position.y, 128f, 28f, 4f, out var residentLabelPlacement))
+                    {
+                        var labelRect = new Rect(residentLabelPlacement.X, residentLabelPlacement.Y,
+                            residentLabelPlacement.Width, residentLabelPlacement.Height);
+                        GUI.Label(labelRect, residentLabel,
+                            residentLabelPlacement.AlignRight ? _mapNeighborLabelRightStyle : _mapNeighborLabelStyle);
+                    }
                 }
             }
 
@@ -1117,6 +1132,23 @@ namespace Pogranichye.Client
                 clipping = TextClipping.Clip
             };
             _mapPoiLabelStyle.normal.textColor = new Color(1f, 0.96f, 0.82f, 1f);
+            _mapPoiLabelRightStyle = new GUIStyle(_mapPoiLabelStyle)
+            {
+                alignment = TextAnchor.MiddleRight
+            };
+            _mapNeighborLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 8,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
+                wordWrap = true
+            };
+            _mapNeighborLabelStyle.normal.textColor = new Color(1f, 0.96f, 0.82f, 1f);
+            _mapNeighborLabelRightStyle = new GUIStyle(_mapNeighborLabelStyle)
+            {
+                alignment = TextAnchor.MiddleRight
+            };
             _mapNeighborStyle = new GUIStyle(_mapPoiStyle) { fontSize = 8 };
             _mapNeighborStyle.normal.textColor = Color.white;
             _mapPlayerStyle = new GUIStyle(_mapPoiStyle) { fontSize = 11 };
