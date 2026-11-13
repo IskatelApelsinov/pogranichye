@@ -287,7 +287,7 @@ func (s *Server) fastStep(dt float64) {
 	s.hot, s.warm, s.cold = s.heatTracker.Update(s.world, ctl)
 	// тела под управлением игроков пропускаем (их ведёт сам игрок)
 	sim.StepNPCMovement(s.world, dt, ctl)
-	sim.StepCombat(s.world, dt, ctl, s.runner.Hub.Stream("combat"))
+	sim.StepCombatAtHour(s.world, dt, s.runner.Clock.Hour(), ctl, s.runner.Hub.Stream("combat"))
 	sim.StepLands(s.world, ctl) // бесшовный мир: идущий переходит в земли ближайшего села
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
