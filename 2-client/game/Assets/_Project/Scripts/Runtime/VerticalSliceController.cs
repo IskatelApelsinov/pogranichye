@@ -2938,16 +2938,16 @@ namespace Pogranichye.Client
             var placeId = frame != null && frame.Place != null ? frame.Place.Id : null;
             if (string.IsNullOrEmpty(placeId)) return;
             if (placeId == _layoutSettlementId || placeId == _layoutRequestedFor) return;
-            // Never show one settlement's buildings while the server is already sending another
-            // settlement's NPCs and positions. The new layout is revealed only after anchor validation.
-            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
-            _status = "Подгружается раскладка поселения…";
             // A server without per-settlement layouts sends no plan; the default layout is already right.
             if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
             {
                 _layoutSettlementId = placeId;
                 return;
             }
+            // Never show one settlement's buildings while the server is already sending another
+            // settlement's NPCs and positions. The new layout is revealed only after anchor validation.
+            WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, false);
+            _status = "Подгружается раскладка поселения…";
             if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
             _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
