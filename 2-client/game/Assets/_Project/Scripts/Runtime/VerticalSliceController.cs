@@ -2806,16 +2806,14 @@ namespace Pogranichye.Client
         /// </summary>
         private void EnsureTerrainChunkForFrame(WorldFrame frame)
         {
-            if (_worldManifest == null || frame == null || frame.Me == null ||
-                frame.Place == null || frame.Place.Anchor == null ||
-                frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid)
-                return;
+            if (frame == null || frame.Place == null) return;
 
             var placeId = frame.Place.Id;
             if (!string.Equals(_terrainStreamSettlementId, placeId, StringComparison.Ordinal))
             {
                 // Chunks and in-flight responses are scoped to a settlement presentation window.
-                // Never rebase old cached geometry onto a new settlement anchor.
+                // Never rebase old cached geometry onto a new settlement anchor, even if the new
+                // snapshot has not yet supplied a valid world position or optional terrain metadata.
                 _terrainStreamSettlementId = placeId;
                 _terrainStreamGeneration++;
                 _terrainChunks.Clear();
@@ -2828,6 +2826,10 @@ namespace Pogranichye.Client
                 _terrainAppliedAnchorNorth = double.NaN;
                 _terrainAppliedAnchorUp = double.NaN;
             }
+
+            if (_worldManifest == null || frame.Me == null || frame.Place.Anchor == null ||
+                frame.Me.WorldPosition == null || !frame.Me.WorldPosition.IsValid)
+                return;
 
             var anchor = frame.Place.Anchor;
             var position = frame.Me.WorldPosition;
