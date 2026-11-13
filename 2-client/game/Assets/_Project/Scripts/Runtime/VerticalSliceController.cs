@@ -2956,6 +2956,7 @@ namespace Pogranichye.Client
             if (_layoutSettlementId == null && (frame.Place.Plan == null || frame.Place.Plan == "starter"))
             {
                 _layoutSettlementId = placeId;
+                WorldLayoutPresentationBuilder.SetVisible(_presentationRoot, true);
                 return;
             }
             // Never show one settlement's buildings while the server is already sending another
