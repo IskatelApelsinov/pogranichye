@@ -367,11 +367,23 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("side")] public int Side { get; set; }
         [JsonProperty("heights")] public List<double> Heights { get; set; }
         [JsonProperty("settlements")] public List<TerrainSettlementFrame> Settlements { get; set; }
-        public bool IsValid => Frame >= 0 && Chunk != null && Chunk.Length == 2 && Origin != null &&
-            !double.IsNaN(Origin.East) && !double.IsInfinity(Origin.East) &&
-            !double.IsNaN(Origin.North) && !double.IsInfinity(Origin.North) && SizeMeters == 256 && (StepMeters == 8 || StepMeters == 16 || StepMeters == 32 || StepMeters == 64) &&
-            Side == SizeMeters / StepMeters + 1 && Heights != null && Heights.Count == Side * Side &&
-            Heights.TrueForAll(v => !double.IsNaN(v) && !double.IsInfinity(v));
+        public bool IsValid
+        {
+            get
+            {
+                if (Frame < 0 || Chunk == null || Chunk.Length != 2 || Origin == null ||
+                    !IsFinite(Origin.East) || !IsFinite(Origin.North) ||
+                    SizeMeters != 256 || (StepMeters != 8 && StepMeters != 16 && StepMeters != 32 && StepMeters != 64) ||
+                    Side != SizeMeters / StepMeters + 1 || Heights == null || Heights.Count != Side * Side ||
+                    !Heights.TrueForAll(IsFinite))
+                    return false;
+                var expectedEast = (double)Chunk[0] * SizeMeters;
+                var expectedNorth = (double)Chunk[1] * SizeMeters;
+                return Math.Abs(Origin.East - expectedEast) <= 0.001 &&
+                    Math.Abs(Origin.North - expectedNorth) <= 0.001;
+            }
+        }
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     [Serializable]
