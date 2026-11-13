@@ -17,7 +17,6 @@ namespace Pogranichye.Client.Presentation
         private GameObject _label;
         private Renderer[] _renderers;
         private bool[] _rendererInitiallyEnabled;
-        private bool _silhouetteEnabled;
         private EntityMotion _motion;
         private int _animationTier;
         private bool _labelVisible = true;
