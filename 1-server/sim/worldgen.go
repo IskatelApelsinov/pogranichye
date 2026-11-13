@@ -60,6 +60,7 @@ func Generate(seed string, settlements int) (*core.World, *dice.Hub) {
 		}
 		settleIDs = append(settleIDs, se.ID)
 	}
+	scatterWildSitesPerRegion(w, g, regions, settleIDs)     // дикие места в поле между сёлами (comms-запрос владельца)
 	makeRealms(w, g, settleIDs)                             // державы делят землю и берут десятину
 	w.Spawn(&chronicle.ChronicleC{Tally: map[string]int{}}) // летопись мира — память о заметных событиях
 	chronicle.Record(w, 0, "начало", fmt.Sprintf("мир начался: %d поселений", len(settleIDs)))
