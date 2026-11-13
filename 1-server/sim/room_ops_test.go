@@ -362,6 +362,51 @@ func TestChestTakeBackFromChest(t *testing.T) {
 	}
 }
 
+func TestPlaceRoomsViewExposesSafeRoomDirectory(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	rooms := tavernRoomsOf(w, se.ID)
+	first := Room(w.Get(rooms[0]))
+	first.Tenant = e.ID
+	first.PaidThrough = 10
+	first.GraceUntil = 11
+	chest := Container(w.Get(first.ChestID))
+	chest.Items["torch"] = 1
+
+	view := PlaceRoomsView(w, se.ID, 12)
+	if view["total"] != 2 || view["vacant"] != 1 || view["rent_price"] != first.RentPrice {
+		t.Fatalf("неверная публичная сводка комнат: %#v", view)
+	}
+	items, ok := view["items"].([]map[string]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("place.rooms.items должен перечислять две комнаты: %#v", view["items"])
+	}
+	byID := map[string]map[string]any{}
+	for _, item := range items {
+		id, ok := item["id"].(string)
+		if !ok || id == "" {
+			t.Fatalf("каталог должен отдавать строковый ID комнаты: %#v", item)
+		}
+		if _, exists := item["tenant"]; exists {
+			t.Fatalf("каталог не должен раскрывать арендатора: %#v", item)
+		}
+		if _, exists := item["chest_items"]; exists {
+			t.Fatalf("каталог не должен раскрывать содержимое сундука: %#v", item)
+		}
+		if _, exists := item["available"].(bool); !exists {
+			t.Fatalf("каталог должен сообщать безопасную доступность: %#v", item)
+		}
+		byID[id] = item
+	}
+	occupied := byID[eidStr(rooms[0])]
+	vacant := byID[eidStr(rooms[1])]
+	if occupied["lease_state"] != RoomLeaseExpired || occupied["available"] != false {
+		t.Fatalf("комната с вещами прежнего жильца должна быть недоступна: %#v", occupied)
+	}
+	if vacant["lease_state"] != RoomLeaseVacant || vacant["available"] != true {
+		t.Fatalf("свободная комната должна быть доступна: %#v", vacant)
+	}
+}
+
 func TestOldSaveWithoutRoomOrContainerDoesNotBreakViews(t *testing.T) {
 	w, e, _ := starterPlayer(t)
 	// сущность без room/container вовсе (симулирует старое сохранение до v1.20)
