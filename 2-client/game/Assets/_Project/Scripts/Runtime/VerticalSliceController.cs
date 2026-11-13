@@ -244,6 +244,7 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            WorldWildSitePresentationBuilder.Update(_presentationRoot, _worldManifest, _frame);
             // Keep spatial player SFX and remote-voice range checks anchored to the
             // authoritative local body, not the scene origin where the director was created.
             _audioDirector?.SetPlayerPosition(_views != null && _views.PlayerTransform != null
@@ -2457,6 +2458,7 @@ namespace Pogranichye.Client
                     _worldManifest = null;
                     Enqueue(() => Debug.LogWarning("Карта мира v1.19 пока недоступна; остаёмся в локальном режиме поселения: " + worldError.Message));
                 }
+                WorldWildSitePresentationBuilder.Clear();
                 _terrainStreamGeneration++;
                 _terrainChunks.Clear();
                 _terrainChunkRequests.Clear();
@@ -3282,6 +3284,7 @@ namespace Pogranichye.Client
             _connectionState = WorldConnectionState.Closed;
             _lifetime.Dispose();
             WorldEnvironmentBuilder.Cleanup();
+            WorldWildSitePresentationBuilder.Clear();
             _layoutCache?.Dispose();
             _layoutCache = null;
             WorldLayoutPresentationBuilder.Cleanup();
