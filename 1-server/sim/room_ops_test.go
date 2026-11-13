@@ -145,16 +145,16 @@ func TestExpiredRoomLeaseDoesNotBlockRentingAnotherRoom(t *testing.T) {
 	GoTo(w, e, "tavern")
 	if ok, why := RentRoom(w, e, rooms[0], 10, "r-expired"); !ok {
 		t.Fatalf("первая аренда должна пройти: %q", why)
-    }
-    if state := RoomLeaseStateAt(Room(w.Get(rooms[0])), 20); state != RoomLeaseExpired {
+	}
+	if state := RoomLeaseStateAt(Room(w.Get(rooms[0])), 20); state != RoomLeaseExpired {
 		t.Fatalf("первая аренда должна истечь к 20-му дню, состояние %q", state)
-    }
-    if ok, why := RentRoom(w, e, rooms[1], 20, "r-new"); !ok {
+	}
+	if ok, why := RentRoom(w, e, rooms[1], 20, "r-new"); !ok {
 		t.Fatalf("истёкшая аренда не должна блокировать новую комнату: %q", why)
-    }
-    if Room(w.Get(rooms[1])).Tenant != e.ID {
+	}
+	if Room(w.Get(rooms[1])).Tenant != e.ID {
 		t.Fatal("новая комната должна быть закреплена за игроком")
-    }
+	}
 }
 
 func TestRentRoomRejectsCompetingTenant(t *testing.T) {
@@ -319,5 +319,61 @@ func TestOldSaveWithoutRoomOrContainerDoesNotBreakViews(t *testing.T) {
 	}
 	if ok, why := EnterRoom(w, e, core.ID(999999), 10, "x"); ok || why == "" {
 		t.Fatal("вход в несуществующую комнату должен аккуратно отклоняться, а не падать")
+	}
+}
+
+// TestPlaceRoomsViewCatalog — публичный каталог комнат items[] (v1.20, comms 0181): детерминированный
+// порядок по id, корректный lease_state на день, цена; без утечки арендатора/содержимого.
+func TestPlaceRoomsViewCatalog(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	day := int64(10)
+	view := PlaceRoomsView(w, se.ID, day)
+
+	total, _ := view["total"].(int)
+	if total != 2 {
+		t.Fatalf("ожидал total=2, получил %v", view["total"])
+	}
+	items, ok := view["items"].([]map[string]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("ожидал items[] из 2 комнат, получил %#v", view["items"])
+	}
+	// детерминированный порядок по id (строковый uint64, возрастание)
+	if items[0]["id"].(string) >= items[1]["id"].(string) {
+		t.Fatalf("items должны быть отсортированы по id: %v, %v", items[0]["id"], items[1]["id"])
+	}
+	for _, it := range items {
+		if it["lease_state"] != RoomLeaseVacant {
+			t.Fatalf("новые комнаты должны быть vacant: %v", it["lease_state"])
+		}
+		if _, hasTenant := it["tenant"]; hasTenant {
+			t.Fatalf("каталог не должен раскрывать арендатора: %#v", it)
+		}
+		if _, hasChest := it["chest_items"]; hasChest {
+			t.Fatalf("каталог не должен раскрывать содержимое сундука: %#v", it)
+		}
+	}
+
+	// после аренды одной комнаты её lease_state в каталоге становится active, vacant падает
+	rooms := tavernRoomsOf(w, se.ID)
+	GoTo(w, e, "tavern")
+	if ok, why := RentRoom(w, e, rooms[0], day, "cat1"); !ok {
+		t.Fatalf("аренда должна пройти: %q", why)
+	}
+	view = PlaceRoomsView(w, se.ID, day)
+	items = view["items"].([]map[string]any)
+	var rented map[string]any
+	for _, it := range items {
+		if it["id"].(string) == eidStr(rooms[0]) {
+			rented = it
+		}
+	}
+	if rented == nil {
+		t.Fatalf("снятая комната должна присутствовать в каталоге")
+	}
+	if rented["lease_state"] != RoomLeaseActive {
+		t.Fatalf("снятая комната должна быть active в каталоге, получил %v", rented["lease_state"])
+	}
+	if v, _ := view["vacant"].(int); v != 1 {
+		t.Fatalf("после аренды vacant должно быть 1, получил %v", view["vacant"])
 	}
 }

@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"pogranichye/core"
 )
@@ -264,20 +265,35 @@ func RoomView(w *core.World, e *core.Entity, day int64) map[string]any {
 }
 
 // PlaceRoomsView — комнаты этого села для place.rooms: сколько всего и сколько вакантно,
-// без утечки чужого содержимого сундука (видно только своя через me.room).
+// плюс публичный каталог комнат items[] для discoverability аренды со стороны клиента (v1.20,
+// comms 0181). Утечки приватных данных нет: арендатор, содержимое и доступ к сундуку не видны
+// (своя комната — только через me.room). items[] отсортирован по id для детерминизма кадра.
 func PlaceRoomsView(w *core.World, settlement core.ID, day int64) map[string]any {
 	total, vacant := 0, 0
 	rent := 0.0
+	rooms := make([]*core.Entity, 0, 4)
 	w.Each("room", func(re *core.Entity) {
 		r := Room(re)
 		if r == nil || r.Settlement != settlement {
 			return
 		}
 		total++
-		if RoomLeaseStateAt(r, day) != RoomLeaseActive && RoomLeaseStateAt(r, day) != RoomLeaseGrace {
+		state := RoomLeaseStateAt(r, day)
+		if state != RoomLeaseActive && state != RoomLeaseGrace {
 			vacant++
 		}
 		rent = r.RentPrice
+		rooms = append(rooms, re)
 	})
-	return map[string]any{"total": total, "vacant": vacant, "rent_price": rent}
+	sort.Slice(rooms, func(i, j int) bool { return rooms[i].ID < rooms[j].ID })
+	items := make([]map[string]any, 0, len(rooms))
+	for _, re := range rooms {
+		r := Room(re)
+		items = append(items, map[string]any{
+			"id":          eidStr(re.ID),
+			"lease_state": RoomLeaseStateAt(r, day),
+			"rent_price":  r.RentPrice,
+		})
+	}
+	return map[string]any{"total": total, "vacant": vacant, "rent_price": rent, "items": items}
 }
