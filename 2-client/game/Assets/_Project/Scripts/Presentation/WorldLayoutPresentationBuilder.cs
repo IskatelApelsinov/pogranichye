@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static Material _iron;
         private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
         // are owned by the layout root that created them, not by the most recently built layout.
@@ -48,6 +49,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
+            _iron = MakeTexturedMaterial("Forged iron • dark hoops", new Color(0.19f, 0.20f, 0.20f), 0, 1f, 1f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
@@ -564,7 +566,7 @@ namespace Pogranichye.Client.Presentation
                     var materialName = source.name.ToLowerInvariant();
                     Material replacement = null;
                     if (materialName.Contains("iron"))
-                        replacement = _stone;
+                        replacement = _iron;
                     else if (materialName.Contains("dark seam"))
                         replacement = _trunk;
                     else if (materialName.Contains("oak") || materialName.Contains("timber"))
