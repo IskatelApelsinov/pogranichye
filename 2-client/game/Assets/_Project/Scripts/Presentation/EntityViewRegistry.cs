@@ -57,6 +57,8 @@ namespace Pogranichye.Client.Presentation
         private Vector3 _diagnosticTargetMax;
         private Vector3 _diagnosticViewMin;
         private Vector3 _diagnosticViewMax;
+        private bool _diagnosticHasTargetBounds;
+        private bool _diagnosticHasViewBounds;
 #endif
 
         public Transform PlayerTransform { get; private set; }
@@ -157,8 +159,17 @@ namespace Pogranichye.Client.Presentation
                         (position - previousTarget).sqrMagnitude > 0.0025f)
                         _diagnosticNpcMoved++;
                     _diagnosticNpcTargets[id] = position;
-                    _diagnosticTargetMin = Vector3.Min(_diagnosticTargetMin, position);
-                    _diagnosticTargetMax = Vector3.Max(_diagnosticTargetMax, position);
+                    if (!_diagnosticHasTargetBounds)
+                    {
+                        _diagnosticTargetMin = position;
+                        _diagnosticTargetMax = position;
+                        _diagnosticHasTargetBounds = true;
+                    }
+                    else
+                    {
+                        _diagnosticTargetMin = Vector3.Min(_diagnosticTargetMin, position);
+                        _diagnosticTargetMax = Vector3.Max(_diagnosticTargetMax, position);
+                    }
                     if (_views.TryGetValue(id, out var diagnosticView) && diagnosticView != null)
                     {
                         var viewPosition = diagnosticView.transform.position;
@@ -166,8 +177,17 @@ namespace Pogranichye.Client.Presentation
                             (viewPosition - previousViewPosition).sqrMagnitude > 0.0025f)
                             _diagnosticNpcViewsMoved++;
                         _diagnosticNpcViews[id] = viewPosition;
-                        _diagnosticViewMin = Vector3.Min(_diagnosticViewMin, viewPosition);
-                        _diagnosticViewMax = Vector3.Max(_diagnosticViewMax, viewPosition);
+                        if (!_diagnosticHasViewBounds)
+                        {
+                            _diagnosticViewMin = viewPosition;
+                            _diagnosticViewMax = viewPosition;
+                            _diagnosticHasViewBounds = true;
+                        }
+                        else
+                        {
+                            _diagnosticViewMin = Vector3.Min(_diagnosticViewMin, viewPosition);
+                            _diagnosticViewMax = Vector3.Max(_diagnosticViewMax, viewPosition);
+                        }
                         _diagnosticMaxPresentationGap = Mathf.Max(_diagnosticMaxPresentationGap,
                             Vector3.Distance(viewPosition, position));
                     }
@@ -236,8 +256,8 @@ namespace Pogranichye.Client.Presentation
                 if (_diagnosticNpcSamples > 0)
                     Debug.Log($"[Pogranichye NPC replication] samples={_diagnosticNpcSamples}, " +
                         $"targetsMoved={_diagnosticNpcMoved}, viewsMoved={_diagnosticNpcViewsMoved}, " +
-                        $"targetSpan={(_diagnosticTargetMax - _diagnosticTargetMin).magnitude:F2}m, " +
-                        $"viewSpan={(_diagnosticViewMax - _diagnosticViewMin).magnitude:F2}m, " +
+                        $"targetSpan={(_diagnosticHasTargetBounds ? (_diagnosticTargetMax - _diagnosticTargetMin).magnitude : 0f):F2}m, " +
+                        $"viewSpan={(_diagnosticHasViewBounds ? (_diagnosticViewMax - _diagnosticViewMin).magnitude : 0f):F2}m, " +
                         $"wpos={_diagnosticGlobalSamples}, localPos={_diagnosticLocalSamples}, " +
                         $"maxViewToTarget={_diagnosticMaxPresentationGap:F2}m");
                 _diagnosticNpcSamples = 0;
@@ -250,6 +270,8 @@ namespace Pogranichye.Client.Presentation
                 _diagnosticTargetMax = Vector3.zero;
                 _diagnosticViewMin = Vector3.zero;
                 _diagnosticViewMax = Vector3.zero;
+                _diagnosticHasTargetBounds = false;
+                _diagnosticHasViewBounds = false;
             }
 #endif
         }
