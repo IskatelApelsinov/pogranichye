@@ -1221,10 +1221,25 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
             var rightThumb = CreatePart("Right thumb", PrimitiveType.Sphere, rightArm.transform,
                 new Vector3(-0.48f, -0.58f, 0.08f), new Vector3(0.42f, 0.62f, 0.58f));
-            var leftLeg = CreatePart("Left leg", PrimitiveType.Capsule, visualRoot,
-                new Vector3(-0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
-            var rightLeg = CreatePart("Right leg", PrimitiveType.Capsule, visualRoot,
-                new Vector3(0.14f, 0.36f, 0), new Vector3(0.18f, 0.36f, 0.18f));
+            // Legs rotate around the hips, not around their own midpoint. This makes the
+            // procedural gait visibly lift/plant the feet instead of merely twisting capsules.
+            var leftLegPivot = new GameObject("Left leg").transform;
+            leftLegPivot.SetParent(visualRoot, false);
+            leftLegPivot.localPosition = new Vector3(-0.14f, 0.64f, 0f);
+            var leftLeg = CreatePart("Left lower leg", PrimitiveType.Capsule, leftLegPivot,
+                new Vector3(0f, -0.28f, 0f), new Vector3(0.18f, 0.36f, 0.18f));
+            var leftBoot = CreatePart("Left boot", PrimitiveType.Cube, leftLegPivot,
+                new Vector3(0f, -0.60f, 0.055f), new Vector3(0.19f, 0.10f, 0.30f));
+            ApplyColor(leftBoot.GetComponent<Renderer>(), new Color(0.19f, 0.15f, 0.11f));
+
+            var rightLegPivot = new GameObject("Right leg").transform;
+            rightLegPivot.SetParent(visualRoot, false);
+            rightLegPivot.localPosition = new Vector3(0.14f, 0.64f, 0f);
+            var rightLeg = CreatePart("Right lower leg", PrimitiveType.Capsule, rightLegPivot,
+                new Vector3(0f, -0.28f, 0f), new Vector3(0.18f, 0.36f, 0.18f));
+            var rightBoot = CreatePart("Right boot", PrimitiveType.Cube, rightLegPivot,
+                new Vector3(0f, -0.60f, 0.055f), new Vector3(0.19f, 0.10f, 0.30f));
+            ApplyColor(rightBoot.GetComponent<Renderer>(), new Color(0.19f, 0.15f, 0.11f));
 
             var tunic = RoleColor(role, isPlayer);
             if (!isPlayer) tunic = VariantTunicColor(tunic, id);
@@ -1241,7 +1256,7 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(leftLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyColor(rightLeg.GetComponent<Renderer>(), new Color(0.22f, 0.20f, 0.17f));
             ApplyBodyVariation(id, body.transform, head.transform, leftArm.transform, rightArm.transform,
-                leftLeg.transform, rightLeg.transform);
+                leftLegPivot, rightLegPivot);
             if (isPlayer)
                 visualRoot.localScale = new Vector3(1f, 0.97f + (float)(id % 5UL) * 0.015f, 1f);
             AddBaseClothingDetails(visualRoot, id);
@@ -1251,7 +1266,7 @@ namespace Pogranichye.Client.Presentation
 
             var motion = go.AddComponent<EntityMotion>();
             motion.Initialize(body.transform, head.transform, leftArm.transform, rightArm.transform,
-                leftLeg.transform, rightLeg.transform, isPlayer, id);
+                leftLegPivot, rightLegPivot, isPlayer, id);
 
             var labelObject = new GameObject("Label");
             labelObject.transform.SetParent(go.transform, false);
