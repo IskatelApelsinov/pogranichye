@@ -13,13 +13,34 @@ namespace Pogranichye.Client.Presentation
         private const string RootName = "WorldTerrainChunk";
         private static Material _material;
 
+        public static string ObjectName(string chunkId)
+        {
+            return RootName + "_" + (chunkId ?? string.Empty).Replace(':', '_').Replace('-', 'm');
+        }
+
         public static void Clear(Transform root)
         {
             if (root == null) return;
-            var old = root.Find(RootName);
-            if (old == null) return;
+            for (var i = root.childCount - 1; i >= 0; i--)
+            {
+                var child = root.GetChild(i);
+                if (child == null || !child.name.StartsWith(RootName + "_", StringComparison.Ordinal)) continue;
+                RemoveObject(child);
+            }
+        }
+
+        public static void Remove(Transform root, string chunkId)
+        {
+            if (root == null) return;
+            var old = root.Find(ObjectName(chunkId));
+            if (old != null) RemoveObject(old);
+        }
+
+        private static void RemoveObject(Transform old)
+        {
             var filter = old.GetComponent<MeshFilter>();
             var mesh = filter != null ? filter.sharedMesh : null;
+            old.name += " (replaced)";
             UnityEngine.Object.Destroy(old.gameObject);
             if (mesh != null) UnityEngine.Object.Destroy(mesh);
         }
@@ -27,14 +48,11 @@ namespace Pogranichye.Client.Presentation
         public static void Apply(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
         {
             if (root == null || chunk == null || !chunk.IsValid || anchor == null) return;
-            var old = root.Find(RootName);
+            var objectName = ObjectName(chunk.Id);
+            var old = root.Find(objectName);
             if (old != null)
             {
-                var oldFilter = old.GetComponent<MeshFilter>();
-                var oldMesh = oldFilter != null ? oldFilter.sharedMesh : null;
-                old.name = RootName + " (replaced)";
-                UnityEngine.Object.Destroy(old.gameObject);
-                if (oldMesh != null) UnityEngine.Object.Destroy(oldMesh);
+                RemoveObject(old);
             }
 
             var side = chunk.Side;
@@ -74,7 +92,7 @@ namespace Pogranichye.Client.Presentation
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
-            var go = new GameObject(RootName);
+            var go = new GameObject(objectName);
             go.transform.SetParent(root, false);
             var filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
