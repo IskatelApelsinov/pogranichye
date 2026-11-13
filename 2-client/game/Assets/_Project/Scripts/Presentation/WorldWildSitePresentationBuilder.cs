@@ -19,6 +19,7 @@ namespace Pogranichye.Client.Presentation
             public double East;
             public double North;
             public double Up;
+            public double Ground;
             public string Type;
             public double Mana;
             public double Danger;
@@ -52,7 +53,7 @@ namespace Pogranichye.Client.Presentation
                     Views.Add(site.Id, new SiteView
                     {
                         Id = site.Id, Frame = site.Frame, East = site.East,
-                        North = site.North, Up = site.Up, Type = site.Type,
+                        North = site.North, Up = site.Up, Ground = site.Ground, Type = site.Type,
                         Mana = site.Mana, Danger = site.Danger, Root = viewRoot
                     });
                     hash = hash * 31 + site.Id.GetHashCode();
@@ -87,7 +88,7 @@ namespace Pogranichye.Client.Presentation
 
                 var east = view.East - origin.East;
                 var north = view.North - origin.North;
-                var up = view.Up - origin.Up;
+                var up = view.Ground - origin.Up;
                 var distanceSquared = east * east + north * north;
                 var visible = distanceSquared <= 360d * 360d &&
                     Math.Abs(east) < 1000000d && Math.Abs(north) < 1000000d && Math.Abs(up) < 1000000d;
@@ -97,14 +98,14 @@ namespace Pogranichye.Client.Presentation
                     view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
                     if (!view.Built)
                     {
-                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger);
+                        BuildLandmark(view.Root, view.Type, view.Mana, view.Danger,\n                            Math.Abs(view.Up - view.Ground));
                         view.Built = true;
                     }
                 }
             }
         }
 
-        private static void BuildLandmark(Transform root, string type, double mana, double danger)
+        private static void BuildLandmark(Transform root, string type, double mana, double danger, double verticalOffset)
         {
             var stone = MaterialFor("stone", new Color(0.39f, 0.37f, 0.32f));
             var dark = MaterialFor("dark", new Color(0.075f, 0.065f, 0.052f));
@@ -120,7 +121,7 @@ namespace Pogranichye.Client.Presentation
                     Part(root, PrimitiveType.Cube, "CaveRockL", new Vector3(-2.1f, 1.2f, 0), new Vector3(1.4f, 2.4f, 2.2f), stone);
                     Part(root, PrimitiveType.Cube, "CaveRockR", new Vector3(2.1f, 1.2f, 0), new Vector3(1.4f, 2.4f, 2.2f), stone);
                     Part(root, PrimitiveType.Cube, "CaveLintel", new Vector3(0, 2.35f, 0), new Vector3(3.2f, 0.8f, 2.2f), stone);
-                    Part(root, PrimitiveType.Cube, "CaveDarkness", new Vector3(0, 0.9f, 0.72f), new Vector3(2.1f, 1.8f, 0.12f), dark);
+                    Part(root, PrimitiveType.Cube, "CaveDarkness", new Vector3(0, -0.8f, 0.72f), new Vector3(2.1f, 1.6f, 0.12f), dark);
                     break;
                 case "tower":
                     Part(root, PrimitiveType.Cylinder, "TowerBody", new Vector3(0, 4f, 0), new Vector3(3.2f, 4f, 3.2f), stone);
