@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -31,5 +32,20 @@ func TestWorldSurvivesRestart(t *testing.T) {
 	}
 	if ok, _ := NewStarter("x", "", []byte("x"), "").LoadFrom(filepath.Join(t.TempDir(), "none.sav")); ok {
 		t.Fatal("нет файла — нет загрузки")
+	}
+}
+
+func TestAutosaveZeroIntervalStillSavesOnClose(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "world.sav")
+	s := NewStarter("autosave-disabled-periodic", "", []byte("x"), "")
+	done := make(chan struct{})
+	go func() {
+		s.Autosave(path, 0)
+		close(done)
+	}()
+	s.Close()
+	<-done
+	if info, err := os.Stat(path); err != nil || info.Size() == 0 {
+		t.Fatalf("zero interval must still write a final world snapshot: info=%v err=%v", info, err)
 	}
 }
