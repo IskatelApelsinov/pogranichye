@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"pogranichye/core"
 )
@@ -274,15 +275,22 @@ func RoomView(w *core.World, e *core.Entity, day int64) map[string]any {
 // PlaceRoomsView — комнаты этого села для place.rooms: сколько всего и сколько вакантно,
 // без утечки чужого содержимого сундука (видно только своя через me.room).
 func PlaceRoomsView(w *core.World, settlement core.ID, day int64) map[string]any {
-	total, vacant := 0, 0
+	rooms := make([]*core.Entity, 0, 4)
 	rent := 0.0
-	items := make([]map[string]any, 0, 4)
 	w.Each("room", func(re *core.Entity) {
 		r := Room(re)
 		if r == nil || r.Settlement != settlement {
 			return
 		}
-		total++
+		rooms = append(rooms, re)
+		rent = r.RentPrice
+	})
+	sort.Slice(rooms, func(i, j int) bool { return rooms[i].ID < rooms[j].ID })
+
+	items := make([]map[string]any, 0, len(rooms))
+	vacant := 0
+	for _, re := range rooms {
+		r := Room(re)
 		state := RoomLeaseStateAt(r, day)
 		available := state == RoomLeaseVacant
 		if state == RoomLeaseExpired {
@@ -292,12 +300,11 @@ func PlaceRoomsView(w *core.World, settlement core.ID, day int64) map[string]any
 		if available {
 			vacant++
 		}
-		rent = r.RentPrice
 		// Public directory: stable ID, current lease state, price and safe availability only.
 		// Never expose tenant identity or private chest contents here.
 		items = append(items, map[string]any{
 			"id": eidStr(re.ID), "lease_state": state, "rent_price": r.RentPrice, "available": available,
 		})
-	})
-	return map[string]any{"total": total, "vacant": vacant, "rent_price": rent, "items": items}
+	}
+	return map[string]any{"total": len(rooms), "vacant": vacant, "rent_price": rent, "items": items}
 }
