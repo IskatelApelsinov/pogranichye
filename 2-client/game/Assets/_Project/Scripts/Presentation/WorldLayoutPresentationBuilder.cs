@@ -313,6 +313,7 @@ namespace Pogranichye.Client.Presentation
                 CreateCombinedMesh(world, "Generated woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
 
             BuildGeneratedGroundCover(world, layout);
+            BuildGeneratedYardProps(world, layout);
 
             if (layout.Roads != null)
             {
@@ -433,6 +434,204 @@ namespace Pogranichye.Client.Presentation
             triangles.Add(petal + 3); triangles.Add(petal + 5); triangles.Add(petal + 4);
             triangles.Add(petal); triangles.Add(petal + 1); triangles.Add(petal + 2);
             triangles.Add(petal + 3); triangles.Add(petal + 4); triangles.Add(petal + 5);
+        }
+
+        /// <summary>
+        /// Adds a few lived-in yard details around generated buildings. All props are combined
+        /// into static meshes and remain presentation-only (no colliders or gameplay inventory).
+        /// </summary>
+        private static void BuildGeneratedYardProps(Transform world, WorldLayoutFrame layout)
+        {
+            if (layout == null || layout.Buildings == null || layout.Buildings.Count == 0) return;
+
+            var crateVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 96);
+            var crateTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 144);
+            var logVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 180);
+            var logTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 240);
+            var barrelVertices = new System.Collections.Generic.List<Vector3>(layout.Buildings.Count * 48);
+            var barrelTriangles = new System.Collections.Generic.List<int>(layout.Buildings.Count * 72);
+
+            for (var i = 0; i < layout.Buildings.Count; i++)
+            {
+                var building = layout.Buildings[i];
+                if (building == null) continue;
+
+                var centerX = (float)((building.X0 + building.X1) * 0.5);
+                var centerZ = (float)((building.Y0 + building.Y1) * 0.5);
+                var halfWidth = (float)(building.X1 - building.X0) * 0.5f;
+                var halfDepth = (float)(building.Y1 - building.Y0) * 0.5f;
+                var seed = StableDecorationSeed(layout.Settlement, i + 1703);
+                var random = new System.Random(seed);
+                var sideStart = random.Next(0, 4);
+                var yard = Vector2.zero;
+                var found = false;
+
+                for (var sideOffset = 0; sideOffset < 4; sideOffset++)
+                {
+                    var side = (sideStart + sideOffset) % 4;
+                    var candidate = side == 0 ? new Vector2(centerX, (float)building.Y0 - 1.7f) :
+                        side == 1 ? new Vector2(centerX, (float)building.Y1 + 1.7f) :
+                        side == 2 ? new Vector2((float)building.X0 - 1.7f, centerZ) :
+                                    new Vector2((float)building.X1 + 1.7f, centerZ);
+                    if (!IsYardPointClear(layout, building, candidate.x, candidate.y)) continue;
+                    yard = candidate;
+                    found = true;
+                    break;
+                }
+
+                if (!found) continue;
+
+                var yaw = (float)random.NextDouble() * Mathf.PI * 2f;
+                var crateSize = 0.42f + (float)random.NextDouble() * 0.12f;
+                AppendBox(crateVertices, crateTriangles,
+                    new Vector3(yard.x - 0.48f, crateSize * 0.5f, yard.y),
+                    new Vector3(crateSize, crateSize, crateSize), yaw);
+                if (random.NextDouble() < 0.72)
+                    AppendBox(crateVertices, crateTriangles,
+                        new Vector3(yard.x - 0.18f, crateSize * 1.45f, yard.y + 0.18f),
+                        new Vector3(crateSize * 0.82f, crateSize * 0.82f, crateSize * 0.82f), yaw + 0.22f);
+
+                // Split firewood stacked beside the crates; the geometry is baked into one mesh.
+                var logLength = 0.72f + (float)random.NextDouble() * 0.28f;
+                for (var log = 0; log < 3; log++)
+                {
+                    var position = new Vector3(yard.x + 0.55f + log * 0.035f,
+                        0.13f + (log % 2) * 0.22f,
+                        yard.y + (log - 1) * 0.19f);
+                    AppendLog(logVertices, logTriangles, position, logLength, 0.105f,
+                        yaw + (float)random.NextDouble() * 0.12f);
+                }
+
+                if (random.NextDouble() < 0.58)
+                    AppendBarrel(barrelVertices, barrelTriangles,
+                        new Vector3(yard.x + 1.02f, 0f, yard.y + 0.42f),
+                        0.27f, 0.78f);
+            }
+
+            CreateCombinedMesh(world, "Village yards • stacked timber crates",
+                crateVertices, crateTriangles, _timber);
+            CreateCombinedMesh(world, "Village yards • split firewood",
+                logVertices, logTriangles, _trunk);
+            CreateCombinedMesh(world, "Village yards • wooden barrels",
+                barrelVertices, barrelTriangles, _trunk);
+        }
+
+        private static bool IsYardPointClear(WorldLayoutFrame layout, WorldRectFrame owner,
+            float x, float z)
+        {
+            if (layout.IsBlocked(x, z) || NearAnyRoad(layout, x, z, 2.4f) ||
+                NearAnyPoi(layout, x, z, 4.2f))
+                return false;
+
+            if (layout.Buildings != null)
+            {
+                foreach (var other in layout.Buildings)
+                {
+                    if (other == null || ReferenceEquals(other, owner)) continue;
+                    if (x >= other.X0 - 1.4 && x <= other.X1 + 1.4 &&
+                        z >= other.Y0 - 1.4 && z <= other.Y1 + 1.4)
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        private static void AppendBox(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 center, Vector3 size, float yaw)
+        {
+            var right = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw)) * (size.x * 0.5f);
+            var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw)) * (size.z * 0.5f);
+            var up = Vector3.up * (size.y * 0.5f);
+            var p0 = center - right - forward - up;
+            var p1 = center + right - forward - up;
+            var p2 = center + right + forward - up;
+            var p3 = center - right + forward - up;
+            var p4 = center - right - forward + up;
+            var p5 = center + right - forward + up;
+            var p6 = center + right + forward + up;
+            var p7 = center - right + forward + up;
+            AppendQuad(vertices, triangles, p0, p1, p5, p4);
+            AppendQuad(vertices, triangles, p1, p2, p6, p5);
+            AppendQuad(vertices, triangles, p2, p3, p7, p6);
+            AppendQuad(vertices, triangles, p3, p0, p4, p7);
+            AppendQuad(vertices, triangles, p4, p5, p6, p7);
+            AppendQuad(vertices, triangles, p3, p2, p1, p0);
+        }
+
+        private static void AppendQuad(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            var start = vertices.Count;
+            vertices.Add(a); vertices.Add(b); vertices.Add(c); vertices.Add(d);
+            triangles.Add(start); triangles.Add(start + 1); triangles.Add(start + 2);
+            triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 3);
+        }
+
+        private static void AppendLog(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 center, float length, float radius, float yaw)
+        {
+            const int sides = 7;
+            var axis = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
+            var start = vertices.Count;
+            for (var end = -1; end <= 1; end += 2)
+            for (var side = 0; side < sides; side++)
+            {
+                var angle = side * Mathf.PI * 2f / sides;
+                var radial = new Vector3(0f, Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
+                vertices.Add(center + axis * (end * length * 0.5f) + radial);
+            }
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                triangles.Add(start + side); triangles.Add(start + sides + side); triangles.Add(start + next);
+                triangles.Add(start + next); triangles.Add(start + sides + side); triangles.Add(start + sides + next);
+            }
+            var capA = vertices.Count;
+            vertices.Add(center - axis * (length * 0.5f));
+            var capB = vertices.Count;
+            vertices.Add(center + axis * (length * 0.5f));
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                triangles.Add(capA); triangles.Add(start + next); triangles.Add(start + side);
+                triangles.Add(capB); triangles.Add(start + sides + side); triangles.Add(start + sides + next);
+            }
+        }
+
+        private static void AppendBarrel(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            Vector3 basePoint, float radius, float height)
+        {
+            const int sides = 8;
+            var start = vertices.Count;
+            for (var ring = 0; ring < 3; ring++)
+            {
+                var y = height * ring * 0.5f;
+                var ringRadius = ring == 1 ? radius * 1.08f : radius * 0.92f;
+                for (var side = 0; side < sides; side++)
+                {
+                    var angle = side * Mathf.PI * 2f / sides;
+                    vertices.Add(basePoint + new Vector3(Mathf.Cos(angle) * ringRadius,
+                        y, Mathf.Sin(angle) * ringRadius));
+                }
+            }
+            for (var ring = 0; ring < 2; ring++)
+            for (var side = 0; side < sides; side++)
+            {
+                var next = (side + 1) % sides;
+                var lower = start + ring * sides + side;
+                var upper = start + (ring + 1) * sides + side;
+                triangles.Add(lower); triangles.Add(upper); triangles.Add(start + ring * sides + next);
+                triangles.Add(start + ring * sides + next); triangles.Add(upper);
+                triangles.Add(start + (ring + 1) * sides + next);
+            }
         }
 
         private static void BuildRoadsideGroundCover(Transform world, WorldLayoutFrame layout)
