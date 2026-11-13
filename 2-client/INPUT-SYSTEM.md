@@ -24,17 +24,24 @@ The project currently does not version-control a full ProjectSettings/ProjectSet
 | Move | WASD or arrow keys |
 | Look | Mouse delta |
 | Zoom | Mouse wheel |
-| Sprint / jump | Shift / Space |
+| Sprint / jog | Shift / Alt |
+| Jump | Space (presentation only; in a minigame Space performs its primary action) |
 | Interact | E |
-| Toggle HUD / diagnostics / fullscreen | F1 / F3 / F11 |
-| Character / game menu | Tab; close with Escape |
+| System menu | F1 or Esc; Esc first closes chat/minigame when one is active |
+| Character menu | Tab |
+| World HUD panel | On-screen collapse/expand button |
+| Diagnostics / fullscreen | F3 / F11 |
+| Chat | T opens; Enter or KeypadEnter sends; Esc closes |
+| Voice | Join the voice channel, then enable the microphone; current mode is a toggle, not push-to-talk |
+| Woodcutting / fishing | G / J to start; Space for the minigame action; Esc cancels |
 | Weave mode | Hold R; nodes 1–6; Backspace removes; RMB clears |
 | Primary / guard | LMB / hold RMB |
 | Dodge / quick attack | Q / F |
 | Combat tricks | Z / X / V / B / C |
-| Cycle stance / hints | T / H |
+| Cycle stance / hints | N / H |
 | Road event choice | 1–9 |
 
+Opening a modal menu, chat, or minigame releases mouse capture and blocks character movement/jump input until the overlay is closed.
 ## Implementation
 
 - ClientInput.cs owns the action map and is shared by the controller, camera, interaction probe and CoreGameplay.
