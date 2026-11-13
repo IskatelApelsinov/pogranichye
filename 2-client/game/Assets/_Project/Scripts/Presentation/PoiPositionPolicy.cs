@@ -22,12 +22,16 @@ namespace Pogranichye.Client.Presentation
             IDictionary<string, PoiCoordinate> layoutPois,
             IDictionary<string, PoiCoordinate> legacyPois,
             bool hasLayoutPois,
+            bool allowLegacyFallback,
             out PoiCoordinate coordinate)
         {
             coordinate = default(PoiCoordinate);
             if (string.IsNullOrEmpty(poiId)) return false;
 
-            var source = hasLayoutPois ? layoutPois : legacyPois;
+            // A generated settlement may be waiting for its own layout or have a failed
+            // request. In that state, starter coordinates are actively misleading, so the
+            // caller must opt in to the legacy map only for starter/legacy places.
+            var source = hasLayoutPois ? layoutPois : allowLegacyFallback ? legacyPois : null;
             if (source == null) return false;
             if (source.TryGetValue(poiId, out coordinate)) return true;
 
