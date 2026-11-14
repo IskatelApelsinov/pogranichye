@@ -87,10 +87,11 @@ namespace Pogranichye.Client.Editor
         {
             const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
-                patch.Me == null || patch.Me["health"]?.Value<int>() != 91 ||
-                patch.Place == null || patch.Place["foes"] is not Newtonsoft.Json.Linq.JArray foes ||
-                foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
+                patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null)
                 throw new FormatException("Valid partial fast frame was not parsed.");
+            var foes = patch.Place["foes"] as Newtonsoft.Json.Linq.JArray;
+            if (foes == null || foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
+                throw new FormatException("Fast-frame foe array was not parsed.");
 
             if (FastFrameParser.TryParse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"}}", out _))
                 throw new FormatException("A full frame must not be classified as a fast patch.");
