@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client;
+using Pogranichye.Client.Networking.Protocol;
 
 namespace Pogranichye.Client.Networking
 {
@@ -18,16 +19,21 @@ namespace Pogranichye.Client.Networking
         public GameplayStatusPatch Status { get; }
         public bool HasFeed { get; }
         public List<FeedEntryFrame> Feed { get; }
+        public bool HasResult { get; }
+        public ActionResultFrame Result { get; }
 
         internal FastFramePatch(
             JObject me, JObject place, GameplayStatusPatch status,
-            bool hasFeed, List<FeedEntryFrame> feed)
+            bool hasFeed, List<FeedEntryFrame> feed,
+            bool hasResult, ActionResultFrame result)
         {
             Me = me;
             Place = place;
             Status = status;
             HasFeed = hasFeed;
             Feed = feed;
+            HasResult = hasResult;
+            Result = result;
         }
     }
 
@@ -92,7 +98,6 @@ namespace Pogranichye.Client.Networking
             ValidateOptionalObject(me, "me.combat");
             ValidateOptionalObject(me, "me.wounds");
             ValidateOptionalArray(me, "me.feed");
-            ValidateOptionalObjectOrNull(me, "me.result");
             ValidateOptionalNumber(me, "me.health");
             ValidateOptionalNumber(me, "me.energy");
             ValidateOptionalNumber(me, "me.mana");
@@ -100,13 +105,16 @@ namespace Pogranichye.Client.Networking
             // Preserve absent-vs-explicit-null semantics for the server event stream.
             var hasFeed = me != null && me.Property("feed") != null;
             var feed = hasFeed ? FeedFrameParser.Parse(me["feed"], "me.feed") : null;
+            // me.result is a one-slot server acknowledgement, not an event queue.
+            var hasResult = me != null && me.Property("result") != null;
+            var result = hasResult ? ActionResultFrameParser.Parse(me["result"], "me.result") : null;
             ValidateOptionalArray(place, "place.neighbors");
             ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.exits");
             ValidateNeighborEntries(place);
             ValidateFoeEntries(place);
 
-            patch = new FastFramePatch(me, place, status, hasFeed, feed);
+            patch = new FastFramePatch(me, place, status, hasFeed, feed, hasResult, result);
             return true;
         }
 
@@ -192,12 +200,6 @@ namespace Pogranichye.Client.Networking
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.Object)
                 throw new FormatException(field + " должен быть объектом.");
         }
-
-        private static void ValidateOptionalObjectOrNull(JObject parent, string field)
-        {
-            ValidateOptionalObject(parent, field);
-        }
-
 
         private static void ValidateOptionalNumber(JObject parent, string field)
         {
