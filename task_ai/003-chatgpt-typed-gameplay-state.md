@@ -124,4 +124,4 @@ CI feedback — 2026-11-14:
 - `CoreGameplay.ReadResult` больше не читает JObject: он принимает типизированный `ActionResultFrame`. `RequestGate` не изменён: один запрос в полёте, следующий только после совпадающего reqid или timeout.
 - Добавлены pure C# проверки и Editor fixture cases для валидного result, неверных типов, отсутствующего reason и fast absent/null.
 
-Сервер, wire v1, семантика одного ACK-слота и обработка reqid не менялись. Проверки CI для предыдущего status/feed среза: run #43635026001 — все 16 шагов PASS. Новый result runner ожидает отдельного CI запуска. Unity Editor/PlayMode не запускались.
+Сервер, wire v1, семантика одного ACK-слота и обработка reqid не менялись. Проверки CI для предыдущего status/feed среза: run #43635026001 — все 16 шагов PASS. Новый workflow run #43635516351 — **все 17 шагов PASS**, включая status, feed и action-result pure C# runners. Unity Editor/PlayMode не запускались.
