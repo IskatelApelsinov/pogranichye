@@ -40,6 +40,7 @@ The project currently does not version-control a full ProjectSettings/ProjectSet
 | Combat tricks | Z / X / V / B / C |
 | Cycle stance / hints | N / H |
 | Road event choice | 1–9 |
+| Card games at tavern | 1–2 to start/choose in Очко; 1–6 cards, 7 take, 8 finish in Durak |
 
 Opening a modal menu, chat, or minigame releases mouse capture and blocks character movement/jump input until the overlay is closed.
 ## Implementation
