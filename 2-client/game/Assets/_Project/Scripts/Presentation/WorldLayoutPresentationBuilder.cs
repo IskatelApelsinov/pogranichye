@@ -60,7 +60,7 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
-            ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f);
+            ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
             ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
@@ -1909,23 +1909,41 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void ApplyGeneratedWorldMaps(Material material, string materialKey, float tilingX, float tilingY)
+        private static void ApplyGeneratedWorldMaps(Material material, string materialKey,
+            float tilingX, float tilingY, bool smoothnessInAlbedoAlpha = false)
         {
             if (material == null) return;
             var prefix = "WorldMaterials/Textures/" + materialKey;
+            var tiling = new Vector2(tilingX, tilingY);
             var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
             if (albedo != null)
             {
                 material.mainTexture = albedo;
-                material.mainTextureScale = new Vector2(tilingX, tilingY);
-                if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", albedo);
+                material.mainTextureScale = tiling;
+                if (material.HasProperty("_BaseMap"))
+                {
+                    material.SetTexture("_BaseMap", albedo);
+                    material.SetTextureScale("_BaseMap", tiling);
+                }
+                // Authored albedo RGB must not be multiplied by the old placeholder tint.
+                if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
+                else if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+
+                // URP Lit's Albedo Alpha smoothness source lets the separate roughness
+                // map remain available to other shaders while using smoothness = 1 - roughness.
+                if (smoothnessInAlbedoAlpha && material.HasProperty("_SmoothnessTextureChannel"))
+                {
+                    material.SetFloat("_SmoothnessTextureChannel", 1f);
+                    if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 1f);
+                    if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+                }
             }
 
             var normal = Resources.Load<Texture2D>(prefix + "_normal");
             if (normal != null && material.HasProperty("_BumpMap"))
             {
                 material.SetTexture("_BumpMap", normal);
-                material.SetTextureScale("_BumpMap", new Vector2(tilingX, tilingY));
+                material.SetTextureScale("_BumpMap", tiling);
                 material.EnableKeyword("_NORMALMAP");
             }
 
@@ -1933,7 +1951,8 @@ namespace Pogranichye.Client.Presentation
             if (ao != null && material.HasProperty("_OcclusionMap"))
             {
                 material.SetTexture("_OcclusionMap", ao);
-                material.SetTextureScale("_OcclusionMap", new Vector2(tilingX, tilingY));
+                material.SetTextureScale("_OcclusionMap", tiling);
+                if (material.HasProperty("_OcclusionStrength")) material.SetFloat("_OcclusionStrength", 1f);
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
         }

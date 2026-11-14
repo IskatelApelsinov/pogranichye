@@ -14,9 +14,11 @@ materials for the Unity 6 client:
 - cobblestone paving
 - limewashed plaster
 
-The library now contains ten materials (40 maps at 512×512). Each material has Albedo, tangent-space Normal, Roughness and AO PNG maps.
-The generator is deterministic and uses periodic functions so opposite edges
-match. It uses no external textures, add-ons, or downloaded assets.
+The library contains ten materials. The procedural baseline maps are 512×512; each has Albedo, tangent-space Normal, Roughness and AO PNG maps. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
+The procedural baseline generator is deterministic and uses periodic functions
+so opposite edges match; it needs no downloaded textures or Blender add-ons.
+The authored packed-road override is the explicit exception and is maintained
+by the separate source-art builder described below.
 
 ## Generate
 
@@ -41,6 +43,9 @@ Unity imports the PNG files automatically. Set:
 - Roughness is not Unity's Smoothness. A shader/material setup must invert it
   when feeding a Smoothness slot (Smoothness = 1 - Roughness).
 
-The maps are generated from a shared periodic height field. This is an
-optimized stylized-realism base pass; it is not a substitute for later
-hand-authored hero materials or scanned assets.
+The procedural baseline maps are generated from a shared periodic height field. The packed-road material is an authored artwork override at 1024×1024: its albedo is generated separately, seam-repaired, and paired with derived normal, roughness and AO maps. The manifest records this per-material resolution. The Blender generator preserves that complete authored map set rather than overwriting it with procedural noise.
+
+For the authored packed-road material, see
+[../textures/README.md](../textures/README.md). It is used by the generated settlement roads and the tavern packed-earth floor through `WorldLayoutPresentationBuilder`.
+
+The procedural baseline remains a fallback for the other materials; it is not a substitute for later hand-authored hero materials or scanned assets.
