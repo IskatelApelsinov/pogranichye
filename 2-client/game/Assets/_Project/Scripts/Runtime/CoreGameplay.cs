@@ -187,7 +187,7 @@ namespace Pogranichye.Client
         private ActionResultFrame _result;
         private CombatFrame _combat;
         private JourneyFrame _journey;
-        private QuestListFrame _quests;
+        private QuestsFrame _quests;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -2333,12 +2333,14 @@ namespace Pogranichye.Client
                 var active = _quests?.Active;
                 if (active == null || active.Count == 0) return;
                 var quest = active[0];
-                var progress = quest.Kind == "deliver" || quest.Kind == "cull"
-                    ? " · " + Mathf.Min((int)quest.Have, quest.Quantity) + "/" + quest.Quantity
+                var kind = quest.Kind ?? string.Empty;
+                var progress = kind == "deliver" || kind == "cull"
+                    ? " · " + Mathf.Min(quest.Have ?? 0, quest.Quantity) +
+                      "/" + quest.Quantity
                     : string.Empty;
                 title = "ЗАДАЧА";
-                objective = (quest.Ready ? "Готово · " : "") + quest.Text + progress;
-                ready = quest.Ready;
+                ready = quest.Ready == true;
+                objective = (ready ? "Готово · " : "") + (quest.Text ?? string.Empty) + progress;
             }
 
             EnsureHudTextStyles();
@@ -2371,7 +2373,6 @@ namespace Pogranichye.Client
 
         private void DrawRoad(JourneyFrame journey)
         {
-            if (journey == null) return;
             var width = Mathf.Min(680f, Screen.width - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.5f - 170f, width, 340f);
             GUI.Box(rect, "Дорога в " + (journey.ToName ?? string.Empty));
@@ -2379,7 +2380,8 @@ namespace Pogranichye.Client
             Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), (float)journey.Progress, new Color(0.79f, 0.64f, 0.29f));
             GUILayout.Space(8f);
             GUILayout.Label(journey.Scene ?? string.Empty);
-            if (!string.IsNullOrEmpty(journey.Note)) GUILayout.Label(journey.Note);
+            var note = journey.Note;
+            if (!string.IsNullOrEmpty(note)) GUILayout.Label(note);
             var roadEvent = journey.Event;
             if (roadEvent != null)
             {
@@ -2793,16 +2795,15 @@ namespace Pogranichye.Client
 
             GUILayout.Space(8f);
             var quests = _quests;
-            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (quests == null ? 0 : quests.Done) +
-                ", слава здесь " + (quests == null ? 0 : quests.Reputation) + ")");
+            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (quests?.Done ?? 0) + ", слава здесь " + (quests?.Reputation ?? 0) + ")");
             var active = quests?.Active;
             if (active != null)
                 foreach (var quest in active)
                 {
-                    if (quest == null) continue;
+                    var questReady = quest.Ready == true;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label((quest.Ready ? "[готово] " : "... ") + (quest.Text ?? string.Empty), GUILayout.Width(rect.width - 260f));
-                    GUI.enabled = quest.Ready;
+                    GUILayout.Label((questReady ? "[готово] " : "... ") + (quest.Text ?? string.Empty), GUILayout.Width(rect.width - 260f));
+                    GUI.enabled = questReady;
                     if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", quest.Id);
                     GUI.enabled = true;
                     if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", quest.Id);
@@ -2814,14 +2815,14 @@ namespace Pogranichye.Client
             if (offers != null)
                 foreach (var offer in offers)
                 {
-                    if (offer == null) continue;
                     GUILayout.BeginHorizontal();
                     var via = offer.Via ?? string.Empty;
                     var giver = offer.Giver ?? string.Empty;
                     var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
+                    var giverName = offer.GiverName ?? string.Empty;
                     var who = via == "board" ? "доска у колодца"
-                        : isCurrentNpc ? "собеседник " + (offer.GiverName ?? string.Empty)
-                        : offer.GiverName ?? string.Empty;
+                        : isCurrentNpc ? "собеседник " + giverName
+                        : giverName;
                     var pay = offer.Coins > 0d ? "  [" + (int)offer.Coins + " монет]" : string.Empty;
                     GUILayout.Label(who + ": " + (offer.Text ?? string.Empty) + pay, GUILayout.Width(rect.width - 210f));
                     if (via != "npc" || isCurrentNpc)
