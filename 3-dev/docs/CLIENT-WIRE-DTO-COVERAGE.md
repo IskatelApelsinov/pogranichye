@@ -23,7 +23,7 @@
 | `me.weave` | `WeaveFrame`, `WeaveNodeFrame`, `WeaveSchemaFrame` | weave UI and input | Typed |
 | `me.talk/invite_from/social_event/result/task/journal` | corresponding nested DTOs | talk, request result, opening task and journal | Typed |
 | `me.coins/debt/wounds/bleeding/stash/pos/wpos/room` | `CharacterFrame` plus nested DTOs | status, movement, containers and room presentation | Typed |
-| `me.drunk` | `CharacterFrame.Drunk` added in this slice | compact status HUD and character summary | Typed in this slice |
+| `me.drunk` (v1.12) | `CharacterFrame.Drunk` added in this slice | compact status HUD and character summary | Typed in this slice |
 | `me.feed[]` | Missing `FeedEntryFrame` | `ReadFeed`, confirmed combat/work/social feedback | **Gap**; used by full and fast frames |
 | `me.stats` | Missing `StatsFrame` | character attributes panel | **Gap** |
 | `me.horse` | Missing `HorseFrame` and saddle-bag DTO | mount, stamina, location and horse inventory UI | **Gap** |
