@@ -62,3 +62,8 @@ Typed HUD work from overlapping PRs #635 and #636 is consolidated in PR #638. Do
 ## Typed result continuation — 2026-11-14
 
 PR #638 now also types the existing single-slot `me.result` acknowledgement. `ActionResultFrameParser` validates full and fast results; `RequestGate` semantics remain unchanged (one in-flight request, matching reqid only). No server/wire change. Pure C# checks all passed in workflow run #43635516351 (17 steps); Unity Editor/PlayMode remain unverified.
+
+
+## Typed combat/foe continuation — 2026-11-14
+
+PR #638 now types the existing server `me.combat` view and `place.foes[]` arrays in both full and fast frames. `CoreGameplay` consumes typed combat values and server-owned foe frames; no local foe simulation or server changes. Parser checks and Editor fixture cases were added; CI result is pending.
