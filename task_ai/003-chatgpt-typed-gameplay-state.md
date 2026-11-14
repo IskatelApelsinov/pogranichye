@@ -90,7 +90,7 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 Подробная таблица server `stateJSON/fastJSON` → DTO → CoreGameplay и следующий безопасный порядок типизации вынесены в `3-dev/comms/0233-chatgpt-client-typed-state-coverage.md`.
 
 Подтверждено по текущим исходникам:
-- `CharacterFrame` не покрывает 11 серверных разделов, читаемых CoreGameplay: `combat/feed/quests/recipes/journey/horse/bag/stats/drunk/region/party/card_game`.
+- `CharacterFrame` не покрывает 12 серверных разделов, читаемых CoreGameplay: `combat/feed/quests/recipes/journey/horse/bag/stats/drunk/region/party/card_game`.
 - `PlaceFrame` не покрывает `foes/exits/site/market/stable/tavern_counter`; первые пять используются CoreGameplay, `tavern_counter` нужен для корректной привязки интеракции к стойке/корчмарю.
 - Fast server frame содержит только `me.pos/mana/combat/feed/result/wounds/health/energy` и `place.neighbors/foes`; `FastFramePatch` пока оборачивает JObject, а gameplay сохраняет raw JObject state.
 - Отдельная проблема ±150 м уже частично решена в текущем parser при наличии `me.wpos + place.anchor`; fixtures подтверждают x=151 и отрицательный случай. Повторно этот код не менять.
