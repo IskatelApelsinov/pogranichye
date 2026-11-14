@@ -140,32 +140,10 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 
 ## Current status — 2026-11-14 (supersedes earlier next-owner notes)
 
-- Consolidated PR #638 is open and ready for review; overlapping PR #635/#636 are closed as superseded. PR #638 has no server/wire changes.
-- Typed consumers now include status HUD, `me.feed[]`, `me.result`, `me.combat`, and `place.foes[]`; full and fast frames keep explicit presence/null semantics.
+- Consolidated PR #638 is open and ready for review; overlapping PR #635/#636 are closed as superseded. Stacked PR #639 contains the next journey/quest slice and targets the PR #638 branch. PR #638 has no server/wire changes.
+- Typed consumers now include status HUD, `me.feed[]`, `me.result`, `me.combat`, `place.foes[]`, `me.journey`, and `me.quests`; full/fast presence semantics are explicit, while journey/quests remain full-snapshot-only.
 - Latest CI run #43636660993 passed all 18 steps, including dedicated typed status/feed/result/combat/foe regression runners.
-- Remaining character DTO gaps include journey/quests, inventory/horse/bag/stats/region/recipes/party/card-game; remaining settlement gaps include exits/site/market/stable/tavern counter.
-- Next bounded source audit: `me.journey` and `me.quests`, including exact null/privacy/sequence semantics, then one typed read-only consumer migration.
+- Remaining character DTO gaps include inventory/horse/bag/stats/region/recipes/party/card-game; remaining settlement gaps include exits/site/market/stable/tavern counter.
+- Journey/quests are implemented in stacked PR #639; next bounded source audit is inventory/horse/bag/stats, then one typed read-only consumer migration.
 - Unity 6000.6.7f1 compile, Editor fixture menu and PlayMode are still unverified; see `task_human/004` after PR #638 is merged.
-
-
-
-## Восьмой проход — типизированные journey и quests (2026-11-14)
-
-- Проверен источник sim.JourneyView: null вне дороги; объект содержит to/to_name/progress/eta/scene/note/follow/event/via; event может быть null, варианты приходят с сервера.
-- Проверен источник sim.QuestsView: offers — сериализуемые Quest structs (good/species могут отсутствовать из-за omitempty); active — map-объекты с прогрессом, готовностью и снимком поселения/державы; done/rep — счётчики.
-- Добавлены JourneyFrame, RoadEventFrame, QuestListFrame, QuestOfferFrame, ActiveQuestFrame и строгие валидаторы full snapshot. Wire v1 не менялся; fast frame journey/quests не содержит, поэтому типизированное значение остаётся последним full snapshot.
-- CoreGameplay переведён на typed journey для режима дороги, выбора события и DrawRoad; компактный DrawQuestTracker читает typed active quest. Полная панель «Дела» пока остаётся на проверенных raw selectors и не мигрирована.
-- Добавлены pure C# regression checks и Unity Editor full-frame fixture cases для valid/null/malformed journey и quest payloads. Workflow #43637296564 — все 20 шагов PASS, включая новый typed journey/quest runner и предыдущие client regression checks.
-- Unity Editor/PlayMode не запускались.
-
-Следующий узкий шаг: мигрировать подробную панель offers/active quests с JObject на те же DTO, не меняя отправляемые intents и серверную семантику.
-
-
-## Девятый проход — полная миграция панели просьб (2026-11-14)
-
-- Подробная панель «Дела» переведена с JObject на QuestListFrame: счётчики done/rep, активные просьбы, ready, текст/прогресс, offers, giver/via и coins.
-- Intent payloads accept/turnin/drop не менялись; GUI по-прежнему показывает «сдать» только при серверном ready и не меняет прогресс/награды локально.
-- Проверено поиском по CoreGameplay: raw selectors me.journey и me.quests больше не используются; journey и обе quest-панели читают typed view.
-- Pure C# CI runner покрывает DTO/parser; Unity Editor fixture cases покрывают full-frame mapping. Новый workflow после этого изменения ожидает результата.
-- Следующий source audit — inventory/horse/bag; не переносить поля без проверки serializer и приватности.
 
