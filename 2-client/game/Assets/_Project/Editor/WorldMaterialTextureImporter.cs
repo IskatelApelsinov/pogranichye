@@ -22,6 +22,8 @@ namespace Pogranichye.Client.Editor
             importer.filterMode = FilterMode.Trilinear;
             importer.anisoLevel = 8;
             importer.maxTextureSize = 1024;
+            // Albedo alpha is reserved for linear URP smoothness data, not transparency.
+            importer.alphaIsTransparency = false;
 
             var file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             if (file.EndsWith("_normal", System.StringComparison.OrdinalIgnoreCase))
