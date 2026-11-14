@@ -74,10 +74,13 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f);
             ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f);
             ApplyGeneratedWorldMaps(_scarecrowCloth, "homespun_linen", 1f, 1f);
-            if (_scarecrowCloth.HasProperty("_BaseColor"))
-                _scarecrowCloth.SetColor("_BaseColor", Color.white);
-            else if (_scarecrowCloth.HasProperty("_Color"))
-                _scarecrowCloth.color = Color.white;
+            if (Resources.Load<Texture2D>("WorldMaterials/Textures/homespun_linen_albedo") != null)
+            {
+                if (_scarecrowCloth.HasProperty("_BaseColor"))
+                    _scarecrowCloth.SetColor("_BaseColor", Color.white);
+                else if (_scarecrowCloth.HasProperty("_Color"))
+                    _scarecrowCloth.color = Color.white;
+            }
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -1989,13 +1992,6 @@ namespace Pogranichye.Client.Presentation
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
 
-            var roughness = Resources.Load<Texture2D>(prefix + "_roughness");
-            if (roughness != null && material.HasProperty("_Smoothness"))
-            {
-                // The legacy generator stores roughness, not Unity smoothness.
-                // Without a dedicated packed gloss map, use its linear average as a safe fallback.
-                material.SetFloat("_Smoothness", 1f - roughness.GetPixelBilinear(0.5f, 0.5f).r);
-            }
         }
 
         private static PackedWorldPbrMaps GetPackedWorldPbrMaps(string materialKey, Texture2D packed)
