@@ -53,11 +53,13 @@ internal static class HorseStatsFrameParserCheck
         Check("null horse represents no owned horse", true);
 
         ExpectFormat("missing stat rejected", () =>
-            StatsFrameParser.Validate(JToken.Parse(statsJson.Replace("\"will\":10,", "")), "me.stats"));
+            StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\\"will\\":10", "")), "me.stats"));
         ExpectFormat("negative stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace("\"strength\":10", "\"strength\":-1")), "me.stats"));
+        var nonFiniteStats = (JObject)JToken.Parse(statsJson);
+        nonFiniteStats["strength"] = new JValue(double.PositiveInfinity);
         ExpectFormat("non-finite stat rejected", () =>
-            StatsFrameParser.Validate(JToken.Parse(statsJson.Replace("\"strength\":10", "\"strength\":1e999")), "me.stats"));
+            StatsFrameParser.Validate(nonFiniteStats, "me.stats"));
         ExpectFormat("negative carried load rejected", () =>
             CarryBagFrameParser.Validate(JToken.Parse(bagJson.Replace("\"load\":24", "\"load\":-1")), "me.bag"));
         ExpectFormat("non-boolean overloaded flag rejected", () =>
