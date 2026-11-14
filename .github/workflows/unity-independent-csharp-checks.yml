@@ -82,7 +82,7 @@ jobs:
         run: |
           NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/action-result-parser.exe
       - name: Typed combat and foe frame regression checks
         working-directory: 2-client/game
