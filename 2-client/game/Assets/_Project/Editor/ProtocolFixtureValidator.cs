@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.IO;
+using Pogranichye.Client;
 using Pogranichye.Client.Networking;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
