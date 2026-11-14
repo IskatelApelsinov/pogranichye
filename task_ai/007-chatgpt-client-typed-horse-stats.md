@@ -33,3 +33,8 @@ Finish the existing DTO scaffold for `me.stats`, `me.bag`, and `me.horse`, then 
 
 - Source audit completed; typed properties/consumer migration not yet complete.
 - Unity compile/Editor/PlayMode not run for this future slice.
+
+
+## CI note — 2026-11-14
+
+The existing `HorseStatsFrames.cs` scaffold now has a dedicated compile-only CI step. It passed in run #43638240668 (all 20 steps). This proves only that the standalone scaffold compiles against Newtonsoft.Json; it does not mean the DTOs are wired to WorldFrame or CoreGameplay.
