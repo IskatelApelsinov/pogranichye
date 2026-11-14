@@ -50,6 +50,14 @@ type Server struct {
 	// needs reconciliation when controlled players/targets or settlement population changes.
 	heatTracker sim.HeatTracker
 
+	// Cached world Terrain (comms 0208): NewTerrain обходит все поселения мира, так что пересчитывать
+	// его на каждый stateJSON/HTTP-запрос каждого из P подключённых клиентов — лишний O(P×settlements)
+	// расход. Якоря сёл (SettlementC.X/Y) не меняются после создания, поэтому кэш безопасно жив, пока
+	// не появилось новое село (frontier/живой мир) — это ловит CountKind, а не полный обход.
+	terrainWorld *core.World
+	terrainN     int
+	terrainCache *sim.Terrain
+
 	// диагностика нагрузки (/api/stats): температура областей и длительность последнего часа мира
 	hot, warm, cold int
 	lastStepMs      float64
@@ -222,7 +230,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/stats", s.handleStats)
 	mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) { // схема координат, якоря сёл, тракты
 		s.mu.Lock()
-		v := sim.WorldManifest(s.world)
+		v := sim.WorldManifestUsing(s.world, s.terrain())
 		s.mu.Unlock()
 		writeJSON(w, v)
 	})
@@ -236,7 +244,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		step, _ := strconv.Atoi(q.Get("step"))
 		s.mu.Lock()
-		v := sim.TerrainChunk(s.world, cx, cz, step)
+		v := sim.TerrainChunkUsing(s.world, s.terrain(), cx, cz, step)
 		s.mu.Unlock()
 		writeJSON(w, v)
 	})
@@ -901,6 +909,21 @@ func parseID(sid string) core.ID {
 	return core.ID(n)
 }
 
+// terrain возвращает кэшированный Terrain текущего мира, пересобирая его только когда меняется
+// число поселений — единственное, от чего зависят якоря/рельеф (см. sim.NewTerrain). Вызывать
+// только под s.mu, как и остальные поля Server (комментарий к полям terrain* на Server). Экономит
+// повторный обход всех поселений на каждый stateJSON/HTTP-запрос нескольких клиентов за один игровой
+// тик — см. comms 0208.
+func (s *Server) terrain() *sim.Terrain {
+	n := s.world.CountKind("settlement")
+	if s.terrainCache == nil || s.terrainWorld != s.world || s.terrainN != n {
+		s.terrainCache = sim.NewTerrain(s.world)
+		s.terrainWorld = s.world
+		s.terrainN = n
+	}
+	return s.terrainCache
+}
+
 // stateJSON собирает картину вокруг персонажа для клиента.
 func (s *Server) stateJSON(cid core.ID) string {
 	s.mu.Lock()
@@ -914,9 +937,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 	m := core.Mind(e)
 	home := core.Home(e)
 	pl := core.Place(e)
-	// Один Terrain на весь кадр: NewTerrain обходит все поселения мира, так что считать его заново
-	// на каждого из neighborCap соседей (как и на себя) было бы 1+N обходов на кадр вместо одного.
-	terrain := sim.NewTerrain(s.world)
+	// Один Terrain на весь кадр и дальше: см. s.terrain() — кэш живёт между кадрами и клиентами,
+	// пока не появилось новое село.
+	terrain := s.terrain()
 	out := map[string]any{
 		"v":      1, // версия протокола (см. 3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md)
 		"alive":  true,
@@ -1012,7 +1035,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"foes":        sim.FoesView(s.world, pl.Settlement),                     // звери/лихие люди сцены (v1.10)
 				"exits":       sim.ExitsView(s.world, e, pl.Settlement),                 // выезды: тракты к соседям и перевал (v1.15)
 				"site":        sim.SiteView(s.world, se),                                // место на планете и характер села (v1.14)
-				"anchor":      sim.AnchorView(s.world, pl.Settlement),                   // v1.19: центр села в мире; мир = anchor + pos
+				"anchor":      sim.AnchorViewUsing(s.world, terrain, pl.Settlement),      // v1.19: центр села в мире; мир = anchor + pos
 				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan,                // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":      sim.StableView(se),                                       // конюшня: лошади на продажу и цена (v1.13)
 				"market":      sim.MarketView(se, e),                                    // прилавок: запас и цены (v1.10)
@@ -1240,7 +1263,7 @@ func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
 	out := l.JSON()
 	if se := s.world.Get(id); se != nil && core.Settle(se) != nil {
 		out["settlement"] = eid(id)
-		out["anchor"] = sim.AnchorView(s.world, id)
+		out["anchor"] = sim.AnchorViewUsing(s.world, s.terrain(), id)
 	}
 	s.mu.Unlock()
 	writeJSON(w, out)
