@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Pogranichye.Client.Networking.Protocol;
 
 namespace Pogranichye.Client.Networking
 {
@@ -13,11 +15,15 @@ namespace Pogranichye.Client.Networking
     {
         public JObject Me { get; }
         public JObject Place { get; }
+        public bool HasFeed { get; }
+        public List<FeedEntryFrame> Feed { get; }
 
-        internal FastFramePatch(JObject me, JObject place)
+        internal FastFramePatch(JObject me, JObject place, bool hasFeed, List<FeedEntryFrame> feed)
         {
             Me = me;
             Place = place;
+            HasFeed = hasFeed;
+            Feed = feed;
         }
     }
 
@@ -81,7 +87,6 @@ namespace Pogranichye.Client.Networking
             ValidateOptionalObject(me, "me.pos");
             ValidateOptionalObject(me, "me.combat");
             ValidateOptionalObject(me, "me.wounds");
-            ValidateOptionalArray(me, "me.feed");
             ValidateOptionalObjectOrNull(me, "me.result");
             ValidateOptionalNumber(me, "me.health");
             ValidateOptionalNumber(me, "me.energy");
@@ -92,7 +97,11 @@ namespace Pogranichye.Client.Networking
             ValidateNeighborEntries(place);
             ValidateFoeEntries(place);
 
-            patch = new FastFramePatch(me, place);
+            // Feed is a bounded server event list. Preserve absent-vs-explicit-null semantics
+            // while exposing parsed entries to gameplay without another JSON selector pass.
+            var hasFeed = me != null && me.Property("feed") != null;
+            var feed = hasFeed ? FeedFrameParser.Parse(me["feed"], "me.feed") : null;
+            patch = new FastFramePatch(me, place, hasFeed, feed);
             return true;
         }
 
