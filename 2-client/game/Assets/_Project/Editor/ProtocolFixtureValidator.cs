@@ -97,7 +97,10 @@ namespace Pogranichye.Client.Editor
                 throw new FormatException("A full frame must not be classified as a fast patch.");
 
             ExpectFastRejected("{\\"v\\":2,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "unsupported fast protocol version");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":false,\\"me\\":{\\"health\\":1}}", "terminal fast frame");
+            var terminalFast = WorldFrameParser.Parse("{\\"v\\":1,\\"fast\\":true,\\"alive\\":false}", out _);
+            if (terminalFast.Alive || terminalFast.Me != null)
+                throw new FormatException("Terminal fast envelope must reach the normal alive:false lifecycle.");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":\\"true\\",\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "non-boolean fast marker");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":[],\\"place\\":{}}", "non-object fast me");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":{}}}", "non-array fast foes");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":[{\\"id\\":42}]}}", "non-string fast foe id");
