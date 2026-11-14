@@ -86,13 +86,18 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    var collision = new GameObject("Server collision • " + b.Kind);
-                    collision.transform.SetParent(world, false);
-                    collision.transform.localPosition = new Vector3(
-                        (float)((b.X0 + b.X1) * 0.5), 2.35f, (float)((b.Y0 + b.Y1) * 0.5));
-                    collision.layer = 2; // Same obstruction layer used by the presentation camera.
-                    var collider = collision.AddComponent<BoxCollider>();
-                    collider.size = new Vector3(width, 4.7f, depth);
+                    if (b.Door != null && b.Kind == "tavern")
+                        BuildTavernWallColliders(world, b, width, depth);
+                    else
+                    {
+                        var collision = new GameObject("Server collision • " + b.Kind);
+                        collision.transform.SetParent(world, false);
+                        collision.transform.localPosition = new Vector3(
+                            (float)((b.X0 + b.X1) * 0.5), 2.35f, (float)((b.Y0 + b.Y1) * 0.5));
+                        collision.layer = 2;
+                        var collider = collision.AddComponent<BoxCollider>();
+                        collider.size = new Vector3(width, 4.7f, depth);
+                    }
 
                     // Match visible mass to the authoritative obstruction footprint.
                     // Every server-blocked building must have a matching visible mass.
@@ -1396,6 +1401,76 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        private static void BuildTavernInterior(Transform root, float width, float depth, float wallHeight)
+        {
+            // Warm, readable first-pass interior. Props have no gameplay colliders; server owns movement.
+            Create("Tavern packed-earth floor", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.12f, 0f), new Vector3(width - 2.5f, 0.12f, depth - 2.5f), _road, false);
+            Create("Tavern hearth glow", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.28f, 0.65f, depth * 0.30f), new Vector3(1.8f, 0.12f, 1.1f), _iron, false);
+            Create("Hearth stone surround", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.28f, 0.48f, depth * 0.30f), new Vector3(2.4f, 0.65f, 1.4f), _stone, false);
+            // Back counter and three stools, leaving a clear central aisle from the door.
+            Create("Tavern serving counter", PrimitiveType.Cube, root,
+                new Vector3(width * 0.25f, 0.92f, depth * 0.28f), new Vector3(width * 0.42f, 0.22f, 1.15f), _timber, false);
+            Create("Counter front timber", PrimitiveType.Cube, root,
+                new Vector3(width * 0.25f, 0.48f, depth * 0.28f), new Vector3(width * 0.42f, 0.72f, 0.12f), _trunk, false);
+            for (var i = 0; i < 3; i++)
+            {
+                var x = -width * 0.30f + i * width * 0.30f;
+                Create("Tavern bench", PrimitiveType.Cube, root,
+                    new Vector3(x, 0.52f, -depth * 0.02f), new Vector3(1.75f, 0.16f, 0.42f), _timber, false);
+                Create("Tavern bench legs", PrimitiveType.Cube, root,
+                    new Vector3(x, 0.28f, -depth * 0.02f), new Vector3(1.45f, 0.42f, 0.12f), _trunk, false);
+            }
+            Create("Tavern table", PrimitiveType.Cube, root,
+                new Vector3(-width * 0.22f, 0.78f, -depth * 0.30f), new Vector3(2.4f, 0.16f, 1.3f), _timber, false);
+            for (var side = -1; side <= 1; side += 2)
+                Create("Tavern table leg", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.22f + side * 0.85f, 0.40f, -depth * 0.30f), new Vector3(0.14f, 0.75f, 0.14f), _trunk, false);
+            Create("Tavern mug", PrimitiveType.Cylinder, root,
+                new Vector3(-width * 0.22f, 0.98f, -depth * 0.30f), new Vector3(0.22f, 0.20f, 0.22f), _straw, false);
+            Create("Tavern mug handle", PrimitiveType.Cylinder, root,
+                new Vector3(-width * 0.22f + 0.22f, 0.98f, -depth * 0.30f), new Vector3(0.08f, 0.14f, 0.08f), _iron, false);
+            Create("Tavern wall shelf", PrimitiveType.Cube, root,
+                new Vector3(width * 0.28f, 2.15f, depth * 0.47f), new Vector3(width * 0.34f, 0.12f, 0.55f), _trunk, false);
+        }
+
+        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth)
+        {
+            // Server v1.23 defines a south-wall door for the starter tavern. Match its
+            // opening exactly; keep the remaining perimeter solid and the floor walkable.
+            var centerX = (float)((building.X0 + building.X1) * 0.5);
+            var centerZ = (float)((building.Y0 + building.Y1) * 0.5);
+            var door = building.Door;
+            var opening = Mathf.Clamp((float)door.Width, 1.2f, 2.4f);
+            var doorX = Mathf.Clamp((float)door.X - centerX,
+                -width * 0.5f + opening * 0.5f, width * 0.5f - opening * 0.5f);
+            var left = width * 0.5f + doorX - opening * 0.5f;
+            var right = width * 0.5f - doorX - opening * 0.5f;
+            AddWallCollider(parent, "Tavern west wall", new Vector3(centerX - width * 0.5f + 0.12f, 2.35f, centerZ),
+                new Vector3(0.24f, 4.7f, depth));
+            AddWallCollider(parent, "Tavern east wall", new Vector3(centerX + width * 0.5f - 0.12f, 2.35f, centerZ),
+                new Vector3(0.24f, 4.7f, depth));
+            AddWallCollider(parent, "Tavern rear wall", new Vector3(centerX, 2.35f, centerZ + depth * 0.5f - 0.12f),
+                new Vector3(width, 4.7f, 0.24f));
+            if (left > 0.05f)
+                AddWallCollider(parent, "Tavern south wall left", new Vector3(centerX - width * 0.5f + left * 0.5f, 2.35f, centerZ - depth * 0.5f + 0.12f),
+                    new Vector3(left, 4.7f, 0.24f));
+            if (right > 0.05f)
+                AddWallCollider(parent, "Tavern south wall right", new Vector3(centerX + width * 0.5f - right * 0.5f, 2.35f, centerZ - depth * 0.5f + 0.12f),
+                    new Vector3(right, 4.7f, 0.24f));
+        }
+
+        private static void AddWallCollider(Transform parent, string name, Vector3 position, Vector3 size)
+        {
+            var wall = new GameObject(name);
+            wall.transform.SetParent(parent, false);
+            wall.transform.localPosition = position;
+            wall.layer = 2;
+            wall.AddComponent<BoxCollider>().size = size;
+        }
+
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
             float width, float depth)
         {
@@ -1429,14 +1504,26 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f),
                 new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
 
-            var opening = isMarket ? width * 0.28f : width * 0.34f;
-            var sideWidth = (width - opening) * 0.5f;
-            Create("South facade left", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.5f + sideWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                new Vector3(sideWidth, wallHeight, 0.24f), wall, false);
-            Create("South facade right", PrimitiveType.Cube, root,
-                new Vector3(width * 0.5f - sideWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                new Vector3(sideWidth, wallHeight, 0.24f), wall, false);
+            var hasDoor = building.Kind == "tavern" && building.Door != null &&
+                Mathf.Abs(building.Door.Y - building.Y0) < 0.5f;
+            var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
+                (isMarket ? width * 0.28f : width * 0.34f);
+            var doorLocalX = hasDoor ? Mathf.Clamp((float)building.Door.X - center.x,
+                -width * 0.5f + opening * 0.5f + 0.2f, width * 0.5f - opening * 0.5f - 0.2f) : 0f;
+            var leftWidth = width * 0.5f + doorLocalX - opening * 0.5f;
+            var rightWidth = width * 0.5f - doorLocalX - opening * 0.5f;
+            if (leftWidth > 0.1f)
+                Create("South facade left", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.5f + leftWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                    new Vector3(leftWidth, wallHeight, 0.24f), wall, false);
+            if (rightWidth > 0.1f)
+                Create("South facade right", PrimitiveType.Cube, root,
+                    new Vector3(doorLocalX + opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                    new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
+            if (hasDoor)
+                Create("Tavern doorway lintel", PrimitiveType.Cube, root,
+                    new Vector3(doorLocalX, wallHeight - 0.16f, -depth * 0.5f + 0.12f),
+                    new Vector3(opening + 0.25f, 0.32f, 0.28f), _trunk, false);
 
             for (var side = -1; side <= 1; side += 2)
             {
@@ -1458,15 +1545,27 @@ namespace Pogranichye.Client.Presentation
             }
 
             // A dark recessed door and small framed windows give each footprint a readable facade.
-            var doorWidth = Mathf.Min(1.25f, opening * 0.52f);
-            Create("Shadowed doorway", PrimitiveType.Cube, root,
-                new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
-                new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
-            Create("Oak door leaf", PrimitiveType.Cube, root,
-                new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
-                new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
+            var doorWidth = Mathf.Min(1.25f, opening * 0.82f);
+            if (!hasDoor)
+            {
+                Create("Shadowed doorway", PrimitiveType.Cube, root,
+                    new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
+                    new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
+                Create("Oak door leaf", PrimitiveType.Cube, root,
+                    new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
+                    new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
+            }
+            else
+            {
+                Create("Tavern door jamb left", PrimitiveType.Cube, root,
+                    new Vector3(doorLocalX - opening * 0.5f + 0.08f, 1.12f, -depth * 0.5f + 0.02f),
+                    new Vector3(0.16f, 2.24f, 0.24f), _trunk, false);
+                Create("Tavern door jamb right", PrimitiveType.Cube, root,
+                    new Vector3(doorLocalX + opening * 0.5f - 0.08f, 1.12f, -depth * 0.5f + 0.02f),
+                    new Vector3(0.16f, 2.24f, 0.24f), _trunk, false);
+            }
             Create("Door iron latch", PrimitiveType.Sphere, root,
-                new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
+                new Vector3(doorLocalX + doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
                 new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
 
             for (var side = -1; side <= 1; side += 2)
@@ -1505,6 +1604,8 @@ namespace Pogranichye.Client.Presentation
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market")
                 CreateFootprintSign(root, BuildingDisplayName(building), width, depth, wallHeight);
+            if (building.Kind == "tavern" && building.Door != null)
+                BuildTavernInterior(root, width, depth, wallHeight);
 
             if (building.Kind == "tavern" || building.Kind == "smithy")
             {

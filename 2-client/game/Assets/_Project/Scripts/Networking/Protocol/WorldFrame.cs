@@ -536,7 +536,23 @@ namespace Pogranichye.Client.Networking.Protocol
             if (!inside && !Open) return true;
             if (Buildings != null)
                 foreach (var b in Buildings)
-                    if (b != null && x >= b.X0 && x <= b.X1 && y >= b.Y0 && y <= b.Y1) return true;
+                {
+                    if (b == null || x < b.X0 || x > b.X1 || y < b.Y0 || y > b.Y1) continue;
+                    if (b.Door == null) return true;
+                    const double wall = 1.2;
+                    if (x > b.X0 + wall && x < b.X1 - wall && y > b.Y0 + wall && y < b.Y1 - wall)
+                        continue; // walkable floor behind the wall shell
+                    var half = b.Door.Width * 0.5;
+                    var south = Math.Abs(b.Door.Y - b.Y0) < 0.5 && y <= b.Y0 + wall &&
+                        Math.Abs(x - b.Door.X) <= half;
+                    var north = Math.Abs(b.Door.Y - b.Y1) < 0.5 && y >= b.Y1 - wall &&
+                        Math.Abs(x - b.Door.X) <= half;
+                    var west = Math.Abs(b.Door.X - b.X0) < 0.5 && x <= b.X0 + wall &&
+                        Math.Abs(y - b.Door.Y) <= half;
+                    var east = Math.Abs(b.Door.X - b.X1) < 0.5 && x >= b.X1 - wall &&
+                        Math.Abs(y - b.Door.Y) <= half;
+                    if (!(south || north || west || east)) return true;
+                }
             return inside && RiverPresent && y >= River.Y0 && y <= River.Y1 &&
                 (x < River.BridgeX0 || x > River.BridgeX1);
         }
@@ -551,8 +567,21 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
+    public sealed class WorldDoorFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("facing")] public double Facing { get; set; }
+        [JsonProperty("width")] public double Width { get; set; }
+    }
+
+    [Serializable]
     public sealed class WorldRectFrame
     {
+        [JsonProperty("building_id")] public string BuildingId { get; set; }
+        [JsonProperty("room")] public string Room { get; set; }
+        [JsonProperty("interior_id")] public string InteriorId { get; set; }
+        [JsonProperty("door")] public WorldDoorFrame Door { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("kind")] public string Kind { get; set; }
         [JsonProperty("x0")] public double X0 { get; set; }
