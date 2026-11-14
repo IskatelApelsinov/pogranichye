@@ -74,16 +74,79 @@ func (BrewSystem) Hour(w *core.World, clock core.Clock, _ *dice.Hub) {
 	})
 }
 
-// atTavern — стоит ли тело у стойки корчмы (по сцене). ОГРАНИЧЕНИЕ: координаты стойки берутся из
-// общей раскладки одной стартовой сцены (poiByKind). Для мира с несколькими поселениями, у каждого
-// со своей корчмой, нужна сцена на поселение — отдельная веха; здесь предполагается одна активная сцена.
+// atTavern — в корчме ли тело вообще (общий, нестрогий признак: у внешнего порога ИЛИ уже внутри
+// здания), для разговоров, карточных игр (durak.go/ochko.go) и общих социальных действий
+// (social.go) — им всем достаточно "в корчме", без точного стояния у стойки. Не путать с
+// atTavernCounter ниже, который специально строже (только у самой стойки) — для заказа пива.
 func atTavern(w *core.World, e *core.Entity) bool {
 	p := ScenePos(e)
 	if p == nil {
 		return false
 	}
-	tx, ty := layoutFor(w, e).POI("tavern")
-	return math.Hypot(p.X-tx, p.Y-ty) <= tavernReach
+	l := layoutFor(w, e)
+	tx, ty := l.POI("tavern")
+	if math.Hypot(p.X-tx, p.Y-ty) <= tavernReach {
+		return true
+	}
+	return l.insideTavernBuilding(p.X, p.Y) // внутри здания (напр., уже дошёл до стойки) — тоже "в корчме"
+}
+
+// atTavernCounter — стоит ли тело именно у СТОЙКИ корчмы своего поселения, а не просто где-то в
+// здании/у двери (comms 0223): раньше заказ пива проверяли так же нестрого, как atTavern выше (по
+// старому внешнему порогу POI "tavern" — он же дверь), что не различало "дошёл до двери" от "стоит
+// у стойки внутри". Теперь — до геометрического центра здания "tavern" именно той раскладки, где
+// физически стоит тело (TavernCounter, sim/layout.go), с учётом актуального радиуса. Используется
+// ТОЛЬКО для покупки пива — разговоры/карты/угощение остаются на общем, нестрогом atTavern.
+func atTavernCounter(w *core.World, e *core.Entity) bool {
+	p := ScenePos(e)
+	if p == nil {
+		return false
+	}
+	cx, cy, radius, ok := layoutFor(w, e).TavernCounter()
+	if !ok {
+		return false
+	}
+	return math.Hypot(p.X-cx, p.Y-cy) <= radius
+}
+
+// bartenderServing — обслуживает ли сейчас корчмарь ЭТОГО поселения стойку (comms 0223): им должен
+// быть именно привязанный к селу корчмарь (Settle.Keeper, "хозяин корчмы" — то же лицо, что и глава
+// села в этой игре), он должен быть жив и присутствовать в мире, и его текущее подтверждённое
+// занятие (MindC.ActCode, выставляется раз в час в sim/systems.go из sim/activity.go) — "keep_tavern"
+// ("за стойкой корчмы"). Переиспользуем существующие role/act_code/identity — НЕ создаём отдельного
+// временного NPC специально под продажу пива.
+func bartenderServing(w *core.World, se *core.Entity) bool {
+	s := core.Settle(se)
+	if s == nil || s.Keeper == 0 {
+		return false
+	}
+	k := w.Get(s.Keeper)
+	if k == nil {
+		return false // корчмаря сейчас нет в мире (умер/не загружен) — некому продать
+	}
+	id := core.Ident(k)
+	if id == nil || id.Role != "tavernkeeper" {
+		return false
+	}
+	m := core.Mind(k)
+	return m != nil && m.ActCode == "keep_tavern"
+}
+
+// TavernCounterView — аддитивное поле контракта place.tavern_counter (comms 0223): где стоять, чтобы
+// заказать пиво, и прислуживает ли сейчас корчмарь. Координаты — локальные (та же система, что
+// place.anchor + me.pos), сервер считает их сам из геометрии; клиент НЕ присылает и не выбирает их
+// сам — покупка (BuyBeer) всё равно проверяется заново на сервере независимо от этого поля. nil —
+// в этом поселении нет корчмы с геометрией (не ожидается при st.Tavern==true, но на всякий случай).
+func TavernCounterView(w *core.World, settlement core.ID, se *core.Entity) map[string]any {
+	l := LayoutOf(w, settlement)
+	cx, cy, radius, ok := l.TavernCounter()
+	if !ok {
+		return nil
+	}
+	return map[string]any{
+		"x": math.Round(cx*1000) / 1000, "y": math.Round(cy*1000) / 1000, "radius": radius,
+		"bartender_present": bartenderServing(w, se),
+	}
 }
 
 // BuyBeer — АТОМАРНАЯ идемпотентная покупка кружки. Вызывать под замком. Требует непустой reqid;
@@ -103,7 +166,7 @@ func BuyBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if mug.Has {
 		return false, "кружка уже в руке"
 	}
-	if !atTavern(w, e) {
+	if !atTavernCounter(w, e) {
 		return false, "надо подойти к стойке корчмы"
 	}
 	pl := core.Place(e)
@@ -114,6 +177,9 @@ func BuyBeer(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	s := core.Settle(se)
 	if s == nil || !s.Tavern {
 		return false, "здесь нет корчмы"
+	}
+	if !bartenderServing(w, se) {
+		return false, "корчмаря сейчас нет за стойкой"
 	}
 	if s.Store == nil || s.Store[BeerGood] < 1 {
 		return false, "пиво кончилось"

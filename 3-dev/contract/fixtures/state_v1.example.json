@@ -303,7 +303,10 @@
           "u": 131.4,
           "ground": 131.4,
           "z": 0,
-          "chunk": [2, -107],
+          "chunk": [
+            2,
+            -107
+          ],
           "layer": 0
         },
         "casting": ""
@@ -403,10 +406,25 @@
       "vacant": 2,
       "rent_price": 6,
       "items": [
-        {"id": "4101", "lease_state": "vacant", "rent_price": 6, "available": true},
-        {"id": "4102", "lease_state": "vacant", "rent_price": 6, "available": true}
+        {
+          "id": "4101",
+          "lease_state": "vacant",
+          "rent_price": 6,
+          "available": true
+        },
+        {
+          "id": "4102",
+          "lease_state": "vacant",
+          "rent_price": 6,
+          "available": true
+        }
       ]
+    },
+    "tavern_counter": {
+      "x": -33.0,
+      "y": 20.0,
+      "radius": 2.2,
+      "bartender_present": true
     }
-  },
-  "hour": 14
+  }
 }

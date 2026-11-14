@@ -67,7 +67,9 @@ func (c *sliceClient) gotoAndWait(location string) map[string]any {
 		f := c.full()
 		me, _ := f["me"].(map[string]any)
 		pos, _ := me["pos"].(map[string]any)
-		if pos == nil { continue }
+		if pos == nil {
+			continue
+		}
 		x, xOK := pos["x"].(float64)
 		y, yOK := pos["y"].(float64)
 		if xOK && yOK && math.Hypot(x-tx, y-ty) <= 2.5 {
@@ -305,6 +307,16 @@ search:
 		t.Fatal("пиво в лесу купить нельзя")
 	}
 	c.gotoAndWait("tavern")
+	// comms 0223: заказ пива требует стоять именно у стойки внутри здания, а не только у двери
+	// снаружи (куда доходит навигация по старому POI "tavern"/goto) — для e2e-теста доходим до
+	// стойки напрямую через мир, как дошёл бы игрок, если бы клиент уже умел ходить по интерьеру.
+	c.world(func(e *core.Entity) {
+		cx, cy, _, ok := sim.StarterLayout().TavernCounter()
+		if !ok {
+			c.t.Fatal("у стартовой раскладки должна быть стойка корчмы")
+		}
+		sim.ScenePos(e).X, sim.ScenePos(e).Y = cx, cy
+	})
 	var coins0, beerStock0 float64
 	c.world(func(e *core.Entity) {
 		coins0 = core.Purse(e).Coins
