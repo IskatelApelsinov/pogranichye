@@ -50,6 +50,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("drunk")] public double Drunk { get; set; }
         [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
         [JsonProperty("combat")] public CombatFrame Combat { get; set; }
+        [JsonProperty("journey")] public JourneyFrame Journey { get; set; }
+        [JsonProperty("quests")] public QuestsFrame Quests { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
