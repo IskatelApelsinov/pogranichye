@@ -8,6 +8,7 @@ using Pogranichye.Client.Networking;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace Pogranichye.Client
 {
@@ -3664,6 +3665,9 @@ namespace Pogranichye.Client
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.58f, 0.70f, 0.78f);
             camera.fieldOfView = 48f;
+            var urpCamera = camera.GetComponent<UniversalAdditionalCameraData>();
+            if (urpCamera == null) urpCamera = camera.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            urpCamera.renderPostProcessing = true;
             _cameraRig = camera.GetComponent<PresentationCameraRig>();
             _interactionProbe = camera.GetComponent<WorldInteractionProbe>();
             if (_interactionProbe == null)
