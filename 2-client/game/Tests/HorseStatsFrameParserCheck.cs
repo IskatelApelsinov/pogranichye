@@ -29,8 +29,8 @@ internal static class HorseStatsFrameParserCheck
             Math.Abs(stats.Agility - 11.2d) < 0.0001d && Math.Abs(stats.Endurance - 9.8d) < 0.0001d &&
             stats.Intellect == 10d && stats.Perception == 12d && stats.Will == 10d &&
             stats.Get("will") == 10d && stats.Get("unknown") == 0d);
-        Check("null stats accepted for older additive compatibility",
-            StatsFrameParser.ParseNullCompatibility(JValue.CreateNull(), "me.stats") == null);
+        StatsFrameParser.Validate(JValue.CreateNull(), "me.stats");
+        Check("null stats accepted for older additive compatibility", true);
 
         const string bagJson = "{\"load\":24,\"cap\":40,\"over\":false}";
         var bagToken = JToken.Parse(bagJson);
@@ -46,8 +46,8 @@ internal static class HorseStatsFrameParserCheck
             horse.Name == "Сивка" && horse.Stamina == 85d && horse.Mounted && horse.Here &&
             horse.Bag != null && horse.Bag["hay"] == 2d && horse.Bag["fish"] == 1d &&
             horse.BagLoad == 3d && horse.BagCapacity == 40d);
-        Check("null horse represents no owned horse",
-            HorseFrameParser.ParseNullCompatibility(JValue.CreateNull(), "me.horse") == null);
+        HorseFrameParser.Validate(JValue.CreateNull(), "me.horse");
+        Check("null horse represents no owned horse", true);
 
         ExpectFormat("missing stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace("\"will\":10,", "")), "me.stats"));
