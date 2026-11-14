@@ -52,7 +52,7 @@ After CI and review, inspect `me.result` and RequestGate correlation as the next
 ## Дополнение: combat и foes (2026-11-14)
 
 В PR #638 добавлены:
-- `CombatFrame`/`CombatFrameParser` для полного серверного `CombatView`;
+- `CombatFrame`/`CombatFrameParser` для полного серверного `CombatView` (включая `kills` map и integer `ko` counter);
 - `FoeFrame`/`FoeFrameParser` для одинаковой full/fast схемы `place.foes[]`;
 - presence-aware `HasCombat/Combat` и `HasFoes/Foes` в fast patch;
 - типизированные потребители в `CoreGameplay`, без локальной симуляции/создания врагов вне server AOI;
