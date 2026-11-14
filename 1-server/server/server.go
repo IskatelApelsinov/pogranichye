@@ -1012,15 +1012,15 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer":        round0(st.Store[sim.BeerGood]), // запас пива в корчме (v1.2)
 				"beer_price":  sim.BeerPrice,                  // цена кружки
 				"neighbors":   neighbors,
-				"foes":        sim.FoesView(s.world, pl.Settlement),                     // звери/лихие люди сцены (v1.10)
-				"exits":       sim.ExitsView(s.world, e, pl.Settlement),                 // выезды: тракты к соседям и перевал (v1.15)
-				"site":        sim.SiteView(s.world, se),                                // место на планете и характер села (v1.14)
-				"anchor":      sim.AnchorView(s.world, pl.Settlement),                   // v1.19: центр села в мире; мир = anchor + pos
-				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan,                // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
-				"stable":      sim.StableView(se),                                       // конюшня: лошади на продажу и цена (v1.13)
-				"market":      sim.MarketView(se, e),                                    // прилавок: запас и цены (v1.10)
-				"life":        s.placeLife(se),                                          // агрегаты жизни общины (v1.18)
-				"rooms":       sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()), // комнаты над корчмой: всего/вакантно/цена (v1.20)
+				"foes":        sim.FoesViewAOI(s.world, terrain, e, pl.Settlement, vanchorE, vanchorN), // звери/лихие люди сцены; v1.23 — межсельская AOI + wpos (comms 0219 п.3)
+				"exits":       sim.ExitsView(s.world, e, pl.Settlement),                                // выезды: тракты к соседям и перевал (v1.15)
+				"site":        sim.SiteView(s.world, se),                                               // место на планете и характер села (v1.14)
+				"anchor":      sim.AnchorView(s.world, pl.Settlement),                                  // v1.19: центр села в мире; мир = anchor + pos
+				"plan":        sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
+				"stable":      sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
+				"market":      sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)
+				"life":        s.placeLife(se),                                                         // агрегаты жизни общины (v1.18)
+				"rooms":       sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()),                // комнаты над корчмой: всего/вакантно/цена (v1.20)
 			}
 		}
 	}
