@@ -50,6 +50,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
         [JsonProperty("result")] public ActionResultFrame Result { get; set; }
+        // Server-confirmed event feed; parsed once and consumed as typed gameplay data.
+        [JsonProperty("feed")] public List<FeedEntryFrame> Feed { get; set; }
         [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
         [JsonProperty("journal")] public List<JournalEntryFrame> Journal { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
