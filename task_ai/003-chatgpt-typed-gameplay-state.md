@@ -135,4 +135,4 @@ CI feedback — 2026-11-14:
 - `CoreGameplay` теперь использует typed combat values для стойки, оружия, блока, скрытности, финта, щита, стрел и света. `SyncFoes` принимает только типизированные server-owned foe frames; локальная симуляция врагов не добавлена.
 - Добавлены pure C# parser tests и full-frame Editor fixture cases. Сервер/wire v1 не менялись.
 
-CI для этого нового среза ожидает отдельный запуск. Unity Editor/PlayMode не запускались.
+Workflow run #43636660993 — **все 18 шагов PASS**, включая typed status/feed/result/combat/foe runners и остальные client regression checks. Unity Editor/PlayMode не запускались.
