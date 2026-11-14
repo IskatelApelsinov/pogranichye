@@ -183,6 +183,7 @@ namespace Pogranichye.Client
         private ClientInput _input;
         private JObject _me;
         private JObject _place;
+        private GameplayStatusView _status;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -565,6 +566,11 @@ namespace Pogranichye.Client
             var root = validatedDocument;
             _me = Obj(root, "me");
             _place = Obj(root, "place");
+            _status = frame.Me == null
+                ? null
+                : GameplayStatusView.From(
+                    frame.Me.Health, frame.Me.Energy, frame.Me.Mana, frame.Me.Drunk,
+                    frame.Me.Position == null ? 0d : frame.Me.Position.Stamina);
             if (root["hour"] != null)
             {
                 _hour = (int)Num(root, "hour");
@@ -580,6 +586,7 @@ namespace Pogranichye.Client
         public void ApplyFastFrame(FastFramePatch patch)
         {
             if (_me == null || patch == null) return;
+            _status = (_status ?? GameplayStatusView.Empty).Apply(patch.Status);
             var me = patch.Me;
             if (me != null)
             {
@@ -624,6 +631,7 @@ namespace Pogranichye.Client
             _feedSeq = 0;
             _me = null;
             _place = null;
+            _status = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -2187,13 +2195,14 @@ namespace Pogranichye.Client
             const float width = 210f;
             var x = Screen.width * 0.5f - width * 0.5f;
             var y = Screen.height - 54f;
-            Bar(new Rect(x, y, width, 5f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
-            Bar(new Rect(x, y + 8f, width, 4f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
-            var mana = Num(_me, "mana");
+            var status = _status ?? GameplayStatusView.Empty;
+            Bar(new Rect(x, y, width, 5f), status.Health / 100f, new Color(0.55f, 0.66f, 0.42f));
+            Bar(new Rect(x, y + 8f, width, 4f), status.Stamina, new Color(0.85f, 0.76f, 0.42f));
+            var mana = status.Mana;
             if (mana > 0f)
                 Bar(new Rect(x, y + 15f, width, 4f), mana / 100f, new Color(0.5f, 0.65f, 0.88f));
 
-            var drunk = Mathf.Clamp(Num(_me, "drunk"), 0f, 100f);
+            var drunk = Mathf.Clamp(status.Drunk, 0f, 100f);
             if (drunk > 0f)
             {
                 Bar(new Rect(x, y + 22f, width, 3f), drunk / 100f, new Color(0.78f, 0.55f, 0.28f));
