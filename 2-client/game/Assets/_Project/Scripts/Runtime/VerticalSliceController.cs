@@ -2966,7 +2966,7 @@ namespace Pogranichye.Client
 
             try
             {
-                var frame = WorldFrameParser.Parse(json);
+                var frame = WorldFrameParser.Parse(json, out var frameDocument);
                 Enqueue(() =>
                 {
                     // Ignore frames queued by a socket that has already been replaced or closed.
@@ -3011,7 +3011,7 @@ namespace Pogranichye.Client
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
-                        if (_core != null) _core.ApplyFrame(frame);
+                        if (_core != null) _core.ApplyFrame(frame, frameDocument);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
                         if (_cameraRig != null)
                         {
