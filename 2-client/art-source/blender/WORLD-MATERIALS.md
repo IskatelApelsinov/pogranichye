@@ -1,24 +1,31 @@
-# Pogranichye world material generator
+# Pogranichye world material library
 
-This source generator creates a first consistent set of seamless 512×512 PBR
-materials for the Unity 6 client:
+The Unity 6 client has a deterministic Blender generator for ten seamless 512×512
+world surfaces: meadow soil, oak bark, aged oak planks, mossy stone, forest floor,
+leaf canopy, thatch, packed dirt road, cobblestone and limewashed plaster. It
+produces Albedo, tangent-space Normal, Roughness and AO maps (40 maps total).
+Those ten procedural sets are source-generated; they are not claimed to be
+checked-in PNGs until the Blender generator is run.
 
-- meadow soil / grass blend
-- oak bark
-- aged oak planks
-- mossy stone
-- forest floor litter
-- leaf canopy
-- thatched roofing
-- packed dirt road
-- cobblestone paving
-- limewashed plaster
+## New authored material: homespun linen
 
-The library now contains ten materials (40 maps at 512×512). Each material has Albedo, tangent-space Normal, Roughness and AO PNG maps.
-The generator is deterministic and uses periodic functions so opposite edges
-match. It uses no external textures, add-ons, or downloaded assets.
+A separate, image-generated linen weave with periodic edge processing is now committed for
+the generated market awning, tutorial scarecrow tunic and windmill canvas sail. Its warm, undyed flax/burlap tone
+fits rural fabric rather than modern synthetic cloth.
 
-## Generate
+- `Resources/WorldMaterials/Textures/homespun_linen_albedo.jpg`: 192×192 sRGB
+  albedo, tileable, with broad lighting flattened before export.
+- `Resources/WorldMaterials/Textures/homespun_linen_pbr.png`: 128×128 linear
+  packed PBR data. Channels are **R = tangent-space normal X, G = tangent-space
+  normal Y, B = AO, A = roughness**. Normal Z is reconstructed at runtime.
+- The runtime converts roughness to URP Lit smoothness as `1 - roughness`.
+  AO and normal are unpacked once and cached for reuse across streamed layouts.
+
+The color image is larger than the data pack because the woven color detail is
+the most visible near-field signal. The packed data texture is kept smaller to
+limit memory; mipmaps and trilinear filtering remain enabled.
+
+## Generate procedural world materials
 
 From the repository root:
 
@@ -27,20 +34,18 @@ blender --background --python 2-client/art-source/blender/generate_world_materia
 ```
 
 Output is written directly to
-`2-client/game/Assets/Resources/WorldMaterials/`. The PNG maps are therefore
-available through `Resources.Load` at runtime. Unity's
-`WorldMaterialTextureImporter` configures Repeat wrapping, mipmaps, normal-map
-import, and linear data-map colour space automatically.
+`2-client/game/Assets/Resources/WorldMaterials/`. When the committed linen maps
+are present, the generator preserves them and includes their paths/channel layout
+in `material_manifest.json` alongside the ten generated materials.
 
 ## Unity import
 
-Unity imports the PNG files automatically. Set:
-- Albedo: sRGB enabled, Wrap Mode Repeat, mipmaps enabled.
-- Normal: Texture Type = Normal map.
-- Roughness and AO: sRGB disabled automatically by the editor importer.
-- Roughness is not Unity's Smoothness. A shader/material setup must invert it
-  when feeding a Smoothness slot (Smoothness = 1 - Roughness).
+`WorldMaterialTextureImporter` configures Repeat wrapping, mipmaps, trilinear
+filtering and anisotropy. Albedo uses sRGB; all data maps are linear. The packed
+linen PBR texture is readable and uncompressed so the client can split its
+channels into normal, AO and metallic-gloss/smoothness textures once and cache
+them. It is not treated as an albedo image or a normal-map import.
 
-The maps are generated from a shared periodic height field. This is an
-optimized stylized-realism base pass; it is not a substitute for later
-hand-authored hero materials or scanned assets.
+This is a stylized historical-rural material, not scanned photogrammetry. The
+new linen set is an authored image texture; the other ten remain deterministic
+procedural source materials until generated locally with Blender.

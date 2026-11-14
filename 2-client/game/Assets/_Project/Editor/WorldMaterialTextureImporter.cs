@@ -29,6 +29,16 @@ namespace Pogranichye.Client.Editor
                 importer.textureType = TextureImporterType.NormalMap;
                 importer.sRGBTexture = false;
             }
+            else if (file.EndsWith("_pbr", System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Packed RGBA: normal XY, AO and roughness. Keep exact linear channel
+                // values available to the runtime unpacker; compression can corrupt normals.
+                importer.textureType = TextureImporterType.Default;
+                importer.sRGBTexture = false;
+                importer.isReadable = true;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.alphaIsTransparency = false;
+            }
             else
             {
                 importer.textureType = TextureImporterType.Default;

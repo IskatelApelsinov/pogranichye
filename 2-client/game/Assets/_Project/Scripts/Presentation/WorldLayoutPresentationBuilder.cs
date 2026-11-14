@@ -28,6 +28,17 @@ namespace Pogranichye.Client.Presentation
             new System.Collections.Generic.Dictionary<UnityEngine.EntityId, System.Collections.Generic.List<UnityEngine.Object>>();
         private static System.Collections.Generic.List<UnityEngine.Object> _activeBuildAssets;
 
+        private sealed class PackedWorldPbrMaps
+        {
+            public Texture2D Normal;
+            public Texture2D Occlusion;
+            public Texture2D MetallicGloss;
+        }
+
+        // Packed data maps are split once and shared by every streamed settlement layout.
+        private static readonly System.Collections.Generic.Dictionary<string, PackedWorldPbrMaps> _packedPbrCache =
+            new System.Collections.Generic.Dictionary<string, PackedWorldPbrMaps>();
+
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
             if (root == null || layout == null || layout.Version != 2 || root.Find("ServerLayoutV2") != null) return;
@@ -62,6 +73,14 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
             ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f);
             ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f);
+            ApplyGeneratedWorldMaps(_scarecrowCloth, "homespun_linen", 1f, 1f);
+            if (Resources.Load<Texture2D>("WorldMaterials/Textures/homespun_linen_albedo") != null)
+            {
+                if (_scarecrowCloth.HasProperty("_BaseColor"))
+                    _scarecrowCloth.SetColor("_BaseColor", Color.white);
+                else if (_scarecrowCloth.HasProperty("_Color"))
+                    _scarecrowCloth.color = Color.white;
+            }
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -1656,6 +1675,75 @@ namespace Pogranichye.Client.Presentation
             Create(name, PrimitiveType.Cube, root, position, size, wall, false);
         }
 
+        private static void BuildMarketAwning(Transform parent, float width, float depth, float wallHeight)
+        {
+            var awningWidth = Mathf.Min(width * 0.86f, 4.6f);
+            if (awningWidth < 1.8f) return;
+
+            const int columns = 5;
+            const int rows = 3;
+            const int frontVertexCount = columns * rows;
+            var vertices = new Vector3[frontVertexCount * 2];
+            var uv = new Vector2[vertices.Length];
+            var normals = new Vector3[vertices.Length];
+            var triangles = new int[(columns - 1) * (rows - 1) * 12];
+            var backZ = -depth * 0.5f - 0.12f;
+            var frontZ = backZ - 1.25f;
+            var halfWidth = awningWidth * 0.5f;
+
+            for (var z = 0; z < rows; z++)
+            {
+                var v = z / (float)(rows - 1);
+                for (var x = 0; x < columns; x++)
+                {
+                    var u = x / (float)(columns - 1);
+                    var i = z * columns + x;
+                    var sag = Mathf.Sin(v * Mathf.PI) * 0.07f *
+                        (1f - Mathf.Abs(u - 0.5f) * 1.4f);
+                    var position = new Vector3(
+                        Mathf.Lerp(-halfWidth, halfWidth, u),
+                        Mathf.Lerp(wallHeight - 0.28f, wallHeight - 0.88f, v) - sag,
+                        Mathf.Lerp(backZ, frontZ, v));
+                    vertices[i] = position;
+                    vertices[i + frontVertexCount] = position;
+                    uv[i] = new Vector2(u * awningWidth * 0.5f, v * 1.25f);
+                    uv[i + frontVertexCount] = uv[i];
+                    normals[i] = Vector3.up;
+                    normals[i + frontVertexCount] = Vector3.down;
+                }
+            }
+
+            var t = 0;
+            for (var z = 0; z < rows - 1; z++)
+            for (var x = 0; x < columns - 1; x++)
+            {
+                var a = z * columns + x;
+                var b = a + 1;
+                var c = a + columns;
+                var d = c + 1;
+                triangles[t++] = a; triangles[t++] = b; triangles[t++] = c;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+                triangles[t++] = a + frontVertexCount; triangles[t++] = c + frontVertexCount; triangles[t++] = b + frontVertexCount;
+                triangles[t++] = b + frontVertexCount; triangles[t++] = c + frontVertexCount; triangles[t++] = d + frontVertexCount;
+            }
+
+            var mesh = new Mesh { name = "Market linen awning • double-sided" };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.normals = normals;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+
+            var awning = new GameObject("Market linen awning");
+            awning.transform.SetParent(parent, false);
+            awning.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = awning.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _scarecrowCloth;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
+        }
+
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
             float width, float depth)
         {
@@ -1777,6 +1865,10 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, wallHeight + width * 0.1335f, 0f),
                 new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
             ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            // Generated market footprints get a small real cloth awning. The mesh is
+            // double-sided, UV-scaled in metres and presentation-only (no collider).
+            if (isMarket) BuildMarketAwning(root, width, depth, wallHeight);
 
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market")
@@ -1913,19 +2005,55 @@ namespace Pogranichye.Client.Presentation
         {
             if (material == null) return;
             var prefix = "WorldMaterials/Textures/" + materialKey;
+            var tiling = new Vector2(tilingX, tilingY);
             var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
             if (albedo != null)
             {
                 material.mainTexture = albedo;
-                material.mainTextureScale = new Vector2(tilingX, tilingY);
+                material.mainTextureScale = tiling;
                 if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", albedo);
+            }
+
+            // Authored compact PBR sets use RG=normal XY, B=AO, A=roughness.
+            // Split them once into the native URP Lit inputs and share the result
+            // across all simultaneously streamed layout roots.
+            var packed = Resources.Load<Texture2D>(prefix + "_pbr");
+            if (packed != null)
+            {
+                var maps = GetPackedWorldPbrMaps(materialKey, packed);
+                if (maps != null)
+                {
+                    if (material.HasProperty("_BumpMap"))
+                    {
+                        material.SetTexture("_BumpMap", maps.Normal);
+                        material.SetTextureScale("_BumpMap", tiling);
+                        material.EnableKeyword("_NORMALMAP");
+                    }
+                    if (material.HasProperty("_OcclusionMap"))
+                    {
+                        material.SetTexture("_OcclusionMap", maps.Occlusion);
+                        material.SetTextureScale("_OcclusionMap", tiling);
+                        material.SetFloat("_OcclusionStrength", 1f);
+                        material.EnableKeyword("_OCCLUSIONMAP");
+                    }
+                    if (material.HasProperty("_MetallicGlossMap"))
+                    {
+                        material.SetTexture("_MetallicGlossMap", maps.MetallicGloss);
+                        material.SetTextureScale("_MetallicGlossMap", tiling);
+                        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+                        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 1f);
+                        if (material.HasProperty("_SmoothnessTextureChannel")) material.SetFloat("_SmoothnessTextureChannel", 0f);
+                        material.EnableKeyword("_METALLICSPECGLOSSMAP");
+                    }
+                    return;
+                }
             }
 
             var normal = Resources.Load<Texture2D>(prefix + "_normal");
             if (normal != null && material.HasProperty("_BumpMap"))
             {
                 material.SetTexture("_BumpMap", normal);
-                material.SetTextureScale("_BumpMap", new Vector2(tilingX, tilingY));
+                material.SetTextureScale("_BumpMap", tiling);
                 material.EnableKeyword("_NORMALMAP");
             }
 
@@ -1933,9 +2061,60 @@ namespace Pogranichye.Client.Presentation
             if (ao != null && material.HasProperty("_OcclusionMap"))
             {
                 material.SetTexture("_OcclusionMap", ao);
-                material.SetTextureScale("_OcclusionMap", new Vector2(tilingX, tilingY));
+                material.SetTextureScale("_OcclusionMap", tiling);
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
+
+        }
+
+        private static PackedWorldPbrMaps GetPackedWorldPbrMaps(string materialKey, Texture2D packed)
+        {
+            if (packed == null || !packed.isReadable)
+            {
+                Debug.LogWarning("Packed world PBR texture is not readable: " + materialKey);
+                return null;
+            }
+            if (_packedPbrCache.TryGetValue(materialKey, out var cached) &&
+                cached.Normal != null && cached.Occlusion != null && cached.MetallicGloss != null)
+                return cached;
+
+            var source = packed.GetPixels32();
+            var normalPixels = new Color32[source.Length];
+            var aoPixels = new Color32[source.Length];
+            var glossPixels = new Color32[source.Length];
+            for (var i = 0; i < source.Length; i++)
+            {
+                var pixel = source[i];
+                var nx = pixel.r / 127.5f - 1f;
+                var ny = pixel.g / 127.5f - 1f;
+                var nz = Mathf.Sqrt(Mathf.Max(0f, 1f - nx * nx - ny * ny));
+                normalPixels[i] = new Color32(pixel.r, pixel.g, (byte)Mathf.RoundToInt(nz * 255f), 255);
+                aoPixels[i] = new Color32(pixel.b, pixel.b, pixel.b, 255);
+                glossPixels[i] = new Color32(0, 0, 0, (byte)(255 - pixel.a));
+            }
+
+            var maps = new PackedWorldPbrMaps
+            {
+                Normal = CreateLinearWorldTexture(materialKey + " • tangent normal", packed.width, packed.height, normalPixels),
+                Occlusion = CreateLinearWorldTexture(materialKey + " • AO", packed.width, packed.height, aoPixels),
+                MetallicGloss = CreateLinearWorldTexture(materialKey + " • smoothness", packed.width, packed.height, glossPixels)
+            };
+            _packedPbrCache[materialKey] = maps;
+            return maps;
+        }
+
+        private static Texture2D CreateLinearWorldTexture(string textureName, int width, int height, Color32[] pixels)
+        {
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, true, true)
+            {
+                name = textureName,
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Trilinear,
+                anisoLevel = 8
+            };
+            texture.SetPixels32(pixels);
+            texture.Apply(true, false);
+            return texture;
         }
 
         private static Material MakeTexturedMaterial(string name, Color tint, int pattern, float tilingX, float tilingY)
