@@ -152,3 +152,8 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 ## Typed stats / carried bag / horse continuation — 2026-11-14
 
 Task #007 extends the typed DTO coverage to `me.stats`, `me.bag`, and `me.horse`. Existing typed DTOs are checked against Go `StatsView/BagView/HorseView`; the character summary's stale JObject stats access was replaced. Current fast frames omit all three, so full-snapshot values persist across fast patches. Older v1 frames may omit stats/bag; validators tolerate absent/null for those additive fields. The new parser runner passed in CI run #43638726031 (all 20 steps green). Unity Editor remains unverified.
+
+
+## Typed regional map continuation — 2026-11-14
+
+Task #008 adds typed `me.region` nodes/roads and migrates the region map UI off raw JObject/JArray. Unknown node names/tiers are explicitly required to remain empty; road endpoints must reference visible nodes. All 21 independent C# CI steps passed in run #43638994608. Unity Editor remains unverified.
