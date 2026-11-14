@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Pogranichye.Client.Networking.Protocol;
@@ -32,10 +33,14 @@ namespace Pogranichye.Client.Networking
             using (var request = UnityWebRequest.Get(url))
             {
                 request.timeout = 15;
-                var operation = request.SendWebRequest();
-                var completion = new TaskCompletionSource<bool>();
-                operation.completed += _ => completion.TrySetResult(true);
-                await completion.Task;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
                 if (request.result != UnityWebRequest.Result.Success)
                     throw new InvalidOperationException("Не удалось получить /api/layout: " + request.error);
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
@@ -196,7 +201,8 @@ namespace Pogranichye.Client.Networking
         /// Loads one deterministic 256 m terrain chunk. Heights are south-to-north rows,
         /// west-to-east within each row; shared border samples make adjacent chunks seamless.
         /// </summary>
-        public async Task<TerrainChunkFrame> GetTerrainChunkAsync(long chunkX, long chunkZ, int stepMeters = 16)
+        public async Task<TerrainChunkFrame> GetTerrainChunkAsync(long chunkX, long chunkZ, int stepMeters = 16,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (stepMeters != 8 && stepMeters != 16 && stepMeters != 32 && stepMeters != 64)
                 throw new ArgumentOutOfRangeException(nameof(stepMeters), "Шаг рельефа: 8, 16, 32 или 64 м.");
