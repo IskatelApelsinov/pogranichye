@@ -82,8 +82,8 @@ namespace Pogranichye.Client.Presentation
             _fireCoreMaterial = CreateMaterial("Fire • hot golden core", new Color(1f, 0.72f, 0.24f));
             SetMaterialSurface(_fireMaterial, 0f, 0.32f);
             SetMaterialSurface(_fireCoreMaterial, 0f, 0.18f);
-            SetMaterialEmission(_fireMaterial, new Color(1f, 0.16f, 0.025f), 1.8f);
-            SetMaterialEmission(_fireCoreMaterial, new Color(1f, 0.56f, 0.12f), 2.5f);
+            SetMaterialEmission(_fireMaterial, new Color(1f, 0.16f, 0.025f), 0.75f);
+            SetMaterialEmission(_fireCoreMaterial, new Color(1f, 0.56f, 0.12f), 1.05f);
             _metalMaterial = CreateMaterial("Forged iron", new Color(0.20f, 0.22f, 0.23f));
             _clothMaterial = CreateMaterial("Market canvas", new Color(0.58f, 0.35f, 0.22f));
             _produceMaterial = CreateMaterial("Harvest produce", new Color(0.66f, 0.43f, 0.18f));
@@ -797,8 +797,8 @@ namespace Pogranichye.Client.Presentation
             warmLightObject.transform.localPosition = new Vector3(-2.1f, 1.65f, -6.8f);
             var warmLight = warmLightObject.AddComponent<Light>();
             warmLight.type = LightType.Point;
-            warmLight.range = 9f;
-            warmLight.intensity = 1.6f;
+            warmLight.range = 6f;
+            warmLight.intensity = 0.55f;
             warmLight.color = new Color(1f, 0.66f, 0.36f);
             var ambient = root.GetComponent<VillageAmbientMotion>();
             if (ambient != null)
@@ -1361,8 +1361,8 @@ namespace Pogranichye.Client.Presentation
             lightObject.transform.localPosition = new Vector3(0.55f, 2.72f, 0);
             var light = lightObject.AddComponent<Light>();
             light.type = LightType.Point;
-            light.range = 6f;
-            light.intensity = 0.8f;
+            light.range = 4.2f;
+            light.intensity = 0.28f;
             light.color = new Color(1f, 0.58f, 0.28f);
             if (ambient != null) ambient.RegisterLight(light, 0.16f, 2.8f);
         }
@@ -4013,8 +4013,8 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 34;
-            text.characterSize = 0.055f;
+            text.fontSize = 42;
+            text.characterSize = 0.065f;
             text.color = Color.white;
             text.richText = false;
         }
@@ -4043,9 +4043,9 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 40;
-            text.characterSize = 0.045f;
-            text.color = new Color(1f, 0.88f, 0.62f);
+            text.fontSize = 48;
+            text.characterSize = 0.055f;
+            text.color = new Color(1f, 0.94f, 0.80f);
             text.richText = false;
         }
 

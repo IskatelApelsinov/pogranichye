@@ -288,6 +288,15 @@ namespace Pogranichye.Client
             else if (!_chatOpen && !_systemMenuOpen && _input != null && _input.ChatPressed)
                 SetChatOpen(true);
 
+            // Two top-level menus only: Tab toggles the character journal; Esc/F1 toggles system options.
+            if (_connectionState == WorldConnectionState.Active && !_systemMenuOpen &&
+                !_chatOpen && _activityMiniGame == ActivityMiniGame.None &&
+                _input != null && _input.MenuPressed)
+            {
+                _hudCollapsed = !_hudCollapsed;
+                _core?.SetExternalCharacterMenuOpen(!_hudCollapsed);
+            }
+
             if (_input != null && _input.ToggleHudPressed)
                 SetSystemMenuOpen(!_systemMenuOpen);
             else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
@@ -305,6 +314,8 @@ namespace Pogranichye.Client
             _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || pointerOverUi ||
                 _activityMiniGame != ActivityMiniGame.None);
             _core?.SetExternalModalMenuOpen(_systemMenuOpen);
+            _core?.SetExternalCharacterMenuOpen(_connectionState == WorldConnectionState.Active &&
+                !_systemMenuOpen && !_hudCollapsed);
             _voiceChat?.SetPushToTalkHeld(_connectionState == WorldConnectionState.Active &&
                 !_systemMenuOpen && !_chatOpen && _input != null && _input.VoicePushToTalkHeld);
             _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
@@ -395,21 +406,14 @@ namespace Pogranichye.Client
                 return;
             }
 
-            if (_hudCollapsed)
-            {
-                if (GUI.Button(new Rect(12, 12, 38, 30), new GUIContent("≡", "Открыть панель мира")))
-                    _hudCollapsed = false;
-            }
-            else
+            if (!_hudCollapsed)
             {
                 var panelWidth = Mathf.Min(500f, Screen.width - 24f);
                 var panelHeight = Mathf.Min(620f, Screen.height - 24f);
-                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПОГРАНИЧЬЕ  /  ЖИВОЙ МИР");
+                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПЕРСОНАЖ  /  ЖУРНАЛ");
                 GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
                 _hudScroll = GUILayout.BeginScrollView(_hudScroll,
                     GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
-                if (GUILayout.Button("Свернуть панель мира", GUILayout.Height(26)))
-                    _hudCollapsed = true;
                 if (_frame.Place != null)
                     GUILayout.Label($"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}");
 
@@ -438,7 +442,7 @@ namespace Pogranichye.Client
                 }
 
                 GUILayout.Space(8f);
-                GUILayout.Label("F1 / Esc — системное меню · Tab — персонаж");
+                GUILayout.Label("Tab — закрыть меню персонажа · Esc — системные настройки");
                 GUILayout.Label(_status, GUILayout.Height(56));
                 GUILayout.EndScrollView();
                 GUILayout.EndArea();
@@ -652,6 +656,8 @@ namespace Pogranichye.Client
             _systemMenuOpen = open;
             if (open)
             {
+                _hudCollapsed = true;
+                _core?.SetExternalCharacterMenuOpen(false);
                 SetChatOpen(false);
                 if (_activityMiniGame != ActivityMiniGame.None)
                 {
@@ -2963,8 +2969,8 @@ namespace Pogranichye.Client
                     }
                     else
                     {
-                        // Immersive default: enter the world with the large journal/menu closed.
-                        // F1 (or the compact corner control) still opens it on demand.
+                        // Immersive default: enter the world with the character journal closed.
+                        // Tab opens it; Esc opens the separate system menu.
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);

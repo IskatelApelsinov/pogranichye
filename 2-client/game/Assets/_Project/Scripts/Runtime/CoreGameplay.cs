@@ -52,7 +52,7 @@ namespace Pogranichye.Client
             if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.48f, 0.34f, 0.17f, 1f));
 
             var label = GUI.skin.label;
-            label.fontSize = 13;
+            label.fontSize = 15;
             label.wordWrap = true;
             label.normal.textColor = new Color(0.88f, 0.85f, 0.76f);
             label.margin = new RectOffset(4, 4, 3, 4);
@@ -60,7 +60,7 @@ namespace Pogranichye.Client
             var box = GUI.skin.box;
             box.normal.background = _uiPanelTexture;
             box.normal.textColor = new Color(0.91f, 0.76f, 0.48f);
-            box.fontSize = 14;
+            box.fontSize = 15;
             box.fontStyle = FontStyle.Bold;
             box.alignment = TextAnchor.UpperLeft;
             box.padding = new RectOffset(12, 12, 10, 10);
@@ -74,7 +74,7 @@ namespace Pogranichye.Client
             button.normal.textColor = new Color(0.91f, 0.88f, 0.79f);
             button.hover.textColor = Color.white;
             button.active.textColor = Color.white;
-            button.fontSize = 12;
+            button.fontSize = 14;
             button.fontStyle = FontStyle.Bold;
             button.padding = new RectOffset(9, 9, 6, 6);
             button.margin = new RectOffset(3, 3, 3, 3);
@@ -83,7 +83,7 @@ namespace Pogranichye.Client
             field.normal.background = _uiButtonTexture;
             field.focused.background = _uiButtonHoverTexture;
             field.normal.textColor = Color.white;
-            field.fontSize = 13;
+            field.fontSize = 14;
             field.padding = new RectOffset(7, 7, 5, 5);
         }
 
@@ -209,7 +209,8 @@ namespace Pogranichye.Client
         private float _hitMarker;
 
         private bool _menuOpen;
-        // The outer HUD owns additional pointer surfaces (context actions, minigames, chat).
+        private bool _externalCharacterMenuOpen;
+        // The outer HUD owns additional pointer surfaces (character journal, context actions, minigames, chat).
         // The controller reports those so this component never re-locks the cursor over them.
         private bool _externalUiCapture;
         private bool _externalModalMenuOpen;
@@ -227,7 +228,19 @@ namespace Pogranichye.Client
         private Light _handLight;
 
         /// <summary>True while the character menu, weave wheel, or external modal menu owns gameplay input.</summary>
-        public bool CapturesInput { get { return _menuOpen || _weaveOpen || _externalModalMenuOpen; } }
+        public bool CapturesInput { get { return _menuOpen || _externalCharacterMenuOpen || _weaveOpen || _externalModalMenuOpen; } }
+
+        public void SetExternalCharacterMenuOpen(bool open)
+        {
+            if (_externalCharacterMenuOpen == open) return;
+            _externalCharacterMenuOpen = open;
+            if (!open) return;
+            _menuOpen = false;
+            _holding = false;
+            _holdStart = 0f;
+            CloseWeave(false);
+            ReleaseGuard();
+        }
 
         public void SetExternalUiCapture(bool captured)
         {
@@ -238,6 +251,7 @@ namespace Pogranichye.Client
         {
             _externalModalMenuOpen = open;
             if (!open) return;
+            _externalCharacterMenuOpen = false;
             _menuOpen = false;
             _holding = false;
             _holdStart = 0f;
@@ -1206,21 +1220,18 @@ namespace Pogranichye.Client
                 return;
             }
 
-            if (_input != null && _input.MenuPressed)
-            {
-                _menuOpen = !_menuOpen;
-                if (_menuOpen) CloseWeave(false);
-            }
+            // Tab is owned by VerticalSliceController and opens the single character journal.
+            // This component no longer creates a second, overlapping character menu.
             if (_input != null && _input.CancelPressed)
             {
                 _menuOpen = false;
                 CloseWeave(false);
             }
 
-            if (_menuOpen && !talking)
+            if ((_menuOpen || _externalCharacterMenuOpen) && !talking)
                 UpdateCardGameHotkeys();
 
-            if (!_menuOpen && !talking)
+            if (!_menuOpen && !_externalCharacterMenuOpen && !talking)
             {
                 if (_input != null && _input.WeavePressed) OpenWeave();
                 if (_input != null && _input.WeaveReleased && _weaveOpen) CloseWeave(true);
@@ -1240,7 +1251,7 @@ namespace Pogranichye.Client
                 ReleaseGuard();
             }
 
-            UpdateCursor(_menuOpen || _weaveOpen || talking);
+            UpdateCursor(_menuOpen || _externalCharacterMenuOpen || _weaveOpen || talking);
         }
 
         private void UpdateCursor(bool needsPointer)
@@ -2242,7 +2253,7 @@ namespace Pogranichye.Client
             {
                 _questTitleStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 12,
+                    fontSize = 14,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = false
@@ -2252,7 +2263,7 @@ namespace Pogranichye.Client
             {
                 _questBodyStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 12,
+                    fontSize = 14,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = true
                 };
@@ -2261,7 +2272,7 @@ namespace Pogranichye.Client
             {
                 _hintTextStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 10,
+                    fontSize = 12,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = true
                 };
