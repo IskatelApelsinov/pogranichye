@@ -140,9 +140,11 @@ namespace Pogranichye.Client.Editor
             var timed = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"hour\":23,\"me\":{\"id\":\"42\"}}");
             if (timed.Hour != 23) throw new FormatException("Optional top-level hour was not deserialized.");
 
-            var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}");
+            var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}", out var legacyDocument);
             if (legacy.Me == null || legacy.Me.Position != null || legacy.Hour.HasValue)
                 throw new FormatException("A legacy v1.0 frame without pos/hour must remain parseable.");
+            if (legacyDocument?["me"]?["hunger"] != null || legacyDocument?["me"]?["pos"] != null)
+                throw new FormatException("The validated document must preserve absent optional fields without DTO default expansion.");
 
             var terminal = WorldFrameParser.Parse("{\"v\":1,\"alive\":false,\"msg\":\"left\"}");
             if (terminal.Alive || terminal.Me != null)
