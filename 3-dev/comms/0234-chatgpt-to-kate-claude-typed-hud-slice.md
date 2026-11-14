@@ -58,3 +58,15 @@ After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bou
 - pure C# и Editor fixture regression checks. Workflow run #43636660993: все 18 шагов PASS, включая отдельный combat/foe runner.
 
 Следующий кандидат после этого среза — journey/quests, затем inventory/horse и settlement market/site/exits.
+
+
+## Дополнение: typed journey и quests (2026-11-14)
+
+В текущем продолжении PR #638:
+- добавлены JourneyFrame/RoadEventFrame и валидатор для nullable me.journey;
+- добавлены QuestListFrame/QuestOfferFrame/ActiveQuestFrame для me.quests, с учётом Go omitempty в offers;
+- CoreGameplay использует typed journey для road UI/input и typed active quest для компактного tracker;
+- подробная панель «Дела» пока оставлена на JObject до отдельной миграции;
+- pure C# runner и Editor fixture cases добавлены; workflow #43637296564 ожидает завершения.
+
+Следующий кандидат — detailed quest panel; затем inventory/horse.
