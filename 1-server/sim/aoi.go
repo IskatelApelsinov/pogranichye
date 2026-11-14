@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"sort"
 
 	"pogranichye/core"
 )
@@ -108,5 +109,50 @@ func AOINeighbors(w *core.World, t *Terrain, skip *core.Entity, origin core.ID, 
 	for i := range rows {
 		out[i] = rows[i].e
 	}
+	return out
+}
+
+// AOIFoes — place.foes с той же межсельской AOI-осведомлённостью, что уже есть у AOINeighbors для
+// жителей (comms 0219 п.3, подтверждённый гэп из comms 0221): враг у межи в близком ЧУЖОМ (тоже
+// горячем) селе виден игроку по эту сторону границы, а не только в своём f.Settlement. FoeC не
+// несёт PlaceC (враги намеренно без полного "жилого" набора компонентов), поэтому идём не через
+// WorldPosOf/AOINeighbors, а напрямую: для каждого кандидата-села считаем его якорь один раз и
+// переводим f.X/f.Y в локальную систему СМОТРЯЩЕГО — тот же приём, что neighborRenderPos в
+// server.go. Для собственного села смотрящего якоря совпадают, поэтому x,y не меняются относительно
+// старого FoesView (обратная совместимость кадра). viewerAnchorE/N — якорь смотрящего (как у
+// AOINeighbors), уже считается в server.go для соседей — второй раз его там считать не нужно.
+func AOIFoes(w *core.World, viewerSettlement core.ID, viewerAnchorE, viewerAnchorN float64) []map[string]any {
+	cand := AOICandidateSettlements(w, viewerSettlement)
+	cand[viewerSettlement] = true
+	anchors := map[core.ID][2]float64{}
+	out := []map[string]any{}
+	w.Each("foe", func(fe *core.Entity) {
+		f := Foe(fe)
+		if !cand[f.Settlement] {
+			return
+		}
+		x, y := f.X, f.Y
+		if f.Settlement != viewerSettlement {
+			a, ok := anchors[f.Settlement]
+			if !ok {
+				s := settleOf(w, f.Settlement)
+				if s == nil {
+					return
+				}
+				e, n := Anchor(w, s)
+				a = [2]float64{e, n}
+				anchors[f.Settlement] = a
+			}
+			x, y = a[0]+f.X-viewerAnchorE, a[1]+f.Y-viewerAnchorN
+		}
+		out = append(out, map[string]any{
+			"id": eidStr(fe.ID), "kind": f.Species, "name": FoeName(f.Species),
+			"x": round1x(x), "y": round1x(y), "facing": math.Round(f.Facing),
+			"hp": math.Round(math.Max(0, f.HP)), "max": f.Max, "state": f.State, "aware": f.Aware,
+			"slow": f.Slow, "weak": f.Weak, "blind": f.Blind > 0, "stun": f.Stun > 0,
+			"windup": round1x(f.Windup),
+		})
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i]["id"].(string) < out[j]["id"].(string) })
 	return out
 }
