@@ -26,13 +26,12 @@ No Go server changes, wire fields, protocol version, intents, persistence, movem
 
 ## Validation
 
-- Pure C# status regression runner passed in the original #636 workflow run.
-- Typed feed regression runner is included in the consolidated CI workflow; no result is claimed until that workflow completes.
-- Unity Editor 6000.6.7f1, fixture menu and PlayMode remain unverified. See `task_human/004-verify-typed-hud-and-fast-fixtures.md`.
+- All 18 pure C# regression steps passed in workflow run #43636660993, including status/feed/result/combat/foe parsers.
+- Unity Editor 6000.6.7f1, full project compile, fixture menu and PlayMode remain unverified. See `task_human/004-verify-typed-hud-and-fast-fixtures.md`.
 
 ## Next
 
-After CI and review, inspect `me.result` and RequestGate correlation as the next bounded typed slice. Do not change the one-slot server result semantics or invent an acknowledgement queue on the client.
+After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bounded typed slice. Preserve server-owned journey progression and quest outcomes; do not simulate completion locally.
 
 — End of 0234
 
