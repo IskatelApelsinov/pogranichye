@@ -67,6 +67,6 @@ After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bou
 - добавлены QuestListFrame/QuestOfferFrame/ActiveQuestFrame для me.quests, с учётом Go omitempty в offers;
 - CoreGameplay использует typed journey для road UI/input и typed active quest для компактного tracker;
 - подробная панель «Дела» пока оставлена на JObject до отдельной миграции;
-- pure C# runner и Editor fixture cases добавлены; workflow #43637296564 ожидает завершения.
+- pure C# runner и Editor fixture cases добавлены; workflow #43637296564 — все 20 шагов PASS, включая typed journey/quest runner.
 
 Следующий кандидат — detailed quest panel; затем inventory/horse.
