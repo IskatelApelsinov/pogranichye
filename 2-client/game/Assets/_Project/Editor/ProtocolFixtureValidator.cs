@@ -77,6 +77,7 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
                 ValidateFeedCases();
+                ValidateActionResultCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -165,6 +166,22 @@ namespace Pogranichye.Client.Editor
 
             ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":2,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\"},{\\"seq\\":2,\\"kind\\":\\"loot\\",\\"text\\":\\"b\\"}]}}", "duplicate feed sequence");
             ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":1,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\",\\"dmg\\":-1}]}}", "negative feed damage");
+        }
+
+        private static void ValidateActionResultCases()
+        {
+            const string fullResult = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":\\"full-1\\",\\"ok\\":false,\\"reason\\":\\"нужно подойти\\"}}}";
+            var frame = WorldFrameParser.Parse(fullResult);
+            if (frame.Me?.Result == null || frame.Me.Result.RequestId != "full-1" ||
+                frame.Me.Result.Ok || frame.Me.Result.Reason != "нужно подойти")
+                throw new FormatException("A full frame must expose a validated typed action result.");
+
+            var nullResult = WorldFrameParser.Parse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":null}}");
+            if (nullResult.Me == null || nullResult.Me.Result != null)
+                throw new FormatException("An explicit null me.result must remain null.");
+
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":\\"x\\",\\"ok\\":true}}}", "result missing reason");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":42,\\"ok\\":true,\\"reason\\":\\"ok\\"}}}", "numeric result reqid");
         }
 
         private static void ValidateNegativeCases()
