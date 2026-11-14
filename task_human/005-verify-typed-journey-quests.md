@@ -2,7 +2,7 @@
 # 005 — Проверить typed journey and quests в Unity
 
 **Исполнитель:** владелец проекта  
-**Когда:** после merge PR #638, затем PR #639 (или после retarget/merge stacked PR #639 в main).  
+**Когда:** после merge consolidated PR #638 в main.  
 **Unity:** 6000.6.7f1 / URP.
 
 ## Шаги
