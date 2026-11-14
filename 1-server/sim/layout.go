@@ -60,7 +60,7 @@ func (l *Layout) Blocked(x, y float64) bool {
 		return true
 	}
 	for i := range l.Buildings {
-		if l.Buildings[i].contains(x, y) {
+		if l.Buildings[i].contains(x, y) && l.Buildings[i].blockedAt(x, y) {
 			return true
 		}
 	}
@@ -348,8 +348,16 @@ var (
 // StarterLayout — раскладка стартового села (Починок): ровно геометрия v2.
 func StarterLayout() *Layout {
 	starterOnce.Do(func() {
+		bs := append([]Rect{}, Buildings...) // копия: не трогаем общий пакетный срез
+		for i := range bs {
+			if bs[i].Kind == "tavern" {
+				ax, ay := POINamed["tavern"][0], POINamed["tavern"][1] // порог — существующий POI
+				d := doorOnWall(bs[i], ax, ay, true, tavernDoorWidth)
+				bs[i].BuildingID, bs[i].Room, bs[i].InteriorID, bs[i].Door = "tavern", "tavern", "tavern:starter", &d
+			}
+		}
 		l := &Layout{Plan: "starter", Half: WorldHalf, VillageHalf: VillageHalf,
-			Buildings: Buildings, HasRiver: true,
+			Buildings: bs, HasRiver: true,
 			RiverY0: riverY0, RiverY1: riverY1, BridgeX0: bridgeX0, BridgeX1: bridgeX1,
 			POIs: POINamed,
 			Zones: []Zone{

@@ -96,6 +96,61 @@ func checkLayout(t *testing.T, name string, l *Layout) {
 			break
 		}
 	}
+	// comms 0217/0218 п.3 — дверь корчмы: стабильные building_id/room/interior_id, дверь на самой
+	// стене (не внутри и не снаружи неё), проём проходим, стена рядом с проёмом — нет.
+	for i := range l.Buildings {
+		b := &l.Buildings[i]
+		if b.Kind != "tavern" {
+			continue
+		}
+		if b.Door == nil {
+			t.Fatalf("%s: у корчмы нет двери", name)
+		}
+		if b.BuildingID == "" || b.Room == "" || b.InteriorID == "" {
+			t.Fatalf("%s: у корчмы не проставлены building_id/room/interior_id: %+v", name, b)
+		}
+		d := b.Door
+		onWallX := math.Abs(d.X-b.X0) < 1e-6 || math.Abs(d.X-b.X1) < 1e-6
+		onWallY := math.Abs(d.Y-b.Y0) < 1e-6 || math.Abs(d.Y-b.Y1) < 1e-6
+		if !onWallX && !onWallY {
+			t.Fatalf("%s: дверь корчмы не на стене: %+v у здания %+v", name, d, b)
+		}
+		// нормаль к проёму: если дверь на south/north (onWallY), шаг через стену — по Y, иначе по X.
+		// toInside — направление от линии стены внутрь здания (+1 от Y0/X0, −1 от Y1/X1).
+		var inside, outside [2]float64
+		if onWallY {
+			toInside := 1.0
+			if math.Abs(d.Y-b.Y1) < 1e-6 {
+				toInside = -1
+			}
+			inside = [2]float64{d.X, d.Y + toInside*0.5}
+			outside = [2]float64{d.X, d.Y - toInside*0.5}
+		} else {
+			toInside := 1.0
+			if math.Abs(d.X-b.X1) < 1e-6 {
+				toInside = -1
+			}
+			inside = [2]float64{d.X + toInside*0.5, d.Y}
+			outside = [2]float64{d.X - toInside*0.5, d.Y}
+		}
+		if l.Blocked(inside[0], inside[1]) {
+			t.Fatalf("%s: проём двери корчмы непроходим внутрь: %+v", name, inside)
+		}
+		if l.Blocked(outside[0], outside[1]) {
+			t.Fatalf("%s: проём двери корчмы непроходим наружу: %+v", name, outside)
+		}
+		// в стороне от проёма (за половиной ширины двери) стена остаётся сплошной
+		far := d.Width/2 + 2
+		if onWallY {
+			if !l.Blocked(d.X+far, d.Y) {
+				t.Fatalf("%s: стена корчмы в стороне от двери должна быть сплошной: %+v", name, b)
+			}
+		} else {
+			if !l.Blocked(d.X, d.Y+far) {
+				t.Fatalf("%s: стена корчмы в стороне от двери должна быть сплошной: %+v", name, b)
+			}
+		}
+	}
 }
 
 // zoneContaining — зона среди l.Zones с кодом из kinds, которая содержит точку p (если такая есть).
@@ -117,8 +172,18 @@ func TestStarterLayoutIsLegacyV2(t *testing.T) {
 	if j["version"] != GeometryVersion || j["world_half"] != WorldHalf || j["village_half"] != VillageHalf {
 		t.Fatal("поля v2 стартовой раскладки изменились")
 	}
-	if !reflect.DeepEqual(j["buildings"], Buildings) || len(Buildings) != 8 {
+	// Door/BuildingID/Room/InteriorID — аддитивный контракт v1.23 (comms 0217): у корчмы они теперь
+	// проставлены, поэтому полный DeepEqual с пакетным Buildings (без этих полей) больше не подходит.
+	// Проверяем сами v2-поля (name/kind/координаты, их ровно восемь) без дверных полей.
+	got := l.JSON()["buildings"].([]Rect)
+	if len(got) != 8 || len(Buildings) != 8 {
 		t.Fatal("здания стартового села должны остаться прежними (клиент ждёт ровно восемь)")
+	}
+	for i := range got {
+		g, want := got[i], Buildings[i]
+		if g.Name != want.Name || g.Kind != want.Kind || g.X0 != want.X0 || g.Y0 != want.Y0 || g.X1 != want.X1 || g.Y1 != want.Y1 {
+			t.Fatalf("здание %d стартового села изменилось: %+v != %+v", i, g, want)
+		}
 	}
 	r := j["river"].(map[string]float64)
 	if r["y0"] != -90 || r["y1"] != -78 || r["bridge_x0"] != -6 || r["bridge_x1"] != 6 {
@@ -129,11 +194,12 @@ func TestStarterLayoutIsLegacyV2(t *testing.T) {
 			t.Fatalf("точка %s стартового села сдвинулась", k)
 		}
 	}
-	// старое поведение геометрии сохранено точь-в-точь
+	// старое поведение геометрии сохранено точь-в-точь, КРОМЕ (-33,20) — это пол внутри корчмы:
+	// с v1.23 (comms 0217) у корчмы есть дверь, и интерьер за дверным проёмом стал проходим.
 	for _, c := range []struct {
 		x, y float64
 		want bool
-	}{{0, 0, false}, {-33, 20, true}, {0, -84, false}, {30, -84, true}, {151, 0, true}, {0, -151, true}} {
+	}{{0, 0, false}, {-33, 20, false}, {0, -84, false}, {30, -84, true}, {151, 0, true}, {0, -151, true}} {
 		if l.Blocked(c.x, c.y) != c.want {
 			t.Fatalf("Blocked(%v,%v) != %v", c.x, c.y, c.want)
 		}
