@@ -33,6 +33,15 @@ namespace Pogranichye.Client.Presentation
             _parent = parent;
         }
 
+        public bool Contains(string settlementId)
+        {
+            if (_disposed || string.IsNullOrEmpty(settlementId) ||
+                !_entries.TryGetValue(settlementId, out var entry))
+                return false;
+            entry.LastUsed = Time.unscaledTime;
+            return true;
+        }
+
         public bool TryGet(string settlementId, WorldFrame frame, out WorldLayoutFrame layout)
         {
             layout = null;
