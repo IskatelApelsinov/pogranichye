@@ -1,7 +1,7 @@
 # Client DTO coverage — JourneyView and QuestsView
 
 Date: 2026-11-14  
-Branch/PR: `chatgpt/typed-journey-quests-20261114` (stacked on client PR #638)
+Branch/PR: `chatgpt/typed-status-feed-20261114` / PR #638 (consolidated client typed-state change)
 
 ## Authority and privacy boundary
 
