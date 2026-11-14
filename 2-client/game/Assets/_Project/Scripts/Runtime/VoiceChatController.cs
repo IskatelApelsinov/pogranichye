@@ -26,6 +26,8 @@ namespace Pogranichye.Client
         private AudioSender _sender;
         private bool _joined;
         private bool _microphoneEnabled;
+        private bool _pushToTalkHeld;
+        private bool _streaming;
 
         public bool IsJoined => _joined;
         public bool IsMicrophoneEnabled => _microphoneEnabled;
@@ -55,9 +57,11 @@ namespace Pogranichye.Client
             }
             if (_microphoneEnabled)
             {
-                _sender.StopStreaming();
                 _microphoneEnabled = false;
-                Status = "Микрофон выключен. Вы слышите собеседников.";
+                UpdateMicrophoneStreamState();
+                Status = _pushToTalkHeld
+                    ? "Открытый микрофон выключен; P — говорить по нажатию."
+                    : "Микрофон выключен. Вы слышите собеседников; удерживайте P, чтобы говорить.";
                 return;
             }
 #if UNITY_ANDROID
@@ -80,9 +84,53 @@ namespace Pogranichye.Client
                 Status = "Микрофон не найден или запрещён системой.";
                 return;
             }
-            _sender.StartStreaming();
             _microphoneEnabled = true;
-            Status = "Микрофон включён. Нажмите ещё раз, чтобы заглушить.";
+            UpdateMicrophoneStreamState();
+            Status = "Открытый микрофон включён. Нажмите ещё раз, чтобы заглушить; P — режим нажатия.";
+        }
+
+        /// <summary>Push-to-talk while joined; the persistent mic toggle remains an optional open-mic mode.</summary>
+        public void SetPushToTalkHeld(bool held)
+        {
+            if (_pushToTalkHeld == held) return;
+            _pushToTalkHeld = held;
+            if (!_joined || _sender == null || _microphoneEnabled) return;
+            if (held && !HasMicrophonePermission())
+            {
+                Status = "Для PTT сначала нажмите «Включить микрофон», чтобы выдать разрешение.";
+                return;
+            }
+            UpdateMicrophoneStreamState();
+            if (!_microphoneEnabled)
+                Status = held ? "Говорите — PTT активен." : "Микрофон заглушён. Удерживайте P, чтобы говорить.";
+        }
+
+        private static bool HasMicrophonePermission()
+        {
+#if UNITY_ANDROID
+            if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone))
+                return false;
+#endif
+#if UNITY_IOS
+            if (!Application.HasUserAuthorization(UserAuthorization.Microphone)) return false;
+#endif
+            return Microphone.devices != null && Microphone.devices.Length > 0;
+        }
+
+        private void UpdateMicrophoneStreamState()
+        {
+            var shouldStream = _joined && _sender != null && (_microphoneEnabled || _pushToTalkHeld);
+            if (shouldStream == _streaming) return;
+            if (shouldStream)
+            {
+                _sender.StartStreaming();
+                _streaming = true;
+            }
+            else
+            {
+                _sender.StopStreaming();
+                _streaming = false;
+            }
         }
 
         private IEnumerator RequestIOSMicrophonePermission()
@@ -197,6 +245,8 @@ namespace Pogranichye.Client
         public void StopVoice()
         {
             _microphoneEnabled = false;
+            _pushToTalkHeld = false;
+            _streaming = false;
             _joined = false;
             try { _sender?.StopStreaming(); } catch { }
             try { _manager?.Disconnect(); } catch { }

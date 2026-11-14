@@ -22,7 +22,7 @@ namespace Pogranichye.Client
         private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
-        private InputAction _chat;
+        private InputAction _chat, _voicePushToTalk;
         private InputAction _trickFeint, _trickBait, _trickSneak, _cycleStance;
         private InputAction _startWoodcut, _startFishing, _lockTarget;
         private readonly InputAction[] _weaveNodes = new InputAction[6];
@@ -43,6 +43,7 @@ namespace Pogranichye.Client
         public bool MenuPressed => _menu.WasPressedThisFrame();
         public bool CancelPressed => _cancel.WasPressedThisFrame();
         public bool ChatPressed => _chat.WasPressedThisFrame();
+        public bool VoicePushToTalkHeld => _voicePushToTalk != null && _voicePushToTalk.IsPressed();
         public bool WeavePressed => _weaveHold.WasPressedThisFrame();
         public bool WeaveReleased => _weaveHold.WasReleasedThisFrame();
         public bool WeaveHeld => _weaveHold.IsPressed();
@@ -93,6 +94,7 @@ namespace Pogranichye.Client
             _menu = Button("Menu", "<Keyboard>/tab");
             _cancel = Button("Cancel", "<Keyboard>/escape");
             _chat = Button("Chat", "<Keyboard>/t");
+            _voicePushToTalk = Button("VoicePushToTalk", "<Keyboard>/p");
             _weaveHold = Button("WeaveHold", "<Keyboard>/r");
             _weaveRemove = Button("WeaveRemove", "<Keyboard>/backspace");
             _primary = Button("Primary", "<Mouse>/leftButton");
@@ -191,6 +193,7 @@ namespace Pogranichye.Client
                 if (keyboard.jKey.isPressed) keys.Add("J");
                 if (keyboard.capsLockKey.isPressed) keys.Add("Caps");
                 if (keyboard.tKey.isPressed) keys.Add("T");
+                if (keyboard.pKey.isPressed) keys.Add("P (голос)");
                 if (keyboard.nKey.isPressed) keys.Add("N");
                 if (keyboard.hKey.isPressed) keys.Add("H");
                 if (keyboard.zKey.isPressed) keys.Add("Z");
