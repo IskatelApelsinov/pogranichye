@@ -2792,39 +2792,42 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
 
             GUILayout.Space(8f);
-            var quests = Obj(_me, "quests");
-            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (int)Num(quests, "done") + ", слава здесь " + (int)Num(quests, "rep") + ")");
-            var active = Arr(quests, "active");
+            var quests = _quests;
+            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (quests == null ? 0 : quests.Done) +
+                ", слава здесь " + (quests == null ? 0 : quests.Reputation) + ")");
+            var active = quests?.Active;
             if (active != null)
                 foreach (var quest in active)
                 {
+                    if (quest == null) continue;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label((Flag(quest, "ready") ? "[готово] " : "... ") + Str(quest, "text"), GUILayout.Width(rect.width - 260f));
-                    GUI.enabled = Flag(quest, "ready");
-                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", Str(quest, "id"));
+                    GUILayout.Label((quest.Ready ? "[готово] " : "... ") + (quest.Text ?? string.Empty), GUILayout.Width(rect.width - 260f));
+                    GUI.enabled = quest.Ready;
+                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", quest.Id);
                     GUI.enabled = true;
-                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", Str(quest, "id"));
+                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", quest.Id);
                     GUILayout.EndHorizontal();
                 }
-            var offers = Arr(quests, "offers");
+            var offers = quests?.Offers;
             var currentTalk = Obj(_me, "talk");
             var currentTalkWith = Str(currentTalk, "with");
             if (offers != null)
                 foreach (var offer in offers)
                 {
+                    if (offer == null) continue;
                     GUILayout.BeginHorizontal();
-                    var via = Str(offer, "via");
-                    var giver = Str(offer, "giver");
+                    var via = offer.Via ?? string.Empty;
+                    var giver = offer.Giver ?? string.Empty;
                     var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
                     var who = via == "board" ? "доска у колодца"
-                        : isCurrentNpc ? "собеседник " + Str(offer, "giver_name")
-                        : Str(offer, "giver_name");
-                    var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
-                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 210f));
+                        : isCurrentNpc ? "собеседник " + (offer.GiverName ?? string.Empty)
+                        : offer.GiverName ?? string.Empty;
+                    var pay = offer.Coins > 0d ? "  [" + (int)offer.Coins + " монет]" : string.Empty;
+                    GUILayout.Label(who + ": " + (offer.Text ?? string.Empty) + pay, GUILayout.Width(rect.width - 210f));
                     if (via != "npc" || isCurrentNpc)
                     {
                         if (GUILayout.Button(isCurrentNpc ? "взяться у него" : "взяться"))
-                            Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
+                            Ask("Просьба", "quest", "action", "accept", "quest", offer.Id);
                     }
                     else
                     {
