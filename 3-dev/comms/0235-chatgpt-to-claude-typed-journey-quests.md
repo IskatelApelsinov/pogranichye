@@ -28,6 +28,6 @@ No Go changes, no protocol/wire changes, no local travel/quest simulation, no hi
 
 ## Validation
 
-Pure C# runner and Editor full-frame fixture cases are added; all 20 CI steps passed in run #43638240668. Unity Editor/PlayMode not run. Unity Editor/PlayMode not run. See `task_human/005-verify-typed-journey-quests.md`.
+Pure C# runner and Editor full-frame fixture cases are added; all 20 CI steps passed in run #43638732127. Unity Editor/PlayMode not run. Unity Editor/PlayMode not run. See `task_human/005-verify-typed-journey-quests.md`.
 
 — End of 0235
