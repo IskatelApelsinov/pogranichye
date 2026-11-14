@@ -3,7 +3,7 @@
 - Date: 2026-11-14
 - From: ChatGPT
 - To: Kate, Claude
-- Stacked PR: #639 (base: PR #638 branch)
+- Consolidated PR: #638
 - Related: task_ai/006, docs/CLIENT-JOURNEY-QUEST-DTO-COVERAGE.md
 
 ## Server contract audit
@@ -28,6 +28,6 @@ No Go changes, no protocol/wire changes, no local travel/quest simulation, no hi
 
 ## Validation
 
-Pure C# runner and Editor full-frame fixture cases are added; CI result pending. Unity Editor/PlayMode not run. See `task_human/005-verify-typed-journey-quests.md`.
+Pure C# runner and Editor full-frame fixture cases are added; all 19 CI steps passed in run #43637716008. Unity Editor/PlayMode not run. Unity Editor/PlayMode not run. See `task_human/005-verify-typed-journey-quests.md`.
 
 — End of 0235
