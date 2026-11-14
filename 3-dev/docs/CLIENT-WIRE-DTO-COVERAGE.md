@@ -33,7 +33,7 @@
 | `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
 | `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
-| `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape validated |
+| `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
 | `me.party` | Missing `PartyFrame` and member/invite DTOs | party panel | **Gap** |
 
