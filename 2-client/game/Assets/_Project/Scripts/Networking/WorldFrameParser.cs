@@ -51,11 +51,17 @@ namespace Pogranichye.Client.Networking
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
                 ValidateJournal(me["journal"], "me.journal");
-                ValidatePosition(me["pos"], "me.pos", true);
                 ValidateWorldPosition(me["wpos"], "me.wpos");
-                ValidateRoom(me["room"], "me.room");
 
                 var place = root["place"];
+                var hasWorldAnchor = place != null && place.Type == JTokenType.Object &&
+                    place["anchor"] != null && place["anchor"].Type == JTokenType.Object;
+                // In seamless mode the server's handover hysteresis may temporarily leave
+                // me.pos outside the 150 m settlement footprint. When global coordinates and
+                // the matching settlement anchor are present, validate the local/global relation
+                // below instead of rejecting a valid world position at the old scene boundary.
+                ValidatePosition(me["pos"], "me.pos", true, me["wpos"] != null && hasWorldAnchor);
+                ValidateRoom(me["room"], "me.room");
                 if (place != null && place.Type != JTokenType.Null)
                 {
                     if (place.Type != JTokenType.Object)
@@ -95,6 +101,12 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException("Не удалось разобрать кадр сервера.");
             if (frame.Me != null && frame.Me.WorldPosition != null && !frame.Me.WorldPosition.IsValid)
                 throw new FormatException("me.wpos: координаты, chunk и layer противоречат друг другу.");
+            if (frame.Me?.WorldPosition != null && frame.Place?.Anchor != null && frame.Me.Position != null)
+            {
+                if (Math.Abs(frame.Me.WorldPosition.East - frame.Place.Anchor.East - frame.Me.Position.X) > 0.002d ||
+                    Math.Abs(frame.Me.WorldPosition.North - frame.Place.Anchor.North - frame.Me.Position.Y) > 0.002d)
+                    throw new FormatException("me.wpos не совпадает с place.anchor + me.pos.");
+            }
             if (frame.Me != null && frame.Me.Room != null)
             {
                 ParseEntityId(frame.Me.Room.Id, "me.room.id");
@@ -280,7 +292,7 @@ namespace Pogranichye.Client.Networking
             }
         }
 
-        private static void ValidatePosition(JToken token, string fieldName, bool player)
+        private static void ValidatePosition(JToken token, string fieldName, bool player, bool allowExtendedWorldPosition = false)
         {
             if (token == null || token.Type == JTokenType.Null) return; // v1.0 compatibility
             if (token.Type != JTokenType.Object)
@@ -291,8 +303,12 @@ namespace Pogranichye.Client.Networking
             var xValue = token["x"].Value<double>();
             var yValue = token["y"].Value<double>();
             var facingValue = token["facing"].Value<double>();
-            if (!IsFinite(xValue) || !IsFinite(yValue) || Math.Abs(xValue) > 150.001d || Math.Abs(yValue) > 150.001d)
-                throw new FormatException(fieldName + " координаты должны быть конечными и находиться в границах мира ±150 м.");
+            var maxCoordinate = allowExtendedWorldPosition ? 1000000000d : 150.001d;
+            if (!IsFinite(xValue) || !IsFinite(yValue) ||
+                Math.Abs(xValue) > maxCoordinate || Math.Abs(yValue) > maxCoordinate)
+                throw new FormatException(allowExtendedWorldPosition
+                    ? fieldName + " координаты должны быть конечными и не превышать допустимый диапазон глобального мира."
+                    : fieldName + " координаты должны быть конечными и находиться в границах мира ±150 м.");
             if (!IsFinite(facingValue) || facingValue < 0d || facingValue >= 360d)
                 throw new FormatException(fieldName + ".facing должен быть конечным числом в диапазоне [0, 360).");
 
