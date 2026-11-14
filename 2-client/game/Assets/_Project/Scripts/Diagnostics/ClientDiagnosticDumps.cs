@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -94,9 +95,9 @@ namespace Pogranichye.Client.Diagnostics
             var fileName = "pogranichye-dump-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + ".json";
             var path = Path.Combine(directory, fileName);
             var json = dump.ToString(Formatting.Indented);
-            if (json.Length > MaxDumpBytes)
+            if (Encoding.UTF8.GetByteCount(json) > MaxDumpBytes)
                 throw new InvalidOperationException("Диагностический дамп превысил ограничение размера.");
-            File.WriteAllText(path, json);
+            File.WriteAllText(path, json, new UTF8Encoding(false));
             PruneOldDumps(directory);
             return path;
         }
@@ -132,7 +133,7 @@ namespace Pogranichye.Client.Diagnostics
                 total += files[i].Length;
                 if (i >= MaxDumpFiles || total > MaxDumpBytes)
                 {
-                    try { files[i].Delete(); }
+                    try { files[i].Delete(); total -= files[i].Length; }
                     catch (Exception ex) { Debug.LogWarning("[Pogranichye] Не удалось удалить старый дамп: " + ex.Message); }
                 }
             }
