@@ -17,7 +17,7 @@ namespace Pogranichye.Client.Diagnostics
     {
         private const int MaxFullFrames = 8;
         private const int MaxFastFrames = 16;
-        private const int MaxRejectedFrames = 6;
+        private const int MaxRejectedFrames = 3;
         private const int MaxEvents = 100;
         private const int MaxFrameChars = 256 * 1024;
         private const int MaxDumpFiles = 5;
