@@ -49,6 +49,7 @@ namespace Pogranichye.Client.Networking.Protocol
         // v1.12 full-frame intoxication level; omitted by the current fast-frame shape.
         [JsonProperty("drunk")] public double Drunk { get; set; }
         [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
+        [JsonProperty("combat")] public CombatFrame Combat { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
@@ -220,6 +221,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("beer")] public double Beer { get; set; }
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
+        [JsonProperty("foes")] public List<FoeFrame> Foes { get; set; }
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
         // v1.19 global anchor. Local pos remains settlement-relative.
         [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
