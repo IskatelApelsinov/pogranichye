@@ -22,6 +22,7 @@ Both ADR 0006 entry modes remain intact. Protocol v1 remains additive and backwa
    - 2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs
    - 2-client/game/Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs
    - 2-client/game/Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
+   - 2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
    - 2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs
 4. Server schema sources:
    - 1-server/server/server.go: stateJSON / fastJSON
@@ -70,5 +71,5 @@ Do not suggest broad rewrites, local simulation, wire version bumps, or parallel
 ## Status at preparation
 
 - CI run #43636660993: all 18 Unity-independent C# regression steps passed for the previous typed status/feed/result/combat/foe slice.
-- New journey/quest DTO parser and consumer changes are in the same PR branch; workflow #43637296564 passed all 20 steps, including the new journey/quest parser runner.
+- Journey/quest DTO parser and consumer changes are in PR #638; consolidated workflow #43637716008 passed all 19 steps, including the journey/quest parser runner. Stats/bag/horse scaffolding is present but not wired; see task #007.
 - Unity Editor 6000.6.7f1 compile, shared fixture menu and PlayMode have not been run by ChatGPT and must not be reported as passed.
