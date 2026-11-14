@@ -72,3 +72,8 @@ PR #638 now types the existing server `me.combat` view and `place.foes[]` arrays
 ## Current handoff — 2026-11-14
 
 PR #638 is open and ready for review, not merged. All 18 independent C# CI steps passed in run #43636660993. It consolidates typed status/feed/result/combat/foe views and the durable task/handoff documents. The manual Unity acceptance task is now `task_human/004`; do not mark it complete until the owner runs Unity 6000.6.7f1.
+
+
+## Stacked follow-up — 2026-11-14
+
+PR #639 adds typed public JourneyView/QuestsView consumers on top of PR #638. It is intentionally stacked and should be reviewed/merged only after #638 is merged. No server/wire change.
