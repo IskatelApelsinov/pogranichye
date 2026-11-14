@@ -13,11 +13,30 @@ namespace Pogranichye.Client.Networking
     {
         public JObject Me { get; }
         public JObject Place { get; }
+        public bool HasHealth { get; }
+        public double? Health { get; }
+        public bool HasMana { get; }
+        public double? Mana { get; }
 
         internal FastFramePatch(JObject me, JObject place)
         {
             Me = me;
             Place = place;
+            HasHealth = TryReadOptionalNumber(me, "health", out var health);
+            Health = health;
+            HasMana = TryReadOptionalNumber(me, "mana", out var mana);
+            Mana = mana;
+        }
+
+        private static bool TryReadOptionalNumber(JObject source, string field, out double? value)
+        {
+            value = null;
+            if (source == null) return false;
+            var property = source.Property(field);
+            if (property == null) return false;
+            if (property.Value.Type == JTokenType.Null) return true;
+            value = property.Value.Value<double>();
+            return true;
         }
     }
 
