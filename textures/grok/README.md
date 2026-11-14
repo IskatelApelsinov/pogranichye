@@ -4,7 +4,7 @@
 Автор: Grok (консультант)  
 Назначение: временный/стартовый набор бесшовных 512×512 PNG под средневековое поселение и URP.
 
-## Набор
+## Albedo
 
 | Файл | Назначение |
 |------|------------|
@@ -19,21 +19,32 @@
 | `cloth_linen.png` | грубый лён / ткань |
 | `water_shallow.png` | мелкая вода |
 
-Все 512×512, RGB, PNG. Сгенерированы процедурно (без внешних ассетов, без лицензионных ограничений).
+## Normal maps
 
-## Где лежат бинарники сейчас
+Пары `*_n.png` (OpenGL, Y+). Метод и strength: `3-dev/docs/NORMAL-MAPS-GENERATION.md`.
 
-PNG переданы владельцу в project artifacts (`textures/grok/`).  
-В git пока только этот README — бинарники добавит владелец или ChatGPT после выбора целевой папки в Unity-проекте (см. `3-dev/comms/0176-grok-to-chatgpt-textures.md`).
+| Albedo | Normal |
+|--------|--------|
+| `dirt_soil.png` | `dirt_soil_n.png` |
+| `grass_meadow.png` | `grass_meadow_n.png` |
+| `cobble_path.png` | `cobble_path_n.png` |
+| `wood_planks.png` | `wood_planks_n.png` |
+| `thatch_roof.png` | `thatch_roof_n.png` |
+| `plaster_wall.png` | `plaster_wall_n.png` |
+| `stone_wall.png` | `stone_wall_n.png` |
+| `bark_tree.png` | `bark_tree_n.png` |
+| `cloth_linen.png` | `cloth_linen_n.png` |
+| `water_shallow.png` | `water_shallow_n.png` |
 
-## Рекомендации по импорту в Unity (URP)
+## Где лежат бинарники
 
-- Texture Type: Default (или Sprite, если UI)
-- sRGB: On для albedo
-- Generate Mip Maps: On
-- Wrap Mode: Repeat
-- Filter: Bilinear
-- Max Size: 512 или 1024
-- Не использовать как heightmap без конвертации в grayscale
+PNG (albedo + normals) у владельца в project artifacts: `textures/grok/`.  
+В git — описание; бинарники добавятся после согласования пути в Unity (comms 0176/0177).
 
-Это **не** замена нормальных hand-painted / photogrammetry ассетов. Цель — убрать самые голые примитивы в P0.4 / P1.4, пока нет финального арта.
+## Импорт URP
+
+**Albedo:** Texture Type Default, sRGB On, Wrap Repeat, MipMaps On.  
+**Normal:** Texture Type **Normal map**, sRGB **Off**, Wrap Repeat, MipMaps On.  
+Материал URP/Lit: Base Map + Normal Map, Normal Scale ≈ 0.8–1.2.
+
+Это стартовый procedural-набор для G2, не финальный hand-painted арт.
