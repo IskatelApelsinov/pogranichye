@@ -99,7 +99,7 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 - GitHub Actions: [run #43633890291](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43633890291) — `Unity-independent C# checks` PASS; `GameplayStatusView checks passed` (mcs + mono). Unity Editor/fixture menu/PlayMode остаются непроверенными.
 
 
-## Четвёртый проход — типизированная лента событий (2026-11-14)
+## Пятый проход — типизированная лента событий (2026-11-14)
 
 - Сверен фактический серверный тип `sim.FeedItem`: `seq:int64`, `kind:string`, `text:string`, optional `foe/part:string`, optional `dmg:float64`; сервер хранит ограниченное кольцо из 16 событий и возвращает его в возрастающем порядке.
 - Добавлены `FeedEntryFrame` и общий `FeedFrameParser`; один и тот же валидатор применяется к полному snapshot и fast patch.
@@ -108,4 +108,4 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 - `CoreGameplay.ReadFeed` теперь принимает `IList<FeedEntryFrame>`; текст ленты, hit marker, hurt flash и floaters по-прежнему создаются только из подтверждённых сервером событий.
 - Добавлен независимый C# regression runner и CI step; его компиляция включает Newtonsoft и `GameplayStatusView.cs`, так как fast parser теперь содержит оба typed patch вида.
 
-Код и документация объединены с immutable status view из PR #636. Конкурирующий PR #635 будет закрыт как superseded после переноса всех полезных документов. Wire v1 и сервер не менялись. Unity Editor/PlayMode не запускались.
+Код и документация объединены с immutable status view из PR #636 в консолидированный PR #638. Конкурирующие PR #635 и #636 закрываются как superseded; не сливать их отдельно. Wire v1 и сервер не менялись. Unity Editor/PlayMode не запускались.
