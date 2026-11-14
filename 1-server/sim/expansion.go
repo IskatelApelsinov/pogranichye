@@ -413,7 +413,7 @@ func chaseBeast(w *core.World, e *core.Entity, reqid string, melee bool) (bool, 
 		weapon = 10
 	}
 	danger := map[string]float64{"hare": 2, "fox": 6, "boar": 22, "wolf": 30, "bear": 45}[target]
-	roll := float64(hashReq(reqid)%100) // 0..99
+	roll := float64(hashReq(reqid) % 100) // 0..99
 	success := roll < 45+skill*1.5+weapon // шанс растёт от навыка и оружия
 	v.Energy -= 12
 	trainSkill(w, e, "hunter", 0.8)
@@ -564,8 +564,21 @@ func OpeningTask(w *core.World, e *core.Entity) map[string]any {
 	// Сама выданная задача: giver/id/accepted/objective/have/reward — реальная просьба жителя.
 	if q := openingErrand(e); q != nil {
 		have, ready := questProgress(w, e, *q)
+		// Место выдачи (comms 0215/0218, additive): q.Settlement — СНИМОК на момент принятия (Errand
+		// в errand.go пишет его один раз из pl.Settlement при выдаче и больше не трогает), а не текущее
+		// место игрока или NPC — поэтому значение не меняется при переходе между сёлами A→B.
+		settlementID, settlementName := "", ""
+		if q.Settlement != 0 {
+			settlementID = eidStr(q.Settlement)
+			if se := w.Get(q.Settlement); se != nil {
+				if st := core.Settle(se); st != nil {
+					settlementName = st.Name
+				}
+			}
+		}
 		out["issued"] = map[string]any{"id": q.ID, "giver": q.GiverID, "giver_name": q.GiverName,
-			"good": q.Good, "qty": q.Qty, "have": have, "ready": ready, "coins": q.Coins, "accepted": true}
+			"good": q.Good, "qty": q.Qty, "have": have, "ready": ready, "coins": q.Coins, "accepted": true,
+			"settlement_id": settlementID, "settlement_name": settlementName}
 		if !done {
 			if ready {
 				text = "Отнеси обещанное: " + q.GiverName + " ждёт у себя."

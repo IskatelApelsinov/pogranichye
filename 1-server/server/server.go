@@ -586,6 +586,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			case "chop":
 				rok, rwhy := sim.ChopWood(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			case "gather_brushwood": // v1.23, comms 0215: хворост в рощице (copse) без настоящего леса
+				rok, rwhy := sim.GatherBrushwood(s.world, e, in.ReqID)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			case "fish":
 				rok, rwhy := sim.FishCatch(s.world, e, in.ReqID)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
