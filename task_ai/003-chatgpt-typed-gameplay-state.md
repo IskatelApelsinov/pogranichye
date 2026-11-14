@@ -140,10 +140,10 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 
 ## Current status — 2026-11-14 (supersedes earlier next-owner notes)
 
-- Consolidated PR #638 is open and ready for review; overlapping PR #635/#636 are closed as superseded. Stacked PR #639 contains the next journey/quest slice and targets the PR #638 branch. PR #638 has no server/wire changes.
+- Consolidated PR #638 is open and ready for review; overlapping PR #635/#636 are closed as superseded. PR #638 now also contains the journey/quest slice; it is one consolidated review target. PR #638 has no server/wire changes.
 - Typed consumers now include status HUD, `me.feed[]`, `me.result`, `me.combat`, `place.foes[]`, `me.journey`, and `me.quests`; full/fast presence semantics are explicit, while journey/quests remain full-snapshot-only.
-- Latest CI run #43636660993 passed all 18 steps, including dedicated typed status/feed/result/combat/foe regression runners.
+- Latest CI run #43637716008 passed all 19 steps, including dedicated typed status/feed/result/combat/foe/journey/quest regression runners.
 - Remaining character DTO gaps include inventory/horse/bag/stats/region/recipes/party/card-game; remaining settlement gaps include exits/site/market/stable/tavern counter.
-- Journey/quests are implemented in stacked PR #639; next bounded source audit is inventory/horse/bag/stats, then one typed read-only consumer migration.
+- Journey/quests are implemented in PR #638; next bounded source audit is inventory/horse/bag/stats, then one typed read-only consumer migration.
 - Unity 6000.6.7f1 compile, Editor fixture menu and PlayMode are still unverified; see `task_human/004` after PR #638 is merged.
 
