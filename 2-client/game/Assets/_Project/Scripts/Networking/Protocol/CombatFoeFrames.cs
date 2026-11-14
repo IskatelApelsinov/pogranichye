@@ -18,8 +18,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("light")] public double Light { get; set; }
         [JsonProperty("arrows")] public int Arrows { get; set; }
         [JsonProperty("weapon")] public string Weapon { get; set; }
-        [JsonProperty("kills")] public int Kills { get; set; }
-        [JsonProperty("ko")] public bool KnockedOut { get; set; }
+        [JsonProperty("kills")] public Dictionary<string, int> Kills { get; set; }
+        [JsonProperty("ko")] public int Knockouts { get; set; }
     }
 
     [Serializable]
@@ -65,8 +65,8 @@ namespace Pogranichye.Client.Networking
             RequireNumber(obj, "light", fieldName, true);
             RequireInteger(obj, "arrows", fieldName);
             RequireString(obj, "weapon", fieldName, true);
-            RequireInteger(obj, "kills", fieldName);
-            RequireBool(obj, "ko", fieldName);
+            RequireIntegerMap(obj, "kills", fieldName);
+            RequireInteger(obj, "ko", fieldName);
         }
 
         public static CombatFrame Parse(JToken token, string fieldName)
@@ -109,6 +109,20 @@ namespace Pogranichye.Client.Networking
                 !long.TryParse(token.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
                 value < 0 || value > int.MaxValue)
                 throw new FormatException(path + "." + key + " должен быть неотрицательным int32.");
+        }
+
+        private static void RequireIntegerMap(JObject obj, string key, string path)
+        {
+            var map = obj[key] as JObject;
+            if (map == null) throw new FormatException(path + "." + key + " должен быть объектом счётчиков.");
+            foreach (var property in map.Properties())
+            {
+                long value;
+                if (property.Value.Type != JTokenType.Integer ||
+                    !long.TryParse(property.Value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
+                    value < 0 || value > int.MaxValue)
+                    throw new FormatException(path + "." + key + "." + property.Name + " должен быть неотрицательным int32.");
+            }
         }
     }
 
