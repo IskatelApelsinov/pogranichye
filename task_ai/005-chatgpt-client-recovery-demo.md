@@ -52,3 +52,13 @@
 - Все непроверенные runtime аспекты явно помечены.
 
 **Следующий владелец:** ChatGPT продолжает клиент; пользователь выполняет Unity runtime smoke tests; Claude — серверные зависимости по comms 0232.
+
+
+## Progress — 2026-11-14: world-label occlusion and readability
+
+- Source review confirmed that generated Layout v2 building walls were created with `keepCollider:false`; the existing sign/nameplate raycasts therefore had no wall geometry to hit. Starter prototype houses already use layer-2 camera-only occlusion proxies.
+- Added a shared `WorldLabelVisibilityPolicy`: layer 2 remains excluded from ordinary interaction probes, while sign/nameplate queries explicitly include it.
+- Generated settlement wall segments now retain BoxColliders on layer 2. This also makes the existing camera collision query see those walls without turning them into interaction blockers.
+- Reduced building-sign range to 24 m and NPC/world-label range to 45 m; increased the physical glyph size on the settlement and starter signs.
+- Added pure C# regression checks for range, facing threshold, and the reserved occluder layer. GitHub Actions result is pending; Unity Editor/PlayMode has not been run.
+- Runtime acceptance still required: inspect signs from both sides of the tavern/shops, verify that walls hide nameplates, and confirm text readability at normal gameplay distance.
