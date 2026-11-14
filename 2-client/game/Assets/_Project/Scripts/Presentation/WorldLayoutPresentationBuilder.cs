@@ -1838,6 +1838,9 @@ namespace Pogranichye.Client.Presentation
             text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(18f, title.Length * 5.2f), 0.045f, 0.085f);
             text.color = new Color(1f, 0.88f, 0.62f);
             text.richText = false;
+            // Apply the same physical sign rules as the tutorial village path:
+            // one outward face, short readable range, and collider-based occlusion.
+            label.gameObject.AddComponent<SignFaceVisibility>();
             var renderer = label.GetComponent<MeshRenderer>();
             if (renderer != null)
             {

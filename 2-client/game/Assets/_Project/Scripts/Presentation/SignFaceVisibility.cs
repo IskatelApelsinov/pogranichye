@@ -11,6 +11,8 @@ namespace Pogranichye.Client.Presentation
         private Renderer _renderer;
         private Camera _camera;
         private Vector3 _outwardNormal;
+        private const float MaxSignViewDistance = 32f;
+        private const float OcclusionPadding = 0.12f;
 
         private void Awake()
         {
@@ -29,11 +31,28 @@ namespace Pogranichye.Client.Presentation
             }
             if (_renderer == null || _camera == null) return;
 
-            var towardViewer = _camera.transform.position - transform.position;
-            towardViewer.y = 0f;
-            if (towardViewer.sqrMagnitude < 0.0001f) return;
+            var toCamera = _camera.transform.position - transform.position;
+            var distance = toCamera.magnitude;
+            if (distance < 0.001f) return;
 
-            var visible = Vector3.Dot(_outwardNormal, towardViewer.normalized) > 0.05f;
+            // A settlement sign is a physical prop, not a world-space waypoint:
+            // never let it dominate the horizon or remain readable through buildings.
+            var towardViewer = toCamera;
+            towardViewer.y = 0f;
+            var visible = distance <= MaxSignViewDistance &&
+                towardViewer.sqrMagnitude > 0.0001f &&
+                Vector3.Dot(_outwardNormal, towardViewer.normalized) > 0.05f;
+
+            if (visible)
+            {
+                var rayOrigin = _camera.transform.position;
+                var rayDirection = toCamera / distance;
+                if (Physics.Raycast(rayOrigin, rayDirection, out var hit,
+                    Mathf.Max(0f, distance - OcclusionPadding),
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                    visible = false;
+            }
+
             if (_renderer.enabled != visible) _renderer.enabled = visible;
         }
     }
