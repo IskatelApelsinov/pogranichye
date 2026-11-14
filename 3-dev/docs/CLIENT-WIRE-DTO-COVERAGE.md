@@ -89,6 +89,6 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status view and feed migrations, 11 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `combat`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); six settlement sections remain (`foes`, `exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status view and feed migrations, 10 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `combat`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); six settlement sections remain (`foes`, `exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
