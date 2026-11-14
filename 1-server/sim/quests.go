@@ -407,6 +407,33 @@ func QuestDrop(w *core.World, e *core.Entity, id string) (bool, string) {
 }
 
 // QuestsView — просьбы для кадра (me.quests): что предлагают здесь, что взято (с прогрессом), слава.
+// realmNameOf — держава ("страна"), которой принадлежит поселение (econ.RealmC.Territory содержит
+// id поселений, см. sim/worldgen.go:makeRealms и sim/systems.go — новое село наследует державу
+// источника при переселении). "" — не приписано ни к одной (вольный/внешний край): не ошибка, такие
+// поселения в игре есть (sim/frontier.go).
+func realmNameOf(w *core.World, settlement core.ID) string {
+	if settlement == 0 {
+		return ""
+	}
+	name := ""
+	w.Each("realm", func(re *core.Entity) {
+		if name != "" {
+			return
+		}
+		r := econ.Realm(re)
+		if r == nil {
+			return
+		}
+		for _, sid := range r.Territory {
+			if sid == settlement {
+				name = r.Name
+				return
+			}
+		}
+	})
+	return name
+}
+
 func QuestsView(w *core.World, e *core.Entity, day int64) map[string]any {
 	qc := questsOf(w, e)
 	offers := QuestOffers(w, e, day)
@@ -419,7 +446,9 @@ func QuestsView(w *core.World, e *core.Entity, day int64) map[string]any {
 		// Место выдачи (comms 0215/0218, additive): снимок q.Settlement на момент принятия (add() в
 		// QuestOffers пишет его один раз при предложении/принятии), не текущее место — не меняется
 		// при переходе A→B. "" если по какой-то причине не записано (старые сохранённые просьбы).
-		settlementID, settlementName := "", ""
+		// realmName — держава ("страна") того же села на тот же момент; "" — вольный/внешний край,
+		// не ошибка (см. realmNameOf).
+		settlementID, settlementName, realmName := "", "", ""
 		if q.Settlement != 0 {
 			settlementID = eidStr(q.Settlement)
 			if se := w.Get(q.Settlement); se != nil {
@@ -427,11 +456,12 @@ func QuestsView(w *core.World, e *core.Entity, day int64) map[string]any {
 					settlementName = st.Name
 				}
 			}
+			realmName = realmNameOf(w, q.Settlement)
 		}
 		active = append(active, map[string]any{"id": q.ID, "kind": q.Kind, "via": q.Via, "giver": q.GiverID,
 			"giver_name": q.GiverName, "text": q.Text, "good": q.Good, "species": q.Species,
 			"qty": q.Qty, "have": n, "ready": ready, "coins": q.Coins,
-			"settlement_id": settlementID, "settlement_name": settlementName})
+			"settlement_id": settlementID, "settlement_name": settlementName, "realm_name": realmName})
 	}
 	rep := 0
 	if pl := core.Place(e); pl != nil {

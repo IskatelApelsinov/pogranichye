@@ -309,6 +309,66 @@ func TestQuestFromRealNeedAndTurnIn(t *testing.T) {
 	}
 }
 
+// TestActiveQuestShowsCityAndCountryFrozenAtAcceptance — запрос Kate (2026-11-14): в квестах должно
+// быть написано, в каком городе (settlement_name) и стране (realm_name, держава) он был получен.
+// Как и провенанс поручения (TestErrandProvenanceSurvivesSettlementMove) — это СНИМОК на момент
+// принятия, не текущее место игрока: после перехода в другое, никак не связанное село значения не
+// должны поменяться на текущие.
+func TestActiveQuestShowsCityAndCountryFrozenAtAcceptance(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	st := core.Settle(se)
+	st.Store[econ.GoodWood] = 0
+	ownCity := st.Name
+	ownCountry := realmNameOf(w, se.ID)
+	if ownCountry == "" {
+		t.Fatal("стартовое село должно принадлежать какой-то державе — иначе тест не проверяет главный случай")
+	}
+	var q *Quest
+	for _, o := range QuestOffers(w, e, 10) {
+		if o.Kind == "deliver" && o.Good == "wood" {
+			o := o
+			q = &o
+		}
+	}
+	if q == nil {
+		t.Fatal("пустой дровяник должен рождать просьбу о дровах")
+	}
+	if ok, why := QuestAccept(w, e, q.ID, 10); !ok {
+		t.Fatalf("принять: %s", why)
+	}
+
+	findActive := func() map[string]any {
+		for _, a := range QuestsView(w, e, 10)["active"].([]map[string]any) {
+			if a["id"] == q.ID {
+				return a
+			}
+		}
+		return nil
+	}
+	a := findActive()
+	if a == nil {
+		t.Fatal("принятая просьба должна быть в active")
+	}
+	if a["settlement_name"] != ownCity || a["realm_name"] != ownCountry {
+		t.Fatalf("сразу после принятия должны быть указаны город %q и страна %q: %+v", ownCity, ownCountry, a)
+	}
+
+	// переходим в другое, никак не связанное село без державы (как в тесте провенанса поручения)
+	other := w.Spawn(&core.SettlementC{Name: "Дальнее", X: 900, Y: 900, Region: st.Region})
+	if got := realmNameOf(w, other.ID); got != "" {
+		t.Fatalf("у нового никуда не приписанного села не должно быть державы, получили %q", got)
+	}
+	core.Place(e).Settlement = other.ID
+
+	a2 := findActive()
+	if a2 == nil {
+		t.Fatal("просьба не должна пропадать после перехода в другое село")
+	}
+	if a2["settlement_name"] != ownCity || a2["realm_name"] != ownCountry {
+		t.Fatalf("после перехода A→B должны остаться город/страна A=%q/%q, не текущие B: %+v", ownCity, ownCountry, a2)
+	}
+}
+
 // TestNoDeadEndQuestsWithoutTheSite — скрин игрока (2026-11-14): поручение «принеси дерево»
 // попалось в селе БЕЗ настоящего леса — ChopWood там всегда отвечает «здесь нет строевого
 // леса» (siteLacks), а GatherBrushwood (comms 0215/v1.23) даёт ДРУГОЙ товар (GoodBrushwood, не

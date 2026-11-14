@@ -106,9 +106,10 @@ func TestErrandProvenanceSurvivesSettlementMove(t *testing.T) {
 
 	ownName := core.Settle(se).Name
 	ownID := eidStr(se.ID)
+	ownRealm := realmNameOf(w, se.ID) // "страна" на момент выдачи (запрос Kate, 2026-11-14)
 	issued, _ := OpeningTask(w, e)["issued"].(map[string]any)
-	if issued == nil || issued["settlement_id"] != ownID || issued["settlement_name"] != ownName {
-		t.Fatalf("сразу после выдачи issued должен показывать своё село %q (%s): %+v", ownName, ownID, issued)
+	if issued == nil || issued["settlement_id"] != ownID || issued["settlement_name"] != ownName || issued["realm_name"] != ownRealm {
+		t.Fatalf("сразу после выдачи issued должен показывать своё село %q (%s) и державу %q: %+v", ownName, ownID, ownRealm, issued)
 	}
 
 	// переходим в другое (новое, никак не связанное) село
@@ -119,8 +120,8 @@ func TestErrandProvenanceSurvivesSettlementMove(t *testing.T) {
 	if issued2 == nil {
 		t.Fatal("issued пропал после перехода — поручение должно переживать смену села")
 	}
-	if issued2["settlement_id"] != ownID || issued2["settlement_name"] != ownName {
-		t.Fatalf("после перехода A→B issued должен ВСЁ ЕЩЁ показывать A=%q (%s), не текущее B: %+v",
-			ownName, ownID, issued2)
+	if issued2["settlement_id"] != ownID || issued2["settlement_name"] != ownName || issued2["realm_name"] != ownRealm {
+		t.Fatalf("после перехода A→B issued должен ВСЁ ЕЩЁ показывать A=%q (%s), держава %q, не текущее B: %+v",
+			ownName, ownID, ownRealm, issued2)
 	}
 }

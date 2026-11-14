@@ -567,7 +567,9 @@ func OpeningTask(w *core.World, e *core.Entity) map[string]any {
 		// Место выдачи (comms 0215/0218, additive): q.Settlement — СНИМОК на момент принятия (Errand
 		// в errand.go пишет его один раз из pl.Settlement при выдаче и больше не трогает), а не текущее
 		// место игрока или NPC — поэтому значение не меняется при переходе между сёлами A→B.
-		settlementID, settlementName := "", ""
+		// realmName — держава ("страна") того же села на тот же момент (см. realmNameOf в quests.go);
+		// "" — вольный/внешний край, не ошибка.
+		settlementID, settlementName, realmName := "", "", ""
 		if q.Settlement != 0 {
 			settlementID = eidStr(q.Settlement)
 			if se := w.Get(q.Settlement); se != nil {
@@ -575,10 +577,11 @@ func OpeningTask(w *core.World, e *core.Entity) map[string]any {
 					settlementName = st.Name
 				}
 			}
+			realmName = realmNameOf(w, q.Settlement)
 		}
 		out["issued"] = map[string]any{"id": q.ID, "giver": q.GiverID, "giver_name": q.GiverName,
 			"good": q.Good, "qty": q.Qty, "have": have, "ready": ready, "coins": q.Coins, "accepted": true,
-			"settlement_id": settlementID, "settlement_name": settlementName}
+			"settlement_id": settlementID, "settlement_name": settlementName, "realm_name": realmName}
 		if !done {
 			if ready {
 				text = "Отнеси обещанное: " + q.GiverName + " ждёт у себя."
