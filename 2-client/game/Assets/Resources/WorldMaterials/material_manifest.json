@@ -7,7 +7,7 @@
     "homespun_linen": {
       "albedo": {
         "path": "Textures/homespun_linen_albedo.jpg",
-        "resolution": [256, 256],
+        "resolution": [192, 192],
         "color_space": "sRGB"
       },
       "pbr_packed": {
