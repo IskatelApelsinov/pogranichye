@@ -30,7 +30,7 @@ Go remains authoritative for map knowledge and road graph. Unity only renders `m
 
 ## Validation
 
-- Independent C# CI runner is added; latest result pending.
+- All 21 Unity-independent CI steps passed in run #43638994608, including the regional map runner: https://github.com/IskatelApelsinov/pogranichye/actions/runs/43638994608
 - Unity Editor 6000.6.7f1 full compile, fixture menu and PlayMode remain unverified.
 
 ## Next
