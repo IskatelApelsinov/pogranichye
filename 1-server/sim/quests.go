@@ -127,6 +127,7 @@ func QuestOffers(w *core.World, e *core.Entity, day int64) []Quest {
 	if store == nil {
 		store = map[string]float64{}
 	}
+	site := SiteOf(w, se)
 	// 1) село: еда на исходе
 	if days := econ.FeedableFood(se) / pop; days < 8 {
 		good := []string{"fish", "meat", "fish"}[int(week)%3]
@@ -134,14 +135,18 @@ func QuestOffers(w *core.World, e *core.Entity, day int64) []Quest {
 			GiverName: kname, Good: good, Qty: 4, Coins: 6,
 			Text: fmt.Sprintf("Амбар пустеет, еды на %d дн. Принеси 4 %s в общий амбар.", int(days), goodRu[good])})
 	}
-	// 2) село: дрова
-	if store[econ.GoodWood] < pop*0.6 {
+	// 2) село: дрова. ТОЛЬКО если у места есть настоящий лес (Features["woods"]) — иначе ChopWood
+	// всегда отвечает "здесь нет строевого леса" (siteLacks), а GatherBrushwood даёт ДРУГОЙ товар
+	// (GoodBrushwood, не GoodWood, comms 0215/v1.23) — без леса поручение было невыполнимым на месте
+	// (баг, скрин игрока 2026-11-14: поручение "принеси дерево" в селе без леса).
+	if site != nil && site.Features["woods"] && store[econ.GoodWood] < pop*0.6 {
 		add(Quest{ID: fmt.Sprintf("wood:%d:%d", se.ID, week), Kind: "deliver", Via: "board", Giver: st.Keeper,
 			GiverName: kname, Good: "wood", Qty: 4, Coins: 4,
 			Text: "Дровяник пуст, а ночи холодны. Нужно 4 охапки дров."})
 	}
-	// 3) кузня без руды/железа
-	if store[econ.GoodMetal] < 2 && store[econ.GoodOre] < 3 {
+	// 3) кузня без руды/железа. Та же защита: руду добывают на руднике (Features["mine"]) — без
+	// него поручение было бы точно таким же тупиком, как дрова без леса.
+	if site != nil && site.Features["mine"] && store[econ.GoodMetal] < 2 && store[econ.GoodOre] < 3 {
 		for _, r := range res {
 			if id := core.Ident(r); id != nil && id.Role == "smith" {
 				add(Quest{ID: fmt.Sprintf("ore:%d:%d", se.ID, week), Kind: "deliver", Via: "npc", Giver: r.ID,
