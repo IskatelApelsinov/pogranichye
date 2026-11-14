@@ -31,7 +31,7 @@
 | `me.bag` | Missing `CarryBagFrame` | load/capacity/overload UI | **Gap** |
 | `me.region` | Missing `RegionFrame`, node and road DTOs | regional map | **Gap** |
 | `me.journey` | `JourneyFrame`, `RoadEventFrame` + `JourneyFrameParser` | road progress, scene, event choices and journey input | Typed in this slice; null/absent means not travelling |
-| `me.quests` | `QuestListFrame`, `QuestOfferFrame`, `ActiveQuestFrame` + `QuestListFrameParser` | HUD active-quest tracker; offers/active panel still has legacy JObject reads | Typed DTO and validation added; tracker migrated, full panel migration remains |
+| `me.quests` | `QuestListFrame`, `QuestOfferFrame`, `ActiveQuestFrame` + `QuestListFrameParser` | compact tracker and detailed offers/active panel | Typed DTO, validation and tracker/panel consumers migrated |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
@@ -90,7 +90,7 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Journey rendering/input and the compact active-quest tracker now consume typed views. The detailed Requests panel still reads legacy JObject for offers/turn-in/drop; next candidates are that panel, then inventory/horse and settlement market/site/exits.
+4. Migrate one small consumer at a time. Journey rendering/input and the compact active-quest tracker now consume typed views. The detailed Requests panel now consumes typed offers/active quests; only unrelated full-state sections remain on JObject.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
