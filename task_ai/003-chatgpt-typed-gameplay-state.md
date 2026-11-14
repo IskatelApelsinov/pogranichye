@@ -112,5 +112,16 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 
 
 CI feedback — 2026-11-14:
-- First consolidated workflow run #43634905265: status-view checks passed; typed feed step failed at compile because `FeedFrameParser.cs` carried an unnecessary import of the DTO namespace, while the isolated test intentionally compiles only the parser dependencies.
-- Removed that unused import. This is a source fix; rerun result is pending. No Unity compile/PlayMode claim.
+- First consolidated workflow run #43634905265 found an unnecessary namespace import in the isolated feed parser test.
+- Removed the unused import. Follow-up workflow run #43635026001 — **all 16 steps passed**, including typed status and typed feed regression runners. This does not constitute a Unity Editor/PlayMode run.
+
+
+## Шестой проход — типизированное подтверждение действия (2026-11-14)
+
+- Сверен серверный serializer: `me.result` — объект `{reqid, ok, reason}` либо null; тот же слот присутствует в full и fast кадрах. Это только последнее подтверждение, не очередь событий.
+- Вынесен `ActionResultFrame` в отдельный DTO-файл и добавлен общий `ActionResultFrameParser`; проверяются непустой строковый reqid, boolean ok и строковый reason.
+- `WorldFrameParser` валидирует полный result до DTO; `FastFramePatch` предоставляет `HasResult/Result` и сохраняет различие между отсутствующим полем и явным null.
+- `CoreGameplay.ReadResult` больше не читает JObject: он принимает типизированный `ActionResultFrame`. `RequestGate` не изменён: один запрос в полёте, следующий только после совпадающего reqid или timeout.
+- Добавлены pure C# проверки и Editor fixture cases для валидного result, неверных типов, отсутствующего reason и fast absent/null.
+
+Сервер, wire v1, семантика одного ACK-слота и обработка reqid не менялись. Проверки CI для предыдущего status/feed среза: run #43635026001 — все 16 шагов PASS. Новый result runner ожидает отдельного CI запуска. Unity Editor/PlayMode не запускались.
