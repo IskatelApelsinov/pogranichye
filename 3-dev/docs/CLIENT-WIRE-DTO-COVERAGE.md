@@ -88,13 +88,13 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Next candidates: journey/quests, inventory/horse, and settlement market/site/exits.
+4. Migrate one small consumer at a time. Next candidates: inventory/horse/bag/stats, then settlement market/site/exits/stable/tavern counter.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status, feed, result, combat and foe migrations, 9 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status, feed, result, combat, foe, journey and quest migrations, 7 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
