@@ -31,7 +31,7 @@ No Go server changes, wire fields, protocol version, intents, persistence, movem
 
 ## Next
 
-After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bounded typed slice. Preserve server-owned journey progression and quest outcomes; do not simulate completion locally.
+Journey/quests are covered by stacked PR #639. Next inspect inventory/horse/bag/stats; preserve server-owned inventory and mount outcomes, and never predict purchase, mounting or item use locally.
 
 — End of 0234
 
