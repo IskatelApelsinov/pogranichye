@@ -52,3 +52,8 @@
 - Все непроверенные runtime аспекты явно помечены.
 
 **Следующий владелец:** ChatGPT продолжает клиент; пользователь выполняет Unity runtime smoke tests; Claude — серверные зависимости по comms 0232.
+
+
+## Consolidation note — 2026-11-14
+
+Typed HUD work from overlapping PRs #635 and #636 is consolidated in PR #638. Do not merge #635 or #636 independently; both will be closed as superseded once PR #638 is published. The complete status-view implementation from #636, the typed feed slice, DTO coverage inventory, recovery notes and human Unity acceptance checklist are retained. The seamless position parser fix remains in place and must not be duplicated.
