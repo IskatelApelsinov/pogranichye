@@ -309,6 +309,44 @@ func TestQuestFromRealNeedAndTurnIn(t *testing.T) {
 	}
 }
 
+// TestNoDeadEndQuestsWithoutTheSite — скрин игрока (2026-11-14): поручение «принеси дерево»
+// попалось в селе БЕЗ настоящего леса — ChopWood там всегда отвечает «здесь нет строевого
+// леса» (siteLacks), а GatherBrushwood (comms 0215/v1.23) даёт ДРУГОЙ товар (GoodBrushwood, не
+// GoodWood) — поручение было невыполнимым на месте без единой подсказки об этом. То же в
+// принципе и с рудой без рудника. Квесты на эти товары не должны предлагаться, если у села нет
+// соответствующего угодья (site.Features).
+func TestNoDeadEndQuestsWithoutTheSite(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	st := core.Settle(se)
+	site := SiteOf(w, se)
+	site.Features["woods"] = false
+	site.Features["mine"] = false
+	st.Store[econ.GoodWood] = 0  // дровяник пуст — был бы повод для "wood"-просьбы, если бы не лес
+	st.Store[econ.GoodMetal] = 0 // и металла нет — повод для "ore"-просьбы, если бы не рудник
+	st.Store[econ.GoodOre] = 0
+
+	for _, o := range QuestOffers(w, e, 10) {
+		if o.Good == "wood" {
+			t.Fatal("поручение на дрова не должно предлагаться в селе без леса (невыполнимо на месте)")
+		}
+		if o.Good == "ore" {
+			t.Fatal("поручение на руду не должно предлагаться в селе без рудника (невыполнимо на месте)")
+		}
+	}
+
+	// а с угодьем — ровно те же поручения снова доступны (не сломали обычный путь)
+	site.Features["woods"] = true
+	foundWood := false
+	for _, o := range QuestOffers(w, e, 11) {
+		if o.Good == "wood" {
+			foundWood = true
+		}
+	}
+	if !foundWood {
+		t.Fatal("с настоящим лесом поручение на дрова должно появляться как раньше")
+	}
+}
+
 func TestCraftChainOreToSword(t *testing.T) {
 	w, e, _ := starterPlayer(t)
 	GoTo(w, e, "mine")
