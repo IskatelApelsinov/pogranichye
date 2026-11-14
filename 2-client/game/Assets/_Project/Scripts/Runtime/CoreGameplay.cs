@@ -186,6 +186,8 @@ namespace Pogranichye.Client
         private GameplayStatusView _status;
         private ActionResultFrame _result;
         private CombatFrame _combat;
+        private JourneyFrame _journey;
+        private QuestsFrame _quests;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -583,6 +585,8 @@ namespace Pogranichye.Client
             ApplySitePresentation();
             ReadFeed(frame.Me?.Feed);
             _combat = frame.Me?.Combat;
+            _journey = frame.Me?.Journey;
+            _quests = frame.Me?.Quests;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -642,6 +646,8 @@ namespace Pogranichye.Client
             _status = null;
             _result = null;
             _combat = null;
+            _journey = null;
+            _quests = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -1193,7 +1199,7 @@ namespace Pogranichye.Client
             _hitMarker = Mathf.Max(0f, _hitMarker - Time.unscaledDeltaTime);
             while (_feed.Count > 0 && Time.unscaledTime - _feed[0].At > 10f) _feed.RemoveAt(0);
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
             UpdateMount();
@@ -1226,13 +1232,13 @@ namespace Pogranichye.Client
                 _menuOpen = false;
                 CloseWeave(false);
                 ReleaseGuard();
-                var roadEvent = Obj(journey, "event");
-                if (roadEvent != null && !Flag(journey, "follow"))
+                var roadEvent = journey.Event;
+                if (roadEvent != null && !journey.Follow)
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count && i < 9; i++)
                         if (_input != null && _input.JourneyChoicePressed(i))
-                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i].ToString());
+                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i]);
                 }
                 UpdateCursor(true);
                 return;
@@ -2012,7 +2018,7 @@ namespace Pogranichye.Client
                 GUI.color = previous;
             }
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             if (journey != null)
             {
                 DrawRoad(journey);
@@ -2324,17 +2330,17 @@ namespace Pogranichye.Client
             }
             else
             {
-                var active = Arr(Obj(_me, "quests"), "active");
+                var active = _quests?.Active;
                 if (active == null || active.Count == 0) return;
                 var quest = active[0];
-                var kind = Str(quest, "kind");
+                var kind = quest.Kind ?? string.Empty;
                 var progress = kind == "deliver" || kind == "cull"
-                    ? " · " + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) +
-                      "/" + (int)Num(quest, "qty")
+                    ? " · " + Mathf.Min(quest.Have ?? 0, quest.Quantity) +
+                      "/" + quest.Quantity
                     : string.Empty;
                 title = "ЗАДАЧА";
-                objective = (Flag(quest, "ready") ? "Готово · " : "") + Str(quest, "text") + progress;
-                ready = Flag(quest, "ready");
+                ready = quest.Ready == true;
+                objective = (ready ? "Готово · " : "") + (quest.Text ?? string.Empty) + progress;
             }
 
             EnsureHudTextStyles();
@@ -2365,32 +2371,32 @@ namespace Pogranichye.Client
             }
         }
 
-        private void DrawRoad(JObject journey)
+        private void DrawRoad(JourneyFrame journey)
         {
             var width = Mathf.Min(680f, Screen.width - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.5f - 170f, width, 340f);
-            GUI.Box(rect, "Дорога в " + Str(journey, "to_name"));
+            GUI.Box(rect, "Дорога в " + (journey.ToName ?? string.Empty));
             GUILayout.BeginArea(new Rect(rect.x + 16f, rect.y + 30f, rect.width - 32f, rect.height - 40f));
-            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), Num(journey, "progress"), new Color(0.79f, 0.64f, 0.29f));
+            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), (float)journey.Progress, new Color(0.79f, 0.64f, 0.29f));
             GUILayout.Space(8f);
-            GUILayout.Label(Str(journey, "scene"));
-            var note = Str(journey, "note");
+            GUILayout.Label(journey.Scene ?? string.Empty);
+            var note = journey.Note;
             if (!string.IsNullOrEmpty(note)) GUILayout.Label(note);
-            var roadEvent = Obj(journey, "event");
+            var roadEvent = journey.Event;
             if (roadEvent != null)
             {
                 GUILayout.Space(8f);
-                GUILayout.Label(Str(roadEvent, "text"));
-                if (Flag(journey, "follow"))
+                GUILayout.Label(roadEvent.Text ?? string.Empty);
+                if (journey.Follow)
                 {
                     GUILayout.Label("Решает вожак отряда…");
                 }
                 else
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count; i++)
                     {
-                        var option = options[i].ToString();
+                        var option = options[i];
                         if (GUILayout.Button("[" + (i + 1) + "] " + OptionRu(option), GUILayout.Height(30f)))
                             Ask("Выбор пути", "journey", "action", "choose", "choice", option);
                     }
@@ -2398,7 +2404,7 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label("Ещё примерно " + (int)Num(journey, "eta") + " с пути.");
+                GUILayout.Label("Ещё примерно " + (int)journey.Eta + " с пути.");
             }
             GUILayout.EndArea();
         }
@@ -2788,39 +2794,41 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
 
             GUILayout.Space(8f);
-            var quests = Obj(_me, "quests");
-            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (int)Num(quests, "done") + ", слава здесь " + (int)Num(quests, "rep") + ")");
-            var active = Arr(quests, "active");
+            var quests = _quests;
+            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (quests?.Done ?? 0) + ", слава здесь " + (quests?.Reputation ?? 0) + ")");
+            var active = quests?.Active;
             if (active != null)
                 foreach (var quest in active)
                 {
+                    var questReady = quest.Ready == true;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label((Flag(quest, "ready") ? "[готово] " : "... ") + Str(quest, "text"), GUILayout.Width(rect.width - 260f));
-                    GUI.enabled = Flag(quest, "ready");
-                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", Str(quest, "id"));
+                    GUILayout.Label((questReady ? "[готово] " : "... ") + (quest.Text ?? string.Empty), GUILayout.Width(rect.width - 260f));
+                    GUI.enabled = questReady;
+                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", quest.Id);
                     GUI.enabled = true;
-                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", Str(quest, "id"));
+                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", quest.Id);
                     GUILayout.EndHorizontal();
                 }
-            var offers = Arr(quests, "offers");
+            var offers = quests?.Offers;
             var currentTalk = Obj(_me, "talk");
             var currentTalkWith = Str(currentTalk, "with");
             if (offers != null)
                 foreach (var offer in offers)
                 {
                     GUILayout.BeginHorizontal();
-                    var via = Str(offer, "via");
-                    var giver = Str(offer, "giver");
+                    var via = offer.Via ?? string.Empty;
+                    var giver = offer.Giver ?? string.Empty;
                     var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
+                    var giverName = offer.GiverName ?? string.Empty;
                     var who = via == "board" ? "доска у колодца"
-                        : isCurrentNpc ? "собеседник " + Str(offer, "giver_name")
-                        : Str(offer, "giver_name");
-                    var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
-                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 210f));
+                        : isCurrentNpc ? "собеседник " + giverName
+                        : giverName;
+                    var pay = offer.Coins > 0d ? "  [" + (int)offer.Coins + " монет]" : string.Empty;
+                    GUILayout.Label(who + ": " + (offer.Text ?? string.Empty) + pay, GUILayout.Width(rect.width - 210f));
                     if (via != "npc" || isCurrentNpc)
                     {
                         if (GUILayout.Button(isCurrentNpc ? "взяться у него" : "взяться"))
-                            Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
+                            Ask("Просьба", "quest", "action", "accept", "quest", offer.Id);
                     }
                     else
                     {
