@@ -9,6 +9,7 @@ on:
   push:
     paths:
       - "2-client/art-source/blender/**"
+      - "2-client/art-source/textures/**/*.py"
       - ".github/workflows/blender-source-syntax.yml"
 
 permissions:
