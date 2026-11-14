@@ -106,7 +106,7 @@ namespace Pogranichye.Client.Diagnostics
         {
             if (string.IsNullOrWhiteSpace(value)) return "";
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-                return Limit(value, 200);
+                return "(server URL omitted: invalid format)";
             var builder = new UriBuilder(uri)
             {
                 UserName = "",
