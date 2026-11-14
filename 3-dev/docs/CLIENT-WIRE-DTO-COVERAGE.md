@@ -29,7 +29,7 @@
 | `me.stats` | `StatsFrame` + `StatsFrameParser` | character attributes panel | Typed; six server stats validated, additive null/absence tolerated |
 | `me.horse` | `HorseFrame` + `HorseFrameParser` | mount presentation, stamina, location and saddle-bag UI | Typed; server horse entity ID remains string; null means no owned horse |
 | `me.bag` | `CarryBagFrame` + `CarryBagFrameParser` | carried-bag load/capacity/overload UI | Typed; additive absence/null tolerated for older v1 servers |
-| `me.region` | Missing `RegionFrame`, node and road DTOs | regional map | **Gap** |
+| `me.region` | `RegionFrame`, `RegionNodeFrame`, `RegionRoadFrame` + `RegionFrameParser` | regional map and road choices | Typed; privacy-safe states and edge references validated |
 | `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
 | `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
@@ -88,14 +88,14 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Stats, carried bag and horse views now have typed DTOs and typed consumers; next candidates: inventory/region/card-game/recipes/party, then settlement market/site/exits/stable/tavern counter.
+4. Migrate one small consumer at a time. Stats, carried bag, horse and regional map now have typed DTOs and typed consumers; next candidates: inventory/card-game/recipes/party, then settlement market/site/exits/stable/tavern counter.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status, feed, result, combat, foe, journey, quest, stats, horse and carried-bag migrations, 4 major character sections remain without dedicated DTOs (`region`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status, feed, result, combat, foe, journey, quest, stats, horse and carried-bag migrations, 3 major character sections remain without dedicated DTOs (`card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
 
@@ -108,3 +108,13 @@ No wire field, server behavior, protocol version, persistence format, settlement
 - The typed fields are assigned from each validated full snapshot in `CoreGameplay.ApplyFrame`. They are absent from the inspected fast frame, so fast patches preserve the latest full values and do not synthesize a horse or bag state.
 - The inventory UI uses the typed stats, carried-bag summary and horse DTO; mount visuals use only the server-confirmed `HorseFrame.Mounted` flag. Buy/mount/dismount/feed/stow/unstow remain server intentions; no local stock, stamina, ownership or inventory mutation is performed.
 - `place.stable` remains a separate untyped settlement view in this slice; its stock/price UI is still read from the validated full-frame token tree.
+
+
+## Regional map knowledge projection (v1.12)
+
+- `me.region` comes from `sim.RegionView(w,e)`; current server returns `nodes[]` and `roads[]`, or two empty arrays when no settlement anchor is available.
+- Each node contains string `id`, numeric `x/y`, state in `here|visited|known|unknown`, and string `name/tier`. For `unknown`, server intentionally sends empty `name/tier` while retaining coordinates and the road frontier.
+- Each road contains string endpoint IDs `a/b` and numeric `len`. Both endpoints must be among the visible region nodes.
+- Client validator checks unique IDs, exactly one `here` node when the node list is non-empty, known state values, no unknown-place name/tier leak, and non-duplicate edges with valid endpoints.
+- Missing/null `me.region` is tolerated for older additive v1 snapshots. A present object must contain both arrays.
+- `CoreGameplay.DrawRegion/DrawRegionMap` now consumes `RegionFrame`; map labels and route choices remain based solely on server-supplied knowledge. No developer manifest is introduced into this map.
