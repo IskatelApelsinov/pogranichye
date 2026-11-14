@@ -556,11 +556,13 @@ namespace Pogranichye.Client
             }
         }
 
-        public void ApplyFrame(string json)
+        public void ApplyFrame(WorldFrame frame)
         {
-            JObject root;
-            try { root = JObject.Parse(json); }
-            catch (Exception) { return; }
+            if (frame == null) return;
+            // The controller has already run the strict protocol parser. Convert the
+            // validated DTO for legacy selectors while they are migrated to typed views;
+            // never parse the untrusted wire JSON a second time here.
+            var root = JObject.FromObject(frame);
             _me = Obj(root, "me");
             _place = Obj(root, "place");
             if (root["hour"] != null)
