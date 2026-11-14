@@ -30,8 +30,8 @@
 | `me.horse` | Missing `HorseFrame` and saddle-bag DTO | mount, stamina, location and horse inventory UI | **Gap** |
 | `me.bag` | Missing `CarryBagFrame` | load/capacity/overload UI | **Gap** |
 | `me.region` | Missing `RegionFrame`, node and road DTOs | regional map | **Gap** |
-| `me.journey` | `JourneyFrame`, `RoadEventFrame` + `JourneyFrameParser` | road progress, scene, event choices and journey input | Typed in this slice; null/absent means not travelling |
-| `me.quests` | `QuestListFrame`, `QuestOfferFrame`, `ActiveQuestFrame` + `QuestListFrameParser` | compact tracker and detailed offers/active panel | Typed DTO, validation and tracker/panel consumers migrated |
+| `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
+| `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
@@ -79,8 +79,6 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 - `me.feed[]` validates positive strictly increasing `seq`, non-empty `kind`, string `text`, optional string `foe/part`, and finite non-negative `dmg`; the same parser is used by full and fast frames.
 - `me.result` is validated as `{reqid:string, ok:boolean, reason:string}` or null. Full snapshots map it through `CharacterFrame.Result`; fast patches expose `HasResult/Result` so omission and explicit null remain distinct. `RequestGate` still accepts only the matching in-flight reqid.
 - `me.combat` is validated against the server's complete `CombatView` shape; full DTO and fast patch expose `CombatFrame`.
-- `me.journey` mirrors JourneyView: destination, progress, ETA, scene/note, follow flag, nullable encounter and route `via`; JourneyFrameParser validates it before DTO conversion. Fast frames omit journey, so the full-snapshot value is preserved between full frames.
-- `me.quests` mirrors QuestsView: offers, accepted quests, done count and current-settlement reputation. Offer goods/species are optional due to Go omitempty; accepted-quest map always includes string values. Quest outcomes/progress remain server-owned.
 - `place.foes[]` validates unique stable IDs, species/name/state, finite positions/health and optional telegraph/status fields; the same `FoeFrameParser` handles full and fast arrays. `CoreGameplay.SyncFoes` no longer reads raw JObject selectors.
 - Fast feed distinguishes omitted (do not process) from explicit null (no entries); event deduplication remains by server sequence in `CoreGameplay`.
 - This is presentation-only state. Server simulation, intents, movement authority, result handling and wire v1 are unchanged.
@@ -90,13 +88,13 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Journey rendering/input and the compact active-quest tracker now consume typed views. The detailed Requests panel now consumes typed offers/active quests; only unrelated full-state sections remain on JObject.
+4. Migrate one small consumer at a time. Next candidates: inventory/horse/bag/stats, then settlement market/site/exits/stable/tavern counter.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status, feed, result, combat, foe, journey and quest migrations, 7 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status, feed, result, combat, foe, journey and quest migrations, 7 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
