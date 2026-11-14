@@ -75,10 +75,41 @@ namespace Pogranichye.Client.Networking
             ValidateOptionalObjectOrNull(me, "me.result");
             ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.neighbors");
+            ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.exits");
+            ValidateNeighborEntries(place);
+            ValidateFoeEntries(place);
 
             patch = new FastFramePatch(me, place);
             return true;
+        }
+
+
+        private static void ValidateNeighborEntries(JObject place)
+        {
+            var token = place?["neighbors"] as JArray;
+            if (token == null) return;
+            for (var i = 0; i < token.Count; i++)
+            {
+                var item = token[i] as JObject;
+                if (item == null || item["id"]?.Type != JTokenType.String)
+                    throw new FormatException("place.neighbors[" + i + "] должен содержать строковый id.");
+                var pos = item["pos"];
+                if (pos != null && pos.Type != JTokenType.Null && pos.Type != JTokenType.Object)
+                    throw new FormatException("place.neighbors[" + i + "].pos должен быть объектом.");
+            }
+        }
+
+        private static void ValidateFoeEntries(JObject place)
+        {
+            var token = place?["foes"] as JArray;
+            if (token == null) return;
+            for (var i = 0; i < token.Count; i++)
+            {
+                var item = token[i] as JObject;
+                if (item == null || item["id"]?.Type != JTokenType.String)
+                    throw new FormatException("place.foes[" + i + "] должен содержать строковый id.");
+            }
         }
 
         private static void ValidateOptionalObject(JObject parent, string field)
