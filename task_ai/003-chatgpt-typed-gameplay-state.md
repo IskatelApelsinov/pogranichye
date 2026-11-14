@@ -147,3 +147,8 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 - Journey/quests are implemented in PR #638. The stats/bag/horse source audit is documented in task #007; next implement the existing unconnected DTO scaffold, then inventory/region/card-game/recipes/party.
 - Unity 6000.6.7f1 compile, Editor fixture menu and PlayMode are still unverified; see `task_human/004` after PR #638 is merged.
 
+
+
+## Typed stats / carried bag / horse continuation — 2026-11-14
+
+Task #007 extends the typed DTO coverage to `me.stats`, `me.bag`, and `me.horse`. Existing typed DTOs are checked against Go `StatsView/BagView/HorseView`; the character summary's stale JObject stats access was replaced. Current fast frames omit all three, so full-snapshot values persist across fast patches. Older v1 frames may omit stats/bag; validators tolerate absent/null for those additive fields. New parser runner is in CI run #43638595742 (pending at time of note). Unity Editor remains unverified.
