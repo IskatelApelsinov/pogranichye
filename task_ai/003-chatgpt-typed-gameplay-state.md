@@ -125,3 +125,14 @@ CI feedback — 2026-11-14:
 - Добавлены pure C# проверки и Editor fixture cases для валидного result, неверных типов, отсутствующего reason и fast absent/null.
 
 Сервер, wire v1, семантика одного ACK-слота и обработка reqid не менялись. Проверки CI для предыдущего status/feed среза: run #43635026001 — все 16 шагов PASS. Новый workflow run #43635516351 — **все 17 шагов PASS**, включая status, feed и action-result pure C# runners. Unity Editor/PlayMode не запускались.
+
+
+## Седьмой проход — типизированные боевое состояние и враги (2026-11-14)
+
+- Сверен серверный `sim.CombatView`: stance/guard/sneak/feint/cd/shield/light/arrows/weapon/kills/ko. Добавлены `CombatFrame` и строгий parser для полного и fast кадров.
+- Сверены `sim.FoesView` и fast `place.foes`: одинаковая схема `id/kind/name/x/y/facing/hp/max/state/aware/slow/weak/blind/stun/windup`. Добавлены `FoeFrame` и общий валидатор с уникальностью строковых entity IDs, конечными координатами/HP и проверкой телеграфных полей.
+- `CharacterFrame.Combat` и `PlaceFrame.Foes` типизированы; fast patch различает отсутствующий и явно null combat/foes.
+- `CoreGameplay` теперь использует typed combat values для стойки, оружия, блока, скрытности, финта, щита, стрел и света. `SyncFoes` принимает только типизированные server-owned foe frames; локальная симуляция врагов не добавлена.
+- Добавлены pure C# parser tests и full-frame Editor fixture cases. Сервер/wire v1 не менялись.
+
+CI для этого нового среза ожидает отдельный запуск. Unity Editor/PlayMode не запускались.
