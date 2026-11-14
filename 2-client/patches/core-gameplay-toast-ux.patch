@@ -1,0 +1,75 @@
+diff --git a/2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs b/2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs
+index faf2174..e54bf04 100644
+--- a/2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs
++++ b/2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs
+@@ -52,18 +52,20 @@ namespace Pogranichye.Client
+             if (_uiButtonHoverTexture == null) _uiButtonHoverTexture = MakeUiTexture(new Color(0.34f, 0.27f, 0.16f, 1f));
+             if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.48f, 0.34f, 0.17f, 1f));
+ 
++            // Shared sizes from UiTextTokens (task 014 / comms 0246).
+             var label = GUI.skin.label;
+-            label.fontSize = 15;
++            label.fontSize = UiTextTokens.HudPrimary;
+             label.wordWrap = true;
+-            label.normal.textColor = new Color(0.88f, 0.85f, 0.76f);
++            label.normal.textColor = UiTextTokens.HudText;
+             label.margin = new RectOffset(4, 4, 3, 4);
+ 
+             var box = GUI.skin.box;
+             box.normal.background = _uiPanelTexture;
+             box.normal.textColor = new Color(0.91f, 0.76f, 0.48f);
+-            box.fontSize = 15;
++            box.fontSize = UiTextTokens.HudPrimary;
+             box.fontStyle = FontStyle.Bold;
+             box.alignment = TextAnchor.UpperLeft;
++            box.wordWrap = true;
+             box.padding = new RectOffset(12, 12, 10, 10);
+             box.margin = new RectOffset(4, 4, 5, 5);
+ 
+@@ -75,7 +77,7 @@ namespace Pogranichye.Client
+             button.normal.textColor = new Color(0.91f, 0.88f, 0.79f);
+             button.hover.textColor = Color.white;
+             button.active.textColor = Color.white;
+-            button.fontSize = 14;
++            button.fontSize = UiTextTokens.HudButton;
+             button.fontStyle = FontStyle.Bold;
+             button.padding = new RectOffset(9, 9, 6, 6);
+             button.margin = new RectOffset(3, 3, 3, 3);
+@@ -84,7 +86,7 @@ namespace Pogranichye.Client
+             field.normal.background = _uiButtonTexture;
+             field.focused.background = _uiButtonHoverTexture;
+             field.normal.textColor = Color.white;
+-            field.fontSize = 14;
++            field.fontSize = UiTextTokens.HudSecondary;
+             field.padding = new RectOffset(7, 7, 5, 5);
+         }
+ 
+@@ -792,7 +794,7 @@ namespace Pogranichye.Client
+                     Toast(item.Label + ": сделано", 1.4f);
+                     break;
+                 case RequestGate.Outcome.Rejected:
+-                    Toast(item.Label + " — отказ: " + reason, 2.6f);
++                    Toast(item.Label + " — отказ: " + reason, 4.0f);
+                     break;
+             }
+         }
+@@ -2012,7 +2014,18 @@ namespace Pogranichye.Client
+                 GUI.Label(new Rect(Screen.width * 0.5f - 10f, Screen.height * 0.5f - 34f, 40f, 24f), "x");
+             DrawFloaters();
+             if (!string.IsNullOrEmpty(_toast) && Time.unscaledTime < _toastUntil)
+-                GUI.Box(new Rect(Screen.width * 0.5f - 150f, Screen.height * 0.62f, 300f, 28f), _toast);
++            {
++                // Full server reason, wrapped — was a 300×28 clip box (comms 0246).
++                var toastText = ServerResultToast.DisplayText(_toast);
++                var toastRect = ServerResultToast.RectForScreen(Screen.width, Screen.height, toastText);
++                var prevWrap = GUI.skin.box.wordWrap;
++                var prevSize = GUI.skin.box.fontSize;
++                GUI.skin.box.wordWrap = true;
++                GUI.skin.box.fontSize = UiTextTokens.Toast;
++                GUI.Box(toastRect, toastText);
++                GUI.skin.box.wordWrap = prevWrap;
++                GUI.skin.box.fontSize = prevSize;
++            }
+             if (_weaveOpen) DrawWeave();
+             if (_menuOpen) DrawMenu();
+         }

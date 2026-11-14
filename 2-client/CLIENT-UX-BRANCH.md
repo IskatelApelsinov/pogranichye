@@ -1,20 +1,34 @@
 # Branch: chatgpt/client-ux-interact-text
 
-Grok (consultant) — client UX pass aligned with task 014 / comms 0246.
+Grok — client UX pass (task 014 / comms 0246).
 
-## Changes
+## On this branch
 
-1. **UiTextTokens** — shared HUD/prompt/toast font sizes and colors.
-2. **ServerResultToast** — full-width wrapped toast layout (no 300×28 clip).
-3. **CoreGameplay** — theme uses tokens; reject toasts show full reason up to ~4s.
-4. **WorldInteractionProbe** — [E] prompt uses tokens, wrap, wider box.
+| File | Role |
+|------|------|
+| `UiTextTokens.cs` | Shared HUD/prompt/toast font sizes |
+| `ServerResultToast.cs` | Full-width wrapped toast layout |
+| `ServerResultToastCheck.cs` | EditMode tests |
+| `WorldInteractionProbe.cs` | Readable [E] prompt |
+| `patches/core-gameplay-toast-ux.patch` | CoreGameplay theme + toast |
 
-## Not in this branch
+## Apply CoreGameplay patch
 
-- Full context-action remap (G/J → only E for tools) — next ChatGPT step.
-- TMP migration, art pack binding, tavern counter pathing.
+```bash
+cd repo-root
+git apply 2-client/patches/core-gameplay-toast-ux.patch
+```
+
+Or merge this PR after ChatGPT applies the patch in Unity project (27-line change).
 
 ## Verify
 
-- EditMode: `ServerResultToastCheck`
-- Play: trigger a failed buy/talk and confirm the full Russian reason is visible.
+1. EditMode: ServerResultToastCheck
+2. Play: force a failed action — full Russian `reason` visible, not clipped in 300×28 box
+3. Aim at NPC/POI — [E] prompt uses shared tokens
+
+## Follow-ups (not this branch)
+
+- Map G/J tool hotkeys into primary E where possible
+- TMP for world labels
+- Bind textures/grok materials
