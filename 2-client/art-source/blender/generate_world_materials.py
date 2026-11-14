@@ -188,6 +188,7 @@ def main():
     if linen_albedo.is_file() and linen_pbr.is_file():
         materials["homespun_linen"] = {
             "albedo": str(linen_albedo),
+            "normal": str(TEXTURES / "homespun_linen_normal.png"),
             "pbr_packed": str(linen_pbr),
         }
 
@@ -201,6 +202,7 @@ def main():
             "procedural": [SIZE, SIZE],
             "homespun_linen": {
                 "albedo": [192, 192],
+                "normal": [128, 128],
                 "pbr_packed": [128, 128]
             }
         },
@@ -208,10 +210,10 @@ def main():
         "maps": ["albedo", "normal", "roughness", "ao"],
         "packed_map_channels": {
             "homespun_linen_pbr.png": {
-                "r": "tangent-space normal X",
-                "g": "tangent-space normal Y",
-                "b": "ambient occlusion",
-                "a": "roughness"
+                "r": "ambient occlusion",
+                "g": "roughness",
+                "b": "reserved",
+                "a": "reserved"
             }
         },
         "materials": materials,
@@ -219,7 +221,7 @@ def main():
             "albedo": "sRGB on",
             "normal": "Texture Type = Normal map",
             "roughness": "sRGB off; use a shader that reads roughness or invert for smoothness",
-            "pbr_packed": "sRGB off, readable, uncompressed; RG=normal XY, B=AO, A=roughness. Runtime reconstructs normal Z and inverts roughness to URP smoothness.",
+            "pbr_packed": "sRGB off, readable, uncompressed; R=AO, G=roughness. Runtime creates AO and metallic-gloss/smoothness maps; the separate normal is imported as a Unity NormalMap.",
             "ao": "sRGB off",
             "wrap": "Repeat",
             "mipmaps": True
