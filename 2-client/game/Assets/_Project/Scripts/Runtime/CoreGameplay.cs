@@ -346,7 +346,7 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(6f);
-            GUILayout.Label("ЭКИПИРОВКА");
+            GUILayout.Label("СНАРЯЖЕНИЕ · то, чем пользуешься прямо сейчас");
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("В руке: " + (string.IsNullOrEmpty(hand) ? "пусто" : Name(hand)));
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
@@ -394,7 +394,7 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ПРЕДМЕТЫ ПЕРСОНАЖА");
+            GUILayout.Label("ВЕЩИ В РЮКЗАКЕ · инструменты и переносимые предметы");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasItems = false;
             if (items != null)
@@ -411,8 +411,8 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ЗАПАСЫ И МАТЕРИАЛЫ В ЗАКРОМАХ");
-            GUILayout.Label("Купленные на рынке ресурсы попадают в закрома. Инструменты и экипировка после покупки отображаются в «Предметах персонажа» выше.");
+            GUILayout.Label("ЗАКРОМА · товары и материалы для обмена");
+            GUILayout.Label("Это не экипировка: здесь лежат древесина, еда, сырьё и покупки с рынка.");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasGoods = false;
             if (stash != null)
@@ -431,7 +431,7 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ЕДА И ЛЕЧЕНИЕ");
+            GUILayout.Label("ЕДА И ЛЕЧЕНИЕ · используй предметы из рюкзака или закромов");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasConsumables = false;
             foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
@@ -460,7 +460,7 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ВМЕСТИМОСТЬ И ПОКЛАЖА");
+            GUILayout.Label("ГРУЗ · твоя сума и отдельная сумка лошади");
             GUILayout.BeginVertical(GUI.skin.box);
             if (bag != null)
             {
@@ -2838,7 +2838,7 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(8f);
-            GUILayout.Label("ЛОШАДЬ");
+            GUILayout.Label("ЛОШАДЬ · покупка у конюха, верховая езда и уход");
             var horse = Obj(_me, "horse");
             var stable = Obj(_place, "stable");
             if (horse == null)
