@@ -22,11 +22,11 @@ internal static class CombatFoeFrameParserCheck
 
     public static int Main()
     {
-        const string combatJson = "{\"stance\":\"balanced\",\"guard\":true,\"sneak\":false,\"feint\":true,\"cd\":0.5,\"shield\":12,\"light\":4,\"arrows\":8,\"weapon\":\"bow\",\"kills\":2,\"ko\":false}";
+        const string combatJson = "{\"stance\":\"balanced\",\"guard\":true,\"sneak\":false,\"feint\":true,\"cd\":0.5,\"shield\":12,\"light\":4,\"arrows\":8,\"weapon\":\"bow\",\"kills\":{\"wolf\":2},\"ko\":0}";
         var combat = CombatFrameParser.Parse(JToken.Parse(combatJson), "me.combat");
         Check("maps server combat fields", combat != null && combat.Stance == "balanced" &&
             combat.Guard && !combat.Sneak && combat.Feint && combat.Arrows == 8 &&
-            combat.Weapon == "bow" && combat.Kills == 2 && !combat.KnockedOut &&
+            combat.Weapon == "bow" && combat.Kills != null && combat.Kills["wolf"] == 2 && combat.Knockouts == 0 &&
             Math.Abs(combat.Cooldown - 0.5d) < 0.0001d);
 
         const string foesJson = "[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":3,\"y\":-2,\"facing\":90,\"hp\":24,\"max\":30,\"state\":\"windup\",\"aware\":true,\"slow\":false,\"weak\":true,\"blind\":false,\"stun\":false,\"windup\":0.45}]";
@@ -38,7 +38,7 @@ internal static class CombatFoeFrameParserCheck
         Check("null combat remains null", CombatFrameParser.Parse(JValue.CreateNull(), "me.combat") == null);
 
         ExpectFormat("combat missing guard rejected",
-            () => CombatFrameParser.Validate(JToken.Parse("{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":0,\"ko\":false}"), "me.combat"));
+            () => CombatFrameParser.Validate(JToken.Parse("{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0}"), "me.combat"));
         ExpectFormat("negative cooldown rejected",
             () => CombatFrameParser.Validate(JToken.Parse(combatJson.Replace("\"cd\":0.5", "\"cd\":-1")), "me.combat"));
         ExpectFormat("fractional arrows rejected",
