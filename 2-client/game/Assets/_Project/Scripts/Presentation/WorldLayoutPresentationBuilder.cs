@@ -1434,8 +1434,9 @@ namespace Pogranichye.Client.Presentation
             var fireLight = fireLightObject.AddComponent<Light>();
             fireLight.type = LightType.Point;
             fireLight.color = new Color(1f, 0.55f, 0.28f);
-            fireLight.intensity = 1.35f;
-            fireLight.range = Mathf.Clamp(Mathf.Max(width, depth) * 0.8f, 5f, 9f);
+            // Generated tavern hearths are close to the player; keep their spill local and subdued.
+            fireLight.intensity = 0.42f;
+            fireLight.range = Mathf.Clamp(Mathf.Max(width, depth) * 0.55f, 3.5f, 5.5f);
             fireLight.shadows = LightShadows.None;
 
             // Back counter and three benches leave a readable path from the entrance.
