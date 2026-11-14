@@ -25,6 +25,11 @@ on:
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
       - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
+      - '2-client/game/Tests/FoePresentationPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
+      - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
 
 jobs:
@@ -82,3 +87,13 @@ jobs:
         run: |
           mcs -out:/tmp/hex-cell-streaming-policy.exe Tests/HexCellStreamingPolicyCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs
           mono /tmp/hex-cell-streaming-policy.exe
+      - name: Foe presentation policy regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/foe-presentation.exe Tests/FoePresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs
+          mono /tmp/foe-presentation.exe
+      - name: Settlement map label layout regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
+          mono /tmp/map-label-layout.exe
