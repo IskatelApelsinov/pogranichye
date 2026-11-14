@@ -70,3 +70,12 @@ After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bou
 - pure C# runner и Editor fixture cases добавлены; workflow #43637296564 — все 20 шагов PASS, включая typed journey/quest runner.
 
 Следующий кандидат — detailed quest panel; затем inventory/horse.
+
+
+## Дополнение: detailed quest panel
+
+В PR #638 также переведена подробная панель «Дела» с JObject на QuestListFrame:
+- offers и active списки, счётчики done/rep, giver/via, монеты, ready и прогресс читаются из typed DTO;
+- accept/turnin/drop intents оставлены без изменений; клиент не предсказывает выполнение/награду;
+- raw selectors me.journey/me.quests в CoreGameplay отсутствуют.
+Новый workflow запускается после последнего изменения CoreGameplay.
