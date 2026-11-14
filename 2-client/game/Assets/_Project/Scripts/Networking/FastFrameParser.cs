@@ -78,9 +78,14 @@ namespace Pogranichye.Client.Networking
             if (me == null && place == null)
                 throw new FormatException("Быстрый кадр не содержит ни одного обновляемого раздела.");
 
+            ValidateOptionalObject(me, "me.pos");
             ValidateOptionalObject(me, "me.combat");
+            ValidateOptionalObject(me, "me.wounds");
             ValidateOptionalArray(me, "me.feed");
             ValidateOptionalObjectOrNull(me, "me.result");
+            ValidateOptionalNumber(me, "me.health");
+            ValidateOptionalNumber(me, "me.energy");
+            ValidateOptionalNumber(me, "me.mana");
             ValidateOptionalArray(place, "place.neighbors");
             ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.exits");
@@ -131,6 +136,16 @@ namespace Pogranichye.Client.Networking
         private static void ValidateOptionalObjectOrNull(JObject parent, string field)
         {
             ValidateOptionalObject(parent, field);
+        }
+
+
+        private static void ValidateOptionalNumber(JObject parent, string field)
+        {
+            if (parent == null) return;
+            var token = parent[FieldName(field)];
+            if (token != null && token.Type != JTokenType.Null &&
+                token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
+                throw new FormatException(field + " должен быть числом.");
         }
 
         private static void ValidateOptionalArray(JObject parent, string field)
