@@ -579,7 +579,7 @@ namespace Pogranichye.Client
             SyncFoes(Arr(_place, "foes"));
             SyncExits(Arr(_place, "exits"));
             ApplySitePresentation();
-            ReadFeed(Arr(_me, "feed"));
+            ReadFeed(frame.Me?.Feed);
             ReadResult();
         }
 
@@ -609,7 +609,7 @@ namespace Pogranichye.Client
                     SyncExits(Arr(_place, "exits"));
                 ApplySitePresentation();
             }
-            ReadFeed(Arr(_me, "feed"));
+            if (patch.HasFeed) ReadFeed(patch.Feed);
             ReadResult();
         }
 
@@ -1101,23 +1101,24 @@ namespace Pogranichye.Client
 
         // ------------------------------------------------------------------ feed
 
-        private void ReadFeed(JArray feed)
+        private void ReadFeed(IList<FeedEntryFrame> feed)
         {
             if (feed == null) return;
-            foreach (var token in feed)
+            foreach (var item in feed)
             {
-                var seq = (long)Num(token, "seq");
+                if (item == null) continue;
+                var seq = item.Sequence;
                 if (seq <= _feedSeq) continue;
                 _feedSeq = seq;
-                var kind = Str(token, "kind");
-                var text = Str(token, "text");
-                var damage = Num(token, "dmg");
+                var kind = item.Kind ?? string.Empty;
+                var text = item.Text ?? string.Empty;
+                var damage = (float)item.Damage;
                 if (damage > 0f) text += " (" + Mathf.RoundToInt(damage) + ")";
                 _feed.Add(new FeedLine { Kind = kind, Text = text, At = Time.unscaledTime });
                 if (kind == "hurt" || kind == "backfire" || kind == "ko") _hurtFlash = kind == "ko" ? 1.6f : 0.35f;
                 if (kind == "hit" || kind == "kill") _hitMarker = 0.18f;
                 FoeRec struck;
-                var foeId = Str(token, "foe");
+                var foeId = item.Foe;
                 if (damage > 0f && !string.IsNullOrEmpty(foeId) && _foes.TryGetValue(foeId, out struck) && struck.Root != null)
                 {
                     var hurtsMe = kind == "hurt";
