@@ -18,6 +18,11 @@ on:
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
+      - '2-client/game/Tests/FeedFrameParserCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
       - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
@@ -41,7 +46,14 @@ jobs:
       - name: Install Mono compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y mono-mcs
+          sudo apt-get install -y mono-mcs libnewtonsoft-json-cil-dev
+      - name: Typed feed frame parser regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs
+          mono /tmp/feed-frame-parser.exe
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
