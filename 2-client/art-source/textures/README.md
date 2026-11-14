@@ -1,8 +1,8 @@
 # Авторская текстура утрамбованной земли
 
-Исходник — новая AI-сгенерированная художественная текстура: влажная утрамбованная земля с мелким гравием, редкими соломинками, опавшими листьями и неглубокими следами. Это не процедурный шум из старого Blender-генератора.
+Исходник — оригинальная AI-сгенерированная художественная поверхность: влажная утрамбованная земля, мелкий гравий, отдельные камни, соломинки, корешки и редкие опавшие листья. Это не синусоидальный процедурный шум.
 
-## Состав
+## Состав PBR-набора
 
 Скрипт `build_packed_road_material.py` создаёт в
 `2-client/game/Assets/Resources/WorldMaterials/Textures/`:
@@ -11,9 +11,15 @@
 - `packed_road_normal.png` — tangent-space normal, positive Y в зелёном канале;
 - `packed_road_roughness.png` — отдельная линейная roughness-карта;
 - `packed_road_ao.png` — отдельная линейная AO-карта;
-- `packed_road_material.json` — параметры и контроль шва.
+- `packed_road_material.json` — параметры, диапазоны и контроль непрерывности края.
 
-Противоположные края исходной картинки сведены в центр и исправлены inpainting; затем из общего height/detail поля выводятся согласованные normal, roughness и AO. Albedo остаётся отдельной цветовой картой, а не подменяет весь PBR-набор.
+Albedo, normal, roughness и AO получены из одного художественного исходника и общей карты рельефа. Одна цветная картинка не выдаётся за полный PBR-набор.
+
+## Бесшовность
+
+Исходные края перемещаются в центр изображения. Вместо inpainting, который на этом исходнике давал заметную размытую тёмную полосу, используется детерминированная замена центрального шва фрагментами из внутренней области с мягким cosine-feather переходом.
+
+Для текущего исходника средний перепад RGB на границе повторения составляет 19.88 (горизонталь) и 23.47 (вертикаль) уровней из 255; средний перепад между соседними внутренними пикселями — 18.58 и 20.42. Отношения шва к внутренней вариации: 1.07 и 1.15. Это сохраняет мелкий рельеф вместо искусственно размытой полосы. 2×2 preview проверен визуально.
 
 ## Пересборка
 
@@ -24,14 +30,16 @@ python -m pip install pillow numpy opencv-python
 python 2-client/art-source/textures/build_packed_road_material.py
 ```
 
-Исходник `packed_road_source.jpg` лежит рядом со скриптом. Unity импортирует карты автоматически через `WorldMaterialTextureImporter`: Repeat, mipmaps, trilinear, anisotropic 8; normal получает тип Normal Map, roughness/AO — linear. Albedo RGB остаётся sRGB, alpha не трактуется как прозрачность.
+Исходник `packed_road_source.jpg` лежит рядом со скриптом. Генератор воспроизводимо пишет карты прямо в Unity Resources.
+
+Unity импортирует PNG автоматически через `WorldMaterialTextureImporter`: Repeat, mipmaps, trilinear, anisotropic 8; normal получает тип Normal Map, roughness/AO — linear. Albedo RGB остаётся sRGB, alpha не трактуется как прозрачность.
 
 ## Подключение в мире
 
-`WorldLayoutPresentationBuilder` загружает карты по ключу `packed_road` для:
+`WorldLayoutPresentationBuilder` загружает `packed_road` для:
 - деревенских и межобъектных грунтовых дорог;
 - утрамбованного пола таверны.
 
-UV tiling сохраняется: 2×12 для дорожного материала. URP Lit читает smoothness из albedo alpha через `_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0. Отдельная roughness-карта остаётся доступной для будущих шейдеров/экспорта.
+UV tiling дороги сохраняется: 2×12. URP Lit читает smoothness из albedo alpha через `_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0. Отдельная roughness-карта остаётся доступной для других шейдеров и экспорта.
 
-Если полный authored map set уже присутствует, Blender baseline generator не перезаписывает его процедурным вариантом.
+Если полного набора карт нет, текущая сцена остаётся работоспособной на прежнем материале.
