@@ -91,7 +91,7 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateFastFrameCases()
         {
-            const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
+            const string fastJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"pos\":{\"x\":4,\"y\":5},\"health\":91,\"combat\":{},\"feed\":[]},\"place\":{\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":1,\"y\":2}}],\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\"}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
                 patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null)
                 throw new FormatException("Valid partial fast frame was not parsed.");
@@ -99,19 +99,19 @@ namespace Pogranichye.Client.Editor
             if (foes == null || foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
                 throw new FormatException("Fast-frame foe array was not parsed.");
 
-            if (FastFrameParser.TryParse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"}}", out _))
+            if (FastFrameParser.TryParse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}", out _))
                 throw new FormatException("A full frame must not be classified as a fast patch.");
 
-            ExpectFastRejected("{\\"v\\":2,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "unsupported fast protocol version");
-            var terminalFast = WorldFrameParser.Parse("{\\"v\\":1,\\"fast\\":true,\\"alive\\":false}", out _);
+            ExpectFastRejected("{\"v\":2,\"fast\":true,\"alive\":true,\"me\":{\"health\":1}}", "unsupported fast protocol version");
+            var terminalFast = WorldFrameParser.Parse("{\"v\":1,\"fast\":true,\"alive\":false}", out _);
             if (terminalFast.Alive || terminalFast.Me != null)
                 throw new FormatException("Terminal fast envelope must reach the normal alive:false lifecycle.");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":\\"true\\",\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "non-boolean fast marker");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":[],\\"place\\":{}}", "non-object fast me");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":\\"high\\"}}", "non-numeric fast health");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"wounds\\":[]}}", "non-object fast wounds");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":{}}}", "non-array fast foes");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":[{\\"id\\":42}]}}", "non-string fast foe id");
+            ExpectFastRejected("{\"v\":1,\"fast\":\"true\",\"alive\":true,\"me\":{\"health\":1}}", "non-boolean fast marker");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":[],\"place\":{}}", "non-object fast me");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":\"high\"}}", "non-numeric fast health");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"wounds\":[]}}", "non-object fast wounds");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"place\":{\"foes\":{}}}", "non-array fast foes");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"place\":{\"foes\":[{\"id\":42}]}}", "non-string fast foe id");
         }
 
         private static void ExpectFastRejected(string json, string caseName)
@@ -158,36 +158,36 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateFeedCases()
         {
-            const string fullFeed = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":4,\\"kind\\":\\"hit\\",\\"text\\":\\"Попадание\\",\\"foe\\":\\"wolf-1\\",\\"part\\":\\"head\\",\\"dmg\\":3.5}]}}";
+            const string fullFeed = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":4,\"kind\":\"hit\",\"text\":\"Попадание\",\"foe\":\"wolf-1\",\"part\":\"head\",\"dmg\":3.5}]}}";
             var frame = WorldFrameParser.Parse(fullFeed);
             if (frame.Me?.Feed == null || frame.Me.Feed.Count != 1 ||
                 frame.Me.Feed[0].Sequence != 4 || frame.Me.Feed[0].Foe != "wolf-1" ||
                 Math.Abs(frame.Me.Feed[0].Damage - 3.5d) > 0.0001d)
                 throw new FormatException("A full frame must expose validated typed feed entries.");
 
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":2,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\"},{\\"seq\\":2,\\"kind\\":\\"loot\\",\\"text\\":\\"b\\"}]}}", "duplicate feed sequence");
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":1,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\",\\"dmg\\":-1}]}}", "negative feed damage");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":2,\"kind\":\"hit\",\"text\":\"a\"},{\"seq\":2,\"kind\":\"loot\",\"text\":\"b\"}]}}", "duplicate feed sequence");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":1,\"kind\":\"hit\",\"text\":\"a\",\"dmg\":-1}]}}", "negative feed damage");
         }
 
         private static void ValidateActionResultCases()
         {
-            const string fullResult = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":\\"full-1\\",\\"ok\\":false,\\"reason\\":\\"нужно подойти\\"}}}";
+            const string fullResult = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":\"full-1\",\"ok\":false,\"reason\":\"нужно подойти\"}}}";
             var frame = WorldFrameParser.Parse(fullResult);
             if (frame.Me?.Result == null || frame.Me.Result.RequestId != "full-1" ||
                 frame.Me.Result.Ok || frame.Me.Result.Reason != "нужно подойти")
                 throw new FormatException("A full frame must expose a validated typed action result.");
 
-            var nullResult = WorldFrameParser.Parse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":null}}");
+            var nullResult = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":null}}");
             if (nullResult.Me == null || nullResult.Me.Result != null)
                 throw new FormatException("An explicit null me.result must remain null.");
 
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":\\"x\\",\\"ok\\":true}}}", "result missing reason");
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":42,\\"ok\\":true,\\"reason\\":\\"ok\\"}}}", "numeric result reqid");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":\"x\",\"ok\":true}}}", "result missing reason");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":42,\"ok\":true,\"reason\":\"ok\"}}}", "numeric result reqid");
         }
 
         private static void ValidateCombatFoeCases()
         {
-            const string full = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"combat\\":{\\"stance\\":\\"balanced\\",\\"guard\\":false,\\"sneak\\":false,\\"feint\\":false,\\"cd\\":0,\\"shield\\":0,\\"light\\":0,\\"arrows\\":2,\\"weapon\\":\\"sword\\",\\"kills\\":1,\\"ko\\":false}},\\"place\\":{\\"id\\":\\"7\\",\\"foes\\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\",\\"name\\":\\"Волк\\",\\"x\\":3,\\"y\\":4,\\"facing\\":90,\\"hp\\":20,\\"max\\":30,\\"state\\":\\"windup\\",\\"aware\\":true,\\"slow\\":false,\\"weak\\":false,\\"blind\\":false,\\"stun\\":false,\\"windup\\":0.4}]}}";
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":2,\"weapon\":\"sword\",\"kills\":1,\"ko\":false}},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":3,\"y\":4,\"facing\":90,\"hp\":20,\"max\":30,\"state\":\"windup\",\"aware\":true,\"slow\":false,\"weak\":false,\"blind\":false,\"stun\":false,\"windup\":0.4}]}}";
             var frame = WorldFrameParser.Parse(full);
             if (frame.Me?.Combat == null || frame.Me.Combat.Weapon != "sword" ||
                 frame.Me.Combat.Arrows != 2 || frame.Place?.Foes == null ||
@@ -195,8 +195,8 @@ namespace Pogranichye.Client.Editor
                 frame.Place.Foes[0].State != "windup")
                 throw new FormatException("Full frame combat/foe views must deserialize to typed DTOs.");
 
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"combat\\":{\\"stance\\":\\"balanced\\",\\"sneak\\":false,\\"feint\\":false,\\"cd\\":0,\\"shield\\":0,\\"light\\":0,\\"arrows\\":0,\\"weapon\\":\\"\\",\\"kills\\":0,\\"ko\\":false}}}", "combat missing guard");
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"},\\"place\\":{\\"id\\":\\"7\\",\\"foes\\":[{\\"id\\":42,\\"kind\\":\\"wolf\\",\\"name\\":\\"Волк\\",\\"x\\":0,\\"y\\":0,\\"facing\\":0,\\"hp\\":1,\\"max\\":1,\\"state\\":\\"roam\\",\\"aware\\":false}]}}", "foe numeric id");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":0,\"ko\":false}}}", "combat missing guard");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":42,\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":1,\"max\":1,\"state\":\"roam\",\"aware\":false}]}}", "foe numeric id");
         }
 
         private static void ValidateNegativeCases()
