@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -190,10 +191,14 @@ func (s *Store) load() {
 	}
 	data, err := os.ReadFile(s.path)
 	if err != nil {
+		if !os.IsNotExist(err) { // нет файла — обычный первый запуск, не ошибка
+			log.Printf("accounts: не удалось прочитать %s: %v — стартую с пустым списком пользователей", s.path, err)
+		}
 		return
 	}
 	var fm fileModel
-	if json.Unmarshal(data, &fm) != nil {
+	if err := json.Unmarshal(data, &fm); err != nil {
+		log.Printf("accounts: %s повреждён (%v) — стартую с пустым списком пользователей, файл НЕ тронут", s.path, err)
 		return
 	}
 	s.nextID = fm.NextID
@@ -203,6 +208,12 @@ func (s *Store) load() {
 	}
 }
 
+// save пишет аккаунты на диск. Раньше ошибка записи тихо отбрасывалась (`_ = os.WriteFile(...)`) —
+// из-за несовпадения владельца примонтированного в Docker каталога `/data` с непривилегированным
+// пользователем контейнера запись могла молча проваливаться КАЖДЫЙ раз: сервер в рантайме выглядел
+// рабочим, но после перезапуска контейнера все логины/привязки персонажей пропадали — игрок на
+// следующий вход регистрировался заново и получал случайное свободное тело («играю за другого»,
+// comms/баг 2026-11-14). Теперь ошибка хотя бы видна в `./manage.sh logs`.
 func (s *Store) save() {
 	if s.path == "" {
 		return
@@ -211,8 +222,13 @@ func (s *Store) save() {
 	for _, u := range s.byID {
 		fm.Users = append(fm.Users, u)
 	}
-	if data, err := json.MarshalIndent(fm, "", " "); err == nil {
-		_ = os.WriteFile(s.path, data, 0600)
+	data, err := json.MarshalIndent(fm, "", " ")
+	if err != nil {
+		log.Printf("accounts: не удалось сериализовать %s: %v", s.path, err)
+		return
+	}
+	if err := os.WriteFile(s.path, data, 0600); err != nil {
+		log.Printf("accounts: НЕ УДАЛОСЬ записать %s: %v — аккаунты не персистентны, проверь права на каталог", s.path, err)
 	}
 }
 

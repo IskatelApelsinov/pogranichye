@@ -20,6 +20,13 @@ compose() {
   else echo "не найден ни docker compose, ни podman-compose" >&2; exit 1; fi
 }
 
+# ./data — то, что переживает перезапуск контейнера (аккаунты, сохранение мира, docker-compose.yml:
+# "./data:/data"). Создаём заранее от своего пользователя, чтобы её не создал за нас Docker (часто
+# от root) — именно так раньше ломалась запись accounts.json/world.sav внутри контейнера (ищем
+# владельца не на этапе сборки образа, а у docker-entrypoint.sh — он чинит владельца и при уже
+# существующей ./data на каждом старте, так что это просто подстраховка для первого запуска).
+mkdir -p data
+
 case "${1:-up}" in
   up)       compose up -d --build; echo "Поднято. Открой http://localhost:8090/" ;;
   update)   git pull --ff-only && compose up -d --build; echo "Обновлено и пересобрано." ;;
