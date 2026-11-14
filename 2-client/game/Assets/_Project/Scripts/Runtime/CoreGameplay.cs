@@ -2839,7 +2839,8 @@ namespace Pogranichye.Client
                 GUILayout.Label(Flag(Obj(_me, "weave"), "gift")
                     ? "В тебе есть дар: ум удержит и сложный узор."
                     : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
-                if (Num(_me, "drunk") > 0f) GUILayout.Label("Хмель: " + (int)Num(_me, "drunk"));
+                var drunk = _status == null ? 0f : _status.Drunk;
+                if (drunk > 0f) GUILayout.Label("Хмель: " + (int)drunk);
                 var bagInfo = Obj(_me, "bag");
                 if (bagInfo != null)
                     GUILayout.Label("Сума: " + (int)Num(bagInfo, "load") + " из " + (int)Num(bagInfo, "cap")
