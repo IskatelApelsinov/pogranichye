@@ -18,6 +18,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("light")] public double Light { get; set; }
         [JsonProperty("arrows")] public int Arrows { get; set; }
         [JsonProperty("weapon")] public string Weapon { get; set; }
+        // CombatC.Kills is a species -> count map; CombatC.KO is an integer counter.
         [JsonProperty("kills")] public Dictionary<string, int> Kills { get; set; }
         [JsonProperty("ko")] public int Knockouts { get; set; }
     }
