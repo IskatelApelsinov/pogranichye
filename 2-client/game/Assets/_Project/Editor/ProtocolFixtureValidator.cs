@@ -80,6 +80,7 @@ namespace Pogranichye.Client.Editor
                 ValidateActionResultCases();
                 ValidateCombatFoeCases();
                 ValidateJourneyQuestCases();
+                ValidateRegionCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -213,6 +214,19 @@ namespace Pogranichye.Client.Editor
 
             ExpectRejected(full.Replace("\"progress\":0.45", "\"progress\":1.5"), "journey progress above one");
             ExpectRejected(full.Replace("\"ready\":false", "\"ready\":1"), "quest ready must be boolean");
+        }
+
+        private static void ValidateRegionCases()
+        {
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"region\":{\"nodes\":[{\"id\":\"1\",\"x\":0,\"y\":0,\"state\":\"here\",\"name\":\"Сосновка\",\"tier\":\"village\"},{\"id\":\"2\",\"x\":120,\"y\":-40,\"state\":\"unknown\",\"name\":\"\",\"tier\":\"\"}],\"roads\":[{\"a\":\"1\",\"b\":\"2\",\"len\":120}]}}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Region == null || frame.Me.Region.Nodes.Count != 2 ||
+                frame.Me.Region.Nodes[1].State != "unknown" || frame.Me.Region.Nodes[1].Name != "" ||
+                frame.Me.Region.Roads.Count != 1)
+                throw new FormatException("Full frame regional map must deserialize to typed privacy-safe DTOs.");
+
+            ExpectRejected(full.Replace("\"name\":\"\",\"tier\":\"\"", "\"name\":\"Скрытое место\",\"tier\":\"city\""),
+                "unknown regional place name leak");
         }
 
         private static void ValidateNegativeCases()
