@@ -23,8 +23,8 @@
 | `me.weave` | `WeaveFrame`, `WeaveNodeFrame`, `WeaveSchemaFrame` | weave UI and input | Typed |
 | `me.talk/invite_from/social_event/result/task/journal` | corresponding nested DTOs | talk, request result, opening task and journal | Typed |
 | `me.coins/debt/wounds/bleeding/stash/pos/wpos/room` | `CharacterFrame` plus nested DTOs | status, movement, containers and room presentation | Typed |
-| `me.drunk` (v1.12) | `CharacterFrame.Drunk` added in this slice | compact status HUD and character summary | Typed in this slice |
-| `me.feed[]` | Missing `FeedEntryFrame` | `ReadFeed`, confirmed combat/work/social feedback | **Gap**; used by full and fast frames |
+| `me.drunk` (v1.12) | `CharacterFrame.Drunk` | compact status HUD and character summary | Typed in status-view slice |
+| `me.feed[]` | `FeedEntryFrame` + `FeedFrameParser` | `ReadFeed`, confirmed combat/work/social feedback | Typed in feed slice; strict sequence and entry validation |
 | `me.stats` | Missing `StatsFrame` | character attributes panel | **Gap** |
 | `me.horse` | Missing `HorseFrame` and saddle-bag DTO | mount, stamina, location and horse inventory UI | **Gap** |
 | `me.bag` | Missing `CarryBagFrame` | load/capacity/overload UI | **Gap** |
@@ -66,19 +66,21 @@ The current `Server.fastJSON` implementation emits:
 
 ## First typed consumer migrated in this slice
 
-The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`:
+The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and the server-confirmed feed is mapped to typed entries:
 
 - Full snapshot source: `me.health`, `me.energy`, `me.mana`, `me.drunk`, `me.pos.stam`.
 - Fast patch source: `me.health`, `me.energy`, `me.mana`, and `me.pos.stam`.
 - A missing fast property preserves the previous value.
 - An explicit JSON null is treated as zero, matching the previous `Num(JToken, key)` selector after shallow merge.
 - `me.drunk` is not in the fast server shape and therefore remains from the last full snapshot.
+- `me.feed[]` validates positive strictly increasing `seq`, non-empty `kind`, string `text`, optional string `foe/part`, and finite non-negative `dmg`; the same parser is used by full and fast frames.
+- Fast feed distinguishes omitted (do not process) from explicit null (no entries); event deduplication remains by server sequence in `CoreGameplay`.
 - This is presentation-only state. Server simulation, intents, movement authority, result handling and wire v1 are unchanged.
 
 ## Safe migration order
 
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
-2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions.
+2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
 4. Migrate one small consumer at a time. Candidate next slices: feed/result, then combat, then journey/quests, inventory/horse, and settlement market/site/foes/exits.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
