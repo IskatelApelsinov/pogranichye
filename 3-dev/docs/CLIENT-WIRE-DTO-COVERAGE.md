@@ -64,7 +64,7 @@ The current `Server.fastJSON` implementation emits:
 
 `FastFrameParser` validates the envelope and selected container/ID types, then preserves the partial `me/place` objects. It is not a typed full snapshot. `CoreGameplay.ApplyFastFrame` shallow-merges only properties present in the patch; absent full-frame properties must never be reset to DTO defaults.
 
-## First typed consumer migrated in this slice
+## Typed consumers migrated in the current slice
 
 The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and the server-confirmed feed is mapped to typed entries:
 
@@ -82,7 +82,13 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Candidate next slices: feed/result, then combat, then journey/quests, inventory/horse, and settlement market/site/foes/exits.
+4. Migrate one small consumer at a time. Next candidates: `me.result`/RequestGate correlation, then combat, journey/quests, inventory/horse, and settlement market/site/foes/exits.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
+
+## Position validation note
+
+The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
+
+After the status view and feed migrations, 11 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `combat`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); six settlement sections remain (`foes`, `exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
