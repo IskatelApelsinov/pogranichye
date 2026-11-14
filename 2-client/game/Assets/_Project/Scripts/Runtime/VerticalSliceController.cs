@@ -722,7 +722,7 @@ namespace Pogranichye.Client
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 430f, 12f, 418f, 366f);
+            var rect = new Rect(Screen.width - 430f, 12f, 418f, 390f);
             GUI.Box(rect, "ТЕХНИЧЕСКАЯ ДИАГНОСТИКА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
@@ -761,6 +761,8 @@ namespace Pogranichye.Client
             if (GUI.Button(new Rect(rect.x + 10f, rect.y + 304f, rect.width - 20f, 28f), "СОХРАНИТЬ ДАМП ДЛЯ ОТЛАДКИ"))
                 SaveClientDiagnosticDump();
             GUI.Label(new Rect(rect.x + 10f, rect.y + 336f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 360f, rect.width - 20f, 22f),
+                "Локальный файл: включает координаты и состояние персонажа.");
         }
 
         private void DrawHudTabButton(string label, HudTab tab)
