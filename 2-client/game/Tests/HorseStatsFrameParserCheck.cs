@@ -37,6 +37,9 @@ internal static class HorseStatsFrameParserCheck
         CarryBagFrameParser.Validate(bagToken, "me.bag");
         var bag = bagToken.ToObject<CarryBagFrame>();
         Check("maps carried bag summary", bag != null && bag.Load == 24d && bag.Capacity == 40d && !bag.Overloaded);
+        CarryBagFrameParser.Validate(JValue.CreateNull(), "me.bag");
+        CarryBagFrameParser.Validate(null, "me.bag");
+        Check("missing or null bag remains compatible with older v1 servers", true);
 
         const string horseJson = "{\"id\":\"horse-77\",\"name\":\"Сивка\",\"stam\":85,\"mounted\":true,\"here\":true,\"bag\":{\"hay\":2,\"fish\":1},\"bag_load\":3,\"bag_cap\":40}";
         var horseToken = JToken.Parse(horseJson);
