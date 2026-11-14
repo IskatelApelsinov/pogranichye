@@ -191,6 +191,7 @@ namespace Pogranichye.Client
         private StatsFrame _stats;
         private CarryBagFrame _bag;
         private HorseFrame _horse;
+        private RegionFrame _region;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -593,6 +594,7 @@ namespace Pogranichye.Client
             _stats = frame.Me?.Stats;
             _bag = frame.Me?.Bag;
             _horse = frame.Me?.Horse;
+            _region = frame.Me?.Region;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -657,6 +659,7 @@ namespace Pogranichye.Client
             _stats = null;
             _bag = null;
             _horse = null;
+            _region = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -3126,9 +3129,8 @@ namespace Pogranichye.Client
         // Regional map as a list: server-known nodes only (me.region). Unknown road ends carry no name.
         private void DrawRegion(string hereId)
         {
-            var region = Obj(_me, "region");
-            var nodes = Arr(region, "nodes");
-            var roads = Arr(region, "roads");
+            var nodes = _region?.Nodes;
+            var roads = _region?.Roads;
             if (nodes == null) return;
 
             GUILayout.BeginHorizontal();
@@ -3151,19 +3153,17 @@ namespace Pogranichye.Client
             DrawRegionMap(nodes, roads, hereId);
             foreach (var node in nodes)
             {
-                var id = Str(node, "id");
-                var state = Str(node, "state");
-                if (state == "here") continue;
-                var title = state == "unknown" ? "куда-то ведёт тракт" : Str(node, "name");
-                var mark = state == "visited" ? "бывал" : state == "known" ? "слышал" : "неведомо";
+                if (node == null || node.State == "here") continue;
+                var title = node.State == "unknown" ? "куда-то ведёт тракт" : node.Name;
+                var mark = node.State == "visited" ? "бывал" : node.State == "known" ? "слышал" : "неведомо";
                 var length = string.Empty;
                 if (roads != null)
                     foreach (var road in roads)
-                        if ((Str(road, "a") == id && Str(road, "b") == hereId) || (Str(road, "b") == id && Str(road, "a") == hereId))
-                            length = " · " + (int)Num(road, "len") + " вёрст";
+                        if ((road.A == node.Id && road.B == hereId) || (road.B == node.Id && road.A == hereId))
+                            length = " · " + (int)road.Length + " вёрст";
                 if (GUILayout.Button(title + "  (" + mark + length + ")"))
                 {
-                    Ask("Дорога", "journey", "target", id);
+                    Ask("Дорога", "journey", "target", node.Id);
                     _menuOpen = false;
                 }
             }
@@ -3171,7 +3171,7 @@ namespace Pogranichye.Client
 
         // The regional map is a projection of me.region only. Coordinates and edges are
         // server supplied; absent settlements stay in the fog and unknown nodes are nameless.
-        private void DrawRegionMap(JArray nodes, JArray roads, string hereId)
+        private void DrawRegionMap(IList<RegionNodeFrame> nodes, IList<RegionRoadFrame> roads, string hereId)
         {
             var rect = GUILayoutUtility.GetRect(420f, 220f, GUILayout.ExpandWidth(true));
             GUI.Box(rect, GUIContent.none);
@@ -3195,9 +3195,9 @@ namespace Pogranichye.Client
             var maxY = float.MinValue;
             foreach (var node in nodes)
             {
-                var id = Str(node, "id");
-                var x = Num(node, "x");
-                var y = Num(node, "y");
+                var id = node.Id;
+                var x = node.X;
+                var y = node.Y;
                 points[id] = new Vector2(x, y);
                 minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
                 minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
@@ -3216,8 +3216,8 @@ namespace Pogranichye.Client
             {
                 foreach (var node in nodes)
                 {
-                    if (Str(node, "id") != hereId) continue;
-                    mapCenter = new Vector2(Num(node, "x"), Num(node, "y"));
+                    if (node.Id != hereId) continue;
+                    mapCenter = new Vector2((float)node.X, (float)node.Y);
                     break;
                 }
             }
@@ -3229,9 +3229,9 @@ namespace Pogranichye.Client
                 return new Vector2(screenCenter.x + (worldPoint.x - mapCenter.x) * scale,
                     screenCenter.y - (worldPoint.y - mapCenter.y) * scale);
             }
-            Vector2 Project(JToken node)
+            Vector2 Project(RegionNodeFrame node)
             {
-                return ProjectPoint(new Vector2(Num(node, "x"), Num(node, "y")));
+                return ProjectPoint(new Vector2((float)node.X, (float)node.Y));
             }
 
             // Group clips zoomed nodes and roads to the parchment map viewport.
@@ -3241,8 +3241,8 @@ namespace Pogranichye.Client
                 foreach (var road in roads)
                 {
                     Vector2 worldA, worldB;
-                    if (!points.TryGetValue(Str(road, "a"), out worldA) ||
-                        !points.TryGetValue(Str(road, "b"), out worldB)) continue;
+                    if (!points.TryGetValue(road.A, out worldA) ||
+                        !points.TryGetValue(road.B, out worldB)) continue;
                     var a = ProjectPoint(worldA);
                     var b = ProjectPoint(worldB);
                     var delta = b - a;
@@ -3260,7 +3260,7 @@ namespace Pogranichye.Client
 
             foreach (var node in nodes)
             {
-                var state = Str(node, "state");
+                var state = node.State;
                 var point = Project(node);
                 var previous = GUI.color;
                 GUI.color = state == "here" ? new Color(0.95f, 0.78f, 0.35f)
@@ -3269,7 +3269,7 @@ namespace Pogranichye.Client
                     : new Color(0.55f, 0.53f, 0.48f);
                 GUI.DrawTexture(new Rect(point.x - 5f, point.y - 5f, 10f, 10f), Texture2D.whiteTexture);
                 GUI.color = previous;
-                var label = state == "unknown" ? "?" : Str(node, "name");
+                var label = state == "unknown" ? "?" : node.Name;
                 if (state == "here") label = "Ты";
                 if (!string.IsNullOrEmpty(label))
                     GUI.Label(new Rect(point.x + 7f, point.y - 10f, 130f, 20f), label);
