@@ -184,6 +184,7 @@ namespace Pogranichye.Client
         private JObject _me;
         private JObject _place;
         private GameplayStatusView _status;
+        private ActionResultFrame _result;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -580,7 +581,8 @@ namespace Pogranichye.Client
             SyncExits(Arr(_place, "exits"));
             ApplySitePresentation();
             ReadFeed(frame.Me?.Feed);
-            ReadResult();
+            _result = frame.Me?.Result;
+            ReadResult(_result);
         }
 
         public void ApplyFastFrame(FastFramePatch patch)
@@ -610,7 +612,11 @@ namespace Pogranichye.Client
                 ApplySitePresentation();
             }
             if (patch.HasFeed) ReadFeed(patch.Feed);
-            ReadResult();
+            if (patch.HasResult)
+            {
+                _result = patch.Result;
+                ReadResult(_result);
+            }
         }
 
         public void Clear()
@@ -632,6 +638,7 @@ namespace Pogranichye.Client
             _me = null;
             _place = null;
             _status = null;
+            _result = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -782,13 +789,12 @@ namespace Pogranichye.Client
             if (motion != null) motion.CancelWorkGesture();
         }
 
-        private void ReadResult()
+        private void ReadResult(ActionResultFrame result)
         {
-            var result = Obj(_me, "result");
             if (result == null || _gate == null) return;
             RequestGate.Item item;
-            var reason = Str(result, "reason");
-            var outcome = _gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item);
+            var reason = result.Reason ?? string.Empty;
+            var outcome = _gate.OnResult(result.RequestId, result.Ok, Time.unscaledTime, out item);
             if (outcome == RequestGate.Outcome.Accepted || outcome == RequestGate.Outcome.Rejected)
             {
                 _stopPlayerWorkGesture();
