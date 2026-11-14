@@ -34,9 +34,9 @@ The horse model is a presentation projection, not a locally spawned world entity
 
 ## Validation
 
-- CI regression runner added; result pending for this commit.
+- All 20 Unity-independent CI steps passed in run #43638726031, including the new horse/stats/bag regression runner: https://github.com/IskatelApelsinov/pogranichye/actions/runs/43638726031
 - Unity Editor 6000.6.7f1 full compile, fixture menu and PlayMode remain unverified.
-- Do not mark complete until CI is green and the owner performs the Unity runtime acceptance below.
+- Task remains `!В работе` until the owner performs the Unity runtime acceptance below.
 
 ## Next
 
