@@ -14,7 +14,7 @@ materials for the Unity 6 client:
 - cobblestone paving
 - limewashed plaster
 
-The library contains ten materials. Each material has Albedo, tangent-space Normal, Roughness and AO PNG maps at 512×512. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
+The library contains ten materials. The procedural baseline maps are 512×512; each has Albedo, tangent-space Normal, Roughness and AO PNG maps. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
 The generator is deterministic and uses periodic functions so opposite edges
 match. It uses no external textures, add-ons, or downloaded assets.
 
@@ -41,7 +41,7 @@ Unity imports the PNG files automatically. Set:
 - Roughness is not Unity's Smoothness. A shader/material setup must invert it
   when feeding a Smoothness slot (Smoothness = 1 - Roughness).
 
-The procedural baseline maps are generated from a shared periodic height field. The packed-road material is an authored artwork override: its 1024×1024 albedo is generated separately, seam-repaired, and paired with derived normal, roughness and AO maps. The Blender generator preserves that complete authored map set rather than overwriting it with procedural noise.
+The procedural baseline maps are generated from a shared periodic height field. The packed-road material is an authored artwork override at 1024×1024: its albedo is generated separately, seam-repaired, and paired with derived normal, roughness and AO maps. The manifest records this per-material resolution. The Blender generator preserves that complete authored map set rather than overwriting it with procedural noise.
 
 For the authored packed-road material, see
 [../textures/README.md](../textures/README.md). It is used by the generated settlement roads and the tavern packed-earth floor through `WorldLayoutPresentationBuilder`.
