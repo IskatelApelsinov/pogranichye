@@ -7,9 +7,10 @@ Run with Blender 4.2+:
 The script writes Unity-ready PNG maps directly into:
   2-client/game/Assets/Resources/WorldMaterials/Textures/
 
-All source fields are periodic, so opposite texture borders match. Maps are
-created from one shared height field: Albedo, tangent-space Normal, Roughness,
-and AO. This is a stylized-realistic base pass, not scanned photogrammetry.
+The ten procedural source sets use periodic fields and share Albedo, tangent-space
+Normal, Roughness and AO. A committed authored linen set is included unchanged
+when its packed maps are present. This is a stylized-realistic base pass, not
+scanned photogrammetry.
 """
 import json
 import math
@@ -196,6 +197,13 @@ def main():
         "generator": "generate_world_materials.py",
         "blender": bpy.app.version_string,
         "resolution": [SIZE, SIZE],
+        "material_resolutions": {
+            "procedural": [SIZE, SIZE],
+            "homespun_linen": {
+                "albedo": [256, 256],
+                "pbr_packed": [128, 128]
+            }
+        },
         "tileable": True,
         "maps": ["albedo", "normal", "roughness", "ao"],
         "packed_map_channels": {
