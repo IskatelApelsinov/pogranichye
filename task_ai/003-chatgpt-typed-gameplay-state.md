@@ -48,3 +48,14 @@
 - добавлены editor fixture checks на валидные/невалидные fast кадры.
 
 Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запускались, компиляция не подтверждена. Задача остаётся `!В работе`: следующий этап — убрать JObject adapter и перевести используемые gameplay selectors на компактную typed view model после сверки реальной серверной формы fastJSON.
+
+
+## Второй проход — 2026-11-14
+
+- Сверена реальная форма fast кадра с `server.go:fastJSON` и серверным тестом `TestFastFrameShapeAndNoLeak`; подтверждены точные поля и отсутствие `me.id`.
+- `WorldFrameParser.Parse(json, out document)` теперь отдаёт исходное проверенное дерево токенов, созданное при том же разборе, что и DTO.
+- `CoreGameplay.ApplyFrame(frame, document)` использует это дерево. Убран небезопасный промежуточный `JObject.FromObject(frame)`, который мог раскрыть отсутствующие поля как значения DTO по умолчанию.
+- Добавлена editor fixture проверка, что отсутствующие `hunger/pos` остаются отсутствующими в документе.
+- Исправлена классификация синтаксически повреждённого JSON: fast-парсер не угадывает его тип по строке, строгий full parser отклоняет его обычным путём.
+
+См. дополнение в `3-dev/comms/0230-chatgpt-client-fast-frame-boundary.md`. Wire и сервер не менялись. Задача остаётся `!В работе`: следующий этап — начать миграцию одной ограниченной группы читателей `CoreGameplay` с JObject на typed view state, не расширяя DTO наугад.
