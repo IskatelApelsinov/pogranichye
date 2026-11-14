@@ -1,0 +1,48 @@
+{
+  "name": "Pogranichye World Materials",
+  "version": 2,
+  "generator": "2-client/art-source/blender/generate_world_materials.py",
+  "tileable": true,
+  "checked_in_materials": {
+    "homespun_linen": {
+      "albedo": {
+        "path": "Textures/homespun_linen_albedo.jpg",
+        "resolution": [256, 256],
+        "color_space": "sRGB"
+      },
+      "pbr_packed": {
+        "path": "Textures/homespun_linen_pbr.png",
+        "resolution": [128, 128],
+        "color_space": "linear",
+        "channels": {
+          "r": "tangent-space normal X",
+          "g": "tangent-space normal Y",
+          "b": "ambient occlusion",
+          "a": "roughness"
+        }
+      },
+      "applied_to": [
+        "generated market awning",
+        "tutorial scarecrow tunic",
+        "tutorial windmill canvas sail"
+      ],
+      "notes": "Image-generated flax/burlap weave. Opposite borders were brought together with a centered wrap crossfade; broad illumination was flattened before export. Runtime reconstructs normal Z and converts roughness to URP smoothness."
+    }
+  },
+  "procedural_materials": {
+    "source": "generate_world_materials.py",
+    "materials": [
+      "meadow_soil",
+      "oak_bark",
+      "oak_planks",
+      "mossy_stone",
+      "forest_floor",
+      "leaf_canopy",
+      "thatch_roof",
+      "packed_road",
+      "cobblestone",
+      "lime_plaster"
+    ],
+    "status": "generator source is committed; these ten sets are generated locally by Blender and are not represented as checked-in PNGs until that step is run"
+  }
+}
