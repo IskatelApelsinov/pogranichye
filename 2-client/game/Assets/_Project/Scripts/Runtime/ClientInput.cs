@@ -201,7 +201,6 @@ namespace Pogranichye.Client
                 if (keyboard.qKey.isPressed) keys.Add("Q");
                 if (keyboard.fKey.isPressed) keys.Add("F");
                 if (keyboard.gKey.isPressed) keys.Add("G");
-                if (keyboard.jKey.isPressed) keys.Add("J");
                 if (keyboard.capsLockKey.isPressed) keys.Add("Caps");
                 if (keyboard.tKey.isPressed) keys.Add("T");
                 if (keyboard.pKey.isPressed) keys.Add("P (голос)");
