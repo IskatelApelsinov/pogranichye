@@ -15,8 +15,10 @@ materials for the Unity 6 client:
 - limewashed plaster
 
 The library contains ten materials. The procedural baseline maps are 512×512; each has Albedo, tangent-space Normal, Roughness and AO PNG maps. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
-The generator is deterministic and uses periodic functions so opposite edges
-match. It uses no external textures, add-ons, or downloaded assets.
+The procedural baseline generator is deterministic and uses periodic functions
+so opposite edges match; it needs no downloaded textures or Blender add-ons.
+The authored packed-road override is the explicit exception and is maintained
+by the separate source-art builder described below.
 
 ## Generate
 
