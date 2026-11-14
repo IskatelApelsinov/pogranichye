@@ -555,14 +555,6 @@ namespace Pogranichye.Client
             }
         }
 
-        /// <summary>Fast frames (?fast=N) carry only the body, combat state, feed and foes.</summary>
-        public static bool IsFastFrame(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return false;
-            var head = json.Length > 64 ? json.Substring(0, 64) : json;
-            return head.IndexOf("\"fast\":true", StringComparison.Ordinal) >= 0;
-        }
-
         public void ApplyFrame(string json)
         {
             JObject root;
@@ -582,24 +574,29 @@ namespace Pogranichye.Client
             ReadResult();
         }
 
-        public void ApplyFastFrame(string json)
+        public void ApplyFastFrame(FastFramePatch patch)
         {
-            if (_me == null) return;
-            JObject root;
-            try { root = JObject.Parse(json); }
-            catch (Exception) { return; }
-            var me = Obj(root, "me");
+            if (_me == null || patch == null) return;
+            var me = patch.Me;
             if (me != null)
             {
                 foreach (var property in me.Properties())
                     _me[property.Name] = property.Value;
             }
-            var place = Obj(root, "place");
+
+            var place = patch.Place;
             if (place != null)
             {
-                _place = place;
-                SyncFoes(Arr(place, "foes"));
-                SyncExits(Arr(place, "exits"));
+                // Fast frames are partial patches. Preserve full-frame place fields
+                // (layout, stock, tavern, anchor, etc.) that are intentionally omitted.
+                if (_place == null) _place = new JObject();
+                foreach (var property in place.Properties())
+                    _place[property.Name] = property.Value;
+
+                if (place.Property("foes") != null)
+                    SyncFoes(Arr(_place, "foes"));
+                if (place.Property("exits") != null)
+                    SyncExits(Arr(_place, "exits"));
                 ApplySitePresentation();
             }
             ReadFeed(Arr(_me, "feed"));
