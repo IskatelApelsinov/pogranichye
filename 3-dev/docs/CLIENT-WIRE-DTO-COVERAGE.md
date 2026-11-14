@@ -21,7 +21,8 @@
 | `me.skills/desire/inv/world/known_places` | `CharacterFrame` plus nested DTOs | inventory, world list and knowledge UI | Typed |
 | `me.health/hunger/energy/morale/mana/goal/act_code/mug` | `CharacterFrame` | status and activity presentation | Typed |
 | `me.weave` | `WeaveFrame`, `WeaveNodeFrame`, `WeaveSchemaFrame` | weave UI and input | Typed |
-| `me.talk/invite_from/social_event/result/task/journal` | corresponding nested DTOs | talk, request result, opening task and journal | Typed |
+| `me.talk/invite_from/social_event/task/journal` | corresponding nested DTOs | talk, opening task and journal | Typed |
+| `me.result` | `ActionResultFrame` + `ActionResultFrameParser` | `ReadResult` / `RequestGate` | Typed in this slice; single latest server ACK slot, correlated by reqid |
 | `me.coins/debt/wounds/bleeding/stash/pos/wpos/room` | `CharacterFrame` plus nested DTOs | status, movement, containers and room presentation | Typed |
 | `me.drunk` (v1.12) | `CharacterFrame.Drunk` | compact status HUD and character summary | Typed in status-view slice |
 | `me.feed[]` | `FeedEntryFrame` + `FeedFrameParser` | `ReadFeed`, confirmed combat/work/social feedback | Typed in feed slice; strict sequence and entry validation |
@@ -60,6 +61,7 @@ The current `Server.fastJSON` implementation emits:
 - Live envelope: `v`, `fast:true`, `alive:true`, `me`.
 - Live `me` fields: `pos`, `mana`, `combat`, `feed`, `result`, `wounds`; `health` and `energy` are included when vitals exist.
 - `place` is included only when the player is in a settlement and not on a road. Its current fields are `neighbors` and `foes`. Fast neighbors intentionally contain only `id` and `pos`; `me.id` is intentionally absent.
+- `me.result` is present as object or null in the inspected server fast shape; it remains a single latest-result slot, not a queue.
 - The parser currently accepts optional `place.exits` for additive compatibility, but the inspected server `fastJSON` does not emit it.
 
 `FastFrameParser` validates the envelope and selected container/ID types, then preserves the partial `me/place` objects. It is not a typed full snapshot. `CoreGameplay.ApplyFastFrame` shallow-merges only properties present in the patch; absent full-frame properties must never be reset to DTO defaults.
@@ -74,6 +76,7 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 - An explicit JSON null is treated as zero, matching the previous `Num(JToken, key)` selector after shallow merge.
 - `me.drunk` is not in the fast server shape and therefore remains from the last full snapshot.
 - `me.feed[]` validates positive strictly increasing `seq`, non-empty `kind`, string `text`, optional string `foe/part`, and finite non-negative `dmg`; the same parser is used by full and fast frames.
+- `me.result` is validated as `{reqid:string, ok:boolean, reason:string}` or null. Full snapshots map it through `CharacterFrame.Result`; fast patches expose `HasResult/Result` so omission and explicit null remain distinct. `RequestGate` still accepts only the matching in-flight reqid.
 - Fast feed distinguishes omitted (do not process) from explicit null (no entries); event deduplication remains by server sequence in `CoreGameplay`.
 - This is presentation-only state. Server simulation, intents, movement authority, result handling and wire v1 are unchanged.
 
@@ -82,7 +85,7 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Next candidates: `me.result`/RequestGate correlation, then combat, journey/quests, inventory/horse, and settlement market/site/foes/exits.
+4. Migrate one small consumer at a time. Next candidates: combat, journey/quests, inventory/horse, and settlement market/site/foes/exits.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
