@@ -49,8 +49,10 @@ namespace Pogranichye.Client.Networking
             }
 
             var fast = root["fast"];
-            if (fast == null || fast.Type != JTokenType.Boolean || !fast.Value<bool>())
-                return false;
+            if (fast == null) return false;
+            if (fast.Type != JTokenType.Boolean)
+                throw new FormatException("Поле fast должно быть boolean.");
+            if (!fast.Value<bool>()) return false;
 
             var version = root["v"];
             if (version == null || version.Type != JTokenType.Integer ||
@@ -58,8 +60,11 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException("Быстрый кадр имеет неподдерживаемую или отсутствующую версию протокола.");
 
             var alive = root["alive"];
-            if (alive == null || alive.Type != JTokenType.Boolean || !alive.Value<bool>())
-                throw new FormatException("Быстрый кадр должен содержать alive:true.");
+            if (alive == null || alive.Type != JTokenType.Boolean)
+                throw new FormatException("Поле alive в fast-кадре должно быть boolean.");
+            // The server emits a terminal fast envelope when the entity disappears.
+            // Route it through the full parser so the normal alive:false lifecycle runs.
+            if (!alive.Value<bool>()) return false;
 
             var meToken = root["me"];
             var placeToken = root["place"];
