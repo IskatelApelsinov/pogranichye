@@ -697,8 +697,8 @@ namespace Pogranichye.Client
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 390f, 12f, 378f, 210f);
-            GUI.Box(rect, "ДИАГНОСТИКА ВВОДА / КАМЕРА [F3]");
+            var rect = new Rect(Screen.width - 430f, 12f, 418f, 310f);
+            GUI.Box(rect, "ТЕХНИЧЕСКАЯ ДИАГНОСТИКА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
             GUI.Label(new Rect(rect.x + 10f, rect.y + 48f, rect.width - 20f, 20f),
@@ -713,6 +713,26 @@ namespace Pogranichye.Client
                 $"Input System {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | raw action {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
                 "Нажато: " + _pressedKeysDebug);
+            var neighbors = _frame?.Place?.Neighbors?.Count ?? 0;
+            var views = _views?.RemoteViewCount ?? 0;
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 198f, rect.width - 20f, 20f),
+                "NPC AOI: " + neighbors + " | визуальных сущностей: " + views);
+            if (_frame?.Me?.Position != null)
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 218f, rect.width - 20f, 20f),
+                    "ScenePos: " + _frame.Me.Position.X.ToString("0.0", CultureInfo.InvariantCulture) +
+                    ", " + _frame.Me.Position.Y.ToString("0.0", CultureInfo.InvariantCulture) +
+                    " · facing " + _frame.Me.Position.Facing.ToString("0.0", CultureInfo.InvariantCulture));
+            if (_frame?.Me?.WorldPosition != null)
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 238f, rect.width - 20f, 20f),
+                    "WorldPos: " + _frame.Me.WorldPosition.East.ToString("0.0", CultureInfo.InvariantCulture) +
+                    ", " + _frame.Me.WorldPosition.North.ToString("0.0", CultureInfo.InvariantCulture) +
+                    " · frame " + _frame.Me.WorldPosition.Frame);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 258f, rect.width - 20f, 20f),
+                "Move queue: " + _moveSendQueue.Count + "/" + MaxQueuedMoveIntents +
+                " · pending " + _pendingMoveIntents.Count + " · dropped " + _discardedMoveIntentCount);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 278f, rect.width - 20f, 20f),
+                "Place: " + (_frame?.Place?.Id ?? "—") + " · terrain chunks: " + _terrainChunks.Count +
+                " · in flight: " + _terrainChunkRequests.Count);
         }
 
         private void DrawHudTabButton(string label, HudTab tab)
@@ -729,24 +749,10 @@ namespace Pogranichye.Client
             var me = _frame.Me;
             if (_frame.Place != null)
                 GUILayout.Label($"Еда: {_frame.Place.Food:0} | Хлеб: {_frame.Place.Bread:0} | Цена: {_frame.Place.BreadPrice:0.0}");
-            GUILayout.Label($"{me.Name} {me.Surname} — {me.Role}");
-            var serverNeighborCount = _frame.Place?.Neighbors?.Count ?? 0;
-            var renderedNeighborCount = _views?.RemoteViewCount ?? 0;
-            GUILayout.Label($"Люди рядом: сервер прислал {serverNeighborCount} · создано представлений {renderedNeighborCount}");
-            if (serverNeighborCount == 0)
-                GUILayout.Label("Сервер сейчас не передал соседей в область видимости.");
-            else if (renderedNeighborCount == 0)
-                GUILayout.Label("Соседи есть в кадре, но их представления не созданы — проверьте консоль Unity.");
+            GUILayout.Label($"{me.Name} {me.Surname}");
             GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
-            GUILayout.Label($"Цель: {me.Goal} | Действие: {me.Last}");
             GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
-            GUILayout.Label($"Запал бега (сервер): {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
-            if (me.Position != null)
-            {
-                GUILayout.Label($"Сцена X {me.Position.X:0.00} / Z {me.Position.Y:0.00} | взгляд {me.Position.Facing:0}°");
-                GUILayout.Label($"Сеть движения: очередь {_moveSendQueue.Count}/{MaxQueuedMoveIntents} | неподтверждено {_pendingMoveIntents.Count} | отправка {(_moveSendInFlight ? "да" : "нет")} | отброшено {_discardedMoveIntentCount}");
-            }
-            else GUILayout.Label("Движение недоступно: серверный кадр без me.pos (нужен v1.1).");
+            GUILayout.Label($"Выносливость: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
 
             if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                 SetCameraMode(!_firstPerson);
@@ -758,8 +764,8 @@ namespace Pogranichye.Client
             GUILayout.Label(TutorialHint(), GUILayout.Height(58f));
             if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
                 GUILayout.Label(me.Result.Ok
-                    ? "Подтверждено сервером: " + me.Result.RequestId
-                    : "Сервер отказал: " + (me.Result.Reason ?? "причина не указана"));
+                    ? "Последнее действие выполнено."
+                    : "Не удалось выполнить: " + (me.Result.Reason ?? "попробуйте ещё раз."));
             GUILayout.Label(_tutorialStep == 0
                 ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
                 : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
