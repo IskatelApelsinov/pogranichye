@@ -304,6 +304,8 @@ namespace Pogranichye.Client
             _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || pointerOverUi ||
                 _activityMiniGame != ActivityMiniGame.None);
             _core?.SetExternalModalMenuOpen(_systemMenuOpen);
+            _voiceChat?.SetPushToTalkHeld(_connectionState == WorldConnectionState.Active &&
+                !_systemMenuOpen && !_chatOpen && _input != null && _input.VoicePushToTalkHeld);
             _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = _connectionState != WorldConnectionState.Active || gameplayInputBlocked;
