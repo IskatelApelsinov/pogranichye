@@ -32,7 +32,7 @@ The project currently does not version-control a full ProjectSettings/ProjectSet
 | World HUD panel | On-screen collapse/expand button |
 | Diagnostics / fullscreen | F3 / F11 |
 | Chat | T opens; Enter or KeypadEnter sends; Esc closes |
-| Voice | Join the voice channel, then enable the microphone; current mode is a toggle, not push-to-talk |
+| Voice | Join the voice channel; enable open mic with the button, or hold P for push-to-talk (grant mic permission once first) |
 | Woodcutting / fishing | G / J to start; Space for the minigame action; Esc cancels |
 | Weave mode | Hold R; nodes 1–6; Backspace removes; RMB clears |
 | Primary / guard | LMB / hold RMB |
