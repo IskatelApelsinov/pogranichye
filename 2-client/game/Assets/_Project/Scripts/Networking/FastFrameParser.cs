@@ -73,7 +73,7 @@ namespace Pogranichye.Client.Networking
             ValidateOptionalObject(me, "me.combat");
             ValidateOptionalArray(me, "me.feed");
             ValidateOptionalObjectOrNull(me, "me.result");
-            ValidateOptionalObject(place, "place.foes");
+            ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.neighbors");
             ValidateOptionalArray(place, "place.exits");
 
