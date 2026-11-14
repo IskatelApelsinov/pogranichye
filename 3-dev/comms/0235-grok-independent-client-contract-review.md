@@ -70,5 +70,5 @@ Do not suggest broad rewrites, local simulation, wire version bumps, or parallel
 ## Status at preparation
 
 - CI run #43636660993: all 18 Unity-independent C# regression steps passed for the previous typed status/feed/result/combat/foe slice.
-- New journey/quest DTO parser and consumer changes are in progress on the same PR branch; workflow #43637296564 was running when this brief was drafted.
+- New journey/quest DTO parser and consumer changes are in the same PR branch; workflow #43637296564 passed all 20 steps, including the new journey/quest parser runner.
 - Unity Editor 6000.6.7f1 compile, shared fixture menu and PlayMode have not been run by ChatGPT and must not be reported as passed.
