@@ -44,6 +44,6 @@ After CI and review, inspect `me.result` and RequestGate correlation as the next
 - fast `me.result` доступен через `HasResult/Result`, отсутствие не смешивается с явным null;
 - `CoreGameplay.ReadResult` читает typed DTO, а не JObject;
 - `RequestGate` остаётся без изменений: серверный `me.result` — один последний ACK, клиент сопоставляет только один in-flight reqid, очередь не расширяется;
-- добавлены pure C# и Editor fixture checks.
+- добавлены pure C# и Editor fixture checks. Workflow run #43635516351: все 17 шагов PASS, включая отдельный action-result runner.
 
 Следующая typed-группа после этого PR — combat/foes, но только после точной сверки server view и приватности данных.
