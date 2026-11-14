@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client.Presentation;
+using Pogranichye.Client.Networking.Protocol;
 using UnityEngine;
 
 namespace Pogranichye.Client
@@ -121,15 +122,21 @@ namespace Pogranichye.Client
 
         // Mirror of Layout v2 POI anchors (metres, server x/y). Only used to decide which actions the
         // "Дела" window offers; the server validates the real position for every intent.
-        private static readonly Dictionary<string, Vector2> Poi = new Dictionary<string, Vector2>
+        // Legacy starter-layout anchors are used only when no server POI map is available.
+        private static readonly Dictionary<string, PoiCoordinate> Poi = new Dictionary<string, PoiCoordinate>
         {
-            { "tavern", new Vector2(-33f, 12f) }, { "smithy", new Vector2(29f, 14f) },
-            { "granary", new Vector2(-2f, 28f) }, { "market", new Vector2(1f, 4f) },
-            { "well", new Vector2(0f, -4f) }, { "hearth", new Vector2(33f, -32f) },
-            { "garden", new Vector2(70f, -20f) }, { "apiary", new Vector2(73.6f, -20.9f) },
-            { "river", new Vector2(0f, -74f) }, { "woods", new Vector2(-95f, 10f) },
-            { "mine", new Vector2(90f, 40f) }
+            { "tavern", new PoiCoordinate(-33d, 12d) }, { "smithy", new PoiCoordinate(29d, 14d) },
+            { "granary", new PoiCoordinate(-2d, 28d) }, { "market", new PoiCoordinate(1d, 4d) },
+            { "well", new PoiCoordinate(0d, -4d) }, { "hearth", new PoiCoordinate(33d, -32d) },
+            { "garden", new PoiCoordinate(70d, -20d) }, { "apiary", new PoiCoordinate(73.6d, -20.9d) },
+            { "river", new PoiCoordinate(0d, -74d) }, { "woods", new PoiCoordinate(-95d, 10d) },
+            { "mine", new PoiCoordinate(90d, 40d) }
         };
+
+        private WorldLayoutFrame _layout;
+        private readonly Dictionary<string, PoiCoordinate> _layoutPois = new Dictionary<string, PoiCoordinate>();
+        private bool _hasLayoutPois;
+        private bool _allowLegacyPoiFallback;
 
         private static readonly Dictionary<string, string> TakeAt = new Dictionary<string, string>
         {
@@ -515,6 +522,23 @@ namespace Pogranichye.Client
             _hudCollapsed = hudCollapsed;
             _player = player;
             _rig = rig;
+        }
+
+        /// <summary>Uses the current server Layout v2 POIs for local affordances; never changes server validation.</summary>
+        public void SetLayout(WorldLayoutFrame layout, bool allowLegacyPoiFallback)
+        {
+            if (ReferenceEquals(_layout, layout) && _allowLegacyPoiFallback == allowLegacyPoiFallback) return;
+            _layout = layout;
+            _allowLegacyPoiFallback = allowLegacyPoiFallback;
+            _layoutPois.Clear();
+            _hasLayoutPois = layout != null && layout.Pois != null;
+            if (!_hasLayoutPois) return;
+
+            foreach (var pair in layout.Pois)
+            {
+                if (pair.Value == null) continue;
+                _layoutPois[pair.Key] = new PoiCoordinate(pair.Value.X, pair.Value.Y);
+            }
         }
 
         /// <summary>Fast frames (?fast=N) carry only the body, combat state, feed and foes.</summary>
@@ -2385,10 +2409,13 @@ namespace Pogranichye.Client
 
         private bool Near(string poi, float radius)
         {
-            Vector2 anchor;
-            if (!Poi.TryGetValue(poi, out anchor)) return false;
             var pos = Obj(_me, "pos");
-            return pos != null && Vector2.Distance(new Vector2(Num(pos, "x"), Num(pos, "y")), anchor) <= radius;
+            if (pos == null || !PoiPositionPolicy.TryResolve(
+                poi, _layoutPois, Poi, _hasLayoutPois, _allowLegacyPoiFallback, out var anchor))
+                return false;
+
+            return PoiPositionPolicy.IsWithin(
+                Num(pos, "x"), Num(pos, "y"), anchor.X, anchor.Y, radius);
         }
 
         private static float Count(JObject bag, string key)
