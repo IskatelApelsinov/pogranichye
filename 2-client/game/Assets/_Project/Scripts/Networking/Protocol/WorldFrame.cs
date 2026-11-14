@@ -313,14 +313,6 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
-    public sealed class ActionResultFrame
-    {
-        [JsonProperty("reqid")] public string RequestId { get; set; }
-        [JsonProperty("ok")] public bool Ok { get; set; }
-        [JsonProperty("reason")] public string Reason { get; set; }
-    }
-
-    [Serializable]
     public sealed class IssuedErrandFrame
     {
         [JsonProperty("id")] public string Id { get; set; }
