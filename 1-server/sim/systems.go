@@ -25,6 +25,23 @@ const (
 	cityAtPop     = 24   // town → город (city)
 	hungerPerHour = 0.6
 	energyPerHour = 2.2
+
+	// Путь в разбой (comms: «обычные НПС становятся бандитами, если денег нет и заработать
+	// честно не выходит»). Срабатывает ТОЛЬКО на тех, у кого и так нет своего дома (как и уход
+	// «искать лучшей доли», mind.GoalLeave — терять им особо нечего), кто ТРУДИТСЯ (Wage() платит
+	// всегда — «не нашёл работу» не бывает), но из-за этого всё глубже в долгу рынку/общине.
+	// desperatePovertyDebt — порог долга (econ.MarketDebt), ниже которого день не считается
+	// «бедственным», даже без своего дома: небольшой перехват в кредит — обычное дело, не трагедия.
+	desperatePovertyDebt = 15.0
+	// desperateCashFloor — свои монеты должны быть почти на нуле, иначе это не нищета, а просто
+	// кто-то предпочитает ходить в долг рынку, имея заначку (другое дело).
+	desperateCashFloor = 2.0
+	// desperateDaysToSnap — сколько подряд таких дней нужно, прежде чем честный путь признаётся
+	// не сработавшим (не один неудачный день — СИСТЕМНАЯ нищета).
+	desperateDaysToSnap = 10
+	// desperateSnapChance — даже после desperateDaysToSnap решение не мгновенно-гарантированное:
+	// у каждого свой запас терпения, поэтому это шанс в день, а не щелчок на 10-й день у всех разом.
+	desperateSnapChance = 0.12
 )
 
 func sid(id core.ID) string { return strconv.FormatUint(uint64(id), 10) }
@@ -342,6 +359,40 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		w.Remove(id)                   // идентичность уходит из мира
 	}
 
+	// 1b) путь в разбой: бездомный труженик, что и работает, и всё глубже в долгу рынку
+	// (Wage() платит всегда — «не нашёл работу» не бывает; значит это ДОЛГ, а не безделье),
+	// рано или поздно решает, что честный путь не вышел (desperateDaysToSnap подряд дней,
+	// затем шанс desperateSnapChance в день — не щелчок у всех разом на одном и том же дне).
+	snap := hub.Stream("life", "bandit")
+	var snapped []core.ID
+	w.Each("vitals", func(e *core.Entity) {
+		v := core.Vitals(e)
+		if v == nil || v.Age < 16 {
+			return
+		}
+		mn := core.Mind(e)
+		if mn == nil {
+			return
+		}
+		home := core.Home(e)
+		pu := core.Purse(e)
+		// Player(e)!=nil защищает тело игрока (хоть бы и бывшего/вышедшего) — фон никогда
+		// не делает его враждебным без согласия.
+		desperate := home != nil && home.Status == "none" && Player(e) == nil &&
+			pu != nil && pu.Coins < desperateCashFloor && econ.MarketDebt(e) >= desperatePovertyDebt
+		if !desperate {
+			mn.DesperateDays = 0
+			return
+		}
+		mn.DesperateDays++
+		if mn.DesperateDays >= desperateDaysToSnap && snap.Chance(desperateSnapChance) {
+			snapped = append(snapped, e.ID)
+		}
+	})
+	for _, id := range snapped {
+		becomeBandit(w, day, id)
+	}
+
 	// 2) рождения и рост поселений. Жителей по деревням берём из ИНДЕКСА (один проход),
 	// а не сканируем мир на каждую деревню — иначе O(деревни × жители) на тысячах поселений.
 	byHome := residentIndex(w)
@@ -575,6 +626,52 @@ func recordNotableDeath(w *core.World, day int64, id core.ID) {
 	case v != nil && v.Age >= 60:
 		chronicle.Record(w, day, "смерть", "преставился старец "+name)
 	}
+}
+
+// becomeBandit — честный труд не вытащил из долга, своего дома всё равно нет (терять особо нечего —
+// как и у mind.GoalLeave): житель уходит из общины и берётся за разбой. Уважает уже сложившийся
+// баланс лихих людей в сцене — тот же живой потолок, что держит populateFoes (foeStats["bandit"].cap);
+// camp.Bandits (мягкая цель стана) НЕ трогаем — следующий тик её тут же обрежет клампом, это разный
+// счётчик. Если места в сцене пока нет — просто не в этот день; DesperateDays продолжит расти,
+// и попытка повторится на следующей проверке.
+func becomeBandit(w *core.World, day int64, id core.ID) {
+	e := w.Get(id)
+	if e == nil {
+		return
+	}
+	pl := core.Place(e)
+	if pl == nil || pl.Settlement == 0 {
+		return
+	}
+	se := w.Get(pl.Settlement)
+	if se == nil {
+		return
+	}
+	alive := 0
+	w.Each("foe", func(fe *core.Entity) {
+		if f := Foe(fe); f.Settlement == pl.Settlement && f.Species == "bandit" && f.State != "dead" {
+			alive++
+		}
+	})
+	st := foeStats["bandit"]
+	if alive >= st.cap {
+		return
+	}
+	who := core.Ident(e)
+	name := ""
+	if who != nil {
+		name = who.Name
+		if who.Surname != "" {
+			name += " " + who.Surname
+		}
+	}
+	x, y := foeSpot(LayoutOf(w, pl.Settlement), "bandit", pl.Settlement, alive)
+	w.Spawn(&FoeC{Species: "bandit", Settlement: pl.Settlement, X: x, Y: y, HomeX: x, HomeY: y,
+		HP: st.hp, Max: st.hp, State: "roam", WX: x, WY: y})
+	if name != "" {
+		chronicle.Record(w, day, "разбой", name+" подался в лихие люди — долг рынку не отпускал, а честный путь не вышел")
+	}
+	w.Remove(id)
 }
 
 // isFoodRole — ремесло, добывающее съестное (приносит часть добытого домой в закрома).

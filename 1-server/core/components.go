@@ -63,10 +63,14 @@ type MindC struct {
 	LastAct   string `json:"last_act"`   // человекочитаемый ИСХОД последнего действия (для показа)
 	ActCode   string `json:"act_code"`   // СТАБИЛЬНЫЙ машинный код подтверждённого занятия (для анимаций клиента)
 	// Internal A-Life routine state; persisted with the world, not exposed as a new wire field.
-	RoutineGoal string `json:"routine_goal,omitempty"`
-	RoutinePhase string `json:"routine_phase,omitempty"`
-	RoutineSince int64 `json:"routine_since,omitempty"`
-	RoutineProgress int64 `json:"routine_progress,omitempty"`
+	RoutineGoal     string `json:"routine_goal,omitempty"`
+	RoutinePhase    string `json:"routine_phase,omitempty"`
+	RoutineSince    int64  `json:"routine_since,omitempty"`
+	RoutineProgress int64  `json:"routine_progress,omitempty"`
+	// DesperateDays — подряд дней честного труда без своего дома, которые не вытащили из долга
+	// (см. sim.LifeSystem/becomeBandit): счётчик пути в разбой. Внутреннее состояние A-Life, как и
+	// Routine*-поля выше — тоже не новое проводное поле, лишь персистентность мира.
+	DesperateDays int64 `json:"desperate_days,omitempty"`
 }
 
 func (c *MindC) Kind() string { return "mind" }
@@ -146,7 +150,7 @@ type RegionC struct {
 	Biome string  `json:"biome"` // plain|forest|hills|coast|steppe
 	X     float64 `json:"x"`     // центр края на карте мира
 	Y     float64 `json:"y"`
-	Mana  float64 `json:"mana"` // базовая плотность маны края (места силы/мёртвые зоны); поселения наследуют её с разбросом
+	Mana  float64 `json:"mana"`  // базовая плотность маны края (места силы/мёртвые зоны); поселения наследуют её с разбросом
 	Outer bool    `json:"outer"` // край внешнего мира (за горами стартовой демо-зоны) — не home region
 }
 
