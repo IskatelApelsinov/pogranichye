@@ -357,12 +357,21 @@ func (s *Server) reserveBody(uid uint64) (core.ID, uint64, string) {
 	defer s.mu.Unlock()
 
 	var cid core.ID
-	if bound := s.acc.CharOf(uid); bound != 0 {
+	bound := s.acc.CharOf(uid)
+	if bound != 0 {
 		if e := s.world.Get(core.ID(bound)); e != nil && core.Ident(e) != nil {
 			cid = core.ID(bound)
 		}
 	}
 	if cid == 0 { // привязанного нет/умер — ищем свободного взрослого, не занятого другой сессией
+		// Диагностика бага «каждый раз другой персонаж» (comms 2026-11-14): если bound!=0, но тела
+		// нет в мире — либо персонаж правда умер/мир пересоздан с новым seed, либо world.sav не
+		// пережил перезапуск контейнера (см. комментарий у accounts.Store.save про права на /data).
+		// По одной строке в логе не отличить причину окончательно, но видно, что ИМЕННО это
+		// произошло — а не молчаливая подмена персонажа без следа.
+		if bound != 0 {
+			log.Printf("reserveBody: у пользователя %d было привязано тело %d, но его нет в мире — выдаю нового свободного взрослого (мир пересоздан/не загружен из сохранения?)", uid, bound)
+		}
 		s.world.Each("ident", func(e *core.Entity) {
 			if cid != 0 || s.ctl[e.ID] != 0 {
 				return
