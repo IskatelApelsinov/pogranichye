@@ -61,6 +61,7 @@ namespace Pogranichye.Client.Networking
                 if (me == null || me.Type != JTokenType.Object)
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
+                ActionResultFrameParser.Validate(me["result"], "me.result");
                 FeedFrameParser.Validate(me["feed"], "me.feed");
                 ValidateJournal(me["journal"], "me.journal");
                 ValidateWorldPosition(me["wpos"], "me.wpos");
