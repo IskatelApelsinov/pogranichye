@@ -454,8 +454,11 @@ namespace Pogranichye.Client
                 DrawChatOverlay();
             else
             {
-                DrawContextActions();
-                if (_activityMiniGame != ActivityMiniGame.None)
+                // Character journal is the sole gameplay-data surface while open.
+                // Do not stack contextual action cards underneath/over it.
+                if (_hudCollapsed)
+                    DrawContextActions();
+                if (_hudCollapsed && _activityMiniGame != ActivityMiniGame.None)
                 {
                     var miniWidth = Mathf.Min(420f, Screen.width - 24f);
                     GUILayout.BeginArea(new Rect((Screen.width - miniWidth) * 0.5f,
