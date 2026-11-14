@@ -109,3 +109,8 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 - Добавлен независимый C# regression runner и CI step; его компиляция включает Newtonsoft и `GameplayStatusView.cs`, так как fast parser теперь содержит оба typed patch вида.
 
 Код и документация объединены с immutable status view из PR #636 в консолидированный PR #638. Конкурирующие PR #635 и #636 закрываются как superseded; не сливать их отдельно. Wire v1 и сервер не менялись. Unity Editor/PlayMode не запускались.
+
+
+CI feedback — 2026-11-14:
+- First consolidated workflow run #43634905265: status-view checks passed; typed feed step failed at compile because `FeedFrameParser.cs` carried an unnecessary import of the DTO namespace, while the isolated test intentionally compiles only the parser dependencies.
+- Removed that unused import. This is a source fix; rerun result is pending. No Unity compile/PlayMode claim.
