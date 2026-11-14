@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client;
@@ -15,12 +16,18 @@ namespace Pogranichye.Client.Networking
         public JObject Me { get; }
         public JObject Place { get; }
         public GameplayStatusPatch Status { get; }
+        public bool HasFeed { get; }
+        public List<FeedEntryFrame> Feed { get; }
 
-        internal FastFramePatch(JObject me, JObject place, GameplayStatusPatch status)
+        internal FastFramePatch(
+            JObject me, JObject place, GameplayStatusPatch status,
+            bool hasFeed, List<FeedEntryFrame> feed)
         {
             Me = me;
             Place = place;
             Status = status;
+            HasFeed = hasFeed;
+            Feed = feed;
         }
     }
 
@@ -90,13 +97,16 @@ namespace Pogranichye.Client.Networking
             ValidateOptionalNumber(me, "me.energy");
             ValidateOptionalNumber(me, "me.mana");
             var status = ReadStatusPatch(me);
+            // Preserve absent-vs-explicit-null semantics for the server event stream.
+            var hasFeed = me != null && me.Property("feed") != null;
+            var feed = hasFeed ? FeedFrameParser.Parse(me["feed"], "me.feed") : null;
             ValidateOptionalArray(place, "place.neighbors");
             ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.exits");
             ValidateNeighborEntries(place);
             ValidateFoeEntries(place);
 
-            patch = new FastFramePatch(me, place, status);
+            patch = new FastFramePatch(me, place, status, hasFeed, feed);
             return true;
         }
 
