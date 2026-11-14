@@ -1464,10 +1464,10 @@ namespace Pogranichye.Client.Presentation
 
             var foam = MakeMaterial("Fresh beer foam", new Color(0.88f, 0.77f, 0.48f));
             if (_activeBuildAssets != null) _activeBuildAssets.Add(foam);
-            BuildWoodenTankard(root, table + new Vector3(-0.52f, 0.90f, 0f), foam, "Table tankard");
-            BuildWoodenTankard(root, table + new Vector3(0.48f, 0.90f, 0.12f), foam, "Second table tankard");
-            BuildWoodenTankard(root, counter + new Vector3(-width * 0.12f, 1.04f, 0f), foam, "Counter tankard");
-            BuildWoodenTankard(root, counter + new Vector3(width * 0.12f, 1.04f, 0f), foam, "Counter second tankard");
+            BuildWoodenTankard(root, table + new Vector3(-0.52f, 1.08f, 0f), foam, "Table tankard");
+            BuildWoodenTankard(root, table + new Vector3(0.48f, 1.08f, 0.12f), foam, "Second table tankard");
+            BuildWoodenTankard(root, counter + new Vector3(-width * 0.12f, 1.25f, 0f), foam, "Counter tankard");
+            BuildWoodenTankard(root, counter + new Vector3(width * 0.12f, 1.25f, 0f), foam, "Counter second tankard");
 
             Create("Tavern wall shelf", PrimitiveType.Cube, root,
                 new Vector3(width * 0.28f, 2.15f, depth * 0.47f), new Vector3(width * 0.34f, 0.12f, 0.55f), _trunk, false);
