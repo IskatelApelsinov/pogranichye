@@ -82,8 +82,6 @@ namespace Pogranichye.Client.Presentation
 
         private void SortHits(int count)
         {
-            // NonAlloc queries do not promise hit ordering. Insertion sort is cheap for the
-            // small fixed buffer and avoids per-frame allocations from RaycastAll/Array.Sort.
             for (var i = 1; i < count; i++)
             {
                 var value = _hits[i];
@@ -115,8 +113,6 @@ namespace Pogranichye.Client.Presentation
                     return true;
                 }
 
-                // Ignore triggers and non-blocking colliders; the first solid collider
-                // prevents selecting an NPC/POI behind a wall, building or closed door.
                 if (!collider.isTrigger) return false;
             }
             return false;
@@ -132,8 +128,6 @@ namespace Pogranichye.Client.Presentation
 
         private void OnGUI()
         {
-            // SetupPresentationScene may add this probe immediately before it adds the
-            // camera rig. Awake then runs while no rig exists, so lazily bind it here.
             if (_cameraRig == null)
                 _cameraRig = GetComponent<PresentationCameraRig>();
 
@@ -148,14 +142,15 @@ namespace Pogranichye.Client.Presentation
             var label = _poi != null
                 ? _poi.Title + "   [E]"
                 : "Поговорить: " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "житель" : _npc.DisplayName) + "   [E]";
-            var width = Mathf.Min(440f, Screen.width - 32f);
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.70f, width, 38f);
+            var width = ServerResultToast.WidthForScreen(Screen.width);
+            var height = Mathf.Max(40f, ServerResultToast.HeightForText(label, width));
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.70f, width, height);
             EnsurePromptStyle();
 
             var previousColor = GUI.color;
-            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.88f);
+            GUI.color = UiTextTokens.PanelBg;
             GUI.Box(rect, GUIContent.none);
-            GUI.color = new Color(0.96f, 0.88f, 0.70f, 1f);
+            GUI.color = UiTextTokens.PromptText;
             GUI.Label(rect, label, _promptStyle);
             GUI.color = previousColor;
         }
@@ -166,11 +161,12 @@ namespace Pogranichye.Client.Presentation
             _promptStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 15,
+                fontSize = UiTextTokens.Prompt,
                 fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Clip
+                wordWrap = true,
+                clipping = TextClipping.Overflow
             };
-            _promptStyle.normal.textColor = new Color(0.96f, 0.88f, 0.70f, 1f);
+            _promptStyle.normal.textColor = UiTextTokens.PromptText;
         }
 
         private static void DrawReticle(bool focused)
