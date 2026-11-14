@@ -2855,23 +2855,27 @@ namespace Pogranichye.Client
             GUILayout.Label("КАРТА КРАЯ (только то, где был и о чём слышал; путь идёт по трактам)");
             DrawRegion(hereId);
 
-            var stats = Obj(_me, "stats");
+            var stats = _stats;
             if (stats != null)
             {
                 GUILayout.Space(8f);
                 GUILayout.Label("КАКОВ ТЫ САМ (растёт от дела)");
-                GUILayout.Label("сила " + stats.Strength + "   ловкость " + stats.Agility + "   выносливость " + stats.Endurance
-                    + "   ум " + stats.Intellect + "   восприятие " + stats.Perception + "   воля " + stats.Will);
+                GUILayout.Label("сила " + stats.Strength.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   ловкость " + stats.Agility.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   выносливость " + stats.Endurance.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   ум " + stats.Intellect.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   восприятие " + stats.Perception.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   воля " + stats.Will.ToString("0.#", CultureInfo.InvariantCulture));
                 GUILayout.Label(Flag(Obj(_me, "weave"), "gift")
                     ? "В тебе есть дар: ум удержит и сложный узор."
                     : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
-                var drunk = _status == null ? 0f : _status.Drunk;
-                if (drunk > 0f) GUILayout.Label("Хмель: " + (int)drunk);
-                var bagInfo = _bag;
-                if (bagInfo != null)
-                    GUILayout.Label("Сума: " + (int)bagInfo.Load + " из " + (int)bagInfo.Capacity
-                        + (bagInfo.Overloaded ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
             }
+            var drunk = _status == null ? 0f : _status.Drunk;
+            if (drunk > 0f) GUILayout.Label("Хмель: " + (int)drunk);
+            var bagInfo = _bag;
+            if (bagInfo != null)
+                GUILayout.Label("Сума: " + (int)bagInfo.Load + " из " + (int)bagInfo.Capacity
+                    + (bagInfo.Overloaded ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
 
             GUILayout.Space(8f);
             GUILayout.Label("ЛОШАДЬ · покупка у конюха, верховая езда и уход");
