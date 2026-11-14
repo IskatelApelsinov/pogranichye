@@ -35,3 +35,15 @@ No Go server changes, wire fields, protocol version, intents, persistence, movem
 After CI and review, inspect `me.result` and RequestGate correlation as the next bounded typed slice. Do not change the one-slot server result semantics or invent an acknowledgement queue on the client.
 
 — End of 0234
+
+
+## Дополнение: me.result (2026-11-14)
+
+В PR #638 добавлен следующий ограниченный срез:
+- full `me.result` валидируется и попадает в `CharacterFrame.Result`;
+- fast `me.result` доступен через `HasResult/Result`, отсутствие не смешивается с явным null;
+- `CoreGameplay.ReadResult` читает typed DTO, а не JObject;
+- `RequestGate` остаётся без изменений: серверный `me.result` — один последний ACK, клиент сопоставляет только один in-flight reqid, очередь не расширяется;
+- добавлены pure C# и Editor fixture checks.
+
+Следующая typed-группа после этого PR — combat/foes, но только после точной сверки server view и приватности данных.
