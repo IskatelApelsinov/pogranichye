@@ -44,3 +44,10 @@
 ## Результат
 
 Внести аудит в `3-dev/docs/` или отдельный отчёт в `3-dev/audit/`, обновить это задание и указать, что именно было проверено. Кодовые изменения начинать после карты ответственности и выбора самого безопасного первого шага.
+
+
+## Промежуточный прогресс — 2026-11-14
+
+Создан source-level отчёт `3-dev/comms/0229-chatgpt-unity-client-audit-initial.md`. Уже подтверждены два крупных монолита (`VerticalSliceController` 3 927 строк, `CoreGameplay` 3 270 строк), двойной разбор full-frame/обход typed parser для fast-frame, смешение UI/streaming/lifecycle в controller и утечка неизвестных поселений/дорог на карте через streaming manifest (имена частично скрываются через `KnownPlaces`). Также подтверждены отдельные транспорт, parser, DTO, entity registry, layout cache и world-position projection.
+
+Задача остаётся `!В работе`: нужно дочитать все builders/typed DTO/intent paths и затем выбрать один минимальный безопасный клиентский шаг. Unity Editor/PlayMode не запускался.
