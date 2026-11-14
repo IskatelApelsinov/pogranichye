@@ -11,7 +11,6 @@ namespace Pogranichye.Client.Presentation
         private Renderer _renderer;
         private Camera _camera;
         private Vector3 _outwardNormal;
-        private const float MaxSignViewDistance = 32f;
         private const float OcclusionPadding = 0.12f;
 
         private void Awake()
@@ -39,9 +38,10 @@ namespace Pogranichye.Client.Presentation
             // never let it dominate the horizon or remain readable through buildings.
             var towardViewer = toCamera;
             towardViewer.y = 0f;
-            var visible = distance <= MaxSignViewDistance &&
+            var visible = WorldLabelVisibilityPolicy.IsWithinDistance(
+                    distance, WorldLabelVisibilityPolicy.SignMaxDistance) &&
                 towardViewer.sqrMagnitude > 0.0001f &&
-                Vector3.Dot(_outwardNormal, towardViewer.normalized) > 0.05f;
+                WorldLabelVisibilityPolicy.IsFacing(Vector3.Dot(_outwardNormal, towardViewer.normalized));
 
             if (visible)
             {
@@ -49,7 +49,7 @@ namespace Pogranichye.Client.Presentation
                 var rayDirection = toCamera / distance;
                 if (Physics.Raycast(rayOrigin, rayDirection, out var hit,
                     Mathf.Max(0f, distance - OcclusionPadding),
-                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                    WorldLabelVisibilityPolicy.OccluderMask, QueryTriggerInteraction.Ignore))
                     visible = false;
             }
 
