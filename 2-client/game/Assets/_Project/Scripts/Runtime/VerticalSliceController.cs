@@ -2944,15 +2944,23 @@ namespace Pogranichye.Client
 
         private void OnSocketMessage(WorldSocketClient socket, string json)
         {
-            // Light "fast" frames (requested with ?fast=N) are not full snapshots: they bypass the strict
-            // v1 snapshot parser and only refresh the combat layer.
-            if (CoreGameplay.IsFastFrame(json))
+            // Fast frames are explicit validated partial patches, never full snapshots.
+            // Malformed fast messages are dropped here and are not retried as v1 snapshots.
+            try
             {
-                Enqueue(() =>
+                if (FastFrameParser.TryParse(json, out var fastPatch))
                 {
-                    if (ReferenceEquals(_socket, socket) && _connectionState == WorldConnectionState.Active && _core != null)
-                        _core.ApplyFastFrame(json);
-                });
+                    Enqueue(() =>
+                    {
+                        if (ReferenceEquals(_socket, socket) && _connectionState == WorldConnectionState.Active && _core != null)
+                            _core.ApplyFastFrame(fastPatch);
+                    });
+                    return;
+                }
+            }
+            catch (FormatException ex)
+            {
+                Debug.LogWarning("[Pogranichye] Отклонён некорректный быстрый кадр: " + ex.Message);
                 return;
             }
 
