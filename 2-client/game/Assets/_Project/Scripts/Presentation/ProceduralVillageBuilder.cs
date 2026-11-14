@@ -4013,8 +4013,8 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 34;
-            text.characterSize = 0.055f;
+            text.fontSize = 42;
+            text.characterSize = 0.065f;
             text.color = Color.white;
             text.richText = false;
         }
