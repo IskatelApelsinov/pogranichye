@@ -1833,7 +1833,9 @@ namespace Pogranichye.Client.Presentation
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
             text.fontSize = 42;
-            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(8f, title.Length * 2.4f), 0.14f, 0.28f);
+            // TextMesh characterSize is measured in world units; keep lettering physically small.
+            // The former 0.14–0.28 range made distant signs dominate the camera and bloom into blobs.
+            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(18f, title.Length * 5.2f), 0.045f, 0.085f);
             text.color = new Color(1f, 0.88f, 0.62f);
             text.richText = false;
             var renderer = label.GetComponent<MeshRenderer>();
