@@ -1492,9 +1492,14 @@ namespace Pogranichye.Client.Presentation
                 position + new Vector3(0f, 0.205f, 0f), new Vector3(0.185f, 0.025f, 0.185f), _iron, false);
             Create(label + " • beer foam", PrimitiveType.Cylinder, root,
                 position + new Vector3(0f, 0.19f, 0f), new Vector3(0.145f, 0.012f, 0.145f), foam, false);
-            var handle = Create(label + " • handle", PrimitiveType.Cylinder, root,
-                position + new Vector3(0.155f, 0f, 0f), new Vector3(0.055f, 0.13f, 0.055f), _trunk, false);
-            handle.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            Create(label + " • handle outer", PrimitiveType.Cylinder, root,
+                position + new Vector3(0.205f, 0f, 0f), new Vector3(0.045f, 0.13f, 0.045f), _trunk, false);
+            for (var end = -1; end <= 1; end += 2)
+            {
+                var connector = Create(label + " • handle joint", PrimitiveType.Cylinder, root,
+                    position + new Vector3(0.155f, end * 0.105f, 0f), new Vector3(0.04f, 0.065f, 0.04f), _trunk, false);
+                connector.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
         }
 
         private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth)
