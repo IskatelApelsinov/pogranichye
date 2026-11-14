@@ -3196,8 +3196,8 @@ namespace Pogranichye.Client
             foreach (var node in nodes)
             {
                 var id = node.Id;
-                var x = node.X;
-                var y = node.Y;
+                var x = (float)node.X;
+                var y = (float)node.Y;
                 points[id] = new Vector2(x, y);
                 minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
                 minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
