@@ -1,5 +1,5 @@
 !В работе
-# 004 — Проверить typed status HUD и feed в Unity
+# 004 — Проверить typed status, feed, result, combat и foe views в Unity
 
 **Исполнитель:** владелец проекта  
 **Когда:** после merge консолидированного клиентского PR #638 в main и обновления локального checkout.  
@@ -7,7 +7,7 @@
 
 ## Цель
 
-Подтвердить в настоящем Unity Editor, что typed status/feed изменения компилируются, а full/fast protocol fixtures проходят.
+Подтвердить в настоящем Unity Editor, что typed status/feed/result/combat/foe изменения компилируются, а full/fast protocol fixtures проходят.
 
 ## Шаги
 
@@ -15,7 +15,7 @@
 2. Открыть `2-client/game` в Unity **6000.6.7f1** (URP).
 3. Дождаться окончания импорта и проверить Console на compile errors.
 4. Выполнить меню `Tools → Pogranichye → Validate shared v1 fixture`.
-5. Убедиться, что в Console есть сообщение об успешной проверке full/fast frame parser и typed feed; ошибок и исключений нет.
+5. Убедиться, что в Console есть сообщение об успешной проверке full/fast frame parser, typed feed, result, combat и foes; ошибок и исключений нет.
 6. Запустить Play Mode с совместимым Go server:
    - войти в персонажа;
    - проверить health, stamina, mana и intoxication indicators, если значения присутствуют;
@@ -31,7 +31,7 @@
 - Версия Unity Editor.
 - Результат компиляции (успех/ошибка).
 - Результат fixture menu (успех/ошибка).
-- Play Mode: status indicators стабильны? Feed events показываются один раз?
+- Play Mode: status indicators стабильны? Feed events показываются один раз? Result reqid корректно сопоставляется? Combat/foe presentation совпадает с server frame?
 - При ошибке — Console log и, если возможно, F3 diagnostic dump.
 
 ## Ограничения
@@ -40,4 +40,4 @@
 - Не считать успешный fixture menu доказательством полной готовности демо.
 - Не ставить `!Выполнено` до выполнения всех доступных шагов; если Play Mode недоступен — оставить задачу в работе и указать блокировку.
 
-**Следующий владелец:** ChatGPT — разбор ошибок и следующий typed consumer slice (`me.result`).
+**Следующий владелец:** ChatGPT — source audit and typed migration of `me.journey` / `me.quests`.
