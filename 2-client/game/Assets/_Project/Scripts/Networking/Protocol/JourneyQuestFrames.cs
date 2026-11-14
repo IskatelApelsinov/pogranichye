@@ -135,7 +135,7 @@ namespace Pogranichye.Client.Networking
             var array = token as JArray;
             if (array == null) throw new FormatException(path + " должен быть массивом строк.");
             for (var i = 0; i < array.Count; i++)
-                if (array[i].Type != JTokenType.String)
+                if (array[i] == null || array[i].Type != JTokenType.String)
                     throw new FormatException(path + "[" + i + "] должен быть строкой.");
         }
     }
