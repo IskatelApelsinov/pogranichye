@@ -136,3 +136,14 @@ CI feedback — 2026-11-14:
 - Добавлены pure C# parser tests и full-frame Editor fixture cases. Сервер/wire v1 не менялись.
 
 Workflow run #43636660993 — **все 18 шагов PASS**, включая typed status/feed/result/combat/foe runners и остальные client regression checks. Unity Editor/PlayMode не запускались.
+
+
+## Current status — 2026-11-14 (supersedes earlier next-owner notes)
+
+- Consolidated PR #638 is open and ready for review; overlapping PR #635/#636 are closed as superseded. PR #638 has no server/wire changes.
+- Typed consumers now include status HUD, `me.feed[]`, `me.result`, `me.combat`, and `place.foes[]`; full and fast frames keep explicit presence/null semantics.
+- Latest CI run #43636660993 passed all 18 steps, including dedicated typed status/feed/result/combat/foe regression runners.
+- Remaining character DTO gaps include journey/quests, inventory/horse/bag/stats/region/recipes/party/card-game; remaining settlement gaps include exits/site/market/stable/tavern counter.
+- Next bounded source audit: `me.journey` and `me.quests`, including exact null/privacy/sequence semantics, then one typed read-only consumer migration.
+- Unity 6000.6.7f1 compile, Editor fixture menu and PlayMode are still unverified; see `task_human/004` after PR #638 is merged.
+
