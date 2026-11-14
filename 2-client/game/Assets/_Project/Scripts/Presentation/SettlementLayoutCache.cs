@@ -20,8 +20,10 @@ namespace Pogranichye.Client.Presentation
             public float LastUsed;
         }
 
-        private const int Capacity = 3;
-        private const double VisibleDistance = 700d;
+        // Keep a small ring of settlements ready ahead of the player. Geometry is compact,
+        // but the cache remains bounded so an expanding frontier cannot grow client memory forever.
+        private const int Capacity = 12;
+        private const double VisibleDistance = 1050d;
         private readonly Transform _parent;
         private readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry>(StringComparer.Ordinal);
         private bool _disposed;
@@ -29,6 +31,15 @@ namespace Pogranichye.Client.Presentation
         public SettlementLayoutCache(Transform parent)
         {
             _parent = parent;
+        }
+
+        public bool Contains(string settlementId)
+        {
+            if (_disposed || string.IsNullOrEmpty(settlementId) ||
+                !_entries.TryGetValue(settlementId, out var entry))
+                return false;
+            entry.LastUsed = Time.unscaledTime;
+            return true;
         }
 
         public bool TryGet(string settlementId, WorldFrame frame, out WorldLayoutFrame layout)
