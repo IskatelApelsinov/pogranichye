@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using Pogranichye.Client.Networking;
+using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -74,6 +75,7 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldV119Dtos();
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
+                ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
             catch (Exception ex)
@@ -117,6 +119,32 @@ namespace Pogranichye.Client.Editor
             catch (FormatException) { return; }
 
             throw new FormatException("Fast frame parser unexpectedly accepted invalid case: " + caseName);
+        }
+
+        private static void ValidateGameplayStatusView(WorldFrame frame)
+        {
+            var full = GameplayStatusView.From(
+                frame.Me.Health, frame.Me.Energy, frame.Me.Mana, frame.Me.Drunk,
+                frame.Me.Position == null ? 0d : frame.Me.Position.Stamina);
+
+            const string partialJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":47,\"pos\":{\"stam\":0.25}}}";
+            if (!FastFrameParser.TryParse(partialJson, out var partialPatch))
+                throw new FormatException("A valid typed status fast patch was not recognized.");
+            var partial = full.Apply(partialPatch.Status);
+            if (partial.Health != 47f || partial.Energy != full.Energy || partial.Mana != full.Mana ||
+                partial.Drunk != full.Drunk || Math.Abs(partial.Stamina - 0.25f) > 0.0001f)
+                throw new FormatException("A partial fast status patch must update only present fields.");
+
+            const string nullJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":null,\"pos\":null}}";
+            if (!FastFrameParser.TryParse(nullJson, out var nullPatch))
+                throw new FormatException("A fast status patch with explicit nulls was not recognized.");
+            var cleared = partial.Apply(nullPatch.Status);
+            if (cleared.Health != 0f || cleared.Stamina != 0f ||
+                cleared.Energy != partial.Energy || cleared.Mana != partial.Mana || cleared.Drunk != partial.Drunk)
+                throw new FormatException("Explicit nulls must clear replaced numeric values without erasing omitted fields.");
+
+            if (Math.Abs(full.Drunk - (float)frame.Me.Drunk) > 0.0001f)
+                throw new FormatException("Full-frame me.drunk must remain available to the typed status view.");
         }
 
         private static void ValidateNegativeCases()
