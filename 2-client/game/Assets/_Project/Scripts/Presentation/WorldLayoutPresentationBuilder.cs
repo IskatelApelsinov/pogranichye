@@ -1403,37 +1403,103 @@ namespace Pogranichye.Client.Presentation
 
         private static void BuildTavernInterior(Transform root, float width, float depth, float wallHeight)
         {
-            // Warm, readable first-pass interior. Props have no gameplay colliders; server owns movement.
+            // Presentation-only dressing. Keep the centre aisle and server-owned doorway clear.
             Create("Tavern packed-earth floor", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.12f, 0f), new Vector3(width - 2.5f, 0.12f, depth - 2.5f), _road, false);
-            Create("Tavern hearth glow", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.28f, 0.65f, depth * 0.30f), new Vector3(1.8f, 0.12f, 1.1f), _iron, false);
+
+            var hearth = new Vector3(-width * 0.28f, 0f, depth * 0.30f);
             Create("Hearth stone surround", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.28f, 0.48f, depth * 0.30f), new Vector3(2.4f, 0.65f, 1.4f), _stone, false);
-            // Back counter and three stools, leaving a clear central aisle from the door.
+                hearth + new Vector3(0f, 0.48f, 0f), new Vector3(2.4f, 0.65f, 1.4f), _stone, false);
+            Create("Hearth iron grate", PrimitiveType.Cube, root,
+                hearth + new Vector3(0f, 0.82f, 0f), new Vector3(1.55f, 0.10f, 0.92f), _iron, false);
+
+            var ember = MakeMaterial("Tavern ember • emissive", new Color(1f, 0.22f, 0.035f));
+            if (ember.HasProperty("_EmissionColor"))
+            {
+                ember.EnableKeyword("_EMISSION");
+                ember.SetColor("_EmissionColor", new Color(2.8f, 0.34f, 0.035f, 1f));
+            }
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(ember);
+            Create("Hearth ember bed", PrimitiveType.Cube, root,
+                hearth + new Vector3(0f, 0.91f, 0f), new Vector3(1.35f, 0.08f, 0.72f), ember, false);
+            var flameA = Create("Hearth flame • low", PrimitiveType.Sphere, root,
+                hearth + new Vector3(-0.24f, 1.12f, 0f), new Vector3(0.30f, 0.58f, 0.26f), ember, false);
+            flameA.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+            var flameB = Create("Hearth flame • high", PrimitiveType.Sphere, root,
+                hearth + new Vector3(0.18f, 1.20f, 0.06f), new Vector3(0.24f, 0.72f, 0.22f), ember, false);
+            flameB.transform.localRotation = Quaternion.Euler(0f, 0f, 10f);
+            var fireLightObject = new GameObject("Hearth warm point light");
+            fireLightObject.transform.SetParent(root, false);
+            fireLightObject.transform.localPosition = hearth + new Vector3(0f, 1.65f, -0.12f);
+            var fireLight = fireLightObject.AddComponent<Light>();
+            fireLight.type = LightType.Point;
+            fireLight.color = new Color(1f, 0.55f, 0.28f);
+            fireLight.intensity = 1.35f;
+            fireLight.range = Mathf.Clamp(Mathf.Max(width, depth) * 0.8f, 5f, 9f);
+            fireLight.shadows = LightShadows.None;
+
+            // Back counter and three benches leave a readable path from the entrance.
+            var counter = new Vector3(width * 0.25f, 0f, depth * 0.28f);
             Create("Tavern serving counter", PrimitiveType.Cube, root,
-                new Vector3(width * 0.25f, 0.92f, depth * 0.28f), new Vector3(width * 0.42f, 0.22f, 1.15f), _timber, false);
+                counter + new Vector3(0f, 0.92f, 0f), new Vector3(width * 0.42f, 0.22f, 1.15f), _timber, false);
             Create("Counter front timber", PrimitiveType.Cube, root,
-                new Vector3(width * 0.25f, 0.48f, depth * 0.28f), new Vector3(width * 0.42f, 0.72f, 0.12f), _trunk, false);
+                counter + new Vector3(0f, 0.48f, -0.48f), new Vector3(width * 0.42f, 0.72f, 0.12f), _trunk, false);
             for (var i = 0; i < 3; i++)
             {
                 var x = -width * 0.30f + i * width * 0.30f;
                 Create("Tavern bench", PrimitiveType.Cube, root,
                     new Vector3(x, 0.52f, -depth * 0.02f), new Vector3(1.75f, 0.16f, 0.42f), _timber, false);
-                Create("Tavern bench legs", PrimitiveType.Cube, root,
-                    new Vector3(x, 0.28f, -depth * 0.02f), new Vector3(1.45f, 0.42f, 0.12f), _trunk, false);
+                for (var leg = -1; leg <= 1; leg += 2)
+                    Create("Tavern bench leg", PrimitiveType.Cube, root,
+                        new Vector3(x + leg * 0.68f, 0.28f, -depth * 0.02f), new Vector3(0.13f, 0.42f, 0.38f), _trunk, false);
             }
+
+            var table = new Vector3(-width * 0.22f, 0f, -depth * 0.30f);
             Create("Tavern table", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.22f, 0.78f, -depth * 0.30f), new Vector3(2.4f, 0.16f, 1.3f), _timber, false);
+                table + new Vector3(0f, 0.78f, 0f), new Vector3(2.4f, 0.16f, 1.3f), _timber, false);
             for (var side = -1; side <= 1; side += 2)
+            for (var end = -1; end <= 1; end += 2)
                 Create("Tavern table leg", PrimitiveType.Cube, root,
-                    new Vector3(-width * 0.22f + side * 0.85f, 0.40f, -depth * 0.30f), new Vector3(0.14f, 0.75f, 0.14f), _trunk, false);
-            Create("Tavern mug", PrimitiveType.Cylinder, root,
-                new Vector3(-width * 0.22f, 0.98f, -depth * 0.30f), new Vector3(0.22f, 0.20f, 0.22f), _straw, false);
-            Create("Tavern mug handle", PrimitiveType.Cylinder, root,
-                new Vector3(-width * 0.22f + 0.22f, 0.98f, -depth * 0.30f), new Vector3(0.08f, 0.14f, 0.08f), _iron, false);
+                    table + new Vector3(side * 0.88f, 0.40f, end * 0.43f), new Vector3(0.16f, 0.75f, 0.16f), _trunk, false);
+
+            var foam = MakeMaterial("Fresh beer foam", new Color(0.88f, 0.77f, 0.48f));
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(foam);
+            BuildWoodenTankard(root, table + new Vector3(-0.52f, 1.08f, 0f), foam, "Table tankard");
+            BuildWoodenTankard(root, table + new Vector3(0.48f, 1.08f, 0.12f), foam, "Second table tankard");
+            BuildWoodenTankard(root, counter + new Vector3(-width * 0.12f, 1.25f, 0f), foam, "Counter tankard");
+            BuildWoodenTankard(root, counter + new Vector3(width * 0.12f, 1.25f, 0f), foam, "Counter second tankard");
+
             Create("Tavern wall shelf", PrimitiveType.Cube, root,
                 new Vector3(width * 0.28f, 2.15f, depth * 0.47f), new Vector3(width * 0.34f, 0.12f, 0.55f), _trunk, false);
+            // A pair of casks gives the serving corner a clear tavern silhouette.
+            for (var i = 0; i < 2; i++)
+            {
+                var cask = new Vector3(-width * 0.36f + i * 0.82f, 0.62f, depth * 0.34f);
+                Create("Tavern oak cask", PrimitiveType.Cylinder, root, cask,
+                    new Vector3(0.38f, 0.62f, 0.38f), _timber, false);
+                Create("Cask iron hoop lower", PrimitiveType.Cylinder, root, cask + new Vector3(0f, -0.30f, 0f),
+                    new Vector3(0.395f, 0.035f, 0.395f), _iron, false);
+                Create("Cask iron hoop upper", PrimitiveType.Cylinder, root, cask + new Vector3(0f, 0.30f, 0f),
+                    new Vector3(0.395f, 0.035f, 0.395f), _iron, false);
+            }
+        }
+
+        private static void BuildWoodenTankard(Transform root, Vector3 position, Material foam, string label)
+        {
+            Create(label + " • wooden body", PrimitiveType.Cylinder, root,
+                position, new Vector3(0.18f, 0.22f, 0.18f), _timber, false);
+            Create(label + " • iron rim", PrimitiveType.Cylinder, root,
+                position + new Vector3(0f, 0.205f, 0f), new Vector3(0.185f, 0.025f, 0.185f), _iron, false);
+            Create(label + " • beer foam", PrimitiveType.Cylinder, root,
+                position + new Vector3(0f, 0.19f, 0f), new Vector3(0.145f, 0.012f, 0.145f), foam, false);
+            Create(label + " • handle outer", PrimitiveType.Cylinder, root,
+                position + new Vector3(0.205f, 0f, 0f), new Vector3(0.045f, 0.13f, 0.045f), _trunk, false);
+            for (var end = -1; end <= 1; end += 2)
+            {
+                var connector = Create(label + " • handle joint", PrimitiveType.Cylinder, root,
+                    position + new Vector3(0.155f, end * 0.105f, 0f), new Vector3(0.04f, 0.065f, 0.04f), _trunk, false);
+                connector.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            }
         }
 
         private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth)
