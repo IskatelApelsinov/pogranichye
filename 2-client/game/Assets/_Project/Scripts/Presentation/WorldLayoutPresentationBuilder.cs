@@ -2088,7 +2088,7 @@ namespace Pogranichye.Client.Presentation
                 var nx = pixel.r / 127.5f - 1f;
                 var ny = pixel.g / 127.5f - 1f;
                 var nz = Mathf.Sqrt(Mathf.Max(0f, 1f - nx * nx - ny * ny));
-                normalPixels[i] = new Color32(pixel.r, pixel.g, (byte)Mathf.RoundToInt(nz * 255f), 255);
+                // Store X in both R and A: URP can unpack RG normals or DXT5nm-style AG normals.\n                normalPixels[i] = new Color32(pixel.r, pixel.g, (byte)Mathf.RoundToInt(nz * 255f), pixel.r);
                 aoPixels[i] = new Color32(pixel.b, pixel.b, pixel.b, 255);
                 glossPixels[i] = new Color32(0, 0, 0, (byte)(255 - pixel.a));
             }
