@@ -31,7 +31,7 @@ No Go server changes, wire fields, protocol version, intents, persistence, movem
 
 ## Next
 
-After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bounded typed slice. Preserve server-owned journey progression and quest outcomes; do not simulate completion locally.
+Journey/quests are covered by stacked PR #639. Next inspect inventory/horse/bag/stats; preserve server-owned inventory and mount outcomes, and never predict purchase, mounting or item use locally.
 
 — End of 0234
 
@@ -58,24 +58,3 @@ After PR #638 review/merge, inspect `me.journey` and `me.quests` as the next bou
 - pure C# и Editor fixture regression checks. Workflow run #43636660993: все 18 шагов PASS, включая отдельный combat/foe runner.
 
 Следующий кандидат после этого среза — journey/quests, затем inventory/horse и settlement market/site/exits.
-
-
-## Дополнение: typed journey и quests (2026-11-14)
-
-В текущем продолжении PR #638:
-- добавлены JourneyFrame/RoadEventFrame и валидатор для nullable me.journey;
-- добавлены QuestListFrame/QuestOfferFrame/ActiveQuestFrame для me.quests, с учётом Go omitempty в offers;
-- CoreGameplay использует typed journey для road UI/input и typed active quest для компактного tracker;
-- подробная панель «Дела» пока оставлена на JObject до отдельной миграции;
-- pure C# runner и Editor fixture cases добавлены; workflow #43637296564 — все 20 шагов PASS, включая typed journey/quest runner.
-
-Следующий кандидат — detailed quest panel; затем inventory/horse.
-
-
-## Дополнение: detailed quest panel
-
-В PR #638 также переведена подробная панель «Дела» с JObject на QuestListFrame:
-- offers и active списки, счётчики done/rep, giver/via, монеты, ready и прогресс читаются из typed DTO;
-- accept/turnin/drop intents оставлены без изменений; клиент не предсказывает выполнение/награду;
-- raw selectors me.journey/me.quests в CoreGameplay отсутствуют.
-Новый workflow запускается после последнего изменения CoreGameplay.
