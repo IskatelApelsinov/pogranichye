@@ -2812,6 +2812,8 @@ namespace Pogranichye.Client
             // Cache keys are settlement IDs, not world/session IDs. Never reuse roots from
             // a previous login: another seed/account may reuse the same settlement ID.
             _layoutCache?.Clear();
+            _worldManifest = null;
+            _worldMapCachedManifest = null;
             _prototypeSettlementId = null;
             _layoutSettlementId = null;
             _layout = null;
@@ -3572,7 +3574,7 @@ namespace Pogranichye.Client
         private void UpdateWorldStreaming()
         {
             if (_connectionState != WorldConnectionState.Active || _frame?.Me?.WorldPosition == null ||
-                !_frame.Me.WorldPosition.IsValid || _frame.Place?.Anchor == null || _worldManifest == null)
+                !_frame.Me.WorldPosition.IsValid || _frame.Place?.Anchor == null)
                 return;
 
             if (!_worldManifestRefreshInFlight && Time.unscaledTime >= _nextWorldManifestRefreshAt)
@@ -3581,7 +3583,8 @@ namespace Pogranichye.Client
                 _ = RefreshWorldManifestAsync(_worldManifestGeneration);
             }
 
-            PrefetchNearbySettlementLayouts(_frame, _worldManifest);
+            if (_worldManifest != null)
+                PrefetchNearbySettlementLayouts(_frame, _worldManifest);
         }
 
         private async Task RefreshWorldManifestAsync(int generation)
@@ -3629,7 +3632,7 @@ namespace Pogranichye.Client
                 var dx = settlement.East - player.East;
                 var dz = settlement.North - player.North;
                 if (dx * dx + dz * dz > radiusSquared) continue;
-                if (_layoutCache.TryGet(settlement.Id, frame, out _)) continue;
+                if (_layoutCache.Contains(settlement.Id)) continue;
                 if (_layoutPrefetchInFlight.Contains(settlement.Id)) continue;
                 if (_layoutPrefetchRetryAfter.TryGetValue(settlement.Id, out var retryAt) &&
                     Time.unscaledTime < retryAt) continue;
