@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Build a tileable authored packed-earth PBR set for Pogranichye.
+"""Build an authored, tileable packed-earth PBR set for Pogranichye.
 
 Requirements: Python 3.10+, Pillow, NumPy, OpenCV (opencv-python).
 Run from the repository root:
   python 2-client/art-source/textures/build_packed_road_material.py
 
-The source image is an original generated artwork. The script repairs the
-opposite-edge seam, writes a 1024px tileable albedo, and derives consistent
-tangent-space normal, roughness and AO maps. URP smoothness (1 - roughness) is
-stored in the linear alpha channel of the albedo texture.
+The source is original generated artwork. The seam repair uses feathered,
+interior texture patches rather than a blurred/inpainted border band. Normal,
+roughness and AO are derived from the same periodic detail field. URP
+smoothness (1 - roughness) is packed into the linear albedo alpha channel.
 """
 from pathlib import Path
 import json
@@ -22,23 +22,65 @@ ROOT = HERE.parents[2]
 SOURCE = HERE / "packed_road_source.jpg"
 OUT = ROOT / "2-client" / "game" / "Assets" / "Resources" / "WorldMaterials" / "Textures"
 SIZE = 1024
+SEAM_BAND = 96
+SEAM_FEATHER = 40
+
+
+def _feather_weights(length: int, feather: int) -> np.ndarray:
+    weights = np.ones(length, dtype=np.float32)
+    feather = min(feather, length // 2)
+    if feather <= 0:
+        return weights
+    ramp = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, feather, dtype=np.float32))
+    weights[:feather] = ramp
+    weights[-feather:] = ramp[::-1]
+    return weights
 
 
 def tileable_rgb(source: Image.Image) -> np.ndarray:
-    rgb = np.asarray(source.convert("RGB").resize((SIZE, SIZE), Image.Resampling.LANCZOS))
-    # Move the original four borders to the centre and heal the cross seam.
-    shifted = np.roll(rgb, shift=(SIZE // 2, SIZE // 2), axis=(0, 1))
-    mask = np.zeros((SIZE, SIZE), dtype=np.uint8)
-    half = 4
-    c = SIZE // 2
-    mask[:, c - half:c + half] = 255
-    mask[c - half:c + half, :] = 255
-    healed = cv2.inpaint(shifted, mask, 10, cv2.INPAINT_TELEA)
-    return np.roll(healed, shift=(-SIZE // 2, -SIZE // 2), axis=(0, 1))
+    """Move source borders to the centre, then replace seams with soft interior patches.
+
+    Inpainting produced a low-detail dark band on this particular artwork.
+    A deterministic patch blend keeps real pebbles/soil detail crossing the
+    repeat boundary; the feathered patch edges are far enough from the seam.
+    """
+    rgb = np.asarray(source.convert("RGB").resize(
+        (SIZE, SIZE), Image.Resampling.LANCZOS
+    ))
+    shifted = np.roll(rgb, shift=(SIZE // 2, SIZE // 2), axis=(0, 1)).astype(np.float32)
+    center = SIZE // 2
+    band = SEAM_BAND
+    weights = _feather_weights(2 * band, SEAM_FEATHER)
+
+    # Vertical seam: use a continuous strip from an interior source location.
+    source_x = SIZE // 4
+    source_columns = (np.arange(source_x - band, source_x + band) % SIZE)
+    destination_columns = np.arange(center - band, center + band)
+    vertical_patch = shifted[:, source_columns, :].copy()
+    shifted[:, destination_columns, :] = (
+        shifted[:, destination_columns, :] * (1.0 - weights[None, :, None])
+        + vertical_patch * weights[None, :, None]
+    )
+
+    # Horizontal seam is sampled after the vertical repair so the cross remains
+    # continuous in both directions.
+    source_y = (SIZE * 3) // 4
+    source_rows = (np.arange(source_y - band, source_y + band) % SIZE)
+    destination_rows = np.arange(center - band, center + band)
+    horizontal_patch = shifted[source_rows, :, :].copy()
+    shifted[destination_rows, :, :] = (
+        shifted[destination_rows, :, :] * (1.0 - weights[:, None, None])
+        + horizontal_patch * weights[:, None, None]
+    )
+
+    return np.roll(
+        np.clip(shifted, 0.0, 255.0).astype(np.uint8),
+        shift=(-SIZE // 2, -SIZE // 2), axis=(0, 1)
+    )
 
 
 def gaussian_wrap(field: np.ndarray, sigma: float) -> np.ndarray:
-    # Filtering a 3x3 repeat and cropping the centre gives periodic boundaries.
+    # Filter a 3x3 repeated field, then crop its centre to preserve periodic edges.
     tiled = np.tile(field, (3, 3))
     blurred = cv2.GaussianBlur(tiled, (0, 0), sigmaX=sigma, sigmaY=sigma)
     return blurred[SIZE:2 * SIZE, SIZE:2 * SIZE]
@@ -56,7 +98,7 @@ def main() -> None:
     albedo = tileable_rgb(Image.open(SOURCE))
     rgb = albedo.astype(np.float32) / 255.0
 
-    # Luminance is used only as a fine relief guide, not as a fake colour-to-height conversion.
+    # Fine and medium luminance relief follows pebbles and compacted soil texture.
     gray = 0.2126 * rgb[:, :, 0] + 0.7152 * rgb[:, :, 1] + 0.0722 * rgb[:, :, 2]
     hp_medium = gray - gaussian_wrap(gray, 3.0)
     hp_fine = gray - gaussian_wrap(gray, 0.8)
@@ -66,15 +108,17 @@ def main() -> None:
     dy = (np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)) * 0.5
     strength = 4.5
     nx = -dx * strength
-    ny = dy * strength  # PNG rows run down; tangent-space +Y runs up.
+    ny = dy * strength  # Image rows run down; tangent-space +Y runs up.
     nz = np.ones_like(nx)
     inv_len = 1.0 / np.sqrt(nx * nx + ny * ny + nz * nz)
-    normal = np.stack((0.5 + 0.5 * nx * inv_len,
-                       0.5 + 0.5 * ny * inv_len,
-                       0.5 + 0.5 * nz * inv_len), axis=-1)
-    Image.fromarray(np.clip(normal * 255.0 + 0.5, 0, 255).astype(np.uint8), mode="RGB").save(
-        OUT / "packed_road_normal.png", format="PNG", optimize=True
-    )
+    normal = np.stack((
+        0.5 + 0.5 * nx * inv_len,
+        0.5 + 0.5 * ny * inv_len,
+        0.5 + 0.5 * nz * inv_len
+    ), axis=-1)
+    Image.fromarray(
+        np.clip(normal * 255.0 + 0.5, 0, 255).astype(np.uint8), mode="RGB"
+    ).save(OUT / "packed_road_normal.png", format="PNG", optimize=True)
 
     local_detail = gray - gaussian_wrap(gray, 2.0)
     pebble = np.clip((local_detail - 0.018) / 0.13, 0.0, 1.0)
@@ -90,18 +134,27 @@ def main() -> None:
 
     # URP Lit reads smoothness from BaseMap alpha when _SmoothnessTextureChannel = 1.
     smoothness = np.clip(1.0 - roughness, 0.02, 0.24)
-    albedo_rgba = np.dstack((albedo, np.clip(smoothness * 255.0 + 0.5, 0, 255).astype(np.uint8)))
+    albedo_rgba = np.dstack((
+        albedo, np.clip(smoothness * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    ))
     Image.fromarray(albedo_rgba, mode="RGBA").save(
         OUT / "packed_road_albedo.png", format="PNG", optimize=True
     )
 
     edge_x = np.abs(albedo[:, 0].astype(np.int16) - albedo[:, -1].astype(np.int16))
     edge_y = np.abs(albedo[0].astype(np.int16) - albedo[-1].astype(np.int16))
+    interior_x = np.abs(albedo[:, 1:].astype(np.int16) - albedo[:, :-1].astype(np.int16))
+    interior_y = np.abs(albedo[1:, :].astype(np.int16) - albedo[:-1, :].astype(np.int16))
+    seam_x_mean = float(edge_x.mean())
+    seam_y_mean = float(edge_y.mean())
+    interior_x_mean = float(interior_x.mean())
+    interior_y_mean = float(interior_y.mean())
     report = {
         "name": "Pogranichye authored packed earth",
-        "version": 1,
+        "version": 2,
         "resolution": [SIZE, SIZE],
         "tileable": True,
+        "seam_method": "feathered interior patch blend",
         "source": "2-client/art-source/textures/packed_road_source.jpg",
         "maps": {
             "albedo": "packed_road_albedo.png",
@@ -125,16 +178,20 @@ def main() -> None:
             "wrap": "Repeat",
             "mipmaps": True
         },
-        "edge_difference": {
-            "horizontal_mean_rgb_levels": round(float(edge_x.mean()), 4),
-            "vertical_mean_rgb_levels": round(float(edge_y.mean()), 4),
-            "horizontal_max_rgb_levels": int(edge_x.max()),
-            "vertical_max_rgb_levels": int(edge_y.max())
+        "edge_continuity": {
+            "horizontal_seam_mean_rgb_levels": round(seam_x_mean, 4),
+            "vertical_seam_mean_rgb_levels": round(seam_y_mean, 4),
+            "horizontal_interior_mean_rgb_levels": round(interior_x_mean, 4),
+            "vertical_interior_mean_rgb_levels": round(interior_y_mean, 4),
+            "horizontal_seam_to_interior_ratio": round(seam_x_mean / max(interior_x_mean, 1e-6), 4),
+            "vertical_seam_to_interior_ratio": round(seam_y_mean / max(interior_y_mean, 1e-6), 4)
         }
     }
-    (OUT / "packed_road_material.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print("Wrote 4 packed-road PBR maps (smoothness in albedo alpha) to", OUT)
-    print("Albedo edge differences (mean RGB levels):", report["edge_difference"])
+    (OUT / "packed_road_material.json").write_text(
+        json.dumps(report, indent=2), encoding="utf-8"
+    )
+    print("Generated packed-road PBR maps in", OUT)
+    print("Edge continuity:", report["edge_continuity"])
 
 
 if __name__ == "__main__":
