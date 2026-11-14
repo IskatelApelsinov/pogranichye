@@ -87,8 +87,17 @@ namespace Pogranichye.Client.Editor
         {
             const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
-                patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null)
-                throw new FormatException("Valid partial fast frame was not parsed.");
+                patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null ||
+                !patch.HasHealth || patch.Health != 91d || !patch.HasMana || patch.Mana != 34d)
+                throw new FormatException("Valid partial fast frame or typed HUD values were not parsed.");
+
+            if (!FastFrameParser.TryParse("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"feed\\":[]}}", out var omittedStatus) ||
+                omittedStatus.HasHealth || omittedStatus.HasMana)
+                throw new FormatException("Omitted fast health/mana must not overwrite the previous full-frame values.");
+
+            if (!FastFrameParser.TryParse("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":null}}", out var clearedHealth) ||
+                !clearedHealth.HasHealth || clearedHealth.Health.HasValue)
+                throw new FormatException("Explicit null fast health must be distinguishable from an omitted field.");
             var foes = patch.Place["foes"] as Newtonsoft.Json.Linq.JArray;
             if (foes == null || foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
                 throw new FormatException("Fast-frame foe array was not parsed.");
