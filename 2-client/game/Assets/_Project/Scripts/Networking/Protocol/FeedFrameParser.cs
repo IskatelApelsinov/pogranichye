@@ -63,8 +63,9 @@ namespace Pogranichye.Client.Networking
                     if (damageToken.Type != JTokenType.Integer && damageToken.Type != JTokenType.Float)
                         throw new FormatException(itemPath + ".dmg должен быть числом.");
                     var damage = damageToken.Value<double>();
-                    if (double.IsNaN(damage) || double.IsInfinity(damage) || damage < 0d)
-                        throw new FormatException(itemPath + ".dmg должен быть конечным неотрицательным числом.");
+                    if (double.IsNaN(damage) || double.IsInfinity(damage) ||
+                        damage < 0d || damage > float.MaxValue)
+                        throw new FormatException(itemPath + ".dmg должен быть конечным неотрицательным числом в диапазоне float.");
                 }
             }
         }
