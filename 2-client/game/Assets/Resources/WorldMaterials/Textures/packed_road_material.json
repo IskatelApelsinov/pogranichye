@@ -1,11 +1,9 @@
 {
   "name": "Pogranichye authored packed earth",
-  "version": 1,
-  "resolution": [
-    1024,
-    1024
-  ],
+  "version": 2,
+  "resolution": [1024, 1024],
   "tileable": true,
+  "seam_method": "feathered interior patch blend",
   "source": "2-client/art-source/textures/packed_road_source.jpg",
   "maps": {
     "albedo": "packed_road_albedo.png",
@@ -19,30 +17,26 @@
     "strength": 4.5
   },
   "roughness": {
-    "range": [
-      0.83,
-      0.93
-    ],
-    "mean": 0.9116
+    "range": [0.83, 0.93],
+    "mean": 0.906
   },
   "ao": {
-    "range": [
-      0.825,
-      0.985
-    ],
-    "mean": 0.9444
+    "range": [0.825, 0.985],
+    "mean": 0.9372
   },
   "urp": {
     "smoothness": "1 - roughness",
     "smoothness_storage": "linear alpha channel of _BaseMap; _SmoothnessTextureChannel = 1",
-    "metallic": 0,
+    "metallic": 0.0,
     "wrap": "Repeat",
     "mipmaps": true
   },
-  "edge_difference": {
-    "horizontal_mean_rgb_levels": 0.734,
-    "vertical_mean_rgb_levels": 0.9128,
-    "horizontal_max_rgb_levels": 7,
-    "vertical_max_rgb_levels": 8
+  "edge_continuity": {
+    "horizontal_seam_mean_rgb_levels": 19.8805,
+    "vertical_seam_mean_rgb_levels": 23.474,
+    "horizontal_interior_mean_rgb_levels": 18.5816,
+    "vertical_interior_mean_rgb_levels": 20.418,
+    "horizontal_seam_to_interior_ratio": 1.0699,
+    "vertical_seam_to_interior_ratio": 1.1497
   }
 }
