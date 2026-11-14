@@ -28,7 +28,7 @@ Replace raw JObject reads for `me.journey` and `me.quests` with validated typed 
 
 ## Validation
 
-- Pure C# journey/quest runner passed in CI run #43638240668; all 20 steps passed.
+- Pure C# journey/quest runner passed in CI run #43638732127; all 20 steps passed.
 - Unity compile, Editor fixture menu and PlayMode are not claimed. Manual acceptance is in `task_human/005-verify-typed-journey-quests.md`.
 
 ## Next
