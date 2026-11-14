@@ -25,7 +25,8 @@ namespace Pogranichye.Client.Networking
         /// Fetches settlement geometry. Without an id the server returns the tutorial village (pre-v1.19
         /// behaviour); with <paramref name="settlementId"/> (place.id) it returns that settlement's own layout.
         /// </summary>
-        public async Task<WorldLayoutFrame> GetLayoutAsync(string settlementId = null)
+        public async Task<WorldLayoutFrame> GetLayoutAsync(string settlementId = null,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var url = _baseUrl + "/api/layout";
             if (!string.IsNullOrEmpty(settlementId))
