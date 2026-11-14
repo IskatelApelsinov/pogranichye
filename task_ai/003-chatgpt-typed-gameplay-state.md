@@ -59,3 +59,10 @@ Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запус�
 - Исправлена классификация синтаксически повреждённого JSON: fast-парсер не угадывает его тип по строке, строгий full parser отклоняет его обычным путём.
 
 См. дополнение в `3-dev/comms/0230-chatgpt-client-fast-frame-boundary.md`. Wire и сервер не менялись. Задача остаётся `!В работе`: следующий этап — начать миграцию одной ограниченной группы читателей `CoreGameplay` с JObject на typed view state, не расширяя DTO наугад.
+
+
+Дополнение к результату второго прохода:
+- Проверен терминальный fast envelope из `server.go:fastJSON` (`alive:false` при исчезнувшей сущности). Он теперь проходит через обычный full parser и штатное завершение сессии.
+- Fast parser дополнительно валидирует типы `me.pos/combat/wounds/result`, `health/energy/mana`, feed, neighbors и foes.
+- Fixture cases покрывают terminal fast lifecycle, неверный тип маркера fast, нечисловое health и неверный тип wounds.
+- Все пять изменённых C# файлов повторно считаны из GitHub main после записи.
