@@ -95,6 +95,40 @@ func (l *Layout) POI(kind string) (x, y float64) {
 	return p[0], p[1]
 }
 
+// tavernCounterRadius — насколько близко к стойке надо стоять, чтобы заказать пиво (comms 0223).
+const tavernCounterRadius = 2.2
+
+// TavernCounter — точка стойки корчмы ЭТОЙ раскладки и радиус, в котором можно заказать пиво
+// (comms 0223: сервер сам считает стойку из геометрии здания "tavern", а не из старого внешнего
+// POI "tavern", который был порогом снаружи и не различал "дошёл до двери" от "стоит у стойки").
+// Берём геометрический центр прямоугольника здания с BuildingID=="tavern": он всегда лежит на полу
+// интерьера (инсет стен — wallThickness, см. world_geometry.go), независимо от того, с какой стороны
+// прорезана дверь, и не требует отдельного поля в Rect/раскладке. ok=false — в этой раскладке нет
+// корчмы с геометрией (не должно случаться для поселений с Settle.Tavern==true, но вызывающий код
+// обязан проверять).
+func (l *Layout) TavernCounter() (x, y, radius float64, ok bool) {
+	for i := range l.Buildings {
+		if l.Buildings[i].BuildingID == "tavern" {
+			b := &l.Buildings[i]
+			return b.cx(), b.cy(), tavernCounterRadius, true
+		}
+	}
+	return 0, 0, 0, false
+}
+
+// insideTavernBuilding — лежит ли точка внутри прямоугольника здания "tavern" этой раскладки (а не
+// только у его внешнего порога). Используется atTavern (sim/tavern.go) как более широкий, но всё
+// же осмысленный признак "в корчме" — например, тело уже дошло до стойки внутри, которая может
+// быть заметно дальше от внешнего порога, чем старый радиус подхода.
+func (l *Layout) insideTavernBuilding(x, y float64) bool {
+	for i := range l.Buildings {
+		if l.Buildings[i].BuildingID == "tavern" && l.Buildings[i].contains(x, y) {
+			return true
+		}
+	}
+	return false
+}
+
 // InWoods — стоит ли точка в лесу (там рубят).
 func (l *Layout) InWoods(x, y float64) bool {
 	for _, z := range l.Zones {
