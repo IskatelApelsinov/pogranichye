@@ -3059,7 +3059,8 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            if (_input != null && (_input.PrimaryPressed || _input.QuickAttackPressed || _input.DodgePressed)) _audioDirector?.Combat();
+            // Do not play a generic impact on raw mouse/key input. Weapon-specific SFX
+            // will be triggered only from a server-confirmed combat outcome.
             if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
