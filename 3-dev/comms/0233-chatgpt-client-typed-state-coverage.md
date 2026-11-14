@@ -59,7 +59,7 @@ Go остаётся единственным владельцем симуляц
 | `me.party` | **Нет DTO** | `party` | members/invite_from |
 | `me.card_game` | **Нет DTO** | `card_game` | Личная партия; скрытая рука корчмаря сервером не раскрывается |
 
-**Итого по `me`:** текущий `CharacterFrame` покрывает значительную часть wire, но не 11 top-level разделов, которые читает `CoreGameplay`. DTO нельзя использовать как полную замену raw document, пока эти разделы не типизированы и не подтверждены fixtures.
+**Итого по `me`:** текущий `CharacterFrame` покрывает значительную часть wire, но не 12 top-level разделов, которые читает `CoreGameplay`. DTO нельзя использовать как полную замену raw document, пока эти разделы не типизированы и не подтверждены fixtures.
 
 ## 3. `place`: server wire → PlaceFrame → CoreGameplay
 
