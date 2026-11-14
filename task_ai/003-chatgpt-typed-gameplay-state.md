@@ -83,3 +83,15 @@ Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запус�
 До выполнения coverage table и fixtures не менять массово `_me`/`_place` selectors. Это предотвращает ложную типизацию и потерю additive v1 полей.
 
 Unity compile/Editor/PlayMode по-прежнему не запускались.
+
+
+## Четвёртый проход — coverage table и первый typed gameplay consumer (2026-11-14)
+
+- Добавлен source audit `3-dev/docs/CLIENT-WIRE-DTO-COVERAGE.md`: фактические поля `stateJSON/fastJSON`, покрытие DTO, потребители CoreGameplay и список оставшихся gaps.
+- В `CharacterFrame` добавлено отображение уже существующего `me.drunk`; wire не менялся.
+- Компактный `DrawStatus` переведён с JObject-селекторов health/stamina/mana/drunk на immutable `GameplayStatusView`.
+- `FastFrameParser` теперь дополнительно строит presence-aware `GameplayStatusPatch` для health/energy/mana/pos.stam. Отсутствующее поле сохраняет предыдущее значение; явный null сбрасывает значение в ноль, как прежний JObject selector после shallow merge. Drunk остаётся из полного кадра, поскольку сервер не присылает его в fast.
+- Добавлен pure C# regression check и editor fixture check для full → partial fast → explicit-null merge.
+- Остальные потребители `CoreGameplay` по-прежнему используют проверенное исходное JSON-дерево; массовой миграции нет.
+
+Проверки в этой среде: только source/diff review. Pure C# check должен быть выполнен GitHub Actions после push. Unity compile, Editor fixture menu и PlayMode не запускались; задача остаётся `!В работе`.
