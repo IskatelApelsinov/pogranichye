@@ -82,3 +82,8 @@ PR #638 now includes typed public JourneyView/QuestsView consumers in the same c
 ## Next client DTO slice
 
 Task #007 records the current `me.stats/me.bag/me.horse` server view audit and the existing but unconnected `HorseStatsFrames.cs` scaffold. No server change is requested; `me.bag` must not be misrepresented as a physical backpack.
+
+
+## Typed inventory foundation — 2026-11-14
+
+Task #007 completed the client-side DTO/consumer foundation for stats, carried load summary and horse state. Next continue with inventory items/equipment, regional map, card game, recipes and party, then settlement stable/site/market/exits/tavern counter. No server change.
