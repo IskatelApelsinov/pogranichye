@@ -958,25 +958,51 @@ namespace Pogranichye.Client
             telegraph.gameObject.SetActive(false);
             view.FoeId = id;
             view.Kind = kind;
-            view.DisplayName = string.IsNullOrEmpty(displayName) ? kind : displayName;
+            view.DisplayName = FoePresentationPolicy.ResolveDisplayName(kind, displayName);
 
-            _surface = kind == "bandit" ? "cloth" : "fur";
-            if (kind == "bandit")
+            _surface = FoePresentationPolicy.IsHumanoid(kind) ? "cloth" : "fur";
+            if (FoePresentationPolicy.IsHumanoid(kind))
             {
                 view.Humanoid = true;
-                view.Height = 1.9f;
+                view.Height = FoePresentationPolicy.BanditHeight;
                 var cloth = new Color(0.35f, 0.12f, 0.10f);
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.4f, 0f), new Vector3(0.42f, 0.4f, 0.42f), new Color(0.2f, 0.17f, 0.14f));
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
-                Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.7f, 0f), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
-                Part(root.transform, PrimitiveType.Cube, new Vector3(0.36f, 1.05f, 0.3f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
-                // hood, arms, belt and eyes: a readable silhouette from a distance
-                Part(root.transform, PrimitiveType.Sphere, new Vector3(0f, 1.76f, -0.04f), new Vector3(0.48f, 0.42f, 0.48f), new Color(0.16f, 0.12f, 0.1f));
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(-0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
-                Part(root.transform, PrimitiveType.Cylinder, new Vector3(0.36f, 1.12f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                var torso = Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 0f), new Vector3(0.58f, 0.37f, 0.58f), cloth);
+                var headRoot = new GameObject("Bandit head").transform;
+                headRoot.SetParent(root.transform, false);
+                headRoot.localPosition = new Vector3(0f, 1.7f, 0f);
+                Part(headRoot, PrimitiveType.Sphere, Vector3.zero, new Vector3(0.4f, 0.4f, 0.4f), new Color(0.3f, 0.2f, 0.16f));
+                Part(headRoot, PrimitiveType.Sphere, new Vector3(0f, 0.06f, -0.04f), new Vector3(0.48f, 0.42f, 0.48f), new Color(0.16f, 0.12f, 0.1f));
+                Part(headRoot, PrimitiveType.Sphere, new Vector3(-0.07f, 0.02f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
+                Part(headRoot, PrimitiveType.Sphere, new Vector3(0.07f, 0.02f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
+                var leftArm = new GameObject("Bandit left arm pivot").transform;
+                leftArm.SetParent(root.transform, false);
+                leftArm.localPosition = new Vector3(-0.36f, 1.44f, 0f);
+                Part(leftArm, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                var rightArm = new GameObject("Bandit right arm pivot").transform;
+                rightArm.SetParent(root.transform, false);
+                rightArm.localPosition = new Vector3(0.36f, 1.44f, 0f);
+                Part(rightArm, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.14f, 0.32f, 0.14f), cloth);
+                Part(rightArm, PrimitiveType.Cube, new Vector3(0f, -0.2f, 0.34f), new Vector3(0.07f, 0.07f, 0.9f), new Color(0.4f, 0.3f, 0.2f));
+                var rightLeg = new GameObject("Bandit right leg pivot").transform;
+                rightLeg.SetParent(root.transform, false);
+                rightLeg.localPosition = new Vector3(0.17f, 0.66f, 0f);
+                Part(rightLeg, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
+                var leftLeg = new GameObject("Bandit left leg pivot").transform;
+                leftLeg.SetParent(root.transform, false);
+                leftLeg.localPosition = new Vector3(-0.17f, 0.66f, 0f);
+                Part(leftLeg, PrimitiveType.Cylinder, new Vector3(0f, -0.32f, 0f), new Vector3(0.16f, 0.32f, 0.16f), new Color(0.2f, 0.17f, 0.14f));
                 Part(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0.86f, 0f), new Vector3(0.6f, 0.04f, 0.6f), new Color(0.12f, 0.09f, 0.07f));
-                Part(root.transform, PrimitiveType.Sphere, new Vector3(-0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
-                Part(root.transform, PrimitiveType.Sphere, new Vector3(0.07f, 1.72f, 0.18f), new Vector3(0.05f, 0.05f, 0.05f), Color.white);
+                var gait = root.AddComponent<ProceduralGait>();
+                gait.Humanoid = true;
+                gait.LegLength = FoePresentationPolicy.BanditLimbLength;
+                gait.StrideDegrees = FoePresentationPolicy.BanditStrideDegrees;
+                gait.Legs.Add(leftArm);
+                gait.Legs.Add(rightArm);
+                gait.Legs.Add(rightLeg);
+                gait.Legs.Add(leftLeg);
+                gait.Body = torso;
+                gait.Head = headRoot;
             }
             else
             {

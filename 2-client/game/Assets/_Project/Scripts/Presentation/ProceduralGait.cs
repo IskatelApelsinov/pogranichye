@@ -11,7 +11,7 @@ namespace Pogranichye.Client.Presentation
     /// </summary>
     public sealed class ProceduralGait : MonoBehaviour
     {
-        public readonly List<Transform> Legs = new List<Transform>();   // order: front-left, front-right, hind-left, hind-right (or arms for humanoids)
+        public readonly List<Transform> Legs = new List<Transform>();   // quadrupeds: front-left/right, hind-left/right; humanoids: left arm, right arm, right leg, left leg
         public Transform Body;
         public Transform Head;
         public Transform Tail;
