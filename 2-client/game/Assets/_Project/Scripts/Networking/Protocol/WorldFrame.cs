@@ -56,6 +56,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("result")] public ActionResultFrame Result { get; set; }
         // Server-confirmed events; validated once and consumed as typed entries.
         [JsonProperty("feed")] public List<FeedEntryFrame> Feed { get; set; }
+        [JsonProperty("journey")] public JourneyFrame Journey { get; set; }
+        [JsonProperty("quests")] public QuestListFrame Quests { get; set; }
         [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
         [JsonProperty("journal")] public List<JournalEntryFrame> Journal { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
