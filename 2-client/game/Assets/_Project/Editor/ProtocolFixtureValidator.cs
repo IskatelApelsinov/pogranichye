@@ -91,7 +91,7 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateFastFrameCases()
         {
-            const string fastJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"pos\":{\"x\":4,\"y\":5},\"health\":91,\"combat\":{},\"feed\":[]},\"place\":{\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":1,\"y\":2}}],\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\"}]}}";
+            const string fastJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"pos\":{\"x\":4,\"y\":5},\"health\":91,\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0},\"feed\":[]},\"place\":{\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":1,\"y\":2}}],\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\"}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
                 patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null)
                 throw new FormatException("Valid partial fast frame was not parsed.");
@@ -187,7 +187,7 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateCombatFoeCases()
         {
-            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":2,\"weapon\":\"sword\",\"kills\":1,\"ko\":false}},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":3,\"y\":4,\"facing\":90,\"hp\":20,\"max\":30,\"state\":\"windup\",\"aware\":true,\"slow\":false,\"weak\":false,\"blind\":false,\"stun\":false,\"windup\":0.4}]}}";
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":2,\"weapon\":\"sword\",\"kills\":{\"wolf\":1},\"ko\":0}},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":3,\"y\":4,\"facing\":90,\"hp\":20,\"max\":30,\"state\":\"windup\",\"aware\":true,\"slow\":false,\"weak\":false,\"blind\":false,\"stun\":false,\"windup\":0.4}]}}";
             var frame = WorldFrameParser.Parse(full);
             if (frame.Me?.Combat == null || frame.Me.Combat.Weapon != "sword" ||
                 frame.Me.Combat.Arrows != 2 || frame.Place?.Foes == null ||
@@ -195,7 +195,7 @@ namespace Pogranichye.Client.Editor
                 frame.Place.Foes[0].State != "windup")
                 throw new FormatException("Full frame combat/foe views must deserialize to typed DTOs.");
 
-            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":0,\"ko\":false}}}", "combat missing guard");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0}}}", "combat missing guard");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":42,\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":1,\"max\":1,\"state\":\"roam\",\"aware\":false}]}}", "foe numeric id");
         }
 
