@@ -3399,7 +3399,7 @@ namespace Pogranichye.Client
                     _terrainChunks.Remove(id);
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                 }
-                CancelTerrainChunkRequestsOutsideRequestWindow(centerX, centerZ);
+                CancelTerrainChunkRequestsOutsideRetention(centerX, centerZ);
             }
 
             var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
