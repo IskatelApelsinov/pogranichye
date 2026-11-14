@@ -85,6 +85,15 @@ namespace Pogranichye.Client
         private WorldLayoutFrame _starterLayout;
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
+        private float _nextWorldManifestRefreshAt;
+        private bool _worldManifestRefreshInFlight;
+        private int _worldManifestGeneration;
+        private readonly HashSet<string> _layoutPrefetchInFlight = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, float> _layoutPrefetchRetryAfter = new Dictionary<string, float>(StringComparer.Ordinal);
+        private const float WorldManifestRefreshSeconds = 20f;
+        private const float SettlementLayoutPrefetchRadiusMeters = 1150f;
+        private const int MaxConcurrentLayoutPrefetches = 2;
+        private const int MaxNearbyLayoutsToPrefetch = 10;
         // Nearby settlement graph is cached per current settlement/manifest, not rebuilt on every IMGUI repaint.
         private readonly List<WorldSettlementFrame> _worldMapNearby = new List<WorldSettlementFrame>();
         private readonly List<double> _worldMapNearbyDistances = new List<double>();
@@ -263,6 +272,7 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            UpdateWorldStreaming();
             WorldWildSitePresentationBuilder.Update(_presentationRoot, _worldManifest, _frame);
             // Keep spatial player SFX and remote-voice range checks anchored to the
             // authoritative local body, not the scene origin where the director was created.
@@ -2791,6 +2801,11 @@ namespace Pogranichye.Client
 
             ResetSessionJournal();
             _layoutRequestGeneration++;
+            _worldManifestGeneration++;
+            _worldManifestRefreshInFlight = false;
+            _layoutPrefetchInFlight.Clear();
+            _layoutPrefetchRetryAfter.Clear();
+            _nextWorldManifestRefreshAt = Time.unscaledTime + WorldManifestRefreshSeconds;
             _layoutRequestedFor = null;
             _layoutFailedFor = null;
             _layoutRetryAfter = 0f;
@@ -2836,7 +2851,12 @@ namespace Pogranichye.Client
                 _starterLayout = SettlementLayoutSelectionPolicy.IsTutorialLayout(layout.Plan) ? layout : null;
                 // v1.19: read global map metadata before enabling the socket. Older compatible servers
                 // may not expose it, so this optional layer must never block the settlement demo.
-                try { _worldManifest = await http.GetWorldManifestAsync(); }
+                try
+                {
+                    _worldManifest = await http.GetWorldManifestAsync();
+                    _worldManifestGeneration++;
+                    _nextWorldManifestRefreshAt = Time.unscaledTime + WorldManifestRefreshSeconds;
+                }
                 catch (Exception worldError)
                 {
                     _worldManifest = null;
@@ -3310,6 +3330,12 @@ namespace Pogranichye.Client
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
             _frame = null;
+            _worldManifestGeneration++;
+            _worldManifestRefreshInFlight = false;
+            _layoutPrefetchInFlight.Clear();
+            _layoutPrefetchRetryAfter.Clear();
+            _worldManifest = null;
+            _nextWorldManifestRefreshAt = 0f;
             _goalToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
@@ -3536,6 +3562,144 @@ namespace Pogranichye.Client
                 });
                 cancellation.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Refreshes the server world manifest while playing. Frontier settlements are created
+        /// server-side when an outer settlement is reached, so a one-time login manifest is stale.
+        /// The refresh is metadata-only and never resets terrain, entities or the current layout.
+        /// </summary>
+        private void UpdateWorldStreaming()
+        {
+            if (_connectionState != WorldConnectionState.Active || _frame?.Me?.WorldPosition == null ||
+                !_frame.Me.WorldPosition.IsValid || _frame.Place?.Anchor == null || _worldManifest == null)
+                return;
+
+            if (!_worldManifestRefreshInFlight && Time.unscaledTime >= _nextWorldManifestRefreshAt)
+            {
+                _worldManifestRefreshInFlight = true;
+                _ = RefreshWorldManifestAsync(_worldManifestGeneration);
+            }
+
+            PrefetchNearbySettlementLayouts(_frame, _worldManifest);
+        }
+
+        private async Task RefreshWorldManifestAsync(int generation)
+        {
+            WorldManifestFrame manifest = null;
+            Exception failure = null;
+            try { manifest = await new HttpAuthClient(serverUrl).GetWorldManifestAsync(); }
+            catch (Exception exception) { failure = exception; }
+
+            Enqueue(() =>
+            {
+                if (generation != _worldManifestGeneration) return;
+                _worldManifestRefreshInFlight = false;
+                _nextWorldManifestRefreshAt = Time.unscaledTime +
+                    (failure == null ? WorldManifestRefreshSeconds : 10f);
+                if (_connectionState != WorldConnectionState.Active) return;
+                if (manifest == null)
+                {
+                    if (failure != null)
+                        Debug.LogWarning("Не удалось обновить карту мира; используем последнюю версию: " + failure.Message);
+                    return;
+                }
+
+                _worldManifest = manifest;
+                _worldMapCachedManifest = null;
+                _layoutCache?.Update(_frame);
+                // The next UpdateWorldStreaming pass sees newly opened frontier settlements
+                // and schedules their nearby layouts without a scene reload.
+            });
+        }
+
+        private void PrefetchNearbySettlementLayouts(WorldFrame frame, WorldManifestFrame manifest)
+        {
+            var player = frame?.Me?.WorldPosition;
+            if (player == null || manifest?.Settlements == null || _layoutCache == null) return;
+            var candidates = new List<WorldSettlementFrame>();
+            var radiusSquared = SettlementLayoutPrefetchRadiusMeters * SettlementLayoutPrefetchRadiusMeters;
+            foreach (var settlement in manifest.Settlements)
+            {
+                if (settlement == null || settlement.Frame != player.Frame ||
+                    string.IsNullOrWhiteSpace(settlement.Id) ||
+                    string.Equals(settlement.Id, frame.Place?.Id, StringComparison.Ordinal))
+                    continue;
+
+                var dx = settlement.East - player.East;
+                var dz = settlement.North - player.North;
+                if (dx * dx + dz * dz > radiusSquared) continue;
+                if (_layoutCache.TryGet(settlement.Id, frame, out _)) continue;
+                if (_layoutPrefetchInFlight.Contains(settlement.Id)) continue;
+                if (_layoutPrefetchRetryAfter.TryGetValue(settlement.Id, out var retryAt) &&
+                    Time.unscaledTime < retryAt) continue;
+                candidates.Add(settlement);
+            }
+
+            candidates.Sort((a, b) =>
+            {
+                var adx = a.East - player.East;
+                var adz = a.North - player.North;
+                var bdx = b.East - player.East;
+                var bdz = b.North - player.North;
+                return (adx * adx + adz * adz).CompareTo(bdx * bdx + bdz * bdz);
+            });
+
+            var scheduled = 0;
+            for (var i = 0; i < candidates.Count &&
+                _layoutPrefetchInFlight.Count < MaxConcurrentLayoutPrefetches &&
+                scheduled < MaxNearbyLayoutsToPrefetch; i++)
+            {
+                var settlement = candidates[i];
+                if (!_layoutPrefetchInFlight.Add(settlement.Id)) continue;
+                scheduled++;
+                _ = LoadNearbySettlementLayoutAsync(settlement, _worldManifestGeneration);
+            }
+        }
+
+        private async Task LoadNearbySettlementLayoutAsync(WorldSettlementFrame settlement, int generation)
+        {
+            WorldLayoutFrame layout = null;
+            Exception failure = null;
+            try { layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(settlement.Id, _lifetime.Token); }
+            catch (Exception exception) { failure = exception; }
+
+            Enqueue(() =>
+            {
+                _layoutPrefetchInFlight.Remove(settlement.Id);
+                if (generation != _worldManifestGeneration ||
+                    _connectionState != WorldConnectionState.Active || _frame == null ||
+                    _frame.Place?.Anchor == null || _layoutCache == null)
+                    return;
+
+                if (layout == null)
+                {
+                    _layoutPrefetchRetryAfter[settlement.Id] = Time.unscaledTime + 30f;
+                    if (failure != null)
+                        Debug.LogWarning("Не удалось заранее подгрузить поселение " + settlement.Id + ": " + failure.Message);
+                    return;
+                }
+
+                var expectedFrame = settlement.Frame;
+                var expectedAnchor = layout.Anchor;
+                if (expectedAnchor == null || expectedAnchor.Frame != expectedFrame ||
+                    Math.Abs(expectedAnchor.East - settlement.East) > 0.002d ||
+                    Math.Abs(expectedAnchor.North - settlement.North) > 0.002d ||
+                    Math.Abs(expectedAnchor.Up - settlement.Up) > 0.002d ||
+                    (!string.IsNullOrEmpty(layout.Settlement) &&
+                     !string.Equals(layout.Settlement, settlement.Id, StringComparison.Ordinal)))
+                {
+                    _layoutPrefetchRetryAfter[settlement.Id] = Time.unscaledTime + 30f;
+                    Debug.LogWarning("Пропущена раскладка поселения " + settlement.Id +
+                        ": якорь не совпадает с обновлённой картой мира.");
+                    return;
+                }
+
+                if (!_layoutCache.Store(settlement.Id, layout, _frame))
+                    _layoutPrefetchRetryAfter[settlement.Id] = Time.unscaledTime + 30f;
+                else
+                    _layoutPrefetchRetryAfter.Remove(settlement.Id);
+            });
         }
 
         private void EnsureLayoutForPlace(WorldFrame frame)
