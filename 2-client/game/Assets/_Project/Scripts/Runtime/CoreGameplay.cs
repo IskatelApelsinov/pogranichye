@@ -556,13 +556,13 @@ namespace Pogranichye.Client
             }
         }
 
-        public void ApplyFrame(WorldFrame frame)
+        public void ApplyFrame(WorldFrame frame, JObject validatedDocument)
         {
-            if (frame == null) return;
-            // The controller has already run the strict protocol parser. Convert the
-            // validated DTO for legacy selectors while they are migrated to typed views;
-            // never parse the untrusted wire JSON a second time here.
-            var root = JObject.FromObject(frame);
+            if (frame == null || validatedDocument == null) return;
+            // The controller has already run the strict protocol parser. Consume the
+            // exact token tree produced by that same parse so absent fields stay absent;
+            // never reserialize DTO defaults or parse the wire JSON a second time here.
+            var root = validatedDocument;
             _me = Obj(root, "me");
             _place = Obj(root, "place");
             if (root["hour"] != null)
