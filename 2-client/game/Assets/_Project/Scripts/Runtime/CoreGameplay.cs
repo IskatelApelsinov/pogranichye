@@ -183,6 +183,9 @@ namespace Pogranichye.Client
         private ClientInput _input;
         private JObject _me;
         private JObject _place;
+        // Typed read-only HUD values are merged from full snapshots and fast patches.
+        private float _hudHealth;
+        private float _hudMana;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -565,6 +568,10 @@ namespace Pogranichye.Client
             var root = validatedDocument;
             _me = Obj(root, "me");
             _place = Obj(root, "place");
+            // Full snapshots replace the HUD status values. CharacterFrame is the
+            // validated source; absent/null numeric fields retain the legacy zero display.
+            _hudHealth = frame.Me != null ? (float)frame.Me.Health : 0f;
+            _hudMana = frame.Me != null ? (float)frame.Me.Mana : 0f;
             if (root["hour"] != null)
             {
                 _hour = (int)Num(root, "hour");
@@ -586,6 +593,10 @@ namespace Pogranichye.Client
                 foreach (var property in me.Properties())
                     _me[property.Name] = property.Value;
             }
+            // Fast frames are partial: update only numeric fields explicitly present.
+            // An explicit null clears the display; an omitted field preserves full state.
+            if (patch.HasHealth) _hudHealth = (float)(patch.Health ?? 0d);
+            if (patch.HasMana) _hudMana = (float)(patch.Mana ?? 0d);
 
             var place = patch.Place;
             if (place != null)
@@ -624,6 +635,8 @@ namespace Pogranichye.Client
             _feedSeq = 0;
             _me = null;
             _place = null;
+            _hudHealth = 0f;
+            _hudMana = 0f;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -2187,9 +2200,9 @@ namespace Pogranichye.Client
             const float width = 210f;
             var x = Screen.width * 0.5f - width * 0.5f;
             var y = Screen.height - 54f;
-            Bar(new Rect(x, y, width, 5f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
+            Bar(new Rect(x, y, width, 5f), _hudHealth / 100f, new Color(0.55f, 0.66f, 0.42f));
             Bar(new Rect(x, y + 8f, width, 4f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
-            var mana = Num(_me, "mana");
+            var mana = _hudMana;
             if (mana > 0f)
                 Bar(new Rect(x, y + 15f, width, 4f), mana / 100f, new Color(0.5f, 0.65f, 0.88f));
 
