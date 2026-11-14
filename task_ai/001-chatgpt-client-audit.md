@@ -1,4 +1,4 @@
-!В работе
+!Выполнено
 # 001 — ChatGPT: карта Unity-клиента и сверка с серверной симуляцией
 
 **Исполнитель:** ChatGPT  
@@ -51,3 +51,10 @@
 Создан source-level отчёт `3-dev/comms/0229-chatgpt-unity-client-audit-initial.md`. Уже подтверждены два крупных монолита (`VerticalSliceController` 3 927 строк, `CoreGameplay` 3 270 строк), двойной разбор full-frame/обход typed parser для fast-frame, смешение UI/streaming/lifecycle в controller и утечка неизвестных поселений/дорог на карте через streaming manifest (имена частично скрываются через `KnownPlaces`). Также подтверждены отдельные транспорт, parser, DTO, entity registry, layout cache и world-position projection.
 
 Задача остаётся `!В работе`: нужно дочитать все builders/typed DTO/intent paths и затем выбрать один минимальный безопасный клиентский шаг. Unity Editor/PlayMode не запускался.
+
+
+## Результат — 2026-11-14
+
+Source-level аудит завершён: `3-dev/comms/0229-chatgpt-unity-client-audit-initial.md`. В отчёте есть карта классов, два E2E потока, выявленные архитектурные разрывы, риски карты знаний и безопасный порядок рефакторинга. Проверены основные runtime/networking/protocol/presentation классы, включая `WorldFrame`, `ClientInput`, `RequestGate`, terrain/layout/environment/wildsite/village builders. Unity Editor/PlayMode не запускался; runtime acceptance не входит в заявление о завершении source audit.
+
+**Следующий владелец:** ChatGPT — отдельная задача 003 по typed gameplay state; Claude — серверный аудит по задаче 002; владелец — Blender task.
