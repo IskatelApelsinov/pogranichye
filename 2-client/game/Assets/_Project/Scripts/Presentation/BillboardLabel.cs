@@ -15,7 +15,7 @@ namespace Pogranichye.Client.Presentation
         private Transform _entityRoot;
         private float _nextOcclusionCheck;
         private const float OcclusionCheckInterval = 0.20f;
-        private const float MaxLabelDistance = 90f;
+        private const float MaxLabelDistance = WorldLabelVisibilityPolicy.BillboardMaxDistance;
 
         private void OnEnable()
         {
@@ -64,8 +64,9 @@ namespace Pogranichye.Client.Presentation
             }
 
             var direction = toLabel / distance;
+            var occlusionMask = Physics.DefaultRaycastLayers | WorldLabelVisibilityPolicy.OccluderMask;
             var count = Physics.RaycastNonAlloc(_camera.transform.position, direction, _hits,
-                distance - 0.04f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                distance - 0.04f, occlusionMask, QueryTriggerInteraction.Ignore);
             var blocked = false;
             for (var i = 0; i < count; i++)
             {
@@ -92,7 +93,7 @@ namespace Pogranichye.Client.Presentation
                 {
                     RaycastHit nearest;
                     if (!Physics.Raycast(rayOrigin, direction, out nearest, remaining,
-                        Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                        occlusionMask, QueryTriggerInteraction.Ignore))
                     {
                         resolved = true;
                         break;
