@@ -45,7 +45,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
         [JsonProperty("mana")] public double Mana { get; set; }
-        // v1.12 full-frame intoxication level; omitted by fast frames.
+        // Full-frame intoxication level; omitted by the current fast-frame shape.
         [JsonProperty("drunk")] public double Drunk { get; set; }
         [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
