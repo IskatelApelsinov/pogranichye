@@ -78,6 +78,7 @@ namespace Pogranichye.Client.Editor
                 ValidateFastFrameCases();
                 ValidateFeedCases();
                 ValidateActionResultCases();
+                ValidateCombatFoeCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -182,6 +183,20 @@ namespace Pogranichye.Client.Editor
 
             ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":\\"x\\",\\"ok\\":true}}}", "result missing reason");
             ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"result\\":{\\"reqid\\":42,\\"ok\\":true,\\"reason\\":\\"ok\\"}}}", "numeric result reqid");
+        }
+
+        private static void ValidateCombatFoeCases()
+        {
+            const string full = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"combat\\":{\\"stance\\":\\"balanced\\",\\"guard\\":false,\\"sneak\\":false,\\"feint\\":false,\\"cd\\":0,\\"shield\\":0,\\"light\\":0,\\"arrows\\":2,\\"weapon\\":\\"sword\\",\\"kills\\":1,\\"ko\\":false}},\\"place\\":{\\"id\\":\\"7\\",\\"foes\\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\",\\"name\\":\\"Волк\\",\\"x\\":3,\\"y\\":4,\\"facing\\":90,\\"hp\\":20,\\"max\\":30,\\"state\\":\\"windup\\",\\"aware\\":true,\\"slow\\":false,\\"weak\\":false,\\"blind\\":false,\\"stun\\":false,\\"windup\\":0.4}]}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Combat == null || frame.Me.Combat.Weapon != "sword" ||
+                frame.Me.Combat.Arrows != 2 || frame.Place?.Foes == null ||
+                frame.Place.Foes.Count != 1 || frame.Place.Foes[0].Id != "wolf-1" ||
+                frame.Place.Foes[0].State != "windup")
+                throw new FormatException("Full frame combat/foe views must deserialize to typed DTOs.");
+
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"combat\\":{\\"stance\\":\\"balanced\\",\\"sneak\\":false,\\"feint\\":false,\\"cd\\":0,\\"shield\\":0,\\"light\\":0,\\"arrows\\":0,\\"weapon\\":\\"\\",\\"kills\\":0,\\"ko\\":false}}}", "combat missing guard");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"},\\"place\\":{\\"id\\":\\"7\\",\\"foes\\":[{\\"id\\":42,\\"kind\\":\\"wolf\\",\\"name\\":\\"Волк\\",\\"x\\":0,\\"y\\":0,\\"facing\\":0,\\"hp\\":1,\\"max\\":1,\\"state\\":\\"roam\\",\\"aware\\":false}]}}", "foe numeric id");
         }
 
         private static void ValidateNegativeCases()
