@@ -33,7 +33,7 @@
 | `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
 | `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
-| `me.combat` | Missing `CombatFrame` and weapon submodel | stance, weapon, guard, arrows and combat HUD | **Gap** |
+| `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
 | `me.party` | Missing `PartyFrame` and member/invite DTOs | party panel | **Gap** |
 
@@ -46,7 +46,7 @@
 | `place.life` | `SettlementLifeFrame` and nested activity/stock DTOs | settlement activity and stock summary | Typed |
 | `place.anchor` | `WorldAnchorFrame` | world/local projection | Typed |
 | `place.rooms` | `PlaceRoomsFrame`, `PlaceRoomEntryFrame` | public room vacancy summary | Typed |
-| `place.foes[]` | Missing `FoeFrame` | `SyncFoes`, combat targets and presentation | **Gap**; full and fast frames |
+| `place.foes[]` | `FoeFrame` + `FoeFrameParser` | `SyncFoes`, combat targets and presentation | Typed in this slice; stable string IDs and full/fast shape validated |
 | `place.exits[]` | Missing `ExitFrame` | `SyncExits`, road choices | **Gap** in full-frame DTO; current server fast frame does not send exits |
 | `place.site` | Missing `SiteFrame` | features, terrain, climate, specialty and state | **Gap** |
 | `place.market[]` | Missing `MarketItemFrame` | stock, buy/sell prices and ownership UI | **Gap** |
@@ -61,6 +61,7 @@ The current `Server.fastJSON` implementation emits:
 - Live envelope: `v`, `fast:true`, `alive:true`, `me`.
 - Live `me` fields: `pos`, `mana`, `combat`, `feed`, `result`, `wounds`; `health` and `energy` are included when vitals exist.
 - `place` is included only when the player is in a settlement and not on a road. Its current fields are `neighbors` and `foes`. Fast neighbors intentionally contain only `id` and `pos`; `me.id` is intentionally absent.
+- `me.combat` uses the same `CombatView` object in full and fast frames. `place.foes` uses the same `FoesView` array in full and fast frames; foe IDs are stable string entity IDs.
 - `me.result` is present as object or null in the inspected server fast shape; it remains a single latest-result slot, not a queue.
 - The parser currently accepts optional `place.exits` for additive compatibility, but the inspected server `fastJSON` does not emit it.
 
@@ -77,6 +78,8 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 - `me.drunk` is not in the fast server shape and therefore remains from the last full snapshot.
 - `me.feed[]` validates positive strictly increasing `seq`, non-empty `kind`, string `text`, optional string `foe/part`, and finite non-negative `dmg`; the same parser is used by full and fast frames.
 - `me.result` is validated as `{reqid:string, ok:boolean, reason:string}` or null. Full snapshots map it through `CharacterFrame.Result`; fast patches expose `HasResult/Result` so omission and explicit null remain distinct. `RequestGate` still accepts only the matching in-flight reqid.
+- `me.combat` is validated against the server's complete `CombatView` shape; full DTO and fast patch expose `CombatFrame`.
+- `place.foes[]` validates unique stable IDs, species/name/state, finite positions/health and optional telegraph/status fields; the same `FoeFrameParser` handles full and fast arrays. `CoreGameplay.SyncFoes` no longer reads raw JObject selectors.
 - Fast feed distinguishes omitted (do not process) from explicit null (no entries); event deduplication remains by server sequence in `CoreGameplay`.
 - This is presentation-only state. Server simulation, intents, movement authority, result handling and wire v1 are unchanged.
 
@@ -85,13 +88,13 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Next candidates: combat, journey/quests, inventory/horse, and settlement market/site/foes/exits.
+4. Migrate one small consumer at a time. Next candidates: journey/quests, inventory/horse, and settlement market/site/exits.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status view and feed migrations, 10 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `combat`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); six settlement sections remain (`foes`, `exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status, feed, result, combat and foe migrations, 9 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `journey`, `quests`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
