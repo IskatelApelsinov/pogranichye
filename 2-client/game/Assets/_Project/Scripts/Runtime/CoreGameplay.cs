@@ -52,7 +52,7 @@ namespace Pogranichye.Client
             if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.48f, 0.34f, 0.17f, 1f));
 
             var label = GUI.skin.label;
-            label.fontSize = 13;
+            label.fontSize = 15;
             label.wordWrap = true;
             label.normal.textColor = new Color(0.88f, 0.85f, 0.76f);
             label.margin = new RectOffset(4, 4, 3, 4);
@@ -60,7 +60,7 @@ namespace Pogranichye.Client
             var box = GUI.skin.box;
             box.normal.background = _uiPanelTexture;
             box.normal.textColor = new Color(0.91f, 0.76f, 0.48f);
-            box.fontSize = 14;
+            box.fontSize = 15;
             box.fontStyle = FontStyle.Bold;
             box.alignment = TextAnchor.UpperLeft;
             box.padding = new RectOffset(12, 12, 10, 10);
@@ -74,7 +74,7 @@ namespace Pogranichye.Client
             button.normal.textColor = new Color(0.91f, 0.88f, 0.79f);
             button.hover.textColor = Color.white;
             button.active.textColor = Color.white;
-            button.fontSize = 12;
+            button.fontSize = 14;
             button.fontStyle = FontStyle.Bold;
             button.padding = new RectOffset(9, 9, 6, 6);
             button.margin = new RectOffset(3, 3, 3, 3);
@@ -83,7 +83,7 @@ namespace Pogranichye.Client
             field.normal.background = _uiButtonTexture;
             field.focused.background = _uiButtonHoverTexture;
             field.normal.textColor = Color.white;
-            field.fontSize = 13;
+            field.fontSize = 14;
             field.padding = new RectOffset(7, 7, 5, 5);
         }
 
@@ -2242,7 +2242,7 @@ namespace Pogranichye.Client
             {
                 _questTitleStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 12,
+                    fontSize = 14,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = false
@@ -2252,7 +2252,7 @@ namespace Pogranichye.Client
             {
                 _questBodyStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 12,
+                    fontSize = 14,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = true
                 };
@@ -2261,7 +2261,7 @@ namespace Pogranichye.Client
             {
                 _hintTextStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 10,
+                    fontSize = 12,
                     alignment = TextAnchor.MiddleLeft,
                     wordWrap = true
                 };
