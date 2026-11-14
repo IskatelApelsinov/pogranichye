@@ -632,7 +632,7 @@ namespace Pogranichye.Client
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             if (_voiceChat != null) GUILayout.Label(_voiceChat.Status);
-            GUILayout.Label("Голос: войдите в канал, затем включите микрофон. Микрофон остаётся включённым до выключения; это не режим удержания клавиши.");
+            GUILayout.Label("Голос: войдите в канал. Кнопка включает открытый микрофон; удерживайте P, чтобы говорить только пока клавиша нажата. Для PTT один раз разрешите доступ к микрофону.");
             GUILayout.EndArea();
         }
 
