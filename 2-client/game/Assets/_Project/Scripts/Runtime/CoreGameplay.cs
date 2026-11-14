@@ -1199,7 +1199,7 @@ namespace Pogranichye.Client
             _hitMarker = Mathf.Max(0f, _hitMarker - Time.unscaledDeltaTime);
             while (_feed.Count > 0 && Time.unscaledTime - _feed[0].At > 10f) _feed.RemoveAt(0);
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
             UpdateMount();
@@ -1232,13 +1232,13 @@ namespace Pogranichye.Client
                 _menuOpen = false;
                 CloseWeave(false);
                 ReleaseGuard();
-                var roadEvent = Obj(journey, "event");
-                if (roadEvent != null && !Flag(journey, "follow"))
+                var roadEvent = journey.Event;
+                if (roadEvent != null && !journey.Follow)
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count && i < 9; i++)
                         if (_input != null && _input.JourneyChoicePressed(i))
-                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i].ToString());
+                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i]);
                 }
                 UpdateCursor(true);
                 return;
