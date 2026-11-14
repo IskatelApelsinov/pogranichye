@@ -26,9 +26,9 @@
 | `me.coins/debt/wounds/bleeding/stash/pos/wpos/room` | `CharacterFrame` plus nested DTOs | status, movement, containers and room presentation | Typed |
 | `me.drunk` (v1.12) | `CharacterFrame.Drunk` | compact status HUD and character summary | Typed in status-view slice |
 | `me.feed[]` | `FeedEntryFrame` + `FeedFrameParser` | `ReadFeed`, confirmed combat/work/social feedback | Typed in feed slice; strict sequence and entry validation |
-| `me.stats` | Missing `StatsFrame` | character attributes panel | **Gap** |
-| `me.horse` | Missing `HorseFrame` and saddle-bag DTO | mount, stamina, location and horse inventory UI | **Gap** |
-| `me.bag` | Missing `CarryBagFrame` | load/capacity/overload UI | **Gap** |
+| `me.stats` | `StatsFrame` + `StatsFrameParser` | character attributes panel | Typed; six server stats validated, additive null/absence tolerated |
+| `me.horse` | `HorseFrame` + `HorseFrameParser` | mount presentation, stamina, location and saddle-bag UI | Typed; server horse entity ID remains string; null means no owned horse |
+| `me.bag` | `CarryBagFrame` + `CarryBagFrameParser` | carried-bag load/capacity/overload UI | Typed; additive absence/null tolerated for older v1 servers |
 | `me.region` | Missing `RegionFrame`, node and road DTOs | regional map | **Gap** |
 | `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
 | `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
@@ -88,13 +88,23 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Next candidates: inventory/horse/bag/stats, then settlement market/site/exits/stable/tavern counter.
+4. Migrate one small consumer at a time. Stats, carried bag and horse views now have typed DTOs and typed consumers; next candidates: inventory/region/card-game/recipes/party, then settlement market/site/exits/stable/tavern counter.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status, feed, result, combat, foe, journey and quest migrations, 7 character sections remain without dedicated DTOs (`stats`, `horse`, `bag`, `region`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
+After the status, feed, result, combat, foe, journey, quest, stats, horse and carried-bag migrations, 4 major character sections remain without dedicated DTOs (`region`, `card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
+
+
+## Stats, carried bag and horse (server v1.12–v1.13)
+
+- `me.stats` comes from `sim.StatsView(e)`: six keys `strength/agility/endurance/intellect/perception/will`, all finite non-negative numbers. The server view always emits all six keys; client tolerates absent/null for additive compatibility with older v1 servers.
+- `me.bag` comes from `sim.BagView(e)`: `load`, `cap`, `over`. This is the character's carried `econ.Stash` load summary, not a physical backpack and not the horse's saddle bag. Server emits the object on current versions; client tolerates absent/null on older v1 servers.
+- `me.horse` comes from `sim.HorseView(w,e)`: null if no owned horse; otherwise `id` (stable string entity ID), `name`, `stam` (0..100), `mounted`, `here`, `bag` (separate saddle-bag goods map), `bag_load`, `bag_cap`. All fields are emitted by the current server view.
+- The typed fields are assigned from each validated full snapshot in `CoreGameplay.ApplyFrame`. They are absent from the inspected fast frame, so fast patches preserve the latest full values and do not synthesize a horse or bag state.
+- The inventory UI uses the typed stats, carried-bag summary and horse DTO; mount visuals use only the server-confirmed `HorseFrame.Mounted` flag. Buy/mount/dismount/feed/stow/unstow remain server intentions; no local stock, stamina, ownership or inventory mutation is performed.
+- `place.stable` remains a separate untyped settlement view in this slice; its stock/price UI is still read from the validated full-frame token tree.
