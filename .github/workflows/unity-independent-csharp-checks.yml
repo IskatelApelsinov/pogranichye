@@ -9,6 +9,9 @@ on:
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
+      - '2-client/game/Tests/FeedFrameParserCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Tests/GameplayStatusViewCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
@@ -46,7 +49,7 @@ jobs:
       - name: Install Mono compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y mono-mcs
+          sudo apt-get install -y mono-mcs libnewtonsoft-json-cil-dev
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
@@ -62,6 +65,13 @@ jobs:
         run: |
           mcs -out:/tmp/gameplay-status-view.exe Tests/GameplayStatusViewCheck.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/gameplay-status-view.exe
+      - name: Typed feed frame parser regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/feed-frame-parser.exe
       - name: Input event diagnostics regression checks
         working-directory: 2-client/game
         run: |
