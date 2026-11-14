@@ -188,6 +188,9 @@ namespace Pogranichye.Client
         private CombatFrame _combat;
         private JourneyFrame _journey;
         private QuestsFrame _quests;
+        private StatsFrame _stats;
+        private CarryBagFrame _bag;
+        private HorseFrame _horse;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -278,13 +281,13 @@ namespace Pogranichye.Client
             _input = input;
         }
 
-        private static void DrawAttribute(JObject stats, string key, string label)
+        private static void DrawAttribute(StatsFrame stats, string key, string label)
         {
-            if (stats == null || stats[key] == null) return;
+            if (stats == null) return;
             GUILayout.BeginHorizontal();
             GUILayout.Label(label);
             GUILayout.FlexibleSpace();
-            GUILayout.Label(Num(stats, key).ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(48f));
+            GUILayout.Label(stats.Get(key).ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(48f));
             GUILayout.EndHorizontal();
         }
 
@@ -313,8 +316,8 @@ namespace Pogranichye.Client
             var worn = Obj(inv, "worn");
             var hand = Str(inv, "hand");
             var stash = Obj(_me, "stash");
-            var bag = Obj(_me, "bag");
-            var horse = Obj(_me, "horse");
+            var bag = _bag;
+            var horse = _horse;
 
             // Coins are already server-authoritative in me.coins (core.PurseC.Coins).
             // Show that existing ledger here; do not invent a second balance for a future
@@ -336,7 +339,7 @@ namespace Pogranichye.Client
 
             // Character attributes are read directly from the server frame. They grow
             // through authoritative activities; the client only presents the current values.
-            var stats = Obj(_me, "stats");
+            var stats = _stats;
             if (stats != null)
             {
                 GUILayout.Space(6f);
@@ -470,20 +473,20 @@ namespace Pogranichye.Client
             GUILayout.BeginVertical(GUI.skin.box);
             if (bag != null)
             {
-                var load = Num(bag, "load");
-                var capacity = Num(bag, "cap");
+                var load = (float)bag.Load;
+                var capacity = (float)bag.Capacity;
                 GUILayout.Label("Нагрузка товаров: " + load.ToString("0.#", CultureInfo.InvariantCulture) + " / "
                     + capacity.ToString("0.#", CultureInfo.InvariantCulture)
-                    + (Flag(bag, "over") ? " — перегруз, движение замедлено" : ""));
+                    + (bag.Overloaded ? " — перегруз, движение замедлено" : ""));
             }
             else GUILayout.Label("Сведения о вместимости сумы пока недоступны.");
 
-            var horseBag = Obj(horse, "bag");
-            var horseHere = Flag(horse, "here");
+            var horseBag = horse?.Bag;
+            var horseHere = horse != null && horse.Here;
             if (horse != null)
             {
-                GUILayout.Label("Лошадь: " + Str(horse, "name") + (horseHere ? "" : " · в другом поселении"));
-                GUILayout.Label("Седло: " + (int)Num(horse, "bag_load") + " / " + (int)Num(horse, "bag_cap"));
+                GUILayout.Label("Лошадь: " + horse.Name + (horseHere ? "" : " · в другом поселении"));
+                GUILayout.Label("Седло: " + (int)horse.BagLoad + " / " + (int)horse.BagCapacity);
                 if (horseHere)
                 {
                     if (stash != null)
@@ -500,13 +503,13 @@ namespace Pogranichye.Client
                     }
                     if (horseBag != null)
                     {
-                        foreach (var packed in horseBag.Properties())
+                        foreach (var packed in horseBag)
                         {
-                            if (Num(horseBag, packed.Name) < 1f) continue;
+                            if (packed.Value < 1d) continue;
                             GUILayout.BeginHorizontal();
-                            GUILayout.Label(Name(packed.Name) + " ×" + (int)Num(horseBag, packed.Name), GUILayout.Width(190f));
+                            GUILayout.Label(Name(packed.Key) + " ×" + (int)packed.Value, GUILayout.Width(190f));
                             if (GUILayout.Button("Забрать"))
-                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Name, "qty", 1);
+                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
                             GUILayout.EndHorizontal();
                         }
                     }
@@ -587,6 +590,9 @@ namespace Pogranichye.Client
             _combat = frame.Me?.Combat;
             _journey = frame.Me?.Journey;
             _quests = frame.Me?.Quests;
+            _stats = frame.Me?.Stats;
+            _bag = frame.Me?.Bag;
+            _horse = frame.Me?.Horse;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -648,6 +654,9 @@ namespace Pogranichye.Client
             _combat = null;
             _journey = null;
             _quests = null;
+            _stats = null;
+            _bag = null;
+            _horse = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -1609,8 +1618,7 @@ namespace Pogranichye.Client
         // It remains presentation-only; ownership, stamina, inventory and mounting are server-owned.
         private void UpdateMount()
         {
-            var horse = Obj(_me, "horse");
-            var riding = Flag(horse, "mounted") && _player != null;
+            var riding = _horse != null && _horse.Mounted && _player != null;
             if (!riding)
             {
                 if (_mount != null) _mount.SetActive(false);
@@ -1761,7 +1769,7 @@ namespace Pogranichye.Client
 
         private void ApplyRiderPose()
         {
-            var mounted = Flag(Obj(_me, "horse"), "mounted") && !_firstPerson;
+            var mounted = _horse != null && _horse.Mounted && !_firstPerson;
             if (!_riderHomeCaptured) CaptureRiderHome();
             if (!_riderHomeCaptured || _riderBody == null || _riderHead == null ||
                 _riderLeftArm == null || _riderRightArm == null || _riderLeftLeg == null || _riderRightLeg == null) return;
@@ -2761,16 +2769,16 @@ namespace Pogranichye.Client
                 foreach (var good in stash.Properties())
                     if (Num(stash, good.Name) >= 1f)
                         bagLine += Name(good.Name) + " ×" + (int)Num(stash, good.Name) + "   ";
-            var bagCapacity = Obj(_me, "bag");
+            var bagCapacity = _bag;
             GUILayout.Label("СУМА: " + (string.IsNullOrEmpty(bagLine) ? "пусто" : bagLine)
-                + (bagCapacity != null ? "   ·   " + (int)Num(bagCapacity, "load") + "/" + (int)Num(bagCapacity, "cap") : ""));
+                + (bagCapacity != null ? "   ·   " + (int)bagCapacity.Load + "/" + (int)bagCapacity.Capacity : ""));
 
-            var saddleContents = Obj(Obj(_me, "horse"), "bag");
+            var saddleContents = _horse?.Bag;
             var saddleLine = string.Empty;
             if (saddleContents != null)
-                foreach (var good in saddleContents.Properties())
-                    if (Num(saddleContents, good.Name) >= 1f)
-                        saddleLine += Name(good.Name) + " ×" + (int)Num(saddleContents, good.Name) + "   ";
+                foreach (var good in saddleContents)
+                    if (good.Value >= 1d)
+                        saddleLine += Name(good.Key) + " ×" + (int)good.Value + "   ";
             GUILayout.Label("СЕДЕЛЬНАЯ СУМКА: " + (string.IsNullOrEmpty(saddleLine) ? "пусто" : saddleLine));
             GUILayout.BeginHorizontal();
             foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
@@ -2852,22 +2860,22 @@ namespace Pogranichye.Client
             {
                 GUILayout.Space(8f);
                 GUILayout.Label("КАКОВ ТЫ САМ (растёт от дела)");
-                GUILayout.Label("сила " + Num(stats, "strength") + "   ловкость " + Num(stats, "agility") + "   выносливость " + Num(stats, "endurance")
-                    + "   ум " + Num(stats, "intellect") + "   восприятие " + Num(stats, "perception") + "   воля " + Num(stats, "will"));
+                GUILayout.Label("сила " + stats.Strength + "   ловкость " + stats.Agility + "   выносливость " + stats.Endurance
+                    + "   ум " + stats.Intellect + "   восприятие " + stats.Perception + "   воля " + stats.Will);
                 GUILayout.Label(Flag(Obj(_me, "weave"), "gift")
                     ? "В тебе есть дар: ум удержит и сложный узор."
                     : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
                 var drunk = _status == null ? 0f : _status.Drunk;
                 if (drunk > 0f) GUILayout.Label("Хмель: " + (int)drunk);
-                var bagInfo = Obj(_me, "bag");
+                var bagInfo = _bag;
                 if (bagInfo != null)
-                    GUILayout.Label("Сума: " + (int)Num(bagInfo, "load") + " из " + (int)Num(bagInfo, "cap")
-                        + (Flag(bagInfo, "over") ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
+                    GUILayout.Label("Сума: " + (int)bagInfo.Load + " из " + (int)bagInfo.Capacity
+                        + (bagInfo.Overloaded ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
             }
 
             GUILayout.Space(8f);
             GUILayout.Label("ЛОШАДЬ · покупка у конюха, верховая езда и уход");
-            var horse = Obj(_me, "horse");
+            var horse = _horse;
             var stable = Obj(_place, "stable");
             if (horse == null)
             {
@@ -2882,13 +2890,13 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label(Str(horse, "name") + " · силы " + (int)Num(horse, "stam") + " · седельная сумка "
-                    + (int)Num(horse, "bag_load") + "/" + (int)Num(horse, "bag_cap") + (Flag(horse, "here") ? "" : " · осталась в другом селе"));
-                if (Flag(horse, "here"))
+                GUILayout.Label(horse.Name + " · силы " + (int)horse.Stamina + " · седельная сумка "
+                    + (int)horse.BagLoad + "/" + (int)horse.BagCapacity + (horse.Here ? "" : " · осталась в другом селе"));
+                if (horse.Here)
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button(Flag(horse, "mounted") ? "Слезть" : "В седло"))
-                        Ask("Лошадь", "horse", "action", Flag(horse, "mounted") ? "dismount" : "mount");
+                    if (GUILayout.Button(horse.Mounted ? "Слезть" : "В седло"))
+                        Ask("Лошадь", "horse", "action", horse.Mounted ? "dismount" : "mount");
                     if (GUILayout.Button("Покормить")) Ask("Корм", "horse", "action", "feed");
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
@@ -2896,11 +2904,11 @@ namespace Pogranichye.Client
                         foreach (var packed in stash.Properties())
                             if (Num(stash, packed.Name) >= 1f && GUILayout.Button("на лошадь: " + Name(packed.Name)))
                                 Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
-                    var saddle = Obj(horse, "bag");
+                    var saddle = horse.Bag;
                     if (saddle != null)
-                        foreach (var packed in saddle.Properties())
-                            if (GUILayout.Button("с лошади: " + Name(packed.Name)))
-                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Name, "qty", 1);
+                        foreach (var packed in saddle)
+                            if (GUILayout.Button("с лошади: " + Name(packed.Key)))
+                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
                     GUILayout.EndHorizontal();
                 }
             }
