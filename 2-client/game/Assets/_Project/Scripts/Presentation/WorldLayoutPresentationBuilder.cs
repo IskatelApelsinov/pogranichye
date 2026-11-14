@@ -1595,13 +1595,13 @@ namespace Pogranichye.Client.Presentation
         {
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
-            if (side != 0) Create("Tavern south wall", PrimitiveType.Cube, root,
-                new Vector3(0f, wallHeight * 0.5f, -depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 1) Create("Tavern north wall", PrimitiveType.Cube, root,
+            if (side != 0) CreateOcclusionWall("Tavern south wall", PrimitiveType.Cube, root,
+                new Vector3(0f, wallHeight * 0.5f, -depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f), wall);
+            if (side != 1) CreateOcclusionWall("Tavern north wall", PrimitiveType.Cube, root,
                 new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 2) Create("Tavern west wall", PrimitiveType.Cube, root,
+            if (side != 2) CreateOcclusionWall("Tavern west wall", PrimitiveType.Cube, root,
                 new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
-            if (side != 3) Create("Tavern east wall", PrimitiveType.Cube, root,
+            if (side != 3) CreateOcclusionWall("Tavern east wall", PrimitiveType.Cube, root,
                 new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
@@ -1632,7 +1632,7 @@ namespace Pogranichye.Client.Presentation
                         ? new Vector3(-width * 0.5f + 0.12f, wallHeight - 0.16f, offset)
                         : new Vector3(width * 0.5f - 0.12f, wallHeight - 0.16f, offset);
             var infillHeight = Mathf.Max(0.1f, wallHeight - 2.24f);
-            Create("Tavern door upper infill", PrimitiveType.Cube, root,
+            CreateOcclusionWall("Tavern door upper infill", PrimitiveType.Cube, root,
                 new Vector3(lintelPosition.x, 2.24f + infillHeight * 0.5f, lintelPosition.z),
                 horizontal ? new Vector3(opening, infillHeight, 0.24f) : new Vector3(0.24f, infillHeight, opening), wall, false);
             Create("Tavern doorway lintel", PrimitiveType.Cube, root, lintelPosition,
@@ -1653,7 +1653,7 @@ namespace Pogranichye.Client.Presentation
             var size = side == 0 || side == 1
                 ? new Vector3(segmentLength, wallHeight, 0.24f)
                 : new Vector3(0.24f, wallHeight, segmentLength);
-            Create(name, PrimitiveType.Cube, root, position, size, wall, false);
+            CreateOcclusionWall(name, PrimitiveType.Cube, root, position, size, wall);
         }
 
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
@@ -1695,21 +1695,21 @@ namespace Pogranichye.Client.Presentation
             else
             {
                 // Generic buildings retain the open south display facade used by the village shell.
-                Create("Rear timber wall", PrimitiveType.Cube, root,
+                CreateOcclusionWall("Rear timber wall", PrimitiveType.Cube, root,
                     new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f),
-                    new Vector3(width - 0.35f, wallHeight, 0.24f), wall, false);
-                Create("West timber wall", PrimitiveType.Cube, root,
+                    new Vector3(width - 0.35f, wallHeight, 0.24f), wall);
+                CreateOcclusionWall("West timber wall", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f),
                     new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
-                Create("East timber wall", PrimitiveType.Cube, root,
+                CreateOcclusionWall("East timber wall", PrimitiveType.Cube, root,
                     new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f),
                     new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
                 var leftWidth = width * 0.5f - opening * 0.5f;
                 var rightWidth = leftWidth;
-                Create("South facade left", PrimitiveType.Cube, root,
+                CreateOcclusionWall("South facade left", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.5f + leftWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
                     new Vector3(leftWidth, wallHeight, 0.24f), wall, false);
-                Create("South facade right", PrimitiveType.Cube, root,
+                CreateOcclusionWall("South facade right", PrimitiveType.Cube, root,
                     new Vector3(opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
                     new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
                 for (var post = -1; post <= 1; post += 2)
@@ -1832,10 +1832,9 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 42;
-            // TextMesh characterSize is measured in world units; keep lettering physically small.
-            // The former 0.14–0.28 range made distant signs dominate the camera and bloom into blobs.
-            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(18f, title.Length * 5.2f), 0.045f, 0.085f);
+            text.fontSize = 56;
+            // Larger physical glyphs remain readable at the deliberately short sign range.
+            text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(14f, title.Length * 3.8f), 0.07f, 0.12f);
             text.color = new Color(1f, 0.88f, 0.62f);
             text.richText = false;
             // Apply the same physical sign rules as the tutorial village path:
@@ -2082,6 +2081,16 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var material = new Material(shader) { name = name, color = color };
             return material;
+        }
+
+        private static GameObject CreateOcclusionWall(string name, PrimitiveType type, Transform parent,
+            Vector3 position, Vector3 scale, Material material)
+        {
+            // Layer 2 is Unity's Ignore Raycast layer: normal interaction probes stay clear,
+            // while label and camera-occlusion queries explicitly include this wall collider.
+            var wall = Create(name, type, parent, position, scale, material, true);
+            wall.layer = WorldLabelVisibilityPolicy.OccluderLayer;
+            return wall;
         }
 
         private static GameObject Create(string name, PrimitiveType type, Transform parent,
