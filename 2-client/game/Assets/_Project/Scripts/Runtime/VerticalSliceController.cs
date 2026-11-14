@@ -2011,13 +2011,15 @@ namespace Pogranichye.Client
             var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
             var atSmithy = IsNearActivityPoi("smithy", 10f);
             var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
-            if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern)
+            var atMarket = IsNearActivityPoi("market", 12f) || IsNearActivityPoi("granary", 12f);
+            if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern && !atMarket)
                 return new Rect(0f, 0f, 0f, 0f);
 
             var width = Mathf.Min(560f, Screen.width - 24f);
             var height = 42f;
             if (atWoods || atRiver) height += 34f;
             if (atMine || atGarden || atSmithy) height += 34f;
+            if (atMarket) height += 250f;
             if (atTavern)
             {
                 var rooms = _frame.Place.Rooms?.Items;
@@ -2048,6 +2050,7 @@ namespace Pogranichye.Client
             var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
             var atSmithy = IsNearActivityPoi("smithy", 10f);
             var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+            var atMarket = IsNearActivityPoi("market", 12f) || IsNearActivityPoi("granary", 12f);
 
             GUILayout.BeginArea(panel);
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
@@ -2068,6 +2071,9 @@ namespace Pogranichye.Client
                 if (atSmithy && GUILayout.Button("⚒ Помочь у горна")) QueueWorldAction("forge");
                 GUILayout.EndHorizontal();
             }
+
+            if (atMarket)
+                _core.DrawMarketContextActions(6);
 
             if (atTavern)
             {

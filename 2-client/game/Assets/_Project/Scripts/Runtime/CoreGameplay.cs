@@ -2529,6 +2529,50 @@ namespace Pogranichye.Client
             if (amount > 0) target.Add(label + ": " + amount.ToString("0.#", CultureInfo.InvariantCulture));
         }
 
+        /// <summary>Compact, discoverable market controls shown at the physical market stall.</summary>
+        public void DrawMarketContextActions(int maxRows = 6)
+        {
+            if (!_active || _me == null || _place == null) return;
+            var market = Arr(_place, "market");
+            if (market == null || market.Count == 0)
+            {
+                GUILayout.Label("Лавка: ассортимент пока не поступил.");
+                return;
+            }
+
+            var coins = Num(_me, "coins");
+            var stash = Obj(_me, "stash");
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ЛАВКА · МОНЕТЫ: " + coins.ToString("0.#", CultureInfo.InvariantCulture));
+            GUILayout.Label("Покупка кладёт товар в поклажу; продажа забирает его из поклажи. Каждая операция подтверждается сервером.");
+            var shown = 0;
+            foreach (var row in market)
+            {
+                if (shown++ >= Mathf.Max(1, maxRows)) break;
+                var good = Str(row, "good");
+                if (string.IsNullOrEmpty(good)) continue;
+                var stock = Num(row, "stock");
+                var buyPrice = Num(row, "price");
+                var sellPrice = Num(row, "sell");
+                var owned = Count(stash, good);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(Name(good) + " · запас " + stock.ToString("0.#", CultureInfo.InvariantCulture) +
+                    " · у тебя " + owned.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(260f));
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = previousEnabled && stock >= 1f && coins >= buyPrice;
+                if (GUILayout.Button("Купить · " + buyPrice.ToString("0.#", CultureInfo.InvariantCulture),
+                    GUILayout.Width(118f)))
+                    Ask("Покупка " + Name(good), "trade", "good", good, "side", "buy", "qty", 1);
+                GUI.enabled = previousEnabled && owned >= 1f;
+                if (GUILayout.Button("Продать · " + sellPrice.ToString("0.#", CultureInfo.InvariantCulture),
+                    GUILayout.Width(118f)))
+                    Ask("Продажа " + Name(good), "trade", "good", good, "side", "sell", "qty", 1);
+                GUI.enabled = previousEnabled;
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndVertical();
+        }
+
         private void DrawMenu()
         {
             var width = Mathf.Min(900f, Screen.width - 40f);
