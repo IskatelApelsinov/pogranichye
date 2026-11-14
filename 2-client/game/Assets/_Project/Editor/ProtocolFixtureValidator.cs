@@ -124,6 +124,11 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateGameplayStatusView(WorldFrame frame)
         {
+            const string drunkJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"drunk\":18}}";
+            var drunkFrame = WorldFrameParser.Parse(drunkJson);
+            if (drunkFrame.Me == null || drunkFrame.Me.Drunk != 18d)
+                throw new FormatException("Full-frame me.drunk must deserialize into CharacterFrame.");
+
             var full = GameplayStatusView.From(
                 frame.Me.Health, frame.Me.Energy, frame.Me.Mana, frame.Me.Drunk,
                 frame.Me.Position == null ? 0d : frame.Me.Position.Stamina);
