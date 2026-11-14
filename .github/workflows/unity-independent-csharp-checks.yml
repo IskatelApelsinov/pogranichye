@@ -11,6 +11,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
       - '2-client/game/Tests/FeedFrameParserCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs'
+      - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Tests/GameplayStatusViewCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
@@ -72,6 +75,13 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/feed-frame-parser.exe
+      - name: Typed action result parser regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/action-result-parser.exe
       - name: Input event diagnostics regression checks
         working-directory: 2-client/game
         run: |
