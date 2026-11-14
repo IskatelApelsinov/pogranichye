@@ -25,7 +25,7 @@ namespace Pogranichye.Client.Presentation
             if (_camera == null)
             {
                 _camera = Camera.main;
-                if (_camera == null) _camera = FindFirstObjectByType<Camera>();
+                if (_camera == null) _camera = FindAnyObjectByType<Camera>();
             }
             if (_renderer == null || _camera == null) return;
 
