@@ -3011,7 +3011,7 @@ namespace Pogranichye.Client
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
                         _views.Apply(frame);
-                        if (_core != null) _core.ApplyFrame(json);
+                        if (_core != null) _core.ApplyFrame(frame);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
                         if (_cameraRig != null)
                         {
