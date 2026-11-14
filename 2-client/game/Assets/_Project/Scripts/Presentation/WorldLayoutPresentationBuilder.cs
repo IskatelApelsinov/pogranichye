@@ -30,7 +30,6 @@ namespace Pogranichye.Client.Presentation
 
         private sealed class PackedWorldPbrMaps
         {
-            public Texture2D Normal;
             public Texture2D Occlusion;
             public Texture2D MetallicGloss;
         }
@@ -2014,21 +2013,23 @@ namespace Pogranichye.Client.Presentation
                 if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", albedo);
             }
 
-            // Authored compact PBR sets use RG=normal XY, B=AO, A=roughness.
-            // Split them once into the native URP Lit inputs and share the result
-            // across all simultaneously streamed layout roots.
+            // Separate normal maps use Unity's NormalMap importer. Compact authored PBR
+            // masks store AO in R and roughness in G; the runtime splits them once and
+            // converts roughness to the URP Lit smoothness alpha channel.
+            var normal = Resources.Load<Texture2D>(prefix + "_normal");
+            if (normal != null && material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", tiling);
+                material.EnableKeyword("_NORMALMAP");
+            }
+
             var packed = Resources.Load<Texture2D>(prefix + "_pbr");
             if (packed != null)
             {
                 var maps = GetPackedWorldPbrMaps(materialKey, packed);
                 if (maps != null)
                 {
-                    if (material.HasProperty("_BumpMap"))
-                    {
-                        material.SetTexture("_BumpMap", maps.Normal);
-                        material.SetTextureScale("_BumpMap", tiling);
-                        material.EnableKeyword("_NORMALMAP");
-                    }
                     if (material.HasProperty("_OcclusionMap"))
                     {
                         material.SetTexture("_OcclusionMap", maps.Occlusion);
@@ -2049,14 +2050,6 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
-            var normal = Resources.Load<Texture2D>(prefix + "_normal");
-            if (normal != null && material.HasProperty("_BumpMap"))
-            {
-                material.SetTexture("_BumpMap", normal);
-                material.SetTextureScale("_BumpMap", tiling);
-                material.EnableKeyword("_NORMALMAP");
-            }
-
             var ao = Resources.Load<Texture2D>(prefix + "_ao");
             if (ao != null && material.HasProperty("_OcclusionMap"))
             {
@@ -2064,7 +2057,6 @@ namespace Pogranichye.Client.Presentation
                 material.SetTextureScale("_OcclusionMap", tiling);
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
-
         }
 
         private static PackedWorldPbrMaps GetPackedWorldPbrMaps(string materialKey, Texture2D packed)
@@ -2075,28 +2067,21 @@ namespace Pogranichye.Client.Presentation
                 return null;
             }
             if (_packedPbrCache.TryGetValue(materialKey, out var cached) &&
-                cached.Normal != null && cached.Occlusion != null && cached.MetallicGloss != null)
+                cached.Occlusion != null && cached.MetallicGloss != null)
                 return cached;
 
             var source = packed.GetPixels32();
-            var normalPixels = new Color32[source.Length];
             var aoPixels = new Color32[source.Length];
             var glossPixels = new Color32[source.Length];
             for (var i = 0; i < source.Length; i++)
             {
                 var pixel = source[i];
-                var nx = pixel.r / 127.5f - 1f;
-                var ny = pixel.g / 127.5f - 1f;
-                var nz = Mathf.Sqrt(Mathf.Max(0f, 1f - nx * nx - ny * ny));
-                // Store X in both R and A: URP can unpack RG normals or DXT5nm-style AG normals.
-                normalPixels[i] = new Color32(pixel.r, pixel.g, (byte)Mathf.RoundToInt(nz * 255f), pixel.r);
-                aoPixels[i] = new Color32(pixel.b, pixel.b, pixel.b, 255);
-                glossPixels[i] = new Color32(0, 0, 0, (byte)(255 - pixel.a));
+                aoPixels[i] = new Color32(pixel.r, pixel.r, pixel.r, 255);
+                glossPixels[i] = new Color32(0, 0, 0, (byte)(255 - pixel.g));
             }
 
             var maps = new PackedWorldPbrMaps
             {
-                Normal = CreateLinearWorldTexture(materialKey + " • tangent normal", packed.width, packed.height, normalPixels),
                 Occlusion = CreateLinearWorldTexture(materialKey + " • AO", packed.width, packed.height, aoPixels),
                 MetallicGloss = CreateLinearWorldTexture(materialKey + " • smoothness", packed.width, packed.height, glossPixels)
             };
