@@ -79,6 +79,7 @@ namespace Pogranichye.Client.Editor
                 ValidateFeedCases();
                 ValidateActionResultCases();
                 ValidateCombatFoeCases();
+                ValidateJourneyQuestCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -197,6 +198,21 @@ namespace Pogranichye.Client.Editor
 
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0}}}", "combat missing guard");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":42,\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":1,\"max\":1,\"state\":\"roam\",\"aware\":false}]}}", "foe numeric id");
+        }
+
+        private static void ValidateJourneyQuestCases()
+        {
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"journey\":{\"to\":\"settlement-2\",\"to_name\":\"Лесное\",\"progress\":0.45,\"eta\":37,\"scene\":\"Дорога тянется через лес.\",\"note\":\"\",\"follow\":false,\"event\":{\"kind\":\"ambush\",\"foe\":\"bandit\",\"text\":\"На тропе люди с дубьём.\",\"options\":[\"fight\",\"pay\",\"flee\"]},\"via\":[\"Сосновка\"]},\"quests\":{\"offers\":[{\"id\":\"food:1:2\",\"kind\":\"deliver\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"good\":\"fish\",\"qty\":4,\"text\":\"Принеси рыбу.\",\"coins\":6}],\"active\":[{\"id\":\"cull:wolf:1:2\",\"kind\":\"cull\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"species\":\"wolf\",\"qty\":2,\"text\":\"Убей двух волков.\",\"coins\":8,\"have\":1,\"ready\":false,\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"}],\"done\":3,\"rep\":-2}}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Journey == null || frame.Me.Journey.To != "settlement-2" ||
+                frame.Me.Journey.Event?.Options == null || frame.Me.Journey.Event.Options.Count != 3 ||
+                frame.Me.Quests == null || frame.Me.Quests.Offers.Count != 1 ||
+                frame.Me.Quests.Active.Count != 1 || frame.Me.Quests.Active[0].Have != 1 ||
+                frame.Me.Quests.Reputation != -2)
+                throw new FormatException("Full frame journey/quest views must deserialize to typed DTOs.");
+
+            ExpectRejected(full.Replace("\"progress\":0.45", "\"progress\":1.5"), "journey progress above one");
+            ExpectRejected(full.Replace("\"ready\":false", "\"ready\":1"), "quest ready must be boolean");
         }
 
         private static void ValidateNegativeCases()
