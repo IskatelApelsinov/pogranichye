@@ -2,8 +2,7 @@
 # 006 — Typed journey and quest views in Unity client
 
 **Owner:** ChatGPT  
-**Base:** client PR #638 branch `chatgpt/typed-status-feed-20261114`  
-**Stacked PR:** #639 (target branch is PR #638 branch until #638 merges)
+**Consolidated PR:** #638 (`chatgpt/typed-status-feed-20261114`)
 
 ## Goal
 
@@ -29,7 +28,7 @@ Replace raw JObject reads for `me.journey` and `me.quests` with validated typed 
 
 ## Validation
 
-- Pure C# journey/quest runner is in CI; result pending.
+- Pure C# journey/quest runner passed in CI run #43637716008; all 19 steps passed.
 - Unity compile, Editor fixture menu and PlayMode are not claimed. Manual acceptance is in `task_human/005-verify-typed-journey-quests.md`.
 
 ## Next
