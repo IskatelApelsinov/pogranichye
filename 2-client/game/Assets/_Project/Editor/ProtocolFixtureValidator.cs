@@ -102,6 +102,8 @@ namespace Pogranichye.Client.Editor
                 throw new FormatException("Terminal fast envelope must reach the normal alive:false lifecycle.");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":\\"true\\",\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "non-boolean fast marker");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":[],\\"place\\":{}}", "non-object fast me");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":\\"high\\"}}", "non-numeric fast health");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"wounds\\":[]}}", "non-object fast wounds");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":{}}}", "non-array fast foes");
             ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":[{\\"id\\":42}]}}", "non-string fast foe id");
         }
