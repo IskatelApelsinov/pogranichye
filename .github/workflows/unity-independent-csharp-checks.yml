@@ -17,6 +17,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs'
       - '2-client/game/Tests/CombatFoeFrameParserCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Tests/GameplayStatusViewCheck.cs'
@@ -100,6 +101,12 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
           mono /tmp/journey-quest-frame.exe
+      - name: Existing horse and stats DTO scaffold compile check
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -target:library -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frames.dll Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
       - name: Input event diagnostics regression checks
         working-directory: 2-client/game
         run: |
