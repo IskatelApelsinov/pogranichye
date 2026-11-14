@@ -11,7 +11,7 @@ namespace Pogranichye.Client.Presentation
         private const float NearbyVoiceMaxDistance = 24f;
         private AudioSource _oneShot;
         private AudioSource _fire;
-        private AudioClip _step, _run, _combat, _magic, _beer, _fireLoop;
+        private AudioClip _step, _run, _magic, _beer, _fireLoop;
         private AudioClip _npcWoodcut, _npcForge, _npcFishing, _npcFieldwork, _npcMining, _npcHearth, _npcHerding;
         private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
         private int _nearbyVoiceCursor;
@@ -35,7 +35,6 @@ namespace Pogranichye.Client.Presentation
             _oneShot.volume = _sfxVolume;
             _step = MakeNoise("Soft footsteps on earth", 0.12f, 0.085f, 0.12f);
             _run = MakeNoise("Running footsteps", 0.20f, 0.065f, 0.17f);
-            _combat = MakeNoise("Steel combat impact", 0.32f, 0.11f, 0.24f);
             _magic = MakeTone("Magic cast shimmer", 0.38f, 0.42f, 0.19f);
             _beer = MakeNoise("Beer sip and mug", 0.15f, 0.24f, 0.13f);
             _fireLoop = MakeNoise("Village campfire crackle", 0.055f, 0.18f, 0.08f, 4);
@@ -101,7 +100,6 @@ namespace Pogranichye.Client.Presentation
             _oneShot.PlayOneShot(running ? _run : _step, running ? 0.82f : 0.62f);
         }
 
-        public void Combat() { if (_oneShot != null) _oneShot.PlayOneShot(_combat, 0.72f); }
         public void Magic() { if (_oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
         public void DrinkBeer() { if (_oneShot != null) _oneShot.PlayOneShot(_beer, 0.9f); }
 
@@ -236,7 +234,7 @@ namespace Pogranichye.Client.Presentation
             EntityMotion.NearbyFootstep -= OnNearbyFootstep;
             EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
             EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;
-            DestroyClip(_step); DestroyClip(_run); DestroyClip(_combat);
+            DestroyClip(_step); DestroyClip(_run);
             DestroyClip(_magic); DestroyClip(_beer); DestroyClip(_fireLoop);
             DestroyClip(_npcWoodcut); DestroyClip(_npcForge); DestroyClip(_npcFishing);
             DestroyClip(_npcFieldwork); DestroyClip(_npcMining); DestroyClip(_npcHearth);
