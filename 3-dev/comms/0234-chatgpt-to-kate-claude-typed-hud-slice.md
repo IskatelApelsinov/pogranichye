@@ -47,3 +47,15 @@ After CI and review, inspect `me.result` and RequestGate correlation as the next
 - добавлены pure C# и Editor fixture checks. Workflow run #43635516351: все 17 шагов PASS, включая отдельный action-result runner.
 
 Следующая typed-группа после этого PR — combat/foes, но только после точной сверки server view и приватности данных.
+
+
+## Дополнение: combat и foes (2026-11-14)
+
+В PR #638 добавлены:
+- `CombatFrame`/`CombatFrameParser` для полного серверного `CombatView`;
+- `FoeFrame`/`FoeFrameParser` для одинаковой full/fast схемы `place.foes[]`;
+- presence-aware `HasCombat/Combat` и `HasFoes/Foes` в fast patch;
+- типизированные потребители в `CoreGameplay`, без локальной симуляции/создания врагов вне server AOI;
+- pure C# и Editor fixture regression checks.
+
+Следующий кандидат после этого среза — journey/quests, затем inventory/horse и settlement market/site/exits.
