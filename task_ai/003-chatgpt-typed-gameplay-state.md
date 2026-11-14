@@ -129,7 +129,7 @@ CI feedback — 2026-11-14:
 
 ## Седьмой проход — типизированные боевое состояние и враги (2026-11-14)
 
-- Сверен серверный `sim.CombatView`: stance/guard/sneak/feint/cd/shield/light/arrows/weapon/kills/ko. Добавлены `CombatFrame` и строгий parser для полного и fast кадров.
+- Сверен серверный `sim.CombatView`: stance/guard/sneak/feint/cd/shield/light/arrows/weapon, `kills` as species→count map and `ko` as integer knockout counter. Добавлены `CombatFrame` и строгий parser для полного и fast кадров.
 - Сверены `sim.FoesView` и fast `place.foes`: одинаковая схема `id/kind/name/x/y/facing/hp/max/state/aware/slow/weak/blind/stun/windup`. Добавлены `FoeFrame` и общий валидатор с уникальностью строковых entity IDs, конечными координатами/HP и проверкой телеграфных полей.
 - `CharacterFrame.Combat` и `PlaceFrame.Foes` типизированы; fast patch различает отсутствующий и явно null combat/foes.
 - `CoreGameplay` теперь использует typed combat values для стойки, оружия, блока, скрытности, финта, щита, стрел и света. `SyncFoes` принимает только типизированные server-owned foe frames; локальная симуляция врагов не добавлена.
