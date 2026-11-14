@@ -78,8 +78,10 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         public static void Validate(JToken token, string path)
         {
+            // me.bag was added additively in v1.13; older v1 servers may omit it.
+            if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом.");
+            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
             RequireNumber(obj["load"], path + ".load");
             RequireNumber(obj["cap"], path + ".cap");
             if (obj["over"] == null || obj["over"].Type != JTokenType.Boolean)
