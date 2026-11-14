@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client.Presentation;
+using Pogranichye.Client.Networking;
 using Pogranichye.Client.Networking.Protocol;
 using UnityEngine;
 
