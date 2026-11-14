@@ -1675,6 +1675,75 @@ namespace Pogranichye.Client.Presentation
             Create(name, PrimitiveType.Cube, root, position, size, wall, false);
         }
 
+        private static void BuildMarketAwning(Transform parent, float width, float depth, float wallHeight)
+        {
+            var awningWidth = Mathf.Min(width * 0.86f, 4.6f);
+            if (awningWidth < 1.8f) return;
+
+            const int columns = 5;
+            const int rows = 3;
+            const int frontVertexCount = columns * rows;
+            var vertices = new Vector3[frontVertexCount * 2];
+            var uv = new Vector2[vertices.Length];
+            var normals = new Vector3[vertices.Length];
+            var triangles = new int[(columns - 1) * (rows - 1) * 12];
+            var backZ = -depth * 0.5f - 0.12f;
+            var frontZ = backZ - 1.25f;
+            var halfWidth = awningWidth * 0.5f;
+
+            for (var z = 0; z < rows; z++)
+            {
+                var v = z / (float)(rows - 1);
+                for (var x = 0; x < columns; x++)
+                {
+                    var u = x / (float)(columns - 1);
+                    var i = z * columns + x;
+                    var sag = Mathf.Sin(v * Mathf.PI) * 0.07f *
+                        (1f - Mathf.Abs(u - 0.5f) * 1.4f);
+                    var position = new Vector3(
+                        Mathf.Lerp(-halfWidth, halfWidth, u),
+                        Mathf.Lerp(wallHeight - 0.28f, wallHeight - 0.88f, v) - sag,
+                        Mathf.Lerp(backZ, frontZ, v));
+                    vertices[i] = position;
+                    vertices[i + frontVertexCount] = position;
+                    uv[i] = new Vector2(u * awningWidth * 0.5f, v * 1.25f);
+                    uv[i + frontVertexCount] = uv[i];
+                    normals[i] = Vector3.up;
+                    normals[i + frontVertexCount] = Vector3.down;
+                }
+            }
+
+            var t = 0;
+            for (var z = 0; z < rows - 1; z++)
+            for (var x = 0; x < columns - 1; x++)
+            {
+                var a = z * columns + x;
+                var b = a + 1;
+                var c = a + columns;
+                var d = c + 1;
+                triangles[t++] = a; triangles[t++] = b; triangles[t++] = c;
+                triangles[t++] = b; triangles[t++] = d; triangles[t++] = c;
+                triangles[t++] = a + frontVertexCount; triangles[t++] = c + frontVertexCount; triangles[t++] = b + frontVertexCount;
+                triangles[t++] = b + frontVertexCount; triangles[t++] = c + frontVertexCount; triangles[t++] = d + frontVertexCount;
+            }
+
+            var mesh = new Mesh { name = "Market linen awning • double-sided" };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.normals = normals;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+
+            var awning = new GameObject("Market linen awning");
+            awning.transform.SetParent(parent, false);
+            awning.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = awning.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _scarecrowCloth;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
+        }
+
         private static void BuildFootprintBuilding(Transform parent, WorldRectFrame building,
             float width, float depth)
         {
@@ -1796,6 +1865,10 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, wallHeight + width * 0.1335f, 0f),
                 new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
             ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            // Generated market footprints get a small real cloth awning. The mesh is
+            // double-sided, UV-scaled in metres and presentation-only (no collider).
+            if (isMarket) BuildMarketAwning(root, width, depth, wallHeight);
 
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market")
