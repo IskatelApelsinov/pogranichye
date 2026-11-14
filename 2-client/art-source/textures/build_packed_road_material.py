@@ -86,9 +86,26 @@ def gaussian_wrap(field: np.ndarray, sigma: float) -> np.ndarray:
     return blurred[SIZE:2 * SIZE, SIZE:2 * SIZE]
 
 
-def save_gray(path: Path, values: np.ndarray) -> None:
+def save_gray(path: Path, values: np.ndarray) -> np.ndarray:
     image = np.clip(values * 255.0 + 0.5, 0, 255).astype(np.uint8)
     Image.fromarray(image, mode="L").save(path, format="PNG", optimize=True)
+    return image
+
+
+def edge_continuity(values: np.ndarray) -> dict:
+    data = np.asarray(values).astype(np.int16)
+    seam_x = float(np.abs(data[:, 0] - data[:, -1]).mean())
+    seam_y = float(np.abs(data[0] - data[-1]).mean())
+    inner_x = float(np.abs(data[:, 1:] - data[:, :-1]).mean())
+    inner_y = float(np.abs(data[1:] - data[:-1]).mean())
+    return {
+        "horizontal_seam_mean_levels": round(seam_x, 4),
+        "vertical_seam_mean_levels": round(seam_y, 4),
+        "horizontal_interior_mean_levels": round(inner_x, 4),
+        "vertical_interior_mean_levels": round(inner_y, 4),
+        "horizontal_seam_to_interior_ratio": round(seam_x / max(inner_x, 1e-6), 4),
+        "vertical_seam_to_interior_ratio": round(seam_y / max(inner_y, 1e-6), 4)
+    }
 
 
 def main() -> None:
@@ -116,21 +133,22 @@ def main() -> None:
         0.5 + 0.5 * ny * inv_len,
         0.5 + 0.5 * nz * inv_len
     ), axis=-1)
-    Image.fromarray(
-        np.clip(normal * 255.0 + 0.5, 0, 255).astype(np.uint8), mode="RGB"
-    ).save(OUT / "packed_road_normal.png", format="PNG", optimize=True)
+    normal_pixels = np.clip(normal * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    Image.fromarray(normal_pixels, mode="RGB").save(
+        OUT / "packed_road_normal.png", format="PNG", optimize=True
+    )
 
     local_detail = gray - gaussian_wrap(gray, 2.0)
     pebble = np.clip((local_detail - 0.018) / 0.13, 0.0, 1.0)
     broad = gaussian_wrap(gray, 12.0)
     damp_patch = np.clip((broad - gray - 0.012) * 3.0, 0.0, 1.0)
     roughness = np.clip(0.93 - 0.10 * pebble - 0.045 * damp_patch, 0.76, 0.98)
-    save_gray(OUT / "packed_road_roughness.png", roughness)
+    roughness_pixels = save_gray(OUT / "packed_road_roughness.png", roughness)
 
     local_mean = gaussian_wrap(height, 1.4)
     cavity = np.clip((local_mean - height) * 2.2, 0.0, 0.16)
     ao = np.clip(0.985 - cavity, 0.82, 1.0)
-    save_gray(OUT / "packed_road_ao.png", ao)
+    ao_pixels = save_gray(OUT / "packed_road_ao.png", ao)
 
     # URP Lit reads smoothness from BaseMap alpha when _SmoothnessTextureChannel = 1.
     smoothness = np.clip(1.0 - roughness, 0.02, 0.24)
@@ -141,14 +159,12 @@ def main() -> None:
         OUT / "packed_road_albedo.png", format="PNG", optimize=True
     )
 
-    edge_x = np.abs(albedo[:, 0].astype(np.int16) - albedo[:, -1].astype(np.int16))
-    edge_y = np.abs(albedo[0].astype(np.int16) - albedo[-1].astype(np.int16))
-    interior_x = np.abs(albedo[:, 1:].astype(np.int16) - albedo[:, :-1].astype(np.int16))
-    interior_y = np.abs(albedo[1:, :].astype(np.int16) - albedo[:-1, :].astype(np.int16))
-    seam_x_mean = float(edge_x.mean())
-    seam_y_mean = float(edge_y.mean())
-    interior_x_mean = float(interior_x.mean())
-    interior_y_mean = float(interior_y.mean())
+    edge_report = {
+        "albedo": edge_continuity(albedo),
+        "normal": edge_continuity(normal_pixels),
+        "roughness": edge_continuity(roughness_pixels),
+        "ao": edge_continuity(ao_pixels)
+    }
     report = {
         "name": "Pogranichye authored packed earth",
         "version": 2,
@@ -178,14 +194,7 @@ def main() -> None:
             "wrap": "Repeat",
             "mipmaps": True
         },
-        "edge_continuity": {
-            "horizontal_seam_mean_rgb_levels": round(seam_x_mean, 4),
-            "vertical_seam_mean_rgb_levels": round(seam_y_mean, 4),
-            "horizontal_interior_mean_rgb_levels": round(interior_x_mean, 4),
-            "vertical_interior_mean_rgb_levels": round(interior_y_mean, 4),
-            "horizontal_seam_to_interior_ratio": round(seam_x_mean / max(interior_x_mean, 1e-6), 4),
-            "vertical_seam_to_interior_ratio": round(seam_y_mean / max(interior_y_mean, 1e-6), 4)
-        }
+        "edge_continuity": edge_report
     }
     (OUT / "packed_road_material.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8"
