@@ -12,6 +12,17 @@ namespace Pogranichye.Client.Networking
 
         public static WorldFrame Parse(string json)
         {
+            return Parse(json, out _);
+        }
+
+        /// <summary>
+        /// Parses and validates a full frame once, returning both its typed DTO and the
+        /// exact validated token tree. The latter preserves absent-vs-default fields for
+        /// legacy consumers during the staged migration away from JObject selectors.
+        /// </summary>
+        public static WorldFrame Parse(string json, out JObject document)
+        {
+            document = null;
             if (string.IsNullOrWhiteSpace(json))
                 throw new FormatException("Получен пустой кадр сервера.");
 
@@ -154,6 +165,7 @@ namespace Pogranichye.Client.Networking
                     }
                 }
             }
+            document = root;
             return frame;
         }
 
