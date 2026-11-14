@@ -159,3 +159,13 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 - Unity Editor/PlayMode не запускались.
 
 Следующий узкий шаг: мигрировать подробную панель offers/active quests с JObject на те же DTO, не меняя отправляемые intents и серверную семантику.
+
+
+## Девятый проход — полная миграция панели просьб (2026-11-14)
+
+- Подробная панель «Дела» переведена с JObject на QuestListFrame: счётчики done/rep, активные просьбы, ready, текст/прогресс, offers, giver/via и coins.
+- Intent payloads accept/turnin/drop не менялись; GUI по-прежнему показывает «сдать» только при серверном ready и не меняет прогресс/награды локально.
+- Проверено поиском по CoreGameplay: raw selectors me.journey и me.quests больше не используются; journey и обе quest-панели читают typed view.
+- Pure C# CI runner покрывает DTO/parser; Unity Editor fixture cases покрывают full-frame mapping. Новый workflow после этого изменения ожидает результата.
+- Следующий source audit — inventory/horse/bag; не переносить поля без проверки serializer и приватности.
+
