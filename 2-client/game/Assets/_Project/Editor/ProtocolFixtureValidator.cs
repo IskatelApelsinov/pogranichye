@@ -73,12 +73,44 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldPositionProjection();
                 ValidateWorldV119Dtos();
                 ValidateWorldV120Dtos();
-                Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Strict parser and map projection checks passed.");
+                ValidateFastFrameCases();
+                Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
             catch (Exception ex)
             {
                 Debug.LogError("v1 fixture validation failed: " + ex);
             }
+        }
+
+
+        private static void ValidateFastFrameCases()
+        {
+            const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
+            if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
+                patch.Me == null || patch.Me["health"]?.Value<int>() != 91 ||
+                patch.Place == null || patch.Place["foes"] is not Newtonsoft.Json.Linq.JArray foes ||
+                foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
+                throw new FormatException("Valid partial fast frame was not parsed.");
+
+            if (FastFrameParser.TryParse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"}}", out _))
+                throw new FormatException("A full frame must not be classified as a fast patch.");
+
+            ExpectFastRejected("{\\"v\\":2,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "unsupported fast protocol version");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":false,\\"me\\":{\\"health\\":1}}", "terminal fast frame");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":[],\\"place\\":{}}", "non-object fast me");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":{}}}", "non-array fast foes");
+            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":[{\\"id\\":42}]}}", "non-string fast foe id");
+        }
+
+        private static void ExpectFastRejected(string json, string caseName)
+        {
+            try
+            {
+                FastFrameParser.TryParse(json, out _);
+            }
+            catch (FormatException) { return; }
+
+            throw new FormatException("Fast frame parser unexpectedly accepted invalid case: " + caseName);
         }
 
         private static void ValidateNegativeCases()
