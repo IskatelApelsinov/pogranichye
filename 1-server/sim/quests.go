@@ -40,12 +40,12 @@ type Quest struct {
 
 // QuestC — принятые просьбы игрока и его добрая слава по поселениям.
 type QuestC struct {
-	Active []Quest         `json:"active"`
-	Closed []string        `json:"closed"` // недавно закрытые id (чтобы та же нужда не предлагалась тут же)
-	Count  int             `json:"count"`
-	Rep    map[core.ID]int `json:"rep"`
-	Healed map[core.ID]int `json:"healed"` // кого лечил плетением (для просьб «залечи»)
-	OpeningErrandDone bool `json:"opening_errand_done,omitempty"` // монотонный факт сдачи вводного поручения
+	Active            []Quest         `json:"active"`
+	Closed            []string        `json:"closed"` // недавно закрытые id (чтобы та же нужда не предлагалась тут же)
+	Count             int             `json:"count"`
+	Rep               map[core.ID]int `json:"rep"`
+	Healed            map[core.ID]int `json:"healed"`                        // кого лечил плетением (для просьб «залечи»)
+	OpeningErrandDone bool            `json:"opening_errand_done,omitempty"` // монотонный факт сдачи вводного поручения
 }
 
 func (c *QuestC) Kind() string { return "quests" }
@@ -411,9 +411,22 @@ func QuestsView(w *core.World, e *core.Entity, day int64) map[string]any {
 	active := []map[string]any{}
 	for _, q := range qc.Active {
 		n, ready := questProgress(w, e, q)
+		// Место выдачи (comms 0215/0218, additive): снимок q.Settlement на момент принятия (add() в
+		// QuestOffers пишет его один раз при предложении/принятии), не текущее место — не меняется
+		// при переходе A→B. "" если по какой-то причине не записано (старые сохранённые просьбы).
+		settlementID, settlementName := "", ""
+		if q.Settlement != 0 {
+			settlementID = eidStr(q.Settlement)
+			if se := w.Get(q.Settlement); se != nil {
+				if st := core.Settle(se); st != nil {
+					settlementName = st.Name
+				}
+			}
+		}
 		active = append(active, map[string]any{"id": q.ID, "kind": q.Kind, "via": q.Via, "giver": q.GiverID,
 			"giver_name": q.GiverName, "text": q.Text, "good": q.Good, "species": q.Species,
-			"qty": q.Qty, "have": n, "ready": ready, "coins": q.Coins})
+			"qty": q.Qty, "have": n, "ready": ready, "coins": q.Coins,
+			"settlement_id": settlementID, "settlement_name": settlementName})
 	}
 	rep := 0
 	if pl := core.Place(e); pl != nil {

@@ -133,8 +133,8 @@ func TestHuntIgnoresUnsupportedDeerPopulation(t *testing.T) {
 	w := core.NewWorld("t")
 	se := w.Spawn(&core.SettlementC{Name: "С", Store: map[string]float64{}})
 	f := &battle.FaunaC{
-		Pop: map[string]float64{"deer": 10},
-		Cap: map[string]float64{"deer": 10},
+		Pop:  map[string]float64{"deer": 10},
+		Cap:  map[string]float64{"deer": 10},
 		Base: map[string]float64{"deer": 10},
 	}
 	w.Attach(se, f)
@@ -152,5 +152,64 @@ func TestHuntIgnoresUnsupportedDeerPopulation(t *testing.T) {
 	if stash := econ.Stash(e); stash != nil &&
 		(stash.Goods["meat"] != 0 || stash.Goods["hide"] != 0) {
 		t.Fatal("неподдерживаемый deer не должен давать добычу")
+	}
+}
+
+// TestGatherBrushwood — село без настоящего леса (feature "woods" не стоит) всё равно даёт рощицу
+// (copse); хворост из неё — отдельный честный товар, не бревно (comms 0215/0218, v1.23). У колодца
+// (вне рощицы) — отказ; полноценная рубка (ChopWood) там же по-прежнему недоступна.
+func TestGatherBrushwood(t *testing.T) {
+	w := core.NewWorld("t-brush")
+	// первое село всегда получает StarterLayout (rank==0, см. LayoutOf) — нужно второе
+	w.Spawn(&core.SettlementC{Name: "Первое", Tier: "village"})
+	se := w.Spawn(&core.SettlementC{Name: "Рощица", Tier: "village"})
+	w.Attach(se, &SiteC{Terrain: "plain", Features: map[string]bool{}}) // явно БЕЗ "woods"
+
+	l := LayoutOf(w, se.ID)
+	var copseZ Zone
+	found := false
+	for _, z := range l.Zones {
+		if z.Kind == "copse" {
+			copseZ, found = z, true
+			break
+		}
+		if z.Kind == "forest" {
+			t.Fatal("без feature woods раскладка не должна получить полноценный forest")
+		}
+	}
+	if !found {
+		t.Fatal("без feature woods раскладка обязана содержать copse")
+	}
+	cx, cy := (copseZ.X0+copseZ.X1)/2, (copseZ.Y0+copseZ.Y1)/2
+
+	e := actor(w, cx, cy, 100)
+	w.Attach(e, &core.PlaceC{Settlement: se.ID})
+
+	if ok, why := ChopWood(w, e, "chop-in-copse"); ok {
+		t.Fatalf("полноценной рубки в роще без feature woods быть не должно: %v/%s", ok, why)
+	}
+	ok, why := GatherBrushwood(w, e, "b1")
+	if !ok {
+		t.Fatalf("сбор хвороста в роще должен пройти: %s", why)
+	}
+	if econ.Stash(e).Goods[econ.GoodBrushwood] != brushYield {
+		t.Fatal("хворост не попал в закрома")
+	}
+	if econ.Stash(e).Goods[econ.GoodWood] != 0 {
+		t.Fatal("хворост не должен засчитываться как бревно (GoodWood)")
+	}
+	if core.Vitals(e).Energy != 100-brushEnergy {
+		t.Fatal("силы на сбор хвороста не потрачены верно")
+	}
+	// повтор того же reqid — идемпотентно
+	GatherBrushwood(w, e, "b1")
+	if econ.Stash(e).Goods[econ.GoodBrushwood] != brushYield {
+		t.Fatal("повтор reqid не должен давать второй хворост")
+	}
+	// у колодца (вне рощицы) — отказ
+	far := actor(w, 0, 0, 100)
+	w.Attach(far, &core.PlaceC{Settlement: se.ID})
+	if ok, _ := GatherBrushwood(w, far, "b2"); ok {
+		t.Fatal("вдали от рощицы хворост не собрать")
 	}
 }

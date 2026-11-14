@@ -13,11 +13,14 @@ import (
 // (товар в закрома, убыль зверя). Повтор того же reqid идемпотентен.
 
 const (
-	chopEnergy = 8.0 // сил на одну рубку
-	fishEnergy = 7.0 // сил на один заброс
-	chopYield  = 1.0 // брёвен за рубку
-	fishYield  = 1.0 // рыбин за удачный лов
-	actReach   = 6.0 // м — насколько близко к POI/зоне надо стоять для действия
+	chopEnergy     = 8.0 // сил на одну рубку
+	fishEnergy     = 7.0 // сил на один заброс
+	chopYield      = 1.0 // брёвен за рубку
+	fishYield      = 1.0 // рыбин за удачный лов
+	brushEnergy    = 5.0 // сил на один сбор хвороста — легче рубки
+	brushYield     = 1.0 // хвороста за сбор — честно меньше ценности бревна (другой товар, не замена)
+	brushSkillGain = 0.3 // навык дровосека растёт медленнее, чем от настоящей рубки (0.6)
+	actReach       = 6.0 // м — насколько близко к POI/зоне надо стоять для действия
 
 	sparkCost    = 25.0 // маны на разряд
 	sparkManaMax = 100.0
@@ -36,7 +39,7 @@ const dedupCap = 64 // сколько недавних reqid помним на �
 // успехе действия, поэтому повтор после неудачи (отошёл/нет сил) по тому же id корректно сработает.
 type PlayerC struct {
 	Mana     float64  `json:"mana"`
-	Done     []string `json:"done"` // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
+	Done     []string `json:"done"`                // недавние успешно обработанные reqid (кольцо ≤ dedupCap)
 	CardGame string   `json:"card_game,omitempty"` // последняя выбранная карточная игра для общего me.card_game
 	// коррелируемый результат последнего действия (#40 ack): клиент сверяет по reqid
 	RReqid    string `json:"-"`
@@ -152,6 +155,47 @@ func ChopWood(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	addStash(w, e, econ.GoodWood, chopYield)
 	trainSkill(w, e, "woodcutter", 0.6) // прокачка дровосека
 	pc.markDone(reqid)                  // запись только при успехе
+	return true, ""
+}
+
+// GatherBrushwood — собрать хворост в рощице (copse, comms 0215 v1.23): для сёл БЕЗ настоящего
+// строевого леса (feature "woods" не стоит, generateLayout кладёт только decorative copse —
+// l.Zones никогда не содержит одновременно forest и copse, см. layout_gen.go). В отличие от
+// ChopWood НЕ смотрит на siteLacks("woods") — само место здесь решает, не флаг поселения — поэтому
+// честно недоступно, если игрок физически не в зоне copse (InWoods включает copse, но тут нужно
+// именно её, не полный лес — там своя полноценная рубка). Даёт отдельный товар GoodBrushwood,
+// меньше и медленнее навыка, чем настоящее бревно — не выдаём хворост за брёвна.
+func GatherBrushwood(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	pc := EnsurePlayer(w, e)
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
+	p := ScenePos(e)
+	if p == nil {
+		return false, "нет тела в сцене"
+	}
+	l := layoutFor(w, e)
+	inCopse := false
+	for _, z := range l.Zones {
+		if z.Kind == "copse" && z.contains(p.X, p.Y) {
+			inCopse = true
+			break
+		}
+	}
+	if !inCopse {
+		return false, "здесь нет рощицы для хвороста"
+	}
+	v := core.Vitals(e)
+	if v == nil || v.Energy < brushEnergy {
+		return false, "нет сил собирать"
+	}
+	v.Energy -= brushEnergy
+	addStash(w, e, econ.GoodBrushwood, brushYield)
+	trainSkill(w, e, "woodcutter", brushSkillGain)
+	pc.markDone(reqid)
 	return true, ""
 }
 

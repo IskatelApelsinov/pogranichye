@@ -38,6 +38,10 @@ const (
 	GoodMetal = "metal"
 	GoodTools = "tools"
 	GoodWood  = "wood"
+	// GoodBrushwood — хворост из рощицы (comms 0215, v1.23): НЕ полноценное бревно, отдельный товар,
+	// меньше и не идёт в кузню/стройку как wood — рощица (copse) без feature "woods" честно даёт
+	// только это, не подменяя строевой лес.
+	GoodBrushwood = "brushwood"
 	// животноводство: возобновляемое с живого стада
 	GoodMilk    = "milk"    // молоко → сыр
 	GoodCheese  = "cheese"  // сыр (еда, хранится дольше молока)

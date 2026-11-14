@@ -5,15 +5,16 @@ import (
 	"testing"
 
 	"pogranichye/core"
+	"pogranichye/econ"
 )
 
 // Глобальные координаты (v1.19): миллиметры, знаковые чанки, высота, якоря сёл, бесшовные земли.
 
 func TestWorldPosChunksAndNegativeCoordinates(t *testing.T) {
 	for _, c := range []struct {
-		e, n       float64
-		cx, cz     int64
-		inx, inz   float64
+		e, n     float64
+		cx, cz   int64
+		inx, inz float64
 	}{
 		{0, 0, 0, 0, 0, 0},
 		{255.999, 0, 0, 0, 255.999, 0},
@@ -152,6 +153,23 @@ func TestTerrainIsDeterministicFlatInVillagesAndSeamless(t *testing.T) {
 			t.Fatalf("шов между чанками в столбце %d", i)
 		}
 	}
+	// comms 0218 п.5: то же самое и у ОТРИЦАТЕЛЬНЫХ индексов по X (выше были только отрицательные
+	// по Z), и запрос в ОБРАТНОМ порядке (правый/верхний чанк раньше левого/нижнего) не должен менять
+	// результат — высота чистая функция (x,y), не зависит от порядка/истории запросов.
+	rNeg := TerrainChunk(w, -4, -2, 16)["heights"].([]float64) // запрошен ДО левого соседа
+	lNeg := TerrainChunk(w, -5, -2, 16)["heights"].([]float64)
+	for j := 0; j < side; j++ {
+		if lNeg[j*side+side-1] != rNeg[j*side] {
+			t.Fatalf("шов между отрицательными чанками X в строке %d: %.2f против %.2f", j, lNeg[j*side+side-1], rNeg[j*side])
+		}
+	}
+	// повторный запрос того же чанка в другой момент/другом порядке — тот же результат
+	left2 := TerrainChunk(w, 3, -2, 16)["heights"].([]float64)
+	for i := range left2 {
+		if left2[i] != lh[i] {
+			t.Fatalf("повторный запрос чанка (3,-2) дал другую высоту в точке %d: %.2f против %.2f", i, left2[i], lh[i])
+		}
+	}
 }
 
 func firstSettlement(w *core.World) *core.Entity {
@@ -282,6 +300,106 @@ func TestSeamlessLandsKeepWorldPosition(t *testing.T) {
 	StepLands(w, ctl)
 	if core.Place(e).Settlement != other {
 		t.Fatal("на меже не должно быть дребезга")
+	}
+}
+
+// TestSeamlessRoundTripPreservesIdentityAndState — приёмочный тест A→B→A (comms 0218 п.4): пешком
+// туда и обратно без единого прыжка/телепорта — Entity ID не меняется (та же сущность всю дорогу,
+// никакого respawn), монеты/инвентарь/провенанс задания (settlement_id — comms 0215/v1.23) не
+// трогаются переходом (их компоненты не зависят от PlaceC.Settlement), а соседи по AOI видны и в A,
+// и в B (не исчезают на границе).
+func TestSeamlessRoundTripPreservesIdentityAndState(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	ctl := func(id core.ID) bool { return id == e.ID }
+	startID := e.ID
+	p := EnsureScenePos(w, e)
+	SetSeamless(w, true)
+	p.X, p.Y = LayoutOf(w, se.ID).Entry()
+
+	// снаряжаем игрока тем, что НЕ должно зависеть от перехода между сёлами
+	core.Purse(e).Coins = 12.5
+	ensureInv(w, e).Hand = "axe"
+	var giver *core.Entity
+	for _, r := range residentsOf(w, se.ID) {
+		if v := core.Vitals(r); giver == nil && r.ID != e.ID && v != nil && v.Age >= 18 {
+			giver = r
+		}
+	}
+	gp := EnsureScenePos(w, giver)
+	gp.X, gp.Y = p.X+1, p.Y
+	ensureStashOf(w, giver).Goods[econ.GoodWood] = 0
+	StartTalk(w, e, giver.ID)
+	Say(w, e, "greet", "rt1")
+	if ok, why := Say(w, e, "work", "rt2"); !ok {
+		t.Fatalf("взять поручение: %s", why)
+	}
+	Say(w, e, "endtalk", "rt3")
+
+	ae, an := Anchor(w, core.Settle(se))
+	var other core.ID
+	dist := math.MaxFloat64
+	w.Each("settlement", func(o *core.Entity) {
+		if o.ID == se.ID || isOuter(w, core.Settle(o)) {
+			return
+		}
+		if d := func() float64 { oe, on := Anchor(w, core.Settle(o)); return math.Hypot(oe-ae, on-an) }(); d < dist {
+			dist, other = d, o.ID
+		}
+	})
+	if other == 0 {
+		t.Fatal("в стартовом котле должен быть хотя бы один соседний край")
+	}
+	ter := NewTerrain(w)
+	seq := int64(100)
+	walkToward := func(targetSettlement core.ID, maxSteps int) bool {
+		te, tn := Anchor(w, core.Settle(w.Get(targetSettlement)))
+		for step := 0; step < maxSteps; step++ {
+			cur := core.Settle(w.Get(core.Place(e).Settlement))
+			ce, cn := Anchor(w, cur)
+			dx, dy := te-(ce+p.X), tn-(cn+p.Y)
+			seq++
+			ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, 0.25, seq)
+			StepLands(w, ctl)
+			StepExits(w, ctl, nil)
+			if core.Place(e).Settlement == targetSettlement {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !walkToward(other, 400000) {
+		t.Fatalf("не дошли до соседнего края (%.0f м)", dist)
+	}
+	if e.ID != startID {
+		t.Fatal("переход не должен создавать новую сущность")
+	}
+	if core.Purse(e).Coins != 12.5 || Inv(e).Hand != "axe" {
+		t.Fatal("монеты/инвентарь не должны меняться переходом в B")
+	}
+	issuedB := OpeningTask(w, e)["issued"].(map[string]any)
+	if issuedB == nil || issuedB["settlement_id"] != eidStr(se.ID) {
+		t.Fatalf("провенанс поручения должен остаться A в селе B: %+v", issuedB)
+	}
+	if neigh := AOINeighbors(w, ter, e, core.Place(e).Settlement, 24); len(neigh) == 0 {
+		t.Fatal("в B должны быть видны хоть какие-то соседи по AOI (своё же новое село, минимум)")
+	}
+
+	if !walkToward(se.ID, 400000) {
+		t.Fatal("не дошли обратно до исходного села A")
+	}
+	if e.ID != startID {
+		t.Fatal("обратный переход не должен создавать новую сущность")
+	}
+	if core.Purse(e).Coins != 12.5 || Inv(e).Hand != "axe" {
+		t.Fatal("монеты/инвентарь не должны меняться обратным переходом в A")
+	}
+	issuedA := OpeningTask(w, e)["issued"].(map[string]any)
+	if issuedA == nil || issuedA["settlement_id"] != eidStr(se.ID) {
+		t.Fatalf("провенанс поручения должен остаться A и после возврата в A: %+v", issuedA)
+	}
+	if neigh := AOINeighbors(w, ter, e, se.ID, 24); len(neigh) == 0 {
+		t.Fatal("после возврата в A соседи по AOI не должны исчезнуть")
 	}
 }
 

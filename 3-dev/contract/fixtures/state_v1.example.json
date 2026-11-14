@@ -109,7 +109,9 @@
         "have": 0,
         "ready": false,
         "coins": 2,
-        "accepted": true
+        "accepted": true,
+        "settlement_id": "7",
+        "settlement_name": "Починок"
       }
     },
     "journal": [
@@ -197,7 +199,9 @@
           "qty": 4,
           "have": 1,
           "ready": false,
-          "coins": 4
+          "coins": 4,
+          "settlement_id": "7",
+          "settlement_name": "Починок"
         }
       ],
       "done": 0,

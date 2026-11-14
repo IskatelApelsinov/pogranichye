@@ -77,6 +77,37 @@ func checkLayout(t *testing.T, name string, l *Layout) {
 			}
 		}
 	}
+	// Угодья не должны вылетать из своей зоны (comms 0215 — гипотеза ChatGPT: общий фолбэк Free()
+	// в конце generateLayout ищет свободную точку ГЛОБАЛЬНО в селе, не внутри исходной зоны, так что
+	// точка, отведённая от воды/стены, может оказаться вне леса/поля/рудника). В раскладке всегда
+	// РОВНО одна зона из {forest,copse} и одна из {field,meadow} (какая — зависит от feature), rock —
+	// только когда есть рудник: достаточно проверить принадлежность без знания самих feature-флагов.
+	if _, ok := zoneContaining(l, l.POIs["woods"], "forest", "copse"); !ok {
+		t.Fatalf("%s: точка woods %v вне леса/рощицы", name, l.POIs["woods"])
+	}
+	if _, ok := zoneContaining(l, l.POIs["garden"], "field", "meadow"); !ok {
+		t.Fatalf("%s: точка garden %v вне поля/выгона", name, l.POIs["garden"])
+	}
+	for _, z := range l.Zones {
+		if z.Kind == "rock" {
+			if _, ok := zoneContaining(l, l.POIs["mine"], "rock"); !ok {
+				t.Fatalf("%s: точка mine %v вне рудной зоны %+v", name, l.POIs["mine"], z)
+			}
+			break
+		}
+	}
+}
+
+// zoneContaining — зона среди l.Zones с кодом из kinds, которая содержит точку p (если такая есть).
+func zoneContaining(l *Layout, p [2]float64, kinds ...string) (Zone, bool) {
+	for _, z := range l.Zones {
+		for _, k := range kinds {
+			if z.Kind == k && z.contains(p[0], p[1]) {
+				return z, true
+			}
+		}
+	}
+	return Zone{}, false
 }
 
 func TestStarterLayoutIsLegacyV2(t *testing.T) {
@@ -136,6 +167,33 @@ func TestGeneratedLayoutsAreWalkable(t *testing.T) {
 	}
 	if n < 500 {
 		t.Fatalf("проверено мало раскладок: %d", n)
+	}
+}
+
+// TestGeneratedLayoutPOIZonesContained — ответ на comms 0215 (гипотеза ChatGPT про фолбэк Free()):
+// широкий детерминированный прогон (seed×terrain×tier×plan), только чтобы дать «сотни/тысячи seeds»
+// числом, а не глубиной — сама проверка уже и так идёт в checkLayout на каждом вызове.
+func TestGeneratedLayoutPOIZonesContained(t *testing.T) {
+	terrains := []string{"river", "hills", "forest", "plain", "coast", "marsh"}
+	n := 0
+	for seed := 0; seed < 60; seed++ {
+		for id := 1; id < 20; id++ {
+			for ti, tier := range []string{"hamlet", "village", "town", "city"} {
+				terrain := terrains[(seed*7+id*3+ti)%len(terrains)]
+				site := &SiteC{Terrain: terrain, Features: map[string]bool{}}
+				for _, f := range terrainFeatures[terrain] {
+					site.Features[f] = true
+				}
+				plan := layoutPlans[(seed+id+ti)%len(layoutPlans)]
+				name := fmt.Sprintf("семя %d село %d %s %s %s", seed, id, tier, terrain, plan)
+				l := generateLayout(fmt.Sprint("zc", seed), core.ID(id), tier, terrain, site, plan)
+				checkLayout(t, name, l)
+				n++
+			}
+		}
+	}
+	if n < 1000 {
+		t.Fatalf("проверено мало раскладок: %d (нужно хотя бы 1000)", n)
 	}
 }
 
