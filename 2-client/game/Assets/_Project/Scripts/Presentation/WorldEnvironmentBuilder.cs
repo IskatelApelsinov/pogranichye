@@ -43,8 +43,9 @@ namespace Pogranichye.Client.Presentation
             BuildForest(environment);
             BuildRuralFields(environment);
             BuildGroundDetails(environment);
+            // Disable broad transparent mist planes until their URP particle blend path is verified.
+            // The previous fallback could render as large opaque white patches on some URP setups.
             BuildAmbientMotes(environment);
-            BuildLowlandMist(environment);
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
             cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, _mistMaterial, FindSun());
             _atmosphereCycle = cycle;
@@ -87,11 +88,10 @@ namespace Pogranichye.Client.Presentation
 
             // Emissive fire and lantern glass already read as warm light sources.
             // Bloom is kept almost imperceptible so lamps do not wash out nearby text and geometry.
+            // Do not apply bloom while the procedural world uses legacy TextMesh and particle fallbacks.
+            // It amplified their bright edges into unreadable white halos.
             var bloom = _postProcessingProfile.Add<Bloom>(true);
-            bloom.threshold.Override(1.8f);
-            bloom.intensity.Override(0.025f);
-            bloom.scatter.Override(0.35f);
-            bloom.highQualityFiltering.Override(false);
+            bloom.active = false;
 
             var vignette = _postProcessingProfile.Add<Vignette>(true);
             vignette.intensity.Override(0.10f);
@@ -1020,7 +1020,7 @@ namespace Pogranichye.Client.Presentation
             if (_sky != null)
             {
                 _sky.SetColor("_SkyTint", tint);
-                _sky.SetFloat("_Exposure", Mathf.Lerp(0.35f, 1.15f, daylight));
+                _sky.SetFloat("_Exposure", Mathf.Lerp(0.28f, 0.78f, daylight));
             }
             if (_stars != null)
             {
@@ -1039,10 +1039,10 @@ namespace Pogranichye.Client.Presentation
             {
                 var angle = _phase * 360f;
                 _sun.transform.rotation = Quaternion.Euler(angle - 90f, 35f, 0f);
-                _sun.intensity = Mathf.Lerp(0.08f, 1.25f, daylight);
+                _sun.intensity = Mathf.Lerp(0.06f, 0.82f, daylight);
                 _sun.color = Color.Lerp(new Color(0.48f, 0.55f, 0.82f), new Color(1f, 0.91f, 0.76f), daylight);
             }
-            RenderSettings.ambientLight = Color.Lerp(new Color(0.10f, 0.13f, 0.22f), new Color(0.58f, 0.61f, 0.64f), daylight);
+            RenderSettings.ambientLight = Color.Lerp(new Color(0.07f, 0.09f, 0.15f), new Color(0.34f, 0.38f, 0.40f), daylight);
             RenderSettings.fogColor = Color.Lerp(new Color(0.10f, 0.14f, 0.23f), new Color(0.61f, 0.70f, 0.73f), daylight);
             // Stronger atmospheric perspective at night and dawn; daylight remains clearer near the player.
             RenderSettings.fogDensity = Mathf.Lerp(0.0052f, 0.0032f, daylight) + dusk * 0.0012f;
