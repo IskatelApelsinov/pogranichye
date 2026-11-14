@@ -87,3 +87,8 @@ Task #007 records the current `me.stats/me.bag/me.horse` server view audit and t
 ## Typed inventory foundation — 2026-11-14
 
 Task #007 completed the client-side DTO/consumer foundation for stats, carried load summary and horse state. Next continue with inventory items/equipment, regional map, card game, recipes and party, then settlement stable/site/market/exits/tavern counter. No server change.
+
+
+## Regional knowledge map — 2026-11-14
+
+The `me.region` projection and UI are now typed under task #008. Privacy checks reject unknown-place name/tier leaks; the client does not use the developer manifest to fill unknown map data. CI run #43638994608 passed all 21 independent C# steps. Runtime map acceptance remains with the project owner.
