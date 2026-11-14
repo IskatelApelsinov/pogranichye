@@ -186,6 +186,8 @@ namespace Pogranichye.Client
         private GameplayStatusView _status;
         private ActionResultFrame _result;
         private CombatFrame _combat;
+        private JourneyFrame _journey;
+        private QuestListFrame _quests;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -583,6 +585,8 @@ namespace Pogranichye.Client
             ApplySitePresentation();
             ReadFeed(frame.Me?.Feed);
             _combat = frame.Me?.Combat;
+            _journey = frame.Me?.Journey;
+            _quests = frame.Me?.Quests;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -642,6 +646,8 @@ namespace Pogranichye.Client
             _status = null;
             _result = null;
             _combat = null;
+            _journey = null;
+            _quests = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -2012,7 +2018,7 @@ namespace Pogranichye.Client
                 GUI.color = previous;
             }
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             if (journey != null)
             {
                 DrawRoad(journey);
@@ -2324,17 +2330,15 @@ namespace Pogranichye.Client
             }
             else
             {
-                var active = Arr(Obj(_me, "quests"), "active");
+                var active = _quests?.Active;
                 if (active == null || active.Count == 0) return;
                 var quest = active[0];
-                var kind = Str(quest, "kind");
-                var progress = kind == "deliver" || kind == "cull"
-                    ? " · " + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) +
-                      "/" + (int)Num(quest, "qty")
+                var progress = quest.Kind == "deliver" || quest.Kind == "cull"
+                    ? " · " + Mathf.Min((int)quest.Have, quest.Quantity) + "/" + quest.Quantity
                     : string.Empty;
                 title = "ЗАДАЧА";
-                objective = (Flag(quest, "ready") ? "Готово · " : "") + Str(quest, "text") + progress;
-                ready = Flag(quest, "ready");
+                objective = (quest.Ready ? "Готово · " : "") + quest.Text + progress;
+                ready = quest.Ready;
             }
 
             EnsureHudTextStyles();
@@ -2365,32 +2369,32 @@ namespace Pogranichye.Client
             }
         }
 
-        private void DrawRoad(JObject journey)
+        private void DrawRoad(JourneyFrame journey)
         {
+            if (journey == null) return;
             var width = Mathf.Min(680f, Screen.width - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.5f - 170f, width, 340f);
-            GUI.Box(rect, "Дорога в " + Str(journey, "to_name"));
+            GUI.Box(rect, "Дорога в " + (journey.ToName ?? string.Empty));
             GUILayout.BeginArea(new Rect(rect.x + 16f, rect.y + 30f, rect.width - 32f, rect.height - 40f));
-            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), Num(journey, "progress"), new Color(0.79f, 0.64f, 0.29f));
+            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), (float)journey.Progress, new Color(0.79f, 0.64f, 0.29f));
             GUILayout.Space(8f);
-            GUILayout.Label(Str(journey, "scene"));
-            var note = Str(journey, "note");
-            if (!string.IsNullOrEmpty(note)) GUILayout.Label(note);
-            var roadEvent = Obj(journey, "event");
+            GUILayout.Label(journey.Scene ?? string.Empty);
+            if (!string.IsNullOrEmpty(journey.Note)) GUILayout.Label(journey.Note);
+            var roadEvent = journey.Event;
             if (roadEvent != null)
             {
                 GUILayout.Space(8f);
-                GUILayout.Label(Str(roadEvent, "text"));
-                if (Flag(journey, "follow"))
+                GUILayout.Label(roadEvent.Text ?? string.Empty);
+                if (journey.Follow)
                 {
                     GUILayout.Label("Решает вожак отряда…");
                 }
                 else
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count; i++)
                     {
-                        var option = options[i].ToString();
+                        var option = options[i];
                         if (GUILayout.Button("[" + (i + 1) + "] " + OptionRu(option), GUILayout.Height(30f)))
                             Ask("Выбор пути", "journey", "action", "choose", "choice", option);
                     }
@@ -2398,7 +2402,7 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label("Ещё примерно " + (int)Num(journey, "eta") + " с пути.");
+                GUILayout.Label("Ещё примерно " + (int)journey.Eta + " с пути.");
             }
             GUILayout.EndArea();
         }
