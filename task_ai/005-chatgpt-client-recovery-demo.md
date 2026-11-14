@@ -76,4 +76,4 @@ PR #638 is open and ready for review, not merged. All 18 independent C# CI steps
 
 ## Stacked follow-up — 2026-11-14
 
-PR #639 adds typed public JourneyView/QuestsView consumers on top of PR #638. It is intentionally stacked and should be reviewed/merged only after #638 is merged. No server/wire change.
+PR #638 now includes typed public JourneyView/QuestsView consumers in the same consolidated client change. All 19 independent C# CI steps passed in run #43637716008. No server/wire change; Unity runtime remains unverified.
