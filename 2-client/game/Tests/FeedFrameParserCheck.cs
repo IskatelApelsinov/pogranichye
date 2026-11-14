@@ -59,6 +59,8 @@ internal static class FeedFrameParserCheck
             () => FeedFrameParser.Validate(JToken.Parse("[{\"seq\":1,\"kind\":\"hit\",\"text\":\"x\",\"dmg\":\"4\"}]"), "me.feed"));
         ExpectFormat("negative damage is rejected",
             () => FeedFrameParser.Validate(JToken.Parse("[{\"seq\":1,\"kind\":\"hit\",\"text\":\"x\",\"dmg\":-1}]"), "me.feed"));
+        ExpectFormat("damage outside float presentation range is rejected",
+            () => FeedFrameParser.Validate(JToken.Parse("[{\"seq\":1,\"kind\":\"hit\",\"text\":\"x\",\"dmg\":1e100}]"), "me.feed"));
 
         FastFramePatch patch;
         var validFast = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"feed\":[{\"seq\":8,\"kind\":\"hurt\",\"text\":\"Удар\",\"dmg\":2}]}}";
