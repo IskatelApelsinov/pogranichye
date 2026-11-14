@@ -13,7 +13,7 @@ A separate, image-generated linen weave with periodic edge processing is now com
 the generated market awning, tutorial scarecrow tunic and windmill canvas sail. Its warm, undyed flax/burlap tone
 fits rural fabric rather than modern synthetic cloth.
 
-- `Resources/WorldMaterials/Textures/homespun_linen_albedo.jpg`: 256×256 sRGB
+- `Resources/WorldMaterials/Textures/homespun_linen_albedo.jpg`: 192×192 sRGB
   albedo, tileable, with broad lighting flattened before export.
 - `Resources/WorldMaterials/Textures/homespun_linen_pbr.png`: 128×128 linear
   packed PBR data. Channels are **R = tangent-space normal X, G = tangent-space
