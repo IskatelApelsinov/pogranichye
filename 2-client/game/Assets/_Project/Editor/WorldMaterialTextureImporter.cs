@@ -21,7 +21,8 @@ namespace Pogranichye.Client.Editor
             importer.wrapMode = TextureWrapMode.Repeat;
             importer.filterMode = FilterMode.Trilinear;
             importer.anisoLevel = 8;
-            importer.maxTextureSize = 1024;\n            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.maxTextureSize = 1024;
+            importer.npotScale = TextureImporterNPOTScale.None;
 
             var file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             if (file.EndsWith("_normal", System.StringComparison.OrdinalIgnoreCase))
@@ -37,7 +38,8 @@ namespace Pogranichye.Client.Editor
                 importer.sRGBTexture = false;
                 importer.isReadable = true;
                 importer.textureCompression = TextureImporterCompression.Uncompressed;
-                importer.alphaIsTransparency = false;\n                importer.alphaSource = TextureImporterAlphaSource.FromInput;
+                importer.alphaIsTransparency = false;
+                importer.alphaSource = TextureImporterAlphaSource.FromInput;
             }
             else
             {
