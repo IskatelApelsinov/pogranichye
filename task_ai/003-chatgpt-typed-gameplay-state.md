@@ -66,3 +66,19 @@ Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запус�
 - Fast parser дополнительно валидирует типы `me.pos/combat/wounds/result`, `health/energy/mana`, feed, neighbors и foes.
 - Fixture cases покрывают terminal fast lifecycle, неверный тип маркера fast, нечисловое health и неверный тип wounds.
 - Все пять изменённых C# файлов повторно считаны из GitHub main после записи.
+
+
+## Третий шаг — типизированная серверная лента — 2026-11-14
+
+В отдельной ветке `chatgpt/typed-feed-frame-20261114` выполнен ограниченный следующий шаг задачи:
+- добавлен `FeedEntryFrame` и общий `FeedFrameParser` для проверки/разбора `me.feed[]`;
+- full-frame parser валидирует форму и монотонность seq, а `CharacterFrame` предоставляет типизированный список;
+- fast-frame patch явно различает отсутствие поля feed и явный null, сохраняя частичную семантику;
+- `CoreGameplay.ReadFeed` теперь получает `IList<FeedEntryFrame>`, а не JArray/JToken;
+- добавлен независимый C# regression runner для valid/invalid feed и fast-patch absent/null semantics.
+
+Остальные legacy selectors `CoreGameplay` пока используют исходное проверенное token tree; это намеренно ограниченная миграция, не big-bang rewrite. Wire v1, server runtime, reqid и семантика действий не менялись.
+
+Проверки: GitHub Actions запустится после публикации PR; Unity Editor/PlayMode в этом окружении недоступны. До результата CI тесты не объявляются пройденными.
+
+Следующий шаг — аналогично выбрать одну небольшую typed-группу (например, `me.result`) и только после ревью текущего diff; затем отдельно планировать UI/ViewModel.
