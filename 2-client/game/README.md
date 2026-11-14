@@ -79,6 +79,13 @@ Inside the open world, regions are parts of one large connected geography. Trave
 
 The current 300×300 m Layout v2 is the local playable area of one settlement, not the dimensions of the full multi-village demo territory or the open world. The global coordinate, region streaming and demo-gateway contract remain architecture work; do not claim the current client traverses these spaces already.
 
+## URP post-processing — naturalistic baseline (2026-11-14)
+
+- The presentation environment adds one global URP Volume with ACES tonemapping, restrained color adjustments/white balance, subtle bloom and a light vignette. The existing server-hour-driven sky, sun, ambient light and fog remain the source of day/night changes; the Volume is layered on top and does not duplicate that cycle.
+- The active presentation camera explicitly enables `UniversalAdditionalCameraData.renderPostProcessing`, including when the camera is created at runtime.
+- The VolumeProfile is generated at runtime and destroyed with `WorldEnvironmentBuilder.Cleanup()`; no serialized scene asset or server contract is required.
+- This is a conservative starting grade, not a visual acceptance claim. Check dawn, bright noon, dusk and night in Unity; tune or disable bloom/vignette if highlights clip or the image becomes too dark.
+
 ## Project target
 
 - Unity Editor: **6000.6.7f1**
