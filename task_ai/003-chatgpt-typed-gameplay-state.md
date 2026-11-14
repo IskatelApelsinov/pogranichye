@@ -155,7 +155,7 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 - Проверен источник sim.QuestsView: offers — сериализуемые Quest structs (good/species могут отсутствовать из-за omitempty); active — map-объекты с прогрессом, готовностью и снимком поселения/державы; done/rep — счётчики.
 - Добавлены JourneyFrame, RoadEventFrame, QuestListFrame, QuestOfferFrame, ActiveQuestFrame и строгие валидаторы full snapshot. Wire v1 не менялся; fast frame journey/quests не содержит, поэтому типизированное значение остаётся последним full snapshot.
 - CoreGameplay переведён на typed journey для режима дороги, выбора события и DrawRoad; компактный DrawQuestTracker читает typed active quest. Полная панель «Дела» пока остаётся на проверенных raw selectors и не мигрирована.
-- Добавлены pure C# regression checks и Unity Editor full-frame fixture cases для valid/null/malformed journey и quest payloads. Workflow #43637296564 был запущен и ожидает завершения на момент записи.
+- Добавлены pure C# regression checks и Unity Editor full-frame fixture cases для valid/null/malformed journey и quest payloads. Workflow #43637296564 — все 20 шагов PASS, включая новый typed journey/quest runner и предыдущие client regression checks.
 - Unity Editor/PlayMode не запускались.
 
 Следующий узкий шаг: мигрировать подробную панель offers/active quests с JObject на те же DTO, не меняя отправляемые intents и серверную семантику.
