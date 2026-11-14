@@ -1568,6 +1568,27 @@ namespace Pogranichye.Client.Presentation
             wall.AddComponent<BoxCollider>().size = size;
         }
 
+        private static void BuildTavernHorizontalBeam(Transform root, string name, float z,
+            float width, float y, bool hasDoorGap, float doorOffset, float opening)
+        {
+            if (!hasDoorGap)
+            {
+                Create(name, PrimitiveType.Cube, root, new Vector3(0f, y, z),
+                    new Vector3(width - 0.12f, 0.16f, 0.32f), _trunk, false);
+                return;
+            }
+            var left = width * 0.5f + doorOffset - opening * 0.5f;
+            var right = width * 0.5f - doorOffset - opening * 0.5f;
+            if (left > 0.05f)
+                Create(name + " left", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.5f + left * 0.5f, y, z),
+                    new Vector3(left, 0.16f, 0.32f), _trunk, false);
+            if (right > 0.05f)
+                Create(name + " right", PrimitiveType.Cube, root,
+                    new Vector3(doorOffset + opening * 0.5f + right * 0.5f, y, z),
+                    new Vector3(right, 0.16f, 0.32f), _trunk, false);
+        }
+
         private static void BuildTavernDoorFacade(Transform root, float width, float depth, float wallHeight,
             int side, float offset, float opening, Material wall)
         {
@@ -1609,6 +1630,10 @@ namespace Pogranichye.Client.Presentation
                     : side == 2
                         ? new Vector3(-width * 0.5f + 0.12f, wallHeight - 0.16f, offset)
                         : new Vector3(width * 0.5f - 0.12f, wallHeight - 0.16f, offset);
+            var infillHeight = Mathf.Max(0.1f, wallHeight - 2.24f);
+            Create("Tavern door upper infill", PrimitiveType.Cube, root,
+                new Vector3(lintelPosition.x, 2.24f + infillHeight * 0.5f, lintelPosition.z),
+                horizontal ? new Vector3(opening, infillHeight, 0.24f) : new Vector3(0.24f, infillHeight, opening), wall, false);
             Create("Tavern doorway lintel", PrimitiveType.Cube, root, lintelPosition,
                 horizontal ? new Vector3(opening + 0.25f, 0.32f, 0.28f) : new Vector3(0.28f, 0.32f, opening + 0.25f), _trunk, false);
         }
@@ -1696,12 +1721,10 @@ namespace Pogranichye.Client.Presentation
             for (var y = 0; y < 2; y++)
             {
                 var beamY = 0.72f + y * 1.65f;
-                Create("Front horizontal timber beam", PrimitiveType.Cube, root,
-                    new Vector3(0f, beamY, -depth * 0.5f + 0.02f),
-                    new Vector3(width - 0.12f, 0.16f, 0.32f), _trunk, false);
-                Create("Rear horizontal timber beam", PrimitiveType.Cube, root,
-                    new Vector3(0f, beamY, depth * 0.5f - 0.02f),
-                    new Vector3(width - 0.12f, 0.16f, 0.32f), _trunk, false);
+                BuildTavernHorizontalBeam(root, "Front horizontal timber beam",
+                    -depth * 0.5f + 0.02f, width, beamY, hasDoor && doorSide == 0, doorOffset, opening);
+                BuildTavernHorizontalBeam(root, "Rear horizontal timber beam",
+                    depth * 0.5f - 0.02f, width, beamY, hasDoor && doorSide == 1, doorOffset, opening);
             }
 
             // A dark recessed door and small framed windows give each footprint a readable facade.
