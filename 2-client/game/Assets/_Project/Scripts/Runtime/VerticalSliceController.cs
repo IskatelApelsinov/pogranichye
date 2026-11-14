@@ -3068,8 +3068,8 @@ namespace Pogranichye.Client
                     ["socket_connected"] = _socket != null && _socket.IsConnected,
                     ["place_id"] = _frame?.Place?.Id,
                     ["place_name"] = _frame?.Place?.Name,
-                    ["day"] = _frame != null ? _frame.Day : (int?)null,
-                    ["year"] = _frame != null ? _frame.Year : (int?)null,
+                    ["day"] = _frame != null ? (JToken)new JValue(_frame.Day) : JValue.CreateNull(),
+                    ["year"] = _frame != null ? (JToken)new JValue(_frame.Year) : JValue.CreateNull(),
                     ["season"] = _frame?.Season,
                     ["hour"] = _frame != null && _frame.Hour.HasValue ? (JToken)_frame.Hour.Value : JValue.CreateNull(),
                     ["scene_position"] = position == null ? JValue.CreateNull() : new Newtonsoft.Json.Linq.JObject
