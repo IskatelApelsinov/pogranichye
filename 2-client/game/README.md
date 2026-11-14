@@ -172,7 +172,7 @@ These are source-level changes only. Unity Editor 6000.6.7f1 and Play Mode are s
 
 ## Global world integration gate (2026-11-13)
 
-The cross-system integration matrix and acceptance gates are tracked in `3-dev/comms/0173-chatgpt-to-claude-global-world-integration-matrix.md`. This is the canonical checklist for coordinating global coordinates, chunk/region streaming, multi-layout presentation, floating origin, spatial AOI, NPC border crossing, navigation, world content and gameplay interactions. Treat any subsystem not marked global-aware by source-backed evidence as local/staging/missing. Keep `-seamless=on` disabled until every P0–P4 acceptance gate is implemented and tested. See also handoffs 0170 (owner requirement) and 0171 (source audit).
+The cross-system integration matrix and acceptance gates are tracked in `3-dev/comms/0173-chatgpt-to-claude-global-world-integration-matrix.md`. This is the canonical checklist for coordinating global coordinates, chunk/region streaming, multi-layout presentation, floating origin, spatial AOI, NPC border crossing, navigation, world content and gameplay interactions. Treat any subsystem not marked global-aware by source-backed evidence as local/staging/missing. Server `-seamless=on` is enabled by default since 2026-11-13 (PR #457), but remains an experimental server mode, not a full Unity seamless-readiness claim. Unity has global terrain overlap and anchored layout caching; PR #632 adds periodic manifest refresh and nearby settlement-layout prefetch so newly opened frontiers can appear without reconnecting. Full cross-boundary AOI, global road/biome chunk content, frontier activation on physical arrival, and Unity A→B→A acceptance remain open. See handoffs 0170–0180 and 0225.
 
 
 
