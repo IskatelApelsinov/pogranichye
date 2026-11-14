@@ -85,10 +85,12 @@ namespace Pogranichye.Client.Presentation
             balance.temperature.Override(3f);
             balance.tint.Override(1f);
 
+            // Emissive fire and lantern glass already read as warm light sources.
+            // Bloom is kept almost imperceptible so lamps do not wash out nearby text and geometry.
             var bloom = _postProcessingProfile.Add<Bloom>(true);
-            bloom.threshold.Override(1.2f);
-            bloom.intensity.Override(0.16f);
-            bloom.scatter.Override(0.62f);
+            bloom.threshold.Override(1.8f);
+            bloom.intensity.Override(0.025f);
+            bloom.scatter.Override(0.35f);
             bloom.highQualityFiltering.Override(false);
 
             var vignette = _postProcessingProfile.Add<Vignette>(true);
