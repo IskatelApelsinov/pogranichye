@@ -148,3 +148,31 @@ ClientInput / UI / CoreGameplay
 ## Ограничения проверки
 
 Это анализ исходников из GitHub `main`, а не Unity build/PlayMode. Unity README сам помечает полную Unity 6 verification checklist как BLOCKED до запуска Editor. Не считать карту, шрифты, дальний мир, market/horse UX исправленными этим аудитом.
+
+
+## 11. Дополнительные presentation/input модули
+
+| Класс | Файл | Роль / граница |
+|---|---|---|
+| Protocol DTO | `Networking/Protocol/WorldFrame.cs` | Typed snapshot graph (635 строк), включая Place/Layout/WorldPos и вложенные структуры. Это правильная модель для UI/gameplay, но `CoreGameplay` пока её не использует напрямую |
+| World input | `Runtime/ClientInput.cs` | Единая Input System action map; отдаёт semantic actions, не решает игровые исходы |
+| Interaction probe | `Presentation/WorldInteractionProbe.cs` | Короткий луч выбирает presentation target; комментарий прямо запрещает ему решать gameplay |
+| Camera | `Presentation/PresentationCameraRig.cs` | Камера и режимы обзора; явно presentation-only, не меняет authoritative world position |
+| Request correlation | `Runtime/RequestGate.cs` | Pure C# очередь result-bearing intents; строго один запрос in-flight, ждёт matching reqid из `me.result`, имеет timeout |
+| Terrain mesh | `Presentation/WorldTerrainChunkBuilder.cs` | Делает визуальный mesh и статический MeshCollider для серверного height chunk; не создаёт географические данные |
+| Wilderness landmarks | `Presentation/WorldWildSitePresentationBuilder.cs` | Рисует landmarks из WorldManifest, позиционируя относительно authoritative player WPOS |
+| Atmosphere | `Presentation/WorldEnvironmentBuilder.cs` | 1 210 строк; локальный визуальный sky/weather/lighting/post-processing. Не является симуляцией климата/погоды |
+| Prototype village visuals | `Presentation/ProceduralVillageBuilder.cs` | 4 478 строк; детерминированная disposable prototype geometry/textures, прямо помеченная как presentation-only, not authoritative and not collidable |
+| Nearby settlement geometry | `Presentation/SettlementLayoutCache.cs` + layout builders | Кэш и визуальное отображение серверного Layout v2; POI coordinates берутся из layout, сервер всё равно валидирует действие |
+
+### Важное уточнение по локальной генерации
+
+Локальные `ProceduralVillageBuilder` и `WorldEnvironmentBuilder` действительно крупные, но их комментарии определяют их как presentation-only. Это само по себе не нарушение серверной архитектуры, если они используются для декора/временного preview и не определяют фактическую карту, коллизии, POI, ресурсы или NPC. Однако `ProceduralVillageBuilder.Build(..., "tutorial-preview")` вызывается из `VerticalSliceController.Awake` ещё до server snapshot; поэтому визуально он может создавать ощущение локальной заранее заданной деревни. Следующий безопасный шаг — явно разделить fallback/decorative preview от server-driven layout и удалить/скрыть декоративные элементы, которые дублируют серверную геометрию, но не заменять их новым локальным генератором мира.
+
+### RequestGate и input — хорошие границы, которые нужно сохранить
+
+`ClientInput` уже централизует ввод. `WorldInteractionProbe` только выбирает цель. `RequestGate` отдельно сериализует операции, где сервер возвращает только последний `me.result`, и потому не допускает нескольких result-bearing запросов одновременно. Эти классы не нужно поглощать новым «универсальным менеджером». При рефакторинге их границы сохраняются.
+
+## 12. Итоговый статус аудита
+
+Карта основных клиентских обязанностей и двух сетевых потоков составлена. Первичный refactor target — убрать raw JSON из `CoreGameplay` и передавать ему typed state, не меняя протокол v1. Далее — вынести UI из controller и уточнить player knowledge map contract совместно с Claude. Полный runtime acceptance всё ещё требует проверки в Unity 6000.6.7f1.
