@@ -26,9 +26,10 @@ namespace Pogranichye.Client.Networking
         public const int SupportedVersion = 1;
 
         /// <summary>
-        /// Returns false only when the JSON object is not marked as a fast frame.
-        /// A malformed object explicitly marked fast throws FormatException and must
-        /// not be retried as a full snapshot.
+        /// Returns false when the payload cannot be classified as a fast frame.
+        /// Valid JSON explicitly marked fast but violating the fast contract throws
+        /// FormatException. Invalid JSON falls through to the strict full-frame parser,
+        /// which reports the malformed payload through its normal error path.
         /// </summary>
         public static bool TryParse(string json, out FastFramePatch patch)
         {
@@ -40,9 +41,11 @@ namespace Pogranichye.Client.Networking
             {
                 root = JObject.Parse(json);
             }
-            catch (JsonException ex)
+            catch (JsonException)
             {
-                throw new FormatException("Быстрый кадр не является корректным JSON-объектом.", ex);
+                // We cannot safely classify malformed JSON as fast. Let the strict
+                // full-frame parser reject it; never guess based on a substring.
+                return false;
             }
 
             var fast = root["fast"];
