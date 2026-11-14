@@ -86,6 +86,8 @@ namespace Pogranichye.Client
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
         private float _nextWorldManifestRefreshAt;
+        private float _nextSettlementPrefetchAt;
+        private string _worldManifestLastPlaceId;
         private bool _worldManifestRefreshInFlight;
         private int _worldManifestGeneration;
         private readonly HashSet<string> _layoutPrefetchInFlight = new HashSet<string>(StringComparer.Ordinal);
@@ -2806,6 +2808,8 @@ namespace Pogranichye.Client
             _layoutPrefetchInFlight.Clear();
             _layoutPrefetchRetryAfter.Clear();
             _nextWorldManifestRefreshAt = Time.unscaledTime + WorldManifestRefreshSeconds;
+            _nextSettlementPrefetchAt = 0f;
+            _worldManifestLastPlaceId = null;
             _layoutRequestedFor = null;
             _layoutFailedFor = null;
             _layoutRetryAfter = 0f;
@@ -3338,6 +3342,8 @@ namespace Pogranichye.Client
             _layoutPrefetchRetryAfter.Clear();
             _worldManifest = null;
             _nextWorldManifestRefreshAt = 0f;
+            _nextSettlementPrefetchAt = 0f;
+            _worldManifestLastPlaceId = null;
             _goalToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
@@ -3577,14 +3583,25 @@ namespace Pogranichye.Client
                 !_frame.Me.WorldPosition.IsValid || _frame.Place?.Anchor == null)
                 return;
 
+            var currentPlaceId = _frame.Place.Id;
+            if (!string.Equals(currentPlaceId, _worldManifestLastPlaceId, StringComparison.Ordinal))
+            {
+                _worldManifestLastPlaceId = currentPlaceId;
+                _nextWorldManifestRefreshAt = 0f; // A place handover may have opened a new frontier ring.
+                _nextSettlementPrefetchAt = 0f;
+            }
+
             if (!_worldManifestRefreshInFlight && Time.unscaledTime >= _nextWorldManifestRefreshAt)
             {
                 _worldManifestRefreshInFlight = true;
                 _ = RefreshWorldManifestAsync(_worldManifestGeneration);
             }
 
-            if (_worldManifest != null)
+            if (_worldManifest != null && Time.unscaledTime >= _nextSettlementPrefetchAt)
+            {
+                _nextSettlementPrefetchAt = Time.unscaledTime + 2f;
                 PrefetchNearbySettlementLayouts(_frame, _worldManifest);
+            }
         }
 
         private async Task RefreshWorldManifestAsync(int generation)
