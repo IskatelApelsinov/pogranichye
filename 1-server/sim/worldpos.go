@@ -295,20 +295,31 @@ func WorldPosViewUsing(t *Terrain, w *core.World, e *core.Entity) any {
 }
 
 // AnchorView — якорь поселения для клиента (place.anchor и /api/layout): мир = якорь + me.pos.
+// Собирает собственный Terrain; на пути, где он уже есть под рукой (один кадр/запрос трогает
+// несколько сёл), используй AnchorViewUsing — см. comms 0208 про цену повторного NewTerrain.
 func AnchorView(w *core.World, settlement core.ID) any {
+	return AnchorViewUsing(w, NewTerrain(w), settlement)
+}
+
+// AnchorViewUsing — AnchorView с уже собранным Terrain (не пересчитывает рельеф/якоря заново).
+func AnchorViewUsing(w *core.World, t *Terrain, settlement core.ID) any {
 	s := settleOf(w, settlement)
 	if s == nil {
 		return nil
 	}
 	e, n := Anchor(w, s)
-	return map[string]any{"frame": 0, "e": r3(e), "n": r3(n), "u": r3(NewTerrain(w).Height(e, n))}
+	return map[string]any{"frame": 0, "e": r3(e), "n": r3(n), "u": r3(t.Height(e, n))}
 }
 
 // WorldManifest — служебная карта мира (/api/world): схема координат, якоря поселений, тракты.
 // Это знание разработчика и потокового клиента, а не игрока: имена сёл игрок узнаёт в мире.
 func WorldManifest(w *core.World) map[string]any {
+	return WorldManifestUsing(w, NewTerrain(w))
+}
+
+// WorldManifestUsing — WorldManifest с уже собранным Terrain (см. AnchorViewUsing).
+func WorldManifestUsing(w *core.World, t *Terrain) map[string]any {
 	p := EnsurePlanet(w)
-	t := NewTerrain(w)
 	var sets []map[string]any
 	w.Each("settlement", func(se *core.Entity) {
 		s := core.Settle(se)
@@ -337,10 +348,14 @@ func WorldManifest(w *core.World) map[string]any {
 // строки с юга на север, в строке — с запада на восток. Соседние чанки делят крайние отсчёты, поэтому
 // швов на стыке нет. Здесь же — что стоит в чанке: центры поселений.
 func TerrainChunk(w *core.World, cx, cz int64, step int) map[string]any {
+	return TerrainChunkUsing(w, NewTerrain(w), cx, cz, step)
+}
+
+// TerrainChunkUsing — TerrainChunk с уже собранным Terrain (см. AnchorViewUsing).
+func TerrainChunkUsing(w *core.World, t *Terrain, cx, cz int64, step int) map[string]any {
 	if step != 8 && step != 16 && step != 32 && step != 64 {
 		step = 16
 	}
-	t := NewTerrain(w)
 	oe, on := ChunkOrigin(cx, cz)
 	n := ChunkMeters / step
 	hs := make([]float64, 0, (n+1)*(n+1))
