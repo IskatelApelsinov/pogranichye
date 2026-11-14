@@ -53,7 +53,7 @@ internal static class HorseStatsFrameParserCheck
         Check("null horse represents no owned horse", true);
 
         ExpectFormat("missing stat rejected", () =>
-            StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\\"will\\":10", "")), "me.stats"));
+            StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\"will\":10", "")), "me.stats"));
         ExpectFormat("negative stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace("\"strength\":10", "\"strength\":-1")), "me.stats"));
         var nonFiniteStats = (JObject)JToken.Parse(statsJson);
