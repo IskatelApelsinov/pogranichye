@@ -185,6 +185,7 @@ namespace Pogranichye.Client
         private JObject _place;
         private GameplayStatusView _status;
         private ActionResultFrame _result;
+        private CombatFrame _combat;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -577,10 +578,11 @@ namespace Pogranichye.Client
                 _hour = (int)Num(root, "hour");
                 WorldEnvironmentBuilder.SetServerHour(_hour);
             }
-            SyncFoes(Arr(_place, "foes"));
+            SyncFoes(frame.Place?.Foes);
             SyncExits(Arr(_place, "exits"));
             ApplySitePresentation();
             ReadFeed(frame.Me?.Feed);
+            _combat = frame.Me?.Combat;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -589,6 +591,7 @@ namespace Pogranichye.Client
         {
             if (_me == null || patch == null) return;
             _status = (_status ?? GameplayStatusView.Empty).Apply(patch.Status);
+            if (patch.HasCombat) _combat = patch.Combat;
             var me = patch.Me;
             if (me != null)
             {
@@ -605,12 +608,11 @@ namespace Pogranichye.Client
                 foreach (var property in place.Properties())
                     _place[property.Name] = property.Value;
 
-                if (place.Property("foes") != null)
-                    SyncFoes(Arr(_place, "foes"));
                 if (place.Property("exits") != null)
                     SyncExits(Arr(_place, "exits"));
                 ApplySitePresentation();
             }
+            if (patch.HasFoes) SyncFoes(patch.Foes);
             if (patch.HasFeed) ReadFeed(patch.Feed);
             if (patch.HasResult)
             {
@@ -639,6 +641,7 @@ namespace Pogranichye.Client
             _place = null;
             _status = null;
             _result = null;
+            _combat = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -825,29 +828,29 @@ namespace Pogranichye.Client
 
         // ------------------------------------------------------------------ foes
 
-        private void SyncFoes(JArray foes)
+        private void SyncFoes(IList<FoeFrame> foes)
         {
             _seen.Clear();
             if (foes != null)
             {
-                foreach (var token in foes)
+                foreach (var foe in foes)
                 {
-                    var id = Str(token, "id");
-                    if (string.IsNullOrEmpty(id)) continue;
+                    if (foe == null || string.IsNullOrEmpty(foe.Id)) continue;
+                    var id = foe.Id;
                     _seen.Add(id);
                     FoeRec rec;
                     if (!_foes.TryGetValue(id, out rec))
                     {
-                        rec = CreateFoe(id, Str(token, "kind"), Str(token, "name"));
-                        rec.Root.transform.position = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
+                        rec = CreateFoe(id, foe.Kind, foe.Name);
+                        rec.Root.transform.position = new Vector3((float)foe.X, 0f, (float)foe.Y);
                         _foes[id] = rec;
                     }
-                    rec.Target = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
-                    rec.Yaw = EntityViewRegistry.FacingToUnityYaw(Num(token, "facing"));
-                    rec.Hp = Num(token, "hp");
-                    rec.Max = Mathf.Max(1f, Num(token, "max"));
-                    rec.Aware = Flag(token, "aware");
-                    rec.State = Str(token, "state");
+                    rec.Target = new Vector3((float)foe.X, 0f, (float)foe.Y);
+                    rec.Yaw = EntityViewRegistry.FacingToUnityYaw((float)foe.Facing);
+                    rec.Hp = (float)foe.Hp;
+                    rec.Max = Mathf.Max(1f, (float)foe.Max);
+                    rec.Aware = foe.Aware;
+                    rec.State = foe.State ?? string.Empty;
                     if (rec.Telegraph != null) rec.Telegraph.gameObject.SetActive(rec.State == "windup");
                     if (rec.Gait != null)
                     {
@@ -1327,7 +1330,7 @@ namespace Pogranichye.Client
             if (_input != null && _input.TrickSneakPressed) Send("trick", "trick", "sneak");
             if (_input != null && _input.CycleStancePressed)
             {
-                var stance = Str(Obj(_me, "combat"), "stance");
+                var stance = _combat?.Stance ?? string.Empty;
                 var next = stance == "balanced" ? "aggressive" : stance == "aggressive" ? "defensive" : "balanced";
                 Send("stance", "stance", next);
             }
@@ -1499,8 +1502,8 @@ namespace Pogranichye.Client
 
         private void Attack(float held, bool thrust)
         {
-            var combat = Obj(_me, "combat");
-            var ranged = Str(combat, "weapon") == "bow";
+            var combat = _combat;
+            var ranged = combat != null && combat.Weapon == "bow";
             CoreFoeView foe;
             string part;
             float accuracy, distance;
@@ -1515,7 +1518,7 @@ namespace Pogranichye.Client
                 Toast("Слишком много объектов на линии прицела", 1.1f);
                 return;
             }
-            var weapon = Str(combat, "weapon");
+            var weapon = combat?.Weapon ?? string.Empty;
             var lockedReach = ranged ? 50f : 3.0f;
             if (aimed && !string.IsNullOrEmpty(_lockedFoeId) && distance > lockedReach)
             {
@@ -1804,9 +1807,9 @@ namespace Pogranichye.Client
                 _handLight.range = 22f;
                 _handLight.intensity = 0f;
             }
-            var combat = Obj(_me, "combat");
-            var weapon = Str(combat, "weapon");
-            var weaveLight = Num(combat, "light") > 0f;
+            var combat = _combat;
+            var weapon = combat?.Weapon ?? string.Empty;
+            var weaveLight = combat != null && combat.Light > 0d;
             var lit = weaveLight || weapon == "torch" || weapon == "lantern";
             var night = _hour >= 20 || _hour < 6 ? 1f : _hour >= 18 || _hour < 8 ? 0.55f : 0.15f;
             _handLight.color = weaveLight ? new Color(0.75f, 0.85f, 1f) : new Color(1f, 0.76f, 0.48f);
@@ -2217,19 +2220,19 @@ namespace Pogranichye.Client
                     "Хмель " + drunk.ToString("0", CultureInfo.InvariantCulture) + "%");
             }
 
-            var combat = Obj(_me, "combat");
-            var weapon = Str(combat, "weapon");
-            var stance = Str(combat, "stance");
-            var guard = Flag(combat, "guard");
-            var sneak = Flag(combat, "sneak");
-            var feint = Flag(combat, "feint");
-            var shield = Num(combat, "shield");
+            var combat = _combat;
+            var weapon = combat?.Weapon ?? string.Empty;
+            var stance = combat?.Stance ?? string.Empty;
+            var guard = combat != null && combat.Guard;
+            var sneak = combat != null && combat.Sneak;
+            var feint = combat != null && combat.Feint;
+            var shield = combat != null ? (float)combat.Shield : 0f;
             var combatIsNotable = !string.IsNullOrEmpty(weapon) || guard || sneak || feint ||
                 shield > 0f || (stance.Length > 0 && stance != "balanced");
             if (combatIsNotable)
             {
                 var line = "В руках: " + (string.IsNullOrEmpty(weapon) ? "оружие не выбрано" : Name(weapon))
-                    + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
+                    + (weapon == "bow" ? " · стрел " + (combat != null ? combat.Arrows : 0) : "")
                     + (stance == "aggressive" ? " · яростная стойка" : stance == "defensive" ? " · осторожная стойка" : "")
                     + (guard ? " · блок" : "") + (sneak ? " · скрытность" : "")
                     + (feint ? " · финт" : "") + (shield > 0f ? " · щит " + (int)shield : "");
