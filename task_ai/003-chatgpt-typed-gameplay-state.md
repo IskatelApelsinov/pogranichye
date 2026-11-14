@@ -96,3 +96,13 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 - Отдельная проблема ±150 м уже частично решена в текущем parser при наличии `me.wpos + place.anchor`; fixtures подтверждают x=151 и отрицательный случай. Повторно этот код не менять.
 
 Wire v1 не менялся. Unity compile/fixture menu/PlayMode не запускались. Следующий шаг — добавить только подтверждённые nested DTO и fixtures, затем перевести один read-only consumer на typed view; big-bang rewrite запрещён.
+
+
+## Пятый проход — первый ограниченный typed consumer (2026-11-14)
+
+- Добавлены typed optional numeric values `HasHealth/Health` и `HasMana/Mana` в `FastFramePatch`. Они различают отсутствующее поле и явный null.
+- `CoreGameplay` теперь получает health/mana из валидированного `CharacterFrame` полного кадра и накладывает только присутствующие fast patch значения. HUD status bars больше не читают эти два поля через JObject.
+- Полный кадр сбрасывает значения к DTO snapshot; fast patch без health/mana сохраняет предыдущие значения; явный null очищает значение до legacy zero display.
+- Editor fixture расширен проверками числовых fast health/mana, отсутствующих полей и явного null.
+
+Это один небольшой read-only срез, не завершение миграции: остальной gameplay всё ещё использует JObject, а fast DTO для combat/feed/foes и остальные разделы остаются следующим этапом. Unity compile и Editor fixture menu не запускались.
