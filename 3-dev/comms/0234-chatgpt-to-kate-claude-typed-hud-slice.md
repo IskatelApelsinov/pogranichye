@@ -56,6 +56,6 @@ After CI and review, inspect `me.result` and RequestGate correlation as the next
 - `FoeFrame`/`FoeFrameParser` для одинаковой full/fast схемы `place.foes[]`;
 - presence-aware `HasCombat/Combat` и `HasFoes/Foes` в fast patch;
 - типизированные потребители в `CoreGameplay`, без локальной симуляции/создания врагов вне server AOI;
-- pure C# и Editor fixture regression checks.
+- pure C# и Editor fixture regression checks. Workflow run #43636660993: все 18 шагов PASS, включая отдельный combat/foe runner.
 
 Следующий кандидат после этого среза — journey/quests, затем inventory/horse и settlement market/site/exits.
