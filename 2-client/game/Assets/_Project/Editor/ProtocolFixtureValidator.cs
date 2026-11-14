@@ -85,7 +85,7 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateFastFrameCases()
         {
-            const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
+            const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"mana\\":34,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
                 patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null ||
                 !patch.HasHealth || patch.Health != 91d || !patch.HasMana || patch.Mana != 34d)
