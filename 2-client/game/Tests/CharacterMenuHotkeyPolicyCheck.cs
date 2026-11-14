@@ -43,7 +43,7 @@ internal static class CharacterMenuHotkeyPolicyCheck
             CharacterMenuHotkeyPolicy.Resolve(false, true, true) == CharacterMenuHotkeySection.Journal);
 
         Console.WriteLine(_failures == 0
-            ? "CharacterMenuHotkeyPolicy: 10 checks passed"
+            ? "CharacterMenuHotkeyPolicy: 11 checks passed"
             : "CharacterMenuHotkeyPolicy: FAILED " + _failures);
         return _failures == 0 ? 0 : 1;
     }
