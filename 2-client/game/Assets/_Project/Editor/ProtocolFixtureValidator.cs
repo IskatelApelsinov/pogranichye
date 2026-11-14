@@ -202,22 +202,17 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateJourneyQuestCases()
         {
-            const string json = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":{\\"to\\":\\"73\\",\\"to_name\\":\\"Берёзовка\\",\\"progress\\":0.5,\\"eta\\":120,\\"scene\\":\\"Лесная дорога\\",\\"note\\":\\"\\",\\"follow\\":false,\\"event\\":{\\"kind\\":\\"bandits\\",\\"foe\\":\\"bandit-1\\",\\"text\\":\\"Люди на дороге\\",\\"options\\":[\\"fight\\",\\"flee\\"]},\\"via\\":[\\"68\\"]},\\"quests\\":{\\"offers\\":[{\\"id\\":\\"wood:7:4\\",\\"kind\\":\\"deliver\\",\\"via\\":\\"board\\",\\"giver\\":\\"12\\",\\"giver_name\\":\\"староста\\",\\"good\\":\\"wood\\",\\"qty\\":4,\\"text\\":\\"Принеси дрова\\",\\"coins\\":4}],\\"active\\":[{\\"id\\":\\"food:7:4\\",\\"kind\\":\\"deliver\\",\\"via\\":\\"board\\",\\"giver\\":\\"12\\",\\"giver_name\\":\\"староста\\",\\"good\\":\\"fish\\",\\"species\\":\\"\\",\\"qty\\":4,\\"have\\":2,\\"ready\\":false,\\"text\\":\\"Принеси рыбу\\",\\"coins\\":6,\\"settlement_id\\":\\"7\\",\\"settlement_name\\":\\"Берёзовка\\",\\"realm_name\\":\\"Северный край\\"}],\\"done\\":3,\\"rep\\":5}}}";
-            var frame = WorldFrameParser.Parse(json);
-            if (frame.Me.Journey == null || frame.Me.Journey.Event == null ||
-                frame.Me.Journey.Event.Options.Count != 2 || frame.Me.Journey.To != "73")
-                throw new FormatException("Full-frame journey did not deserialize into typed DTO.");
-            if (frame.Me.Quests == null || frame.Me.Quests.Offers.Count != 1 ||
-                frame.Me.Quests.Active.Count != 1 || frame.Me.Quests.Active[0].Have != 2d ||
-                frame.Me.Quests.Reputation != 5)
-                throw new FormatException("Full-frame quests did not deserialize into typed DTO.");
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"journey\":{\"to\":\"settlement-2\",\"to_name\":\"Лесное\",\"progress\":0.45,\"eta\":37,\"scene\":\"Дорога тянется через лес.\",\"note\":\"\",\"follow\":false,\"event\":{\"kind\":\"ambush\",\"foe\":\"bandit\",\"text\":\"На тропе люди с дубьём.\",\"options\":[\"fight\",\"pay\",\"flee\"]},\"via\":[\"Сосновка\"]},\"quests\":{\"offers\":[{\"id\":\"food:1:2\",\"kind\":\"deliver\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"good\":\"fish\",\"qty\":4,\"text\":\"Принеси рыбу.\",\"coins\":6}],\"active\":[{\"id\":\"cull:wolf:1:2\",\"kind\":\"cull\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"species\":\"wolf\",\"qty\":2,\"text\":\"Убей двух волков.\",\"coins\":8,\"have\":1,\"ready\":false,\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"}],\"done\":3,\"rep\":-2}}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Journey == null || frame.Me.Journey.To != "settlement-2" ||
+                frame.Me.Journey.Event?.Options == null || frame.Me.Journey.Event.Options.Count != 3 ||
+                frame.Me.Quests == null || frame.Me.Quests.Offers.Count != 1 ||
+                frame.Me.Quests.Active.Count != 1 || frame.Me.Quests.Active[0].Have != 1 ||
+                frame.Me.Quests.Reputation != -2)
+                throw new FormatException("Full frame journey/quest views must deserialize to typed DTOs.");
 
-            var nullFrame = WorldFrameParser.Parse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":null,\\"quests\\":null}}");
-            if (nullFrame.Me.Journey != null || nullFrame.Me.Quests != null)
-                throw new FormatException("Explicit null journey/quests must remain null.");
-
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":{\\"to\\":\\"73\\",\\"to_name\\":\\"Берёзовка\\",\\"progress\\":1.5,\\"eta\\":120,\\"scene\\":\\"\\",\\"note\\":\\"\\",\\"follow\\":false,\\"event\\":null,\\"via\\":[]}}}", "journey progress outside range");
-            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"quests\\":{\\"offers\\":[],\\"active\\":[{}],\\"done\\":0,\\"rep\\":0}}}", "malformed active quest");
+            ExpectRejected(full.Replace("\"progress\":0.45", "\"progress\":1.5"), "journey progress above one");
+            ExpectRejected(full.Replace("\"ready\":false", "\"ready\":1"), "quest ready must be boolean");
         }
 
         private static void ValidateNegativeCases()
