@@ -95,3 +95,5 @@ Unity compile/Editor/PlayMode по-прежнему не запускались.
 - Остальные потребители `CoreGameplay` по-прежнему используют проверенное исходное JSON-дерево; массовой миграции нет.
 
 Проверки в этой среде: только source/diff review. Pure C# check должен быть выполнен GitHub Actions после push. Unity compile, Editor fixture menu и PlayMode не запускались; задача остаётся `!В работе`.
+
+- GitHub Actions: [run #43633890291](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43633890291) — `Unity-independent C# checks` PASS; `GameplayStatusView checks passed` (mcs + mono). Unity Editor/fixture menu/PlayMode остаются непроверенными.
