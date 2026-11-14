@@ -3392,7 +3392,7 @@ namespace Pogranichye.Client
                     _terrainChunks.Remove(id);
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                 }
-                CancelTerrainChunkRequestsOutsideRetention(centerX, centerZ);
+                CancelTerrainChunkRequestsOutsideRequestWindow(centerX, centerZ);
             }
 
             var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
@@ -3449,8 +3449,8 @@ namespace Pogranichye.Client
                 if (parts.Length != 3 ||
                     !long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x) ||
                     !long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var z) ||
-                    Math.Abs((decimal)x - centerX) > TerrainChunkRetentionRadius ||
-                    Math.Abs((decimal)z - centerZ) > TerrainChunkRetentionRadius)
+                    Math.Abs((decimal)x - centerX) > TerrainChunkRequestRadius ||
+                    Math.Abs((decimal)z - centerZ) > TerrainChunkRequestRadius)
                     stale.Add(pair.Key);
             }
 
