@@ -55,6 +55,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stats")] public StatsFrame Stats { get; set; }
         [JsonProperty("bag")] public CarryBagFrame Bag { get; set; }
         [JsonProperty("horse")] public HorseFrame Horse { get; set; }
+        [JsonProperty("region")] public RegionFrame Region { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
