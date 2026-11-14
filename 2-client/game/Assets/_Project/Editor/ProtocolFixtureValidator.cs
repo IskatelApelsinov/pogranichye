@@ -76,6 +76,7 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldV119Dtos();
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
+                ValidateFeedCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -151,6 +152,19 @@ namespace Pogranichye.Client.Editor
 
             if (Math.Abs(full.Drunk - (float)frame.Me.Drunk) > 0.0001f)
                 throw new FormatException("Full-frame me.drunk must remain available to the typed status view.");
+        }
+
+        private static void ValidateFeedCases()
+        {
+            const string fullFeed = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":4,\\"kind\\":\\"hit\\",\\"text\\":\\"Попадание\\",\\"foe\\":\\"wolf-1\\",\\"part\\":\\"head\\",\\"dmg\\":3.5}]}}";
+            var frame = WorldFrameParser.Parse(fullFeed);
+            if (frame.Me?.Feed == null || frame.Me.Feed.Count != 1 ||
+                frame.Me.Feed[0].Sequence != 4 || frame.Me.Feed[0].Foe != "wolf-1" ||
+                Math.Abs(frame.Me.Feed[0].Damage - 3.5d) > 0.0001d)
+                throw new FormatException("A full frame must expose validated typed feed entries.");
+
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":2,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\"},{\\"seq\\":2,\\"kind\\":\\"loot\\",\\"text\\":\\"b\\"}]}}", "duplicate feed sequence");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"feed\\":[{\\"seq\\":1,\\"kind\\":\\"hit\\",\\"text\\":\\"a\\",\\"dmg\\":-1}]}}", "negative feed damage");
         }
 
         private static void ValidateNegativeCases()
