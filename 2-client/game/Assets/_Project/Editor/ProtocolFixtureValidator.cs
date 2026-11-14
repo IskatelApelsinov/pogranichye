@@ -79,6 +79,7 @@ namespace Pogranichye.Client.Editor
                 ValidateFeedCases();
                 ValidateActionResultCases();
                 ValidateCombatFoeCases();
+                ValidateJourneyQuestCases();
                 ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
@@ -197,6 +198,26 @@ namespace Pogranichye.Client.Editor
 
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0}}}", "combat missing guard");
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":42,\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":1,\"max\":1,\"state\":\"roam\",\"aware\":false}]}}", "foe numeric id");
+        }
+
+        private static void ValidateJourneyQuestCases()
+        {
+            const string json = "{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":{\\"to\\":\\"73\\",\\"to_name\\":\\"Берёзовка\\",\\"progress\\":0.5,\\"eta\\":120,\\"scene\\":\\"Лесная дорога\\",\\"note\\":\\"\\",\\"follow\\":false,\\"event\\":{\\"kind\\":\\"bandits\\",\\"foe\\":\\"bandit-1\\",\\"text\\":\\"Люди на дороге\\",\\"options\\":[\\"fight\\",\\"flee\\"]},\\"via\\":[\\"68\\"]},\\"quests\\":{\\"offers\\":[{\\"id\\":\\"wood:7:4\\",\\"kind\\":\\"deliver\\",\\"via\\":\\"board\\",\\"giver\\":\\"12\\",\\"giver_name\\":\\"староста\\",\\"good\\":\\"wood\\",\\"qty\\":4,\\"text\\":\\"Принеси дрова\\",\\"coins\\":4}],\\"active\\":[{\\"id\\":\\"food:7:4\\",\\"kind\\":\\"deliver\\",\\"via\\":\\"board\\",\\"giver\\":\\"12\\",\\"giver_name\\":\\"староста\\",\\"good\\":\\"fish\\",\\"species\\":\\"\\",\\"qty\\":4,\\"have\\":2,\\"ready\\":false,\\"text\\":\\"Принеси рыбу\\",\\"coins\\":6,\\"settlement_id\\":\\"7\\",\\"settlement_name\\":\\"Берёзовка\\",\\"realm_name\\":\\"Северный край\\"}],\\"done\\":3,\\"rep\\":5}}}";
+            var frame = WorldFrameParser.Parse(json);
+            if (frame.Me.Journey == null || frame.Me.Journey.Event == null ||
+                frame.Me.Journey.Event.Options.Count != 2 || frame.Me.Journey.To != "73")
+                throw new FormatException("Full-frame journey did not deserialize into typed DTO.");
+            if (frame.Me.Quests == null || frame.Me.Quests.Offers.Count != 1 ||
+                frame.Me.Quests.Active.Count != 1 || frame.Me.Quests.Active[0].Have != 2d ||
+                frame.Me.Quests.Reputation != 5)
+                throw new FormatException("Full-frame quests did not deserialize into typed DTO.");
+
+            var nullFrame = WorldFrameParser.Parse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":null,\\"quests\\":null}}");
+            if (nullFrame.Me.Journey != null || nullFrame.Me.Quests != null)
+                throw new FormatException("Explicit null journey/quests must remain null.");
+
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"journey\\":{\\"to\\":\\"73\\",\\"to_name\\":\\"Берёзовка\\",\\"progress\\":1.5,\\"eta\\":120,\\"scene\\":\\"\\",\\"note\\":\\"\\",\\"follow\\":false,\\"event\\":null,\\"via\\":[]}}}", "journey progress outside range");
+            ExpectRejected("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\",\\"quests\\":{\\"offers\\":[],\\"active\\":[{}],\\"done\\":0,\\"rep\\":0}}}", "malformed active quest");
         }
 
         private static void ValidateNegativeCases()
