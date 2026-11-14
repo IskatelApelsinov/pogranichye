@@ -9,8 +9,8 @@ checked-in PNGs until the Blender generator is run.
 
 ## New authored material: homespun linen
 
-A separate, image-generated and hand-finished linen weave is now committed for
-the scarecrow tunic and windmill canvas sail. Its warm, undyed flax/burlap tone
+A separate, image-generated linen weave with periodic edge processing is now committed for
+the generated market awning, tutorial scarecrow tunic and windmill canvas sail. Its warm, undyed flax/burlap tone
 fits rural fabric rather than modern synthetic cloth.
 
 - `Resources/WorldMaterials/Textures/homespun_linen_albedo.jpg`: 256×256 sRGB
