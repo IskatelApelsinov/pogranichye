@@ -209,7 +209,8 @@ namespace Pogranichye.Client
         private float _hitMarker;
 
         private bool _menuOpen;
-        // The outer HUD owns additional pointer surfaces (context actions, minigames, chat).
+        private bool _externalCharacterMenuOpen;
+        // The outer HUD owns additional pointer surfaces (character journal, context actions, minigames, chat).
         // The controller reports those so this component never re-locks the cursor over them.
         private bool _externalUiCapture;
         private bool _externalModalMenuOpen;
@@ -227,7 +228,19 @@ namespace Pogranichye.Client
         private Light _handLight;
 
         /// <summary>True while the character menu, weave wheel, or external modal menu owns gameplay input.</summary>
-        public bool CapturesInput { get { return _menuOpen || _weaveOpen || _externalModalMenuOpen; } }
+        public bool CapturesInput { get { return _menuOpen || _externalCharacterMenuOpen || _weaveOpen || _externalModalMenuOpen; } }
+
+        public void SetExternalCharacterMenuOpen(bool open)
+        {
+            if (_externalCharacterMenuOpen == open) return;
+            _externalCharacterMenuOpen = open;
+            if (!open) return;
+            _menuOpen = false;
+            _holding = false;
+            _holdStart = 0f;
+            CloseWeave(false);
+            ReleaseGuard();
+        }
 
         public void SetExternalUiCapture(bool captured)
         {
@@ -238,6 +251,7 @@ namespace Pogranichye.Client
         {
             _externalModalMenuOpen = open;
             if (!open) return;
+            _externalCharacterMenuOpen = false;
             _menuOpen = false;
             _holding = false;
             _holdStart = 0f;
@@ -1206,21 +1220,18 @@ namespace Pogranichye.Client
                 return;
             }
 
-            if (_input != null && _input.MenuPressed)
-            {
-                _menuOpen = !_menuOpen;
-                if (_menuOpen) CloseWeave(false);
-            }
+            // Tab is owned by VerticalSliceController and opens the single character journal.
+            // This component no longer creates a second, overlapping character menu.
             if (_input != null && _input.CancelPressed)
             {
                 _menuOpen = false;
                 CloseWeave(false);
             }
 
-            if (_menuOpen && !talking)
+            if ((_menuOpen || _externalCharacterMenuOpen) && !talking)
                 UpdateCardGameHotkeys();
 
-            if (!_menuOpen && !talking)
+            if (!_menuOpen && !_externalCharacterMenuOpen && !talking)
             {
                 if (_input != null && _input.WeavePressed) OpenWeave();
                 if (_input != null && _input.WeaveReleased && _weaveOpen) CloseWeave(true);
@@ -1240,7 +1251,7 @@ namespace Pogranichye.Client
                 ReleaseGuard();
             }
 
-            UpdateCursor(_menuOpen || _weaveOpen || talking);
+            UpdateCursor(_menuOpen || _externalCharacterMenuOpen || _weaveOpen || talking);
         }
 
         private void UpdateCursor(bool needsPointer)
