@@ -144,6 +144,6 @@ Workflow run #43636660993 — **все 18 шагов PASS**, включая type
 - Typed consumers now include status HUD, `me.feed[]`, `me.result`, `me.combat`, `place.foes[]`, `me.journey`, and `me.quests`; full/fast presence semantics are explicit, while journey/quests remain full-snapshot-only.
 - Latest CI run #43637716008 passed all 19 steps, including dedicated typed status/feed/result/combat/foe/journey/quest regression runners.
 - Remaining character DTO gaps include inventory/horse/bag/stats/region/recipes/party/card-game; remaining settlement gaps include exits/site/market/stable/tavern counter.
-- Journey/quests are implemented in PR #638; next bounded source audit is inventory/horse/bag/stats, then one typed read-only consumer migration.
+- Journey/quests are implemented in PR #638. The stats/bag/horse source audit is documented in task #007; next implement the existing unconnected DTO scaffold, then inventory/region/card-game/recipes/party.
 - Unity 6000.6.7f1 compile, Editor fixture menu and PlayMode are still unverified; see `task_human/004` after PR #638 is merged.
 
