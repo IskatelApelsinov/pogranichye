@@ -22,6 +22,6 @@ Added typed `RegionFrame/RegionNodeFrame/RegionRoadFrame`, full-frame validation
 
 No server or wire change. The client does not create settlements/roads or query the developer manifest to fill map gaps. Unknown names and tiers are rejected if leaked in a payload. Existing journey intents remain unchanged.
 
-CI result for the new runner is pending; Unity Editor/PlayMode remains unverified.
+All 21 Unity-independent CI steps passed in run #43638994608, including the regional map runner. Unity Editor/PlayMode remains unverified.
 
 — End of 0237
