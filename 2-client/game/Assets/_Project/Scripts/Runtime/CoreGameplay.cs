@@ -1217,6 +1217,9 @@ namespace Pogranichye.Client
                 CloseWeave(false);
             }
 
+            if (_menuOpen && !talking)
+                UpdateCardGameHotkeys();
+
             if (!_menuOpen && !talking)
             {
                 if (_input != null && _input.WeavePressed) OpenWeave();
@@ -2890,6 +2893,56 @@ namespace Pogranichye.Client
             GUILayout.EndArea();
         }
 
+        private void UpdateCardGameHotkeys()
+        {
+            if (_input == null || _me == null || _place == null) return;
+            var game = Obj(_me, "card_game");
+            var gameName = Str(game, "game");
+            var done = Flag(game, "done");
+            var atTable = Flag(_place, "tavern") && Near("tavern", 12f);
+            if (!atTable) return;
+
+            if (game == null || done)
+            {
+                if (_input.JourneyChoicePressed(0) && Num(_me, "coins") >= 10f)
+                    Ask("Очко", "card_game", "game", "ochko", "action", "start");
+                else if (_input.JourneyChoicePressed(1) && Num(_me, "coins") >= 10f)
+                    Ask("Дурак", "card_game", "game", "durak", "action", "start");
+                return;
+            }
+
+            if (gameName == "ochko")
+            {
+                if (_input.JourneyChoicePressed(0))
+                    Ask("Очко: взять карту", "card_game", "game", "ochko", "action", "hit");
+                else if (_input.JourneyChoicePressed(1))
+                    Ask("Очко: остановиться", "card_game", "game", "ochko", "action", "stand");
+                return;
+            }
+
+            if (gameName != "durak" || !Flag(game, "your_turn")) return;
+            var role = Str(game, "role");
+            var phase = Str(game, "phase");
+            var hand = Arr(game, "player");
+            if (hand != null && (role == "attack" && phase == "attack" ||
+                role == "defend" && phase == "defend"))
+            {
+                for (var i = 0; i < hand.Count && i < 6; i++)
+                {
+                    if (!_input.JourneyChoicePressed(i)) continue;
+                    Ask(role == "attack" ? "Дурак: атака" : "Дурак: отбивание",
+                        "card_game", "game", "durak", "action",
+                        role == "attack" ? "attack" : "defend", "index", i);
+                    return;
+                }
+            }
+            if (role == "defend" && phase == "defend" && _input.JourneyChoicePressed(6))
+                Ask("Дурак: взять", "card_game", "game", "durak", "action", "take");
+            else if (role == "attack" && phase == "attack" &&
+                DurakTableBeaten(Arr(game, "table")) && _input.JourneyChoicePressed(7))
+                Ask("Дурак: бито", "card_game", "game", "durak", "action", "done");
+        }
+
         private void DrawCardGames()
         {
             var game = Obj(_me, "card_game");
@@ -2903,6 +2956,7 @@ namespace Pogranichye.Client
                 GUILayout.Label("КАРТОЧНЫЙ СТОЛ · ставка 10 монет");
                 if (game == null || done)
                 {
+                    GUILayout.Label("Клавиши: 1 — очко · 2 — подкидной дурак");
                     GUILayout.BeginHorizontal();
                     GUI.enabled = Num(_me, "coins") >= 10f;
                     if (GUILayout.Button("Сыграть в очко")) Ask("Очко", "card_game", "game", "ochko", "action", "start");
@@ -2917,6 +2971,7 @@ namespace Pogranichye.Client
             if (gameName == "ochko")
             {
                 GUILayout.Label("ОЧКО · кон " + Num(game, "stake").ToString("0.#", CultureInfo.InvariantCulture));
+                if (!Flag(game, "done")) GUILayout.Label("Клавиши: 1 — ещё карту · 2 — хватит");
                 DrawCardRow("Корчмарь", Arr(game, "dealer"));
                 if (!Flag(game, "done") && Num(game, "hidden") > 0f)
                     GUILayout.Label("Скрытых карт у корчмаря: " + (int)Num(game, "hidden"));
@@ -2935,6 +2990,7 @@ namespace Pogranichye.Client
             else if (gameName == "durak")
             {
                 GUILayout.Label("ПОДКИДНОЙ ДУРАК · кон " + Num(game, "stake").ToString("0.#", CultureInfo.InvariantCulture));
+                GUILayout.Label("Клавиши 1–6 — выбрать карту · 7 — взять карты / 8 — закончить заход");
                 GUILayout.Label("Козырь: " + Str(game, "trump") + " · нижняя карта: " +
                     (string.IsNullOrEmpty(Str(game, "trump_card")) ? "колода пуста" : Str(game, "trump_card")) +
                     " · в колоде: " + (int)Num(game, "deck") + " · у корчмаря: " + (int)Num(game, "dealer_cards"));
