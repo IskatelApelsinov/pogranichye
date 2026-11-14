@@ -1322,11 +1322,13 @@ func eid(id core.ID) string { return strconv.FormatUint(uint64(id), 10) }
 func round0(f float64) float64 { return float64(int(f + 0.5)) }
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
 
-// round3 — та же точность (мм), что у sim.r3 для wpos/anchor (sim/worldpos.go). Используется ТОЛЬКО
-// там, где клиент сверяет "anchor + pos == wpos" (сейчас — place.neighbors[].pos, см. комментарий
-// WorldFrameParser.cs: допуск 0.002 м). round1 (дециметр) там давал расхождение до 0.05 м — клиент
-// кидал FormatException "place.neighbors[i].wpos не совпадает с anchor + локальная pos" почти на
-// каждом кадре (скрин игрока, 2026-11-13). me.pos остаётся round1 — эта сверка на него не распространяется.
+// round3 — та же точность (мм), что у sim.r3 для wpos/anchor (sim/worldpos.go). Используется там,
+// где клиент сверяет "anchor + pos == wpos" с допуском 0.002 м (WorldFrameParser.cs): и
+// place.neighbors[].pos (round3 в neighborRenderPos), и me.pos (mePos) — comms 0213 и протокол
+// (v1.19, "me.wpos = place.anchor + me.pos") прямо требуют этого и для "me", вопреки более раннему
+// (ошибочному) предположению, что сверка касается только соседей. round1 (дециметр) там давал
+// расхождение до 0.05-0.07 м — клиент кидал FormatException "wpos не совпадает с anchor + локальная
+// pos" почти на каждом кадре (скрины игрока, 2026-11-13 — для соседей, 2026-11-14 — для me).
 func round3(f float64) float64 { return math.Round(f*1000) / 1000 }
 
 func meCoins(e *core.Entity) float64 {
@@ -1370,13 +1372,21 @@ func meBleeding(e *core.Entity) float64 {
 
 // mePos — каноническая позиция тела игрока в сцене (ходьба v1.1): координаты (м), взгляд (град),
 // запал бега (0..1) и номер последнего обработанного ввода движения (для сверки на клиенте).
+// mePos — me.pos. x/y идут round3 (мм), а НЕ round1 (дм): протокол (ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md,
+// v1.19) и comms 0213 требуют проверяемого равенства place.anchor + me.pos == me.wpos с допуском
+// 2 мм — Unity WorldFrameParser.ValidatePosition реально это сверяет на каждом полном кадре.
+// round1 давал расхождение до ~50-70 мм (половина шага округления на каждую координату), из-за чего
+// клиент отклонял frame с "me.wpos не совпадает с place.anchor + me.pos" почти постоянно и игрок
+// не мог войти в мир. round3 — та же точность, что уже раньше дали neighbors[].pos (round3 в
+// neighborRenderPos) по аналогичной причине; тот фикс ошибочно посчитали, что на me.pos сверка не
+// распространяется (см. комментарий у round3 ниже) — comms 0213/протокол это прямо опровергают.
 func mePos(e *core.Entity) map[string]any {
 	p := sim.ScenePos(e)
 	if p == nil {
 		return map[string]any{"x": 0.0, "y": 0.0, "facing": 90.0, "stam": 1.0, "seq": int64(0)}
 	}
 	return map[string]any{
-		"x": round1(p.X), "y": round1(p.Y), "facing": round0(p.Facing),
+		"x": round3(p.X), "y": round3(p.Y), "facing": round0(p.Facing),
 		"stam": round1(p.Stam), "seq": p.Seq,
 	}
 }
