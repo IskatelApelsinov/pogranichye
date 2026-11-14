@@ -22,7 +22,7 @@ However, at this audit:
 - `CharacterFrame` does not expose these properties;
 - `WorldFrameParser` does not call these validators;
 - `CoreGameplay` still reads stats, bag and horse through JObject selectors;
-- there is no dedicated pure C# regression runner for these parsers. A compile-only check of the standalone scaffold passed in run #43638240668; wire integration and parser behavior remain unverified.
+- there is no dedicated pure C# regression runner for these parsers. The dedicated parser regression suite passed in run #43638732127; wire integration and parser behavior remain unverified.
 
 Therefore these classes are scaffolding only; do not count these wire sections as migrated or runtime-verified. In particular, `CarryBagFrameParser.Validate` currently expects an object; integration must handle absent/null old-v1 fields deliberately.
 
