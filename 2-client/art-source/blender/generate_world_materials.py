@@ -193,7 +193,7 @@ def main():
 
     manifest = {
         "name": "Pogranichye World Materials",
-        "version": 1,
+        "version": 2,
         "generator": "generate_world_materials.py",
         "blender": bpy.app.version_string,
         "resolution": [SIZE, SIZE],
