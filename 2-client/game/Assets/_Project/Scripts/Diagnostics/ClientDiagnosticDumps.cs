@@ -130,10 +130,11 @@ namespace Pogranichye.Client.Diagnostics
             long total = 0;
             for (var i = 0; i < files.Length; i++)
             {
-                total += files[i].Length;
+                var fileLength = files[i].Length;
+                total += fileLength;
                 if (i >= MaxDumpFiles || total > MaxDumpBytes)
                 {
-                    try { files[i].Delete(); total -= files[i].Length; }
+                    try { files[i].Delete(); total -= fileLength; }
                     catch (Exception ex) { Debug.LogWarning("[Pogranichye] Не удалось удалить старый дамп: " + ex.Message); }
                 }
             }
