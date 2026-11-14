@@ -5,7 +5,7 @@ Run with Blender 4.2+:
   blender --background --python generate_world_materials.py
 
 The script writes Unity-ready PNG maps directly into:
-  2-client/game/Assets/Art/Generated/WorldMaterials/Textures/
+  2-client/game/Assets/Resources/WorldMaterials/Textures/
 
 All source fields are periodic, so opposite texture borders match. Maps are
 created from one shared height field: Albedo, tangent-space Normal, Roughness,
@@ -178,6 +178,18 @@ def main():
     materials = {}
     for kind in ("meadow_soil", "oak_bark", "oak_planks", "mossy_stone", "forest_floor", "leaf_canopy", "thatch_roof", "packed_road", "cobblestone", "lime_plaster"):
         materials[kind] = build_material(kind)
+
+    # Hand-authored image material: preserve its committed maps and include them in
+    # the same manifest whenever the source assets are present. The packed PBR map
+    # stores normal XY, AO and roughness in RGBA and is unpacked by the Unity client.
+    linen_albedo = TEXTURES / "homespun_linen_albedo.jpg"
+    linen_pbr = TEXTURES / "homespun_linen_pbr.png"
+    if linen_albedo.is_file() and linen_pbr.is_file():
+        materials["homespun_linen"] = {
+            "albedo": str(linen_albedo),
+            "pbr_packed": str(linen_pbr),
+        }
+
     manifest = {
         "name": "Pogranichye World Materials",
         "version": 1,
@@ -186,11 +198,20 @@ def main():
         "resolution": [SIZE, SIZE],
         "tileable": True,
         "maps": ["albedo", "normal", "roughness", "ao"],
+        "packed_map_channels": {
+            "homespun_linen_pbr.png": {
+                "r": "tangent-space normal X",
+                "g": "tangent-space normal Y",
+                "b": "ambient occlusion",
+                "a": "roughness"
+            }
+        },
         "materials": materials,
         "unity_notes": {
             "albedo": "sRGB on",
             "normal": "Texture Type = Normal map",
             "roughness": "sRGB off; use a shader that reads roughness or invert for smoothness",
+            "pbr_packed": "sRGB off, readable, uncompressed; RG=normal XY, B=AO, A=roughness. Runtime reconstructs normal Z and inverts roughness to URP smoothness.",
             "ao": "sRGB off",
             "wrap": "Repeat",
             "mipmaps": True
