@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Pogranichye.Client.Presentation
 {
@@ -27,6 +28,7 @@ namespace Pogranichye.Client.Presentation
         private static Mesh _ruralFieldMesh;
         private static readonly System.Collections.Generic.List<Material> _landscapeMaterials = new System.Collections.Generic.List<Material>();
         private static WorldAtmosphereCycle _atmosphereCycle;
+        private static VolumeProfile _postProcessingProfile;
 
         public static void Build(Transform root, Camera camera)
         {
@@ -46,12 +48,55 @@ namespace Pogranichye.Client.Presentation
             var cycle = environment.gameObject.AddComponent<WorldAtmosphereCycle>();
             cycle.Initialize(_skyMaterial, _starMaterial, _moteMaterial, _mistMaterial, FindSun());
             _atmosphereCycle = cycle;
+            BuildPostProcessing(environment);
         }
 
         /// <summary>Synchronizes the visual sky with the authoritative world clock.</summary>
         public static void SetServerHour(int hour)
         {
             if (_atmosphereCycle != null) _atmosphereCycle.SetServerHour(hour);
+        }
+
+        /// <summary>
+        /// Adds one restrained global URP post-processing volume over the existing day/night
+        /// lighting. It does not replace RenderSettings fog, ambient or skybox animation.
+        /// </summary>
+        private static void BuildPostProcessing(Transform root)
+        {
+            if (root == null) return;
+            var volume = root.gameObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 0f;
+            volume.weight = 1f;
+
+            _postProcessingProfile = ScriptableObject.CreateInstance<VolumeProfile>();
+            _postProcessingProfile.name = "Pogranichye • naturalistic URP grading";
+
+            var tone = _postProcessingProfile.Add<Tonemapping>(true);
+            tone.mode.Override(TonemappingMode.ACES);
+
+            var color = _postProcessingProfile.Add<ColorAdjustments>(true);
+            color.postExposure.Override(0.03f);
+            color.contrast.Override(8f);
+            color.saturation.Override(5f);
+            color.colorFilter.Override(new Color(1f, 0.985f, 0.96f, 1f));
+
+            var balance = _postProcessingProfile.Add<WhiteBalance>(true);
+            balance.temperature.Override(3f);
+            balance.tint.Override(1f);
+
+            var bloom = _postProcessingProfile.Add<Bloom>(true);
+            bloom.threshold.Override(1.2f);
+            bloom.intensity.Override(0.16f);
+            bloom.scatter.Override(0.62f);
+            bloom.highQualityFiltering.Override(false);
+
+            var vignette = _postProcessingProfile.Add<Vignette>(true);
+            vignette.intensity.Override(0.10f);
+            vignette.smoothness.Override(0.72f);
+            vignette.rounded.Override(false);
+
+            volume.sharedProfile = _postProcessingProfile;
         }
 
         private static void BuildSky(Transform root, Camera camera)
@@ -860,6 +905,8 @@ namespace Pogranichye.Client.Presentation
             if (RenderSettings.skybox == _skyMaterial) RenderSettings.skybox = null;
             if (RenderSettings.sun != null && RenderSettings.sun.type == LightType.Directional)
                 RenderSettings.sun = null;
+            DestroyAsset(_postProcessingProfile);
+            _postProcessingProfile = null;
             DestroyAsset(_skyMaterial);
             DestroyAsset(_starMaterial);
             DestroyAsset(_grassMaterial);
