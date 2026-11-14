@@ -23,6 +23,6 @@ A pure C# regression runner now checks DTO mapping, field types/ranges, null/abs
 
 No server change, wire field, protocol version, persistence or intent change is requested. Horse purchase/mount/dismount/feed/stow/unstow and stat training remain server-authoritative. No local horse spawning or inventory mutation is added. This is a client-only integration.
 
-CI result for the new runner is pending; Unity Editor/PlayMode remains unverified.
+All 20 Unity-independent CI steps passed in run #43638726031, including the new runner. Unity Editor/PlayMode remains unverified.
 
 — End of 0236
