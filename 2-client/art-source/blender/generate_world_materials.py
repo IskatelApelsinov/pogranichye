@@ -200,7 +200,7 @@ def main():
         "material_resolutions": {
             "procedural": [SIZE, SIZE],
             "homespun_linen": {
-                "albedo": [256, 256],
+                "albedo": [192, 192],
                 "pbr_packed": [128, 128]
             }
         },
