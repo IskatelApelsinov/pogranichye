@@ -1537,8 +1537,10 @@ namespace Pogranichye.Client.Presentation
             var boardPosition = new Vector3(0f, wallHeight - 0.34f, -depth * 0.5f - 0.17f);
             Create("Building name sign • board", PrimitiveType.Cube, parent,
                 boardPosition, new Vector3(boardWidth, 0.48f, 0.10f), _roof, false);
-            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, -0.06f), 0f, boardWidth);
-            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, 0.06f), 180f, boardWidth);
+            // TextMesh front faces local +Z. Point each inscription toward the viewer on its side:
+            // negative-Z face rotates 180°, positive-Z face keeps identity.
+            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, -0.06f), 180f, boardWidth);
+            CreateBuildingSignFace(parent, title, boardPosition + new Vector3(0f, 0f, 0.06f), 0f, boardWidth);
         }
 
         private static void CreateBuildingSignFace(Transform parent, string title,
