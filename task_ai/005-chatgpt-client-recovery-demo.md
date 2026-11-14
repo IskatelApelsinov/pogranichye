@@ -57,3 +57,8 @@
 ## Consolidation note — 2026-11-14
 
 Typed HUD work from overlapping PRs #635 and #636 is consolidated in PR #638. Do not merge #635 or #636 independently; both will be closed as superseded once PR #638 is published. The complete status-view implementation from #636, the typed feed slice, DTO coverage inventory, recovery notes and human Unity acceptance checklist are retained. The seamless position parser fix remains in place and must not be duplicated.
+
+
+## Typed result continuation — 2026-11-14
+
+PR #638 now also types the existing single-slot `me.result` acknowledgement. `ActionResultFrameParser` validates full and fast results; `RequestGate` semantics remain unchanged (one in-flight request, matching reqid only). No server/wire change. Pure C# and Editor fixture checks were added; CI result is pending.
