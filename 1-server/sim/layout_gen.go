@@ -175,7 +175,7 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 			if try >= 200 { // на плане тесно — ставим где свободно
 				cx, cy = gb.Uniform(-V+w/2, V-w/2), gb.Uniform(-V+d/2, V-d/2)
 			}
-			r := Rect{lk.name, lk.kind, math.Round(cx - w/2), math.Round(cy - d/2), math.Round(cx + w/2), math.Round(cy + d/2)}
+			r := Rect{Name: lk.name, Kind: lk.kind, X0: math.Round(cx - w/2), Y0: math.Round(cy - d/2), X1: math.Round(cx + w/2), Y1: math.Round(cy + d/2)}
 			if r.X0 < -V || r.X1 > V || r.Y0 < -V || r.Y1 > V {
 				continue
 			}
@@ -236,6 +236,17 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 				l.POIs[lk.poi] = [2]float64{dr.x, dr.y}
 			} else {
 				l.Homes = append(l.Homes, [2]float64{dr.x, dr.y})
+			}
+			// comms 0217/0218 п.3: первый рабочий проход — только корчма. building_id/interior_id
+			// стабильны для этого села (один тавern на раскладку), door — на самой стене, не на
+			// пороге-подходе снаружи (см. doorOnWall в world_geometry.go).
+			if lk.kind == "tavern" {
+				bi := len(l.Buildings) - 1
+				d := doorOnWall(r, dr.x, dr.y, dr.axisX, tavernDoorWidth)
+				l.Buildings[bi].BuildingID = "tavern"
+				l.Buildings[bi].Room = "tavern"
+				l.Buildings[bi].InteriorID = "tavern:" + sid(id)
+				l.Buildings[bi].Door = &d
 			}
 			break
 		}
