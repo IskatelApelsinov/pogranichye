@@ -36,3 +36,15 @@
 ## Следующий владелец
 
 После минимального typed pipeline ChatGPT продолжает выделение UI/ViewModel; Claude нужен только если аудит выявит, что текущий fast contract недостаточен или неоднозначен. В таком случае сначала handoff в `3-dev/comms/`, без молчаливого wire change.
+
+
+## Промежуточный результат — 2026-11-14
+
+Выполнен первый безопасный шаг, см. `3-dev/comms/0230-chatgpt-client-fast-frame-boundary.md`:
+- добавлен отдельный `FastFrameParser` и оболочка `FastFramePatch`;
+- fast frame валидируется отдельно и передаётся в `CoreGameplay` не как сырая строка;
+- fast place применяется как patch, отсутствующие в нём поля полного состояния сохраняются;
+- full frame передаётся в `CoreGameplay` как уже проверенный `WorldFrame`, повторный разбор wire JSON удалён; временный JObject adapter оставлен для legacy selectors;
+- добавлены editor fixture checks на валидные/невалидные fast кадры.
+
+Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запускались, компиляция не подтверждена. Задача остаётся `!В работе`: следующий этап — убрать JObject adapter и перевести используемые gameplay selectors на компактную typed view model после сверки реальной серверной формы fastJSON.
