@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Pogranichye.Client.Networking;
+using Pogranichye.Client.Diagnostics;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using UnityEngine;
@@ -164,6 +165,7 @@ namespace Pogranichye.Client
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
+        private string _lastDiagnosticDumpStatus = "Дамп ещё не сохранён";
         private Vector2 _movementInputDebug;
         private Vector2 _movementKeyboardDebug;
         private Vector2 _movementRawAxesDebug;
@@ -719,7 +721,7 @@ namespace Pogranichye.Client
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 430f, 12f, 418f, 310f);
+            var rect = new Rect(Screen.width - 430f, 12f, 418f, 366f);
             GUI.Box(rect, "ТЕХНИЧЕСКАЯ ДИАГНОСТИКА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
@@ -755,6 +757,9 @@ namespace Pogranichye.Client
             GUI.Label(new Rect(rect.x + 10f, rect.y + 278f, rect.width - 20f, 20f),
                 "Place: " + (_frame?.Place?.Id ?? "—") + " · terrain chunks: " + _terrainChunks.Count +
                 " · in flight: " + _terrainChunkRequests.Count);
+            if (GUI.Button(new Rect(rect.x + 10f, rect.y + 304f, rect.width - 20f, 28f), "СОХРАНИТЬ ДАМП ДЛЯ ОТЛАДКИ"))
+                SaveClientDiagnosticDump();
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 336f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
         }
 
         private void DrawHudTabButton(string label, HudTab tab)
@@ -2464,10 +2469,14 @@ namespace Pogranichye.Client
             {
                 if (_connectionState != WorldConnectionState.Active || socket == null)
                     throw new InvalidOperationException("Мир ещё не подключён.");
+                var op = payload != null && payload.TryGetValue("op", out var opValue) ? Convert.ToString(opValue, CultureInfo.InvariantCulture) : "unknown";
+                var reqid = payload != null && payload.TryGetValue("reqid", out var reqValue) ? Convert.ToString(reqValue, CultureInfo.InvariantCulture) : "";
+                ClientDiagnosticDumps.RecordEvent("intent.send", "op=" + op + (string.IsNullOrEmpty(reqid) ? "" : " reqid=" + reqid));
                 await socket.SendPayloadAsync(payload, _lifetime.Token);
             }
             catch (Exception ex)
             {
+                ClientDiagnosticDumps.RecordEvent("intent.error", ex.GetType().Name + ": " + ex.Message);
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
@@ -2950,6 +2959,7 @@ namespace Pogranichye.Client
             {
                 if (FastFrameParser.TryParse(json, out var fastPatch))
                 {
+                    ClientDiagnosticDumps.RecordFrame("fast", json);
                     Enqueue(() =>
                     {
                         if (ReferenceEquals(_socket, socket) && _connectionState == WorldConnectionState.Active && _core != null)
@@ -2960,6 +2970,8 @@ namespace Pogranichye.Client
             }
             catch (FormatException ex)
             {
+                ClientDiagnosticDumps.RecordFrame("rejected", json);
+                ClientDiagnosticDumps.RecordEvent("frame.rejected.fast", ex.Message);
                 Debug.LogWarning("[Pogranichye] Отклонён некорректный быстрый кадр: " + ex.Message);
                 return;
             }
@@ -2967,6 +2979,7 @@ namespace Pogranichye.Client
             try
             {
                 var frame = WorldFrameParser.Parse(json, out var frameDocument);
+                ClientDiagnosticDumps.RecordFrame("full", json);
                 Enqueue(() =>
                 {
                     // Ignore frames queued by a socket that has already been replaced or closed.
@@ -3027,6 +3040,8 @@ namespace Pogranichye.Client
             }
             catch (Exception ex)
             {
+                ClientDiagnosticDumps.RecordFrame("rejected", json);
+                ClientDiagnosticDumps.RecordEvent("frame.rejected.full", ex.GetType().Name + ": " + ex.Message);
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
@@ -3035,7 +3050,56 @@ namespace Pogranichye.Client
             }
         }
 
-
+        private void SaveClientDiagnosticDump()
+        {
+            try
+            {
+                var me = _frame != null ? _frame.Me : null;
+                var position = me != null ? me.Position : null;
+                var worldPosition = me != null ? me.WorldPosition : null;
+                var context = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["unity_version"] = Application.unityVersion,
+                    ["platform"] = Application.platform.ToString(),
+                    ["device_model"] = SystemInfo.deviceModel,
+                    ["server"] = ClientDiagnosticDumps.SafeServerAddress(serverUrl),
+                    ["connection_state"] = _connectionState.ToString(),
+                    ["socket_connected"] = _socket != null && _socket.IsConnected,
+                    ["place_id"] = _frame?.Place?.Id,
+                    ["place_name"] = _frame?.Place?.Name,
+                    ["day"] = _frame != null ? _frame.Day : (int?)null,
+                    ["year"] = _frame != null ? _frame.Year : (int?)null,
+                    ["season"] = _frame?.Season,
+                    ["hour"] = _frame != null && _frame.Hour.HasValue ? (JToken)_frame.Hour.Value : JValue.CreateNull(),
+                    ["scene_position"] = position == null ? JValue.CreateNull() : new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["x"] = position.X, ["y"] = position.Y, ["facing"] = position.Facing
+                    },
+                    ["world_position"] = worldPosition == null ? JValue.CreateNull() : new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["east"] = worldPosition.East, ["north"] = worldPosition.North, ["frame"] = worldPosition.Frame
+                    },
+                    ["neighbor_count"] = _frame?.Place?.Neighbors?.Count ?? 0,
+                    ["remote_view_count"] = _views?.RemoteViewCount ?? 0,
+                    ["terrain_chunks"] = _terrainChunks.Count,
+                    ["terrain_requests_in_flight"] = _terrainChunkRequests.Count,
+                    ["move_queue"] = _moveSendQueue.Count,
+                    ["move_pending"] = _pendingMoveIntents.Count,
+                    ["move_dropped"] = _discardedMoveIntentCount,
+                    ["realtime_seconds"] = Time.realtimeSinceStartup
+                };
+                var savedPath = ClientDiagnosticDumps.SaveDump(context);
+                _lastDiagnosticDumpStatus = "Сохранено: " + savedPath;
+                ClientDiagnosticDumps.RecordEvent("dump.saved", "Manual F3 capture");
+                Debug.Log("[Pogranichye] Диагностический дамп сохранён: " + savedPath);
+            }
+            catch (Exception ex)
+            {
+                _lastDiagnosticDumpStatus = "Ошибка дампа: " + ex.Message;
+                ClientDiagnosticDumps.RecordEvent("dump.error", ex.GetType().Name + ": " + ex.Message);
+                Debug.LogError("[Pogranichye] Не удалось сохранить диагностический дамп: " + ex);
+            }
+        }
 
         private void ResetJumpPresentation()
         {
