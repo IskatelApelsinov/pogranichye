@@ -66,3 +66,20 @@ Wire v1 не менялся. Unity Editor/fixture menu/PlayMode не запус�
 - Fast parser дополнительно валидирует типы `me.pos/combat/wounds/result`, `health/energy/mana`, feed, neighbors и foes.
 - Fixture cases покрывают terminal fast lifecycle, неверный тип маркера fast, нечисловое health и неверный тип wounds.
 - Все пять изменённых C# файлов повторно считаны из GitHub main после записи.
+
+
+## Третий проход — инвентаризация typed DTO против фактических потребителей CoreGameplay (2026-11-14)
+
+Повторно сопоставлены текущие обращения к `_me`/`_place` в `CoreGameplay.cs` с `CharacterFrame`/`PlaceFrame` из `WorldFrame.cs`.
+
+**Вывод: мигрировать UI на существующие DTO напрямую пока небезопасно.** DTO описывает лишь часть wire-модели, а gameplay читает больше полей. Среди фактически используемых разделов, которым требуется точная типизированная модель или extension-data с проверенной схемой:
+- `me.feed`, `me.stats`, `me.horse`, `me.bag`, `me.region`, `me.journey`, `me.quests`, `me.card_game`, `me.combat`, `me.weave`, `me.task`, `me.talk`, `me.party`, `me.recipes`, `me.world`, `me.inv`, `me.stash`, `me.result`;
+- `place.foes`, `place.exits`, `place.site`, `place.life`, `place.market`, `place.stable`, `place.tavern` и связанные поля.
+
+Существующий fast DTO также должен быть отдельным patch-контрактом: он содержит только fastJSON-поля, не полную CharacterFrame/PlaceFrame. Нельзя превращать отсутствующие в fast кадре поля в нули/false и нельзя обновлять ими полный snapshot.
+
+**Следующий безопасный шаг:** отдельная таблица coverage (wire path → DTO type/property → full/fast/optional/null semantics → потребитель CoreGameplay) и добавление только тех DTO, чья форма подтверждена серверным кодом и fixtures. Затем ввести immutable/read-only typed gameplay view с явным merge full + fast patch. Лишь после этого переносить один ограниченный UI-раздел с JObject на typed view.
+
+До выполнения coverage table и fixtures не менять массово `_me`/`_place` selectors. Это предотвращает ложную типизацию и потерю additive v1 полей.
+
+Unity compile/Editor/PlayMode по-прежнему не запускались.
