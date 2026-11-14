@@ -94,6 +94,8 @@ namespace Pogranichye.Client
         private double _worldMapRadius = 500d;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
+        private readonly Dictionary<string, CancellationTokenSource> _terrainChunkCancellation =
+            new Dictionary<string, CancellationTokenSource>();
         private readonly Dictionary<string, float> _terrainChunkRetryAfter = new Dictionary<string, float>();
         private const float TerrainChunkRetryDelaySeconds = 10f;
         private const int MaxConcurrentTerrainChunkRequests = 3;
@@ -2824,6 +2826,7 @@ namespace Pogranichye.Client
                 }
                 WorldWildSitePresentationBuilder.Clear();
                 _terrainStreamGeneration++;
+                CancelAllTerrainChunkRequests();
                 _terrainChunks.Clear();
                 _terrainChunkRequests.Clear();
                 _terrainChunkRetryAfter.Clear();
@@ -3386,6 +3389,7 @@ namespace Pogranichye.Client
                     _terrainChunks.Remove(id);
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                 }
+                CancelTerrainChunkRequestsOutsideRetention(centerX, centerZ);
             }
 
             var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
@@ -3421,20 +3425,54 @@ namespace Pogranichye.Client
             if (_terrainChunkRetryAfter.TryGetValue(chunkId, out var retryAfter) && Time.unscaledTime < retryAfter) return;
             _terrainChunkRetryAfter.Remove(chunkId);
             if (!_terrainChunkRequests.Add(chunkId)) return;
-            _ = LoadTerrainChunkAsync(chunkX, chunkZ, frame, chunkId, _terrainStreamGeneration);
+            var cancellation = new CancellationTokenSource();
+            _terrainChunkCancellation[chunkId] = cancellation;
+            _ = LoadTerrainChunkAsync(chunkX, chunkZ, frame, chunkId, _terrainStreamGeneration, cancellation);
         }
 
-        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, int expectedFrame, string chunkId, int generation)
+        private void CancelAllTerrainChunkRequests()
+        {
+            foreach (var cancellation in _terrainChunkCancellation.Values)
+                cancellation.Cancel();
+            _terrainChunkCancellation.Clear();
+        }
+
+        private void CancelTerrainChunkRequestsOutsideRetention(long centerX, long centerZ)
+        {
+            var stale = new List<string>();
+            foreach (var pair in _terrainChunkCancellation)
+            {
+                var parts = pair.Key.Split(':');
+                if (parts.Length != 3 ||
+                    !long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x) ||
+                    !long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var z) ||
+                    Math.Abs((decimal)x - centerX) > TerrainChunkRetentionRadius ||
+                    Math.Abs((decimal)z - centerZ) > TerrainChunkRetentionRadius)
+                    stale.Add(pair.Key);
+            }
+
+            foreach (var id in stale)
+            {
+                if (_terrainChunkCancellation.TryGetValue(id, out var cancellation))
+                {
+                    _terrainChunkCancellation.Remove(id);
+                    _terrainChunkRequests.Remove(id);
+                    cancellation.Cancel();
+                }
+            }
+        }
+
+        private async Task LoadTerrainChunkAsync(long chunkX, long chunkZ, int expectedFrame, string chunkId,
+            int generation, CancellationTokenSource cancellation)
         {
             try
             {
-                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8);
+                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
                 if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
                     throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
-                    _terrainChunkRequests.Remove(chunkId);
                     if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > TerrainChunkRetentionRadius ||
                         Math.Abs((decimal)chunkZ - _terrainCenterZ) > TerrainChunkRetentionRadius || _frame == null ||
                         _frame.Place == null || _frame.Place.Anchor == null)
@@ -3448,12 +3486,15 @@ namespace Pogranichye.Client
                     _terrainAppliedAnchorUp = _frame.Place.Anchor.Up;
                 });
             }
+            catch (OperationCanceledException)
+            {
+                // A stale chunk no longer blocks the three request slots after the player moves away.
+            }
             catch (Exception exception)
             {
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
-                    _terrainChunkRequests.Remove(chunkId);
                     if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= TerrainChunkRetentionRadius &&
                         Math.Abs((decimal)chunkZ - _terrainCenterZ) <= TerrainChunkRetentionRadius)
                     {
@@ -3462,6 +3503,19 @@ namespace Pogranichye.Client
                             TerrainChunkRetryDelaySeconds.ToString("0") + " с: " + exception.Message);
                     }
                 });
+            }
+            finally
+            {
+                Enqueue(() =>
+                {
+                    if (_terrainChunkCancellation.TryGetValue(chunkId, out var active) &&
+                        ReferenceEquals(active, cancellation))
+                    {
+                        _terrainChunkCancellation.Remove(chunkId);
+                        _terrainChunkRequests.Remove(chunkId);
+                    }
+                });
+                cancellation.Dispose();
             }
         }
 
