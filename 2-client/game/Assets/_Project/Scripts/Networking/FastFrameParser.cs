@@ -21,11 +21,17 @@ namespace Pogranichye.Client.Networking
         public List<FeedEntryFrame> Feed { get; }
         public bool HasResult { get; }
         public ActionResultFrame Result { get; }
+        public bool HasCombat { get; }
+        public CombatFrame Combat { get; }
+        public bool HasFoes { get; }
+        public List<FoeFrame> Foes { get; }
 
         internal FastFramePatch(
             JObject me, JObject place, GameplayStatusPatch status,
             bool hasFeed, List<FeedEntryFrame> feed,
-            bool hasResult, ActionResultFrame result)
+            bool hasResult, ActionResultFrame result,
+            bool hasCombat, CombatFrame combat,
+            bool hasFoes, List<FoeFrame> foes)
         {
             Me = me;
             Place = place;
@@ -34,6 +40,10 @@ namespace Pogranichye.Client.Networking
             Feed = feed;
             HasResult = hasResult;
             Result = result;
+            HasCombat = hasCombat;
+            Combat = combat;
+            HasFoes = hasFoes;
+            Foes = foes;
         }
     }
 
@@ -95,7 +105,6 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException("Быстрый кадр не содержит ни одного обновляемого раздела.");
 
             ValidateOptionalObject(me, "me.pos");
-            ValidateOptionalObject(me, "me.combat");
             ValidateOptionalObject(me, "me.wounds");
             ValidateOptionalArray(me, "me.feed");
             ValidateOptionalNumber(me, "me.health");
@@ -108,13 +117,15 @@ namespace Pogranichye.Client.Networking
             // me.result is a one-slot server acknowledgement, not an event queue.
             var hasResult = me != null && me.Property("result") != null;
             var result = hasResult ? ActionResultFrameParser.Parse(me["result"], "me.result") : null;
+            var hasCombat = me != null && me.Property("combat") != null;
+            var combat = hasCombat ? CombatFrameParser.Parse(me["combat"], "me.combat") : null;
+            var hasFoes = place != null && place.Property("foes") != null;
+            var foes = hasFoes ? FoeFrameParser.Parse(place["foes"], "place.foes") : null;
             ValidateOptionalArray(place, "place.neighbors");
-            ValidateOptionalArray(place, "place.foes");
             ValidateOptionalArray(place, "place.exits");
             ValidateNeighborEntries(place);
-            ValidateFoeEntries(place);
 
-            patch = new FastFramePatch(me, place, status, hasFeed, feed, hasResult, result);
+            patch = new FastFramePatch(me, place, status, hasFeed, feed, hasResult, result, hasCombat, combat, hasFoes, foes);
             return true;
         }
 
@@ -177,18 +188,6 @@ namespace Pogranichye.Client.Networking
                 var pos = item["pos"];
                 if (pos != null && pos.Type != JTokenType.Null && pos.Type != JTokenType.Object)
                     throw new FormatException("place.neighbors[" + i + "].pos должен быть объектом.");
-            }
-        }
-
-        private static void ValidateFoeEntries(JObject place)
-        {
-            var token = place?["foes"] as JArray;
-            if (token == null) return;
-            for (var i = 0; i < token.Count; i++)
-            {
-                var item = token[i] as JObject;
-                if (item == null || item["id"]?.Type != JTokenType.String)
-                    throw new FormatException("place.foes[" + i + "] должен содержать строковый id.");
             }
         }
 
