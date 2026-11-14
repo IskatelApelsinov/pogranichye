@@ -68,6 +68,7 @@ namespace Pogranichye.Client.Networking
                 StatsFrameParser.Validate(me["stats"], "me.stats");
                 CarryBagFrameParser.Validate(me["bag"], "me.bag");
                 HorseFrameParser.Validate(me["horse"], "me.horse");
+                RegionFrameParser.Validate(me["region"], "me.region");
                 FeedFrameParser.Validate(me["feed"], "me.feed");
                 ValidateJournal(me["journal"], "me.journal");
                 ValidateWorldPosition(me["wpos"], "me.wpos");
