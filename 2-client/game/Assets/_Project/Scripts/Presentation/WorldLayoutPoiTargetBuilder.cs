@@ -4,8 +4,8 @@ using UnityEngine;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Adds only invisible, short-range E targets at server-provided generated-layout POIs.
-    /// It creates no world/gameplay entity and sends no intent until the player presses E.
+    /// Projects server-authored interaction descriptors (or legacy server POIs) into invisible E targets.
+    /// These targets are input volumes only: they never create world entities or perform gameplay locally.
     /// </summary>
     public static class WorldLayoutPoiTargetBuilder
     {
