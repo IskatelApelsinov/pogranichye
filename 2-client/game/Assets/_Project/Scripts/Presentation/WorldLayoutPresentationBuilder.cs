@@ -66,9 +66,9 @@ namespace Pogranichye.Client.Presentation
             ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
             ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
 
-            // Prefer generated 512px PBR maps when the Blender asset pass has been run.
-            // Existing 64px procedural surfaces remain the fallback for an untouched checkout.
-            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f);
+            // Authored 1024px PBR maps take priority over the optional Grok starter maps.
+            // Existing procedural/Grok materials remain safe fallbacks until the authored pack is imported.
+            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
