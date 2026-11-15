@@ -12,7 +12,7 @@
 
 - Grok описал 10 albedo и 10 tangent-space normal maps (Sobel по luminance, OpenGL Y+).
 - Документы: `textures/grok/README.md`, `3-dev/docs/NORMAL-MAPS-GENERATION.md`.
-- Канонический Unity-путь: `2-client/game/Assets/Resources/WorldMaterials/Textures/Grok/`.
+- Канонический источник: `grok/textures/grok/`; Unity Resources — синхронизируемая копия.
 - Runtime builder получил необязательную загрузку Grok maps; при отсутствии PNG остаются прежние procedural материалы.
 - Unity importer распознаёт суффикс `_n` как Normal Map, sRGB Off.
 - Авторские карты (например packed-road PBR) имеют приоритет над Grok fallback.
@@ -36,7 +36,7 @@
 
 ## Критерии приёмки
 
-- Все 10 albedo + 10 normal PNG реально присутствуют в Unity Resources.
+- Все 58 albedo + 58 normal PNG синхронизированы в Unity Resources командой Editor importer.
 - Import settings проверены в Unity Inspector.
 - Эталонная улица сравнивается в дневном и вечернем освещении.
 - Normal Scale не создаёт рябь/пластиковый вид; бесшовность проверена на 2×2 tiling.
