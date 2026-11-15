@@ -235,6 +235,15 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
         // v1.20 public vacancy/price summary; intentionally contains no tenant or chest data.
         [JsonProperty("rooms")] public PlaceRoomsFrame Rooms { get; set; }
+        // Public stable stock and price; purchase remains a server-authoritative horse intent.
+        [JsonProperty("stable")] public StableFrame Stable { get; set; }
+    }
+
+    [Serializable]
+    public sealed class StableFrame
+    {
+        [JsonProperty("horses")] public double Horses { get; set; }
+        [JsonProperty("price")] public double Price { get; set; }
     }
 
     [Serializable]
