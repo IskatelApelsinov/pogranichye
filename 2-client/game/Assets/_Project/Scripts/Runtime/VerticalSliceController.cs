@@ -203,6 +203,7 @@ namespace Pogranichye.Client
         private long _moveSequence;
         private long _lastConfirmedMoveSequence;
         private bool _hasMovementBaseline;
+        private string _movementPlaceId;
         private bool _moveSendInFlight;
         private const int MaxQueuedMoveIntents = 8;
         private int _discardedMoveIntentCount;
@@ -3772,11 +3773,21 @@ namespace Pogranichye.Client
         {
             if (position == null || _views?.PlayerTransform == null) return;
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
-            if (!_hasMovementBaseline)
+            var currentPlaceId = _frame?.Place?.Id;
+            var placeChanged = !string.Equals(_movementPlaceId, currentPlaceId, StringComparison.Ordinal);
+            if (!_hasMovementBaseline || placeChanged)
             {
-                _moveSequence = position.Sequence;
+                // StepLands may change settlement-local coordinates without changing the
+                // movement sequence. A place handover is therefore a new coordinate frame:
+                // snap to the server's new local position and discard old-place prediction.
+                _movementPlaceId = currentPlaceId;
+                _moveSequence = Math.Max(_moveSequence, position.Sequence);
                 _lastConfirmedMoveSequence = position.Sequence;
                 _hasMovementBaseline = true;
+                _pendingMoveIntents.Clear();
+                _moveSendQueue.Clear();
+                _movementCorrection = Vector3.zero;
+                _movementCorrectionRemaining = 0f;
                 _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
                 _views.PlayerTransform.rotation = Quaternion.Euler(0f,
                     EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
@@ -3794,10 +3805,14 @@ namespace Pogranichye.Client
             var replayedPosition = EntityViewRegistry.ToUnityPosition(position);
             var replayedStamina = _serverStamina;
             var replayedFacing = position.Facing;
+            var activeLayout = PoiPositionPolicy.IsLayoutForSettlement(
+                _layoutSettlementId, _frame?.Place?.Id) ? _layout : null;
+            var allowSeamlessExit = _worldManifest != null && _worldManifest.Seamless;
             for (var i = 0; i < _pendingMoveIntents.Count; i++)
             {
                 var intent = _pendingMoveIntents[i];
-                PredictServerMove(ref replayedPosition, ref replayedStamina, intent, _layout);
+                PredictServerMove(ref replayedPosition, ref replayedStamina, intent,
+                    activeLayout, allowSeamlessExit);
                 replayedFacing = intent.Face;
             }
 
@@ -3817,11 +3832,12 @@ namespace Pogranichye.Client
             var stamina = _serverStamina;
             var unusedPosition = Vector3.zero;
             for (var i = 0; i < _pendingMoveIntents.Count; i++)
-                PredictServerMove(ref unusedPosition, ref stamina, _pendingMoveIntents[i], _layout);
+                PredictServerMove(ref unusedPosition, ref stamina, _pendingMoveIntents[i], null, true);
             return stamina;
         }
 
-        private static void PredictServerMove(ref Vector3 position, ref float stamina, PendingMoveIntent intent, WorldLayoutFrame layout)
+        private static void PredictServerMove(ref Vector3 position, ref float stamina,
+            PendingMoveIntent intent, WorldLayoutFrame layout, bool allowOutsideSettlement)
         {
             var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
             var direction = new Vector2(intent.Mx, intent.My);
@@ -3837,8 +3853,8 @@ namespace Pogranichye.Client
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;
                 var flat = layout != null
-                    ? layout.ResolveMove(origin, desired)
-                    : Vector2.ClampMagnitude(desired, 29.5f);
+                    ? layout.ResolveMove(origin, desired, allowOutsideSettlement)
+                    : desired;
                 position.x = flat.x;
                 position.z = flat.y;
             }
