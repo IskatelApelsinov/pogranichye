@@ -4,8 +4,8 @@ using UnityEngine;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Tutorial point selected through the short-range interaction probe.
-    /// It requests an existing server goal; it never performs the activity locally.
+    /// Server-backed interaction target selected through the short-range probe.
+    /// It only forwards an existing server intent; it never performs gameplay locally.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public sealed class WorldPoi : MonoBehaviour
