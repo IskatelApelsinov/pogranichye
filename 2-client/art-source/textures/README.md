@@ -43,3 +43,33 @@ Unity импортирует PNG автоматически через `WorldMat
 UV tiling дороги сохраняется: 2×12. URP Lit читает smoothness из albedo alpha через `_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0. Отдельная roughness-карта остаётся доступной для других шейдеров и экспорта.
 
 Если полного набора карт нет, текущая сцена остаётся работоспособной на прежнем материале.
+
+
+## Авторская текстура состаренных дубовых досок
+
+Исходник — оригинальная realistic-stylized художественная поверхность из четырёх широких досок старого дуба: глубокие стыки, продольные волокна, сучки, трещины, потёртости и отверстия от старого крепежа. Это не синусоидальная процедурная подмена.
+
+Скрипт `build_oak_planks_material.py` создаёт в Unity Resources:
+
+- `oak_planks_albedo.png` — 1024×1024 RGBA; RGB — authored base color, A — линейная smoothness (`1 - roughness`);
+- `oak_planks_normal.png` — tangent-space normal, positive tangent Y;
+- `oak_planks_roughness.png` — отдельная линейная roughness;
+- `oak_planks_ao.png` — отдельная линейная AO;
+- `oak_planks_material.json` — диапазоны PBR-карт и отчёт бесшовности.
+
+Для URP Lit включается Albedo Alpha smoothness (`_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0). Отдельная roughness-карта сохраняется для других шейдеров и экспорта. `WorldMaterialTextureImporter` уже задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear data для roughness/AO.
+
+Пересборка требует Python 3.10+, Pillow, NumPy и OpenCV:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_oak_planks_material.py
+```
+
+Исходник `oak_planks_source.jpg` лежит рядом со скриптом. Генератор берёт четыре целые доски между исходными продольными стыками, затем ремонтирует повтор по обеим осям выровненными внутренними фрагментами с cosine feather. Он проверяет каждую карту и завершает работу ошибкой, если отношение перепада на шве к внутреннему перепаду превышает 1.35.
+
+## Подключение в мире
+
+`WorldLayoutPresentationBuilder` загружает `oak_planks` для общего timber-материала: деревянные поверхности сгенерированных зданий и мостика, а также других элементов, использующих `_timber`. Сначала применяется Grok starter texture как fallback, затем авторский набор с приоритетом. UV tiling остаётся 2×2. URP Lit получает smoothness из albedo alpha; нормаль и AO подключаются к штатным слотам.
+
+Если PNG-набор ещё не распакован в Resources, проект остаётся работоспособным на Grok/процедурном fallback. Для установки готового набора распакуй архив `pogranichye_oak_planks_texture_pack.zip` в корень репозитория с сохранением путей.
