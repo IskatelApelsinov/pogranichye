@@ -145,3 +145,14 @@ Unity Transform использует float-координаты. Нельзя н
 - LOD: https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/lod/level-of-detail
 - APV streaming: https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting/probevolumes/streaming
 - Addressables asynchronous operations: https://docs.unity.cn/Packages/com.unity.addressables@2.2/manual/AddressableAssetsAsyncOperationHandle.html
+
+
+## 14. Реализация первого фундамента (16.11.2026)
+
+Добавлены в клиент:
+- `WorldOriginState` — чистая double-precision модель глобального origin, обратимые global/local преобразования и политика rebasing на сетку 256 м по горизонтали / 64 м по вертикали при выходе за порог 2048 м.
+- `WorldChunkStreamingPolicy` — детерминированный порядок запросов квадратного окна чанков (центр первым, затем ближайшие) и единая проверка retention halo.
+- `WorldOriginStateCheck` и `WorldChunkStreamingPolicyCheck` — regression checks; включены в Unity-independent CI.
+- Существующий `VerticalSliceController` теперь использует общую streaming policy для планирования запросов и выгрузки чанков.
+
+**Ограничение этой итерации:** `WorldOriginState` пока является проверенным координатным ядром, но ещё не перемещает Unity Transforms. Нельзя объявлять runtime floating-origin включённым до атомарной интеграции со всеми presentation roots, камерой, физикой, NPC и audio. Текущий игровой клиент продолжает использовать settlement-local frame для активной сцены. Следующая итерация должна подключить origin coordinator и проверить переход через границы поселений/чанков.
