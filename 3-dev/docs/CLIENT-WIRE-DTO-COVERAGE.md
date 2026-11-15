@@ -126,3 +126,19 @@ The card-game slice is now typed end-to-end for its selected consumer: `WorldFra
 
 
 Card-game parser regression run: [#43755452041](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43755452041) passed. Unity runtime acceptance is still pending.
+
+## Market and progression completeness audit — 2026-11-16
+
+Server source review:
+- `1-server/server/server.go:stateJSON` publishes `place.market = sim.MarketView(se,e)` and `me.stats = sim.StatsView(e)`.
+- `1-server/sim/craft.go:MarketView` builds one row for every distinct good with settlement stock >= 1 and every distinct good in the player's stash >= 1, excluding beer (beer is intentionally handled by the physical tavern counter). Each row contains `good`, `stock`, `price`, `sell`; rows are sorted by good key. The server does not impose a six-row cap.
+- `1-server/sim/stats.go:StatsView` currently emits exactly six core attributes: `strength/agility/endurance/intellect/perception/will`. This is the complete current `me.stats` contract, not an arbitrary client subset.
+- `me.skills` is a separate dynamic map keyed by server skill IDs. It must be rendered dynamically; do not confuse skills with the six core attributes.
+
+Unity presentation correction in progress:
+- Market UI now iterates the complete received `place.market[]` list inside a scroll view instead of relying on a short visible-row limit.
+- Each market row uses server `good/stock/price/sell` and current server stash quantity; beer remains in the tavern flow.
+- Character sheet retains the six server core attributes and adds every numeric `me.skills` entry in sorted key order, including additive/previously unknown skill IDs.
+- No Go server or wire contract changes are part of this client task.
+
+Runtime status: source review only; Unity Editor compile and PlayMode acceptance remain pending.
