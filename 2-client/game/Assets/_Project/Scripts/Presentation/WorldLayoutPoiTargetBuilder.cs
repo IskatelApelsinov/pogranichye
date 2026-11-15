@@ -16,7 +16,7 @@ namespace Pogranichye.Client.Presentation
 
             // New server-authored descriptors take precedence over the legacy POI intent map.
             // Their coordinates may represent a counter, workstation, bench or interior object.
-            if (layout.Interactions != null && layout.Interactions.Count > 0)
+            if (layout.Interactions != null)
             {
                 foreach (var descriptor in layout.Interactions)
                 {
