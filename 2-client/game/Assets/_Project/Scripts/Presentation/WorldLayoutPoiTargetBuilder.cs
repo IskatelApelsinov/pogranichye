@@ -56,7 +56,7 @@ namespace Pogranichye.Client.Presentation
                 target.transform.localPosition = new Vector3((float)point.X, 0.9f, (float)point.Y);
 
                 var hitArea = target.AddComponent<SphereCollider>();
-                hitArea.radius = 0.85f;
+                hitArea.radius = 1.25f;
                 // Interaction volumes must never become invisible physical obstacles.
                 // WorldInteractionProbe explicitly includes triggers and filters unrelated ones.
                 hitArea.isTrigger = true;
