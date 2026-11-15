@@ -140,7 +140,7 @@ namespace Pogranichye.Client.Presentation
             foreach (var sample in rim.Samples)
                 if (sample != null && Finite(sample.OuterRadiusMeters))
                     outer = Math.Max(outer, sample.OuterRadiusMeters);
-            return outer > 0d ? Mathf.Clamp((float)(outer * 2.05d + 500d), 1000f, 60000f) : 0f;
+            return outer > 0d ? Mathf.Clamp((float)(outer * 2.05d + 500d), 1000f, 100000f) : 0f;
         }
 
         private static bool Valid(CauldronRimSampleFrame sample)
