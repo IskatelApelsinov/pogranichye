@@ -115,3 +115,8 @@ The shared RequestGate rejects an identical pending request (same visible action
 ## Panel navigation follow-up — 2026-11-15
 
 The character/journal panel has an explicit top-right close affordance in addition to the existing Tab toggle. Closing it releases character-menu input capture. This source-level change still needs Unity PlayMode verification for cursor and movement behavior.
+
+
+## Progressive disclosure — first-play summary
+
+The character summary prioritizes the current opening step and tavern/social context. Optional free practice, mini-games, mana and weave controls are grouped behind an explicit “Показать дополнительные занятия” disclosure. This is a presentation hierarchy only: all values and eligibility remain server-owned, and the journal keeps the full task explanation.
