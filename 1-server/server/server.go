@@ -582,7 +582,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if in.Item == "beer" {
 			s.mu.Lock()
 			if e := s.world.Get(cid); e != nil {
-				rok, rwhy := sim.BuyBeer(s.world, e, in.ReqID) // атомарно/идемпотентно; исход в кадре (me.mug)
+				rok, rwhy := sim.BuyBeer(s.world, e, in.ReqID, s.runner.Clock.Hour()) // атомарно/идемпотентно; исход в кадре (me.mug)
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
 			s.mu.Unlock()
@@ -1040,20 +1040,20 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"food":           round0(econ.FoodOnHand(se)),
 				"bread":          round0(st.Store[econ.GoodBread]),
 				"bread_price":    round1(econ.Price(se, econ.GoodBread)),
-				"tavern":         st.Tavern,                                         // есть ли корчма (где можно выпить)
-				"beer":           round0(st.Store[sim.BeerGood]),                    // запас пива в корчме (v1.2)
-				"beer_price":     sim.BeerPrice,                                     // цена кружки
-				"tavern_counter": sim.TavernCounterView(s.world, pl.Settlement, se), // comms 0223: где стойка и прислуживает ли корчмарь — аддитивно, может быть nil
+				"tavern":         st.Tavern,                                                                // есть ли корчма (где можно выпить)
+				"beer":           round0(st.Store[sim.BeerGood]),                                           // запас пива в корчме (v1.2)
+				"beer_price":     sim.BeerPrice,                                                            // цена кружки
+				"tavern_counter": sim.TavernCounterView(s.world, pl.Settlement, se, s.runner.Clock.Hour()), // comms 0223/0242: где стойка и прислуживает ли корчмарь — аддитивно, может быть nil
 				"neighbors":      neighbors,
-				"foes":           sim.FoesViewAOI(s.world, terrain, e, pl.Settlement, vanchorE, vanchorN),  // звери/лихие люди сцены + близких чужих сёл у межи (comms 0219 п.3, v1.23)
-				"exits":          sim.ExitsView(s.world, e, pl.Settlement),                 // выезды: тракты к соседям и перевал (v1.15)
-				"site":           sim.SiteView(s.world, se),                                // место на планете и характер села (v1.14)
-				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                   // v1.19: центр села в мире; мир = anchor + pos
-				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
-				"stable":         sim.StableView(se),                                       // конюшня: лошади на продажу и цена (v1.13)
-				"market":         sim.MarketView(se, e),                                    // прилавок: запас и цены (v1.10)
-				"life":           s.placeLife(se),                                          // агрегаты жизни общины (v1.18)
-				"rooms":          sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()), // комнаты над корчмой: всего/вакантно/цена (v1.20)
+				"foes":           sim.FoesViewAOI(s.world, terrain, e, pl.Settlement, vanchorE, vanchorN), // звери/лихие люди сцены + близких чужих сёл у межи (comms 0219 п.3, v1.23)
+				"exits":          sim.ExitsView(s.world, e, pl.Settlement),                                // выезды: тракты к соседям и перевал (v1.15)
+				"site":           sim.SiteView(s.world, se),                                               // место на планете и характер села (v1.14)
+				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                    // v1.19: центр села в мире; мир = anchor + pos
+				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
+				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
+				"market":         sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)
+				"life":           s.placeLife(se),                                                         // агрегаты жизни общины (v1.18)
+				"rooms":          sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()),                // комнаты над корчмой: всего/вакантно/цена (v1.20)
 			}
 		}
 	}

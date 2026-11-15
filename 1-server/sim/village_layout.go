@@ -55,7 +55,18 @@ func targetFor(l *Layout, e *core.Entity, role, goal, act string) (x, y float64)
 			return l.POI("woods")
 		case "miner":
 			return l.POI("mine")
-		case "tavernkeeper", "cook":
+		case "tavernkeeper":
+			// comms 0244 (task 012/013): корчмарь на смене должен стоять У СТОЙКИ внутри, не у
+			// внешнего порога/двери — после ужесточения 0223 (atTavernCounter меряет от центра
+			// здания) корчмарь на двери визуально "пустая стойка" для AOI/клиента. Fallback на
+			// старый порог — для раскладок без геометрии корчмы (ok=false).
+			if act == "keep_tavern" {
+				if cx, cy, _, ok := l.TavernCounter(); ok {
+					return cx, cy
+				}
+			}
+			return l.POI("tavern")
+		case "cook":
 			return l.POI("tavern")
 		case "weaver":
 			return l.POI("granary")
