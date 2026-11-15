@@ -168,6 +168,9 @@ namespace Pogranichye.Client
         private bool _firstPerson = true;
         private bool _hudCollapsed;
         private bool _showAdvancedCharacterActions;
+        private bool _marketPanelOpen;
+        private bool _stablePanelOpen;
+        private bool _tavernPanelOpen;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
@@ -241,6 +244,9 @@ namespace Pogranichye.Client
             _presentationRoot = new GameObject("PresentationWorld").transform;
             _presentationRoot.SetParent(transform, false);
             _layoutCache = new SettlementLayoutCache(_presentationRoot);
+            // Remove stale scene-authored prototype village before the login screen or
+            // first server frame can expose it as if it were the real settlement.
+            _layoutCache.RemovePrototypeVillageFallbacks();
             var entityRoot = new GameObject("EntityViews").transform;
             entityRoot.SetParent(_presentationRoot, false);
             _views = new EntityViewRegistry(entityRoot);
@@ -248,7 +254,10 @@ namespace Pogranichye.Client
             WorldNpc.Selected += OnNpcSelected;
             SetupPresentationScene();
             // No client-generated village fallback: world geometry is built only from server Layout/manifest data.
-            _villageSoundscape = _presentationRoot.GetComponentInChildren<VillageSoundscape>();
+            _villageSoundscape = _presentationRoot.GetComponent<VillageSoundscape>();
+            if (_villageSoundscape == null)
+                _villageSoundscape = _presentationRoot.gameObject.AddComponent<VillageSoundscape>();
+            _villageSoundscape.Initialize();
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _audioDirector = _presentationRoot.gameObject.AddComponent<WorldAudioDirector>();
             _audioDirector.Initialize();
@@ -294,8 +303,10 @@ namespace Pogranichye.Client
             WorldWildSitePresentationBuilder.Update(_presentationRoot, _worldManifest, _frame);
             // Keep spatial player SFX and remote-voice range checks anchored to the
             // authoritative local body, not the scene origin where the director was created.
-            _audioDirector?.SetPlayerPosition(_views != null && _views.PlayerTransform != null
-                ? _views.PlayerTransform.position : transform.position);
+            var audioPlayer = _views != null && _views.PlayerTransform != null
+                ? _views.PlayerTransform : transform;
+            _audioDirector?.SetPlayerPosition(audioPlayer.position);
+            UpdateServerAudioAnchors(audioPlayer);
             // Keep F3 diagnostics live even on the title/login screen, before movement starts.
             if (_movementDebugVisible && _input != null)
                 _pressedKeysDebug = _input.BuildPressedKeysDebug();
@@ -356,25 +367,38 @@ namespace Pogranichye.Client
             else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
             {
                 if (_chatOpen) SetChatOpen(false);
+                else if (_marketPanelOpen) _marketPanelOpen = false;
+                else if (_stablePanelOpen) _stablePanelOpen = false;
+                else if (_tavernPanelOpen) _tavernPanelOpen = false;
+                else if (!_hudCollapsed)
+                {
+                    _hudCollapsed = true;
+                    _core?.SetExternalCharacterMenuOpen(false);
+                }
                 else SetSystemMenuOpen(!_systemMenuOpen);
             }
 
             // F1/Esc opens a modal system menu; TAB remains the character menu.
             // Any open gameplay/system window owns input and prevents movement/camera leakage.
             var pointerOverUi = IsPointerOverUi();
-            var gameplayInputBlocked = _systemMenuOpen || _chatOpen || pointerOverUi ||
+            var contextualWindowOpen = _marketPanelOpen || _stablePanelOpen || _tavernPanelOpen;
+            var gameplayInputBlocked = _systemMenuOpen || _chatOpen || contextualWindowOpen || pointerOverUi ||
                 (_core != null && _core.CapturesInput) ||
                 _activityMiniGame != ActivityMiniGame.None;
-            _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || pointerOverUi ||
+            _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || contextualWindowOpen || pointerOverUi ||
                 _activityMiniGame != ActivityMiniGame.None);
-            _core?.SetExternalModalMenuOpen(_systemMenuOpen);
+            _core?.SetExternalModalMenuOpen(_systemMenuOpen || contextualWindowOpen);
             _core?.SetExternalCharacterMenuOpen(_connectionState == WorldConnectionState.Active &&
                 !_systemMenuOpen && !_hudCollapsed);
             _voiceChat?.SetPushToTalkHeld(_connectionState == WorldConnectionState.Active &&
                 !_systemMenuOpen && !_chatOpen && _input != null && _input.VoicePushToTalkHeld);
             _cameraRig?.SetMouseGestureCapture(_connectionState != WorldConnectionState.Active || gameplayInputBlocked);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = _connectionState != WorldConnectionState.Active || gameplayInputBlocked;
+            // Unity can release a locked cursor after focus changes. Re-assert capture only
+            // while active gameplay owns input; every menu/chat/context/minigame path releases it.
+            var captureGameplayCursor = _connectionState == WorldConnectionState.Active &&
+                !gameplayInputBlocked && Application.isFocused;
+            Cursor.lockState = captureGameplayCursor ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !captureGameplayCursor;
             if (_connectionState != WorldConnectionState.Active && _drinkRequestPending)
                 _drinkRequestPending = false; // RequestGate is cleared on disconnect; do not leave social UI locked.
             if (_activityMiniGame != ActivityMiniGame.None && _input != null)
@@ -468,8 +492,9 @@ namespace Pogranichye.Client
                 GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
                 _hudScroll = GUILayout.BeginScrollView(_hudScroll,
                     GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
-                if (_frame.Place != null)
-                    GUILayout.Label($"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}");
+                GUILayout.Label(_frame.Place != null
+                    ? $"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
+                    : "Мир загружается");
 
                 GUILayout.BeginHorizontal();
                 DrawHudTabButton("Сводка", HudTab.Character);
@@ -2251,10 +2276,10 @@ namespace Pogranichye.Client
             if (!_hudCollapsed && Screen.width < 1100f)
                 return new Rect(0f, 0f, 0f, 0f);
 
-            var atTavern = _frame.Place.Tavern && IsAtTavern();
-            var atStable = IsNearActivityPoi("granary", 10f);
-            var atMarket = IsNearActivityPoi("market", 12f) || atStable;
-            if (!atTavern && !atMarket)
+            var atTavern = _tavernPanelOpen && _frame.Place.Tavern && IsAtTavern();
+            var atStable = _stablePanelOpen;
+            var atMarket = _marketPanelOpen;
+            if (!atTavern && !atMarket && !atStable)
                 return new Rect(0f, 0f, 0f, 0f);
 
             var width = Mathf.Min(560f, Screen.width - 24f);
@@ -2287,22 +2312,59 @@ namespace Pogranichye.Client
             var panel = GetContextActionRect();
             if (panel.width <= 0f) return;
 
-            var atTavern = _frame.Place.Tavern && IsAtTavern();
-            var atStable = IsNearActivityPoi("granary", 10f);
-            var atMarket = IsNearActivityPoi("market", 12f) || atStable;
+            var atTavern = _tavernPanelOpen && _frame.Place.Tavern && IsAtTavern();
+            var atStable = _stablePanelOpen;
+            var atMarket = _marketPanelOpen;
 
             GUILayout.BeginArea(panel);
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
                 GUILayout.Width(panel.width), GUILayout.Height(panel.height));
             GUILayout.BeginVertical(GUI.skin.box);
             if (atMarket)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("РЫНОК", GUILayout.ExpandWidth(true));
+                var goBack = GUILayout.Button("← Назад", GUILayout.Width(88f));
+                var closeWindow = GUILayout.Button("× Закрыть", GUILayout.Width(96f));
+                if (goBack || closeWindow)
+                {
+                    _marketPanelOpen = false;
+                    GUILayout.EndHorizontal(); GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
+                    GUIUtility.ExitGUI();
+                }
+                GUILayout.EndHorizontal();
                 _core.DrawMarketContextActions(6);
+            }
 
             if (atStable)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("КОНЮШНЯ", GUILayout.ExpandWidth(true));
+                var goBack = GUILayout.Button("← Назад", GUILayout.Width(88f));
+                var closeWindow = GUILayout.Button("× Закрыть", GUILayout.Width(96f));
+                if (goBack || closeWindow)
+                {
+                    _stablePanelOpen = false;
+                    GUILayout.EndHorizontal(); GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
+                    GUIUtility.ExitGUI();
+                }
+                GUILayout.EndHorizontal();
                 DrawStableActions();
+            }
 
             if (atTavern)
             {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("КОРЧМА", GUILayout.ExpandWidth(true));
+                var goBack = GUILayout.Button("← Назад", GUILayout.Width(88f));
+                var closeWindow = GUILayout.Button("× Закрыть", GUILayout.Width(96f));
+                if (goBack || closeWindow)
+                {
+                    _tavernPanelOpen = false;
+                    GUILayout.EndHorizontal(); GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
+                    GUIUtility.ExitGUI();
+                }
+                GUILayout.EndHorizontal();
                 if (_frame.Me.Mug)
                 {
                     if (GUILayout.Button("🍺 Выпить пиво")) QueueContextItemAction("consume", "beer", "Выпить пиво");
@@ -3012,6 +3074,49 @@ namespace Pogranichye.Client
                         : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
         }
 
+        private void UpdateServerAudioAnchors(Transform player)
+        {
+            if (_audioDirector == null) return;
+            var poiMap = _layout != null ? _layout.Pois : null;
+            var mePosition = _frame?.Me?.Position;
+            var layoutMatchesPlace = _frame?.Place != null &&
+                PoiPositionPolicy.IsLayoutForSettlement(_layoutSettlementId, _frame.Place.Id);
+            if (player == null || mePosition == null || poiMap == null || !layoutMatchesPlace)
+            {
+                _villageSoundscape?.SetServerAnchor("hearth", Vector3.zero, false);
+                _villageSoundscape?.SetServerAnchor("forge", Vector3.zero, false);
+                _villageSoundscape?.SetServerAnchor("tavern", Vector3.zero, false);
+                _villageSoundscape?.SetServerAnchor("water", Vector3.zero, false);
+                return;
+            }
+
+            // Layout coordinates are settlement-local metres (+X east, +Y north).
+            // Offset from the server-positioned player, so no sound is tied to a scene origin.
+            SetServerSoundAnchor(player, mePosition.X, mePosition.Y, "hearth",
+                position => _villageSoundscape?.SetServerAnchor("hearth", position, true));
+            SetServerSoundAnchor(player, mePosition.X, mePosition.Y, "smithy",
+                position => _villageSoundscape?.SetServerAnchor("forge", position, true));
+            SetServerSoundAnchor(player, mePosition.X, mePosition.Y, "tavern",
+                position => _villageSoundscape?.SetServerAnchor("tavern", position, true));
+            SetServerSoundAnchor(player, mePosition.X, mePosition.Y, "river",
+                position => _villageSoundscape?.SetServerAnchor("water", position, true));
+        }
+
+        private void SetServerSoundAnchor(Transform player, double playerX, double playerY,
+            string poiId, Action<Vector3> apply)
+        {
+            if (apply == null) return;
+            if (_layout?.Pois == null || !_layout.Pois.TryGetValue(poiId, out var poi) || poi == null)
+            {
+                _villageSoundscape?.SetServerAnchor(
+                    poiId == "smithy" ? "forge" : poiId == "river" ? "water" : poiId,
+                    Vector3.zero, false);
+                return;
+            }
+            var delta = new Vector3((float)(poi.X - playerX), 0f, (float)(poi.Y - playerY));
+            apply(player.position + delta);
+        }
+
         private void UpdateTalkConfirmationTimeout()
         {
             if (string.IsNullOrEmpty(_pendingTalkTargetId) || _talkConfirmationTimedOut ||
@@ -3179,6 +3284,40 @@ namespace Pogranichye.Client
         private void OnPoiSelected(WorldPoi poi)
         {
             if (poi == null) return;
+            if (IsTavernInteractionPoi(poi))
+            {
+                var open = !_tavernPanelOpen;
+                _marketPanelOpen = false;
+                _stablePanelOpen = false;
+                _tavernPanelOpen = open;
+                if (_tavernPanelOpen) CollapseHudForContextWindow();
+                _status = _tavernPanelOpen ? "Корчма открыта." : "Окно корчмы закрыто.";
+                return;
+            }
+            if (IsMarketInteractionPoi(poi))
+            {
+                var open = !_marketPanelOpen;
+                _stablePanelOpen = false;
+                _tavernPanelOpen = false;
+                _marketPanelOpen = open;
+                if (_marketPanelOpen) CollapseHudForContextWindow();
+                _status = _marketPanelOpen
+                    ? "Лавка открыта. Покупки и продажи подтверждает сервер."
+                    : "Лавка закрыта.";
+                return;
+            }
+            if (IsStableInteractionPoi(poi))
+            {
+                var open = !_stablePanelOpen;
+                _marketPanelOpen = false;
+                _tavernPanelOpen = false;
+                _stablePanelOpen = open;
+                if (_stablePanelOpen) CollapseHudForContextWindow();
+                _status = _stablePanelOpen
+                    ? "Конюшня открыта. Покупку и уход за лошадью подтверждает сервер."
+                    : "Конюшня закрыта.";
+                return;
+            }
             if (_connectionState != WorldConnectionState.Active)
             {
                 _status = "Сначала подключитесь к миру, затем выбирайте точки деревни.";
@@ -3203,6 +3342,43 @@ namespace Pogranichye.Client
 
             RequestPracticeGoal(poi.Goal);
             _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
+        }
+
+        private void CollapseHudForContextWindow()
+        {
+            _hudCollapsed = true;
+            _core?.SetExternalCharacterMenuOpen(false);
+        }
+
+        private static bool IsTavernInteractionPoi(WorldPoi poi)
+        {
+            if (poi == null) return false;
+            var type = (poi.TargetType ?? string.Empty).ToLowerInvariant();
+            var id = (poi.TargetId ?? string.Empty).ToLowerInvariant();
+            var title = (poi.Title ?? string.Empty).ToLowerInvariant();
+            return type == "tavern" || type == "inn" || id == "tavern" ||
+                title.Contains("корчм") || title.Contains("трактир");
+        }
+
+        private static bool IsMarketInteractionPoi(WorldPoi poi)
+        {
+            if (poi == null) return false;
+            var type = (poi.TargetType ?? string.Empty).ToLowerInvariant();
+            var id = (poi.TargetId ?? string.Empty).ToLowerInvariant();
+            var title = (poi.Title ?? string.Empty).ToLowerInvariant();
+            return type == "market" || type == "stall" || type == "shop" ||
+                id == "market" || id == "stall" || id == "market_stall" ||
+                title.Contains("рынок") || title.Contains("лавк") || title.Contains("прилав");
+        }
+
+        private static bool IsStableInteractionPoi(WorldPoi poi)
+        {
+            if (poi == null) return false;
+            var type = (poi.TargetType ?? string.Empty).ToLowerInvariant();
+            var id = (poi.TargetId ?? string.Empty).ToLowerInvariant();
+            var title = (poi.Title ?? string.Empty).ToLowerInvariant();
+            return type == "stable" || type == "barn" || id == "granary" ||
+                id == "stable" || title.Contains("конюш") || title.Contains("амбар");
         }
 
         private void OnNpcSelected(WorldNpc npc)
@@ -3277,6 +3453,9 @@ namespace Pogranichye.Client
             _worldManifestLastPlaceId = null;
             _layoutRequestedFor = null;
             _layoutFailedFor = null;
+            _marketPanelOpen = false;
+            _stablePanelOpen = false;
+            _tavernPanelOpen = false;
             _layoutRetryAfter = 0f;
             // Cache keys are settlement IDs, not world/session IDs. Never reuse roots from
             // a previous login: another seed/account may reuse the same settlement ID.

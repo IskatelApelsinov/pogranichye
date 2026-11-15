@@ -70,6 +70,7 @@ namespace Pogranichye.Client.Presentation
                 return true;
             }
 
+            RemovePrototypeVillageFallbacks();
             var root = new GameObject("SettlementLayout_" + settlementId).transform;
             root.SetParent(_parent, false);
             try
@@ -93,6 +94,20 @@ namespace Pogranichye.Client.Presentation
                 UnityEngine.Object.Destroy(root.gameObject);
                 Debug.LogWarning("Не удалось собрать кэш поселения " + settlementId + ": " + exception.Message);
                 return false;
+            }
+        }
+
+        public void RemovePrototypeVillageFallbacks()
+        {
+            if (_parent == null) return;
+            var children = _parent.GetComponentsInChildren<Transform>(true);
+            for (var i = 0; i < children.Length; i++)
+            {
+                var child = children[i];
+                if (child == null || child == _parent || child.name != "PrototypeVillage") continue;
+                // Hide immediately; Destroy is deferred until end of frame.
+                child.gameObject.SetActive(false);
+                UnityEngine.Object.Destroy(child.gameObject);
             }
         }
 

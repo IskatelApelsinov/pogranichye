@@ -62,40 +62,54 @@ namespace Pogranichye.Client.Presentation
             _wind.volume = 0.16f * _ambienceVolume;
             _wind.Play();
 
-            _birds = CreateSource("Ambience • distant birds", 0.78f, 8f, 72f);
-            _birds.transform.localPosition = new Vector3(12f, 5f, 18f);
+            _birds = CreateSource("Ambience • distant birds", 0f, 0f, 1f);
             _birds.clip = CreateBirdLoop();
             _birds.volume = 0.20f * _ambienceVolume;
             _birds.Play();
 
-            _water = CreateSource("Ambience • creek and reeds", 0.86f, 5f, 58f);
-            _water.transform.localPosition = new Vector3(0f, 1.2f, -108f);
+            _water = CreateSource("Ambience • creek and reeds", 1f, 5f, 58f);
             _water.clip = CreateWaterLoop();
-            _water.volume = 0.22f * _ambienceVolume;
-            _water.Play();
+            _water.volume = 0f;
 
             // One spatial forge bed: distant low fire rumble with sparse hammer strikes.
             // Unity's 3D rolloff handles listener distance; no per-frame proximity polling.
             _forge = CreateSource("Ambience • blacksmith forge", 1f, 3f, 26f);
-            _forge.transform.localPosition = new Vector3(27.9f, 1.15f, 20.65f);
             _forge.clip = CreateForgeLoop();
-            _forge.volume = 0.18f * _ambienceVolume;
-            _forge.Play();
+            _forge.volume = 0f;
 
             // Shared north hearth: one localized crackle loop, naturally distance-culled.
             _hearth = CreateSource("Ambience • village common hearth", 1f, 2f, 22f);
-            _hearth.transform.localPosition = new Vector3(4f, 0.45f, 16f);
             _hearth.clip = CreateHearthLoop();
-            _hearth.volume = 0.24f * _ambienceVolume;
-            _hearth.Play();
+            _hearth.volume = 0f;
 
             // A restrained, spatial room murmur makes the inn feel occupied without
             // adding voice actors, per-NPC emitters, or a constant village-wide noise bed.
             _tavern = CreateSource("Ambience • muffled tavern conversation", 1f, 4f, 24f);
-            _tavern.transform.localPosition = new Vector3(-33f, 1.25f, 20f);
             _tavern.clip = CreateTavernMurmurLoop();
-            _tavern.volume = 0.12f * _ambienceVolume;
-            _tavern.Play();
+            _tavern.volume = 0f;
+        }
+
+        public void SetServerAnchor(string kind, Vector3 position, bool available)
+        {
+            AudioSource source = null;
+            float baseVolume = 0f;
+            switch (kind)
+            {
+                case "water": source = _water; baseVolume = 0.22f; break;
+                case "forge": source = _forge; baseVolume = 0.18f; break;
+                case "hearth": source = _hearth; baseVolume = 0.24f; break;
+                case "tavern": source = _tavern; baseVolume = 0.12f; break;
+            }
+            if (source == null) return;
+            if (!available)
+            {
+                source.volume = 0f;
+                source.Stop();
+                return;
+            }
+            source.transform.position = position;
+            source.volume = baseVolume * _ambienceVolume;
+            if (!source.isPlaying) source.Play();
         }
 
         private AudioSource CreateSource(string sourceName, float blend, float minDistance, float maxDistance)
