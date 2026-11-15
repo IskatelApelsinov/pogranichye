@@ -3173,6 +3173,16 @@ namespace Pogranichye.Client
                 return;
             }
 
+            if (!string.IsNullOrEmpty(poi.InteractionId))
+            {
+                if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + poi.Title,
+                    "interact", "interaction_id", poi.InteractionId))
+                    _status = "Не удалось отправить взаимодействие. Дождитесь ответа на предыдущее действие.";
+                else
+                    _status = "Ожидаю подтверждения сервера: " + poi.Title + "…";
+                return;
+            }
+
             if (!string.IsNullOrEmpty(poi.ActionIntent))
             {
                 QueueWorldAction(poi.ActionIntent);
