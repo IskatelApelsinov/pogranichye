@@ -2244,7 +2244,8 @@ namespace Pogranichye.Client
             var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
             var atSmithy = IsNearActivityPoi("smithy", 10f);
             var atTavern = _frame.Place.Tavern && IsAtTavern();
-            var atMarket = IsNearActivityPoi("market", 12f) || IsNearActivityPoi("granary", 12f);
+            var atStable = IsNearActivityPoi("granary", 10f);
+            var atMarket = IsNearActivityPoi("market", 12f) || atStable;
             if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern && !atMarket)
                 return new Rect(0f, 0f, 0f, 0f);
 
@@ -2253,6 +2254,7 @@ namespace Pogranichye.Client
             if (atWoods || atRiver) height += 34f;
             if (atMine || atGarden || atSmithy) height += 34f;
             if (atMarket) height += 250f;
+            if (atStable) height += 118f;
             if (atTavern)
             {
                 var rooms = _frame.Place.Rooms?.Items;
@@ -2283,7 +2285,8 @@ namespace Pogranichye.Client
             var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
             var atSmithy = IsNearActivityPoi("smithy", 10f);
             var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
-            var atMarket = IsNearActivityPoi("market", 12f) || IsNearActivityPoi("granary", 12f);
+            var atStable = IsNearActivityPoi("granary", 10f);
+            var atMarket = IsNearActivityPoi("market", 12f) || atStable;
 
             GUILayout.BeginArea(panel);
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
@@ -2307,6 +2310,9 @@ namespace Pogranichye.Client
 
             if (atMarket)
                 _core.DrawMarketContextActions(6);
+
+            if (atStable)
+                DrawStableActions();
 
             if (atTavern)
             {
@@ -2348,6 +2354,72 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        private void DrawStableActions()
+        {
+            var stable = _frame?.Place?.Stable;
+            var horse = _frame?.Me?.Horse;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("КОНЮШНЯ У АМБАРА");
+            if (horse == null)
+            {
+                if (stable == null)
+                {
+                    GUILayout.Label("Сведения о конюшне ещё не получены от сервера.");
+                }
+                else if (stable.Horses < 1d)
+                {
+                    GUILayout.Label("Свободных лошадей сейчас нет. Загляните позже.");
+                }
+                else
+                {
+                    GUILayout.Label("Лошади: " + stable.Horses.ToString("0", CultureInfo.InvariantCulture) +
+                        " · цена: " + stable.Price.ToString("0.#", CultureInfo.InvariantCulture) + " монет.");
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = _frame.Me.Coins >= stable.Price;
+                    if (GUILayout.Button("Купить лошадь"))
+                        QueueHorseAction("buy", "Купить лошадь");
+                    GUI.enabled = previousEnabled;
+                    if (_frame.Me.Coins < stable.Price)
+                        GUILayout.Label("Не хватает монет. На счету: " +
+                            _frame.Me.Coins.ToString("0.#", CultureInfo.InvariantCulture) + ".");
+                }
+            }
+            else
+            {
+                GUILayout.Label(horse.Name + " · выносливость " +
+                    horse.Stamina.ToString("0", CultureInfo.InvariantCulture) + " / 100");
+                if (!horse.Here)
+                {
+                    GUILayout.Label("Лошадь осталась в другом поселении: вернитесь туда, чтобы оседлать её.");
+                }
+                else
+                {
+                    if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
+                        QueueHorseAction(horse.Mounted ? "dismount" : "mount",
+                            horse.Mounted ? "Спешиться" : "Оседлать лошадь");
+                    var hasFeed = HasInventoryItem("hay") || HasInventoryItem("wheat") || HasInventoryItem("veg");
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = hasFeed && horse.Stamina < 100d;
+                    if (GUILayout.Button("Покормить лошадь"))
+                        QueueHorseAction("feed", "Покормить лошадь");
+                    GUI.enabled = previousEnabled;
+                    if (!hasFeed) GUILayout.Label("Для корма нужны сено, зерно или овощи в суме.");
+                }
+            }
+            GUILayout.EndVertical();
+        }
+
+        private void QueueHorseAction(string action, string label)
+        {
+            if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + label,
+                "horse", "action", action))
+            {
+                _status = "Не удалось отправить действие с лошадью. Дождитесь ответа на предыдущее действие.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label.ToLowerInvariant() + "…";
         }
 
         private void DrawTavernRoomPanel()
