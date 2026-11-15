@@ -66,9 +66,9 @@ namespace Pogranichye.Client.Presentation
             ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
             ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
 
-            // Prefer generated 512px PBR maps when the Blender asset pass has been run.
-            // Existing 64px procedural surfaces remain the fallback for an untouched checkout.
-            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f);
+            // Authored 1024px PBR maps take priority over the optional Grok starter maps.
+            // Existing procedural/Grok materials remain safe fallbacks until the authored pack is imported.
+            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
@@ -1934,6 +1934,9 @@ namespace Pogranichye.Client.Presentation
             if (material == null) return;
             var prefix = "WorldMaterials/Textures/" + materialKey;
             var tiling = new Vector2(tilingX, tilingY);
+            // A material manifest marks the authored PBR pack. Older generated albedo
+            // textures may have opaque alpha, so do not interpret their alpha as smoothness.
+            var hasAuthoredMaterialManifest = Resources.Load<TextAsset>(prefix + "_material") != null;
             var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
             if (albedo != null)
             {
@@ -1950,7 +1953,7 @@ namespace Pogranichye.Client.Presentation
 
                 // URP Lit's Albedo Alpha smoothness source lets the separate roughness
                 // map remain available to other shaders while using smoothness = 1 - roughness.
-                if (smoothnessInAlbedoAlpha && material.HasProperty("_SmoothnessTextureChannel"))
+                if (smoothnessInAlbedoAlpha && hasAuthoredMaterialManifest && material.HasProperty("_SmoothnessTextureChannel"))
                 {
                     material.SetFloat("_SmoothnessTextureChannel", 1f);
                     if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 1f);
