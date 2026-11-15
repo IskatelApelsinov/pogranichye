@@ -472,7 +472,16 @@ namespace Pogranichye.Client
             {
                 var panelWidth = Mathf.Min(500f, Screen.width - 24f);
                 var panelHeight = Mathf.Min(620f, Screen.height - 24f);
-                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПЕРСОНАЖ  /  ЖУРНАЛ");
+                var panelRect = new Rect(12f, 12f, panelWidth, panelHeight);
+                GUI.Box(panelRect, "ПЕРСОНАЖ  /  ЖУРНАЛ");
+                // Tab remains the keyboard toggle; this explicit close affordance makes the
+                // panel discoverable for mouse users and releases character-menu input capture.
+                var closeRect = new Rect(panelRect.xMax - 34f, panelRect.y + 7f, 26f, 24f);
+                if (GUI.Button(closeRect, "×"))
+                {
+                    _hudCollapsed = true;
+                    _core?.SetExternalCharacterMenuOpen(false);
+                }
                 GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
                 _hudScroll = GUILayout.BeginScrollView(_hudScroll,
                     GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
