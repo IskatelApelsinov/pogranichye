@@ -9,6 +9,7 @@ using Pogranichye.Client.Networking;
 using Pogranichye.Client.Diagnostics;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
+using Pogranichye.Client.World;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -4230,8 +4231,11 @@ namespace Pogranichye.Client
                 var stale = new List<string>();
                 foreach (var pair in _terrainChunks)
                 {
-                    if (Math.Abs((decimal)pair.Value.Chunk[0] - centerX) > TerrainChunkRetentionRadius ||
-                        Math.Abs((decimal)pair.Value.Chunk[1] - centerZ) > TerrainChunkRetentionRadius)
+                    var candidate = new WorldChunkCoordinate(position.Frame,
+                        pair.Value.Chunk[0], pair.Value.Chunk[1]);
+                    if (!WorldChunkStreamingPolicy.IsWithinRetention(
+                        new WorldChunkCoordinate(position.Frame, centerX, centerZ),
+                        candidate, TerrainChunkRetentionRadius))
                         stale.Add(pair.Key);
                 }
                 foreach (var id in stale)
@@ -4258,12 +4262,13 @@ namespace Pogranichye.Client
 
             // Keep the request budget bounded even if the player crosses several chunks while
             // older HTTP requests are still in flight. Request the center first, then its neighbors.
-            TryRequestTerrainChunk(centerX, centerZ, position.Frame);
-            for (var dz = -TerrainChunkRequestRadius; dz <= TerrainChunkRequestRadius; dz++)
-            for (var dx = -TerrainChunkRequestRadius; dx <= TerrainChunkRequestRadius; dx++)
+            var centerChunk = new WorldChunkCoordinate(position.Frame, centerX, centerZ);
+            var requestPlan = WorldChunkStreamingPolicy.BuildRequestPlan(
+                centerChunk, TerrainChunkRequestRadius);
+            for (var i = 0; i < requestPlan.Count; i++)
             {
-                if (dx == 0 && dz == 0) continue;
-                TryRequestTerrainChunk(centerX + dx, centerZ + dz, position.Frame);
+                var chunk = requestPlan[i];
+                TryRequestTerrainChunk(chunk.X, chunk.Z, chunk.Frame);
             }
         }
 
