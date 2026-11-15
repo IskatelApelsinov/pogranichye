@@ -2239,21 +2239,14 @@ namespace Pogranichye.Client
                 _activityMiniGame != ActivityMiniGame.None)
                 return new Rect(0f, 0f, 0f, 0f);
 
-            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
-            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
-            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
-            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
-            var atSmithy = IsNearActivityPoi("smithy", 10f);
             var atTavern = _frame.Place.Tavern && IsAtTavern();
             var atStable = IsNearActivityPoi("granary", 10f);
             var atMarket = IsNearActivityPoi("market", 12f) || atStable;
-            if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern && !atMarket)
+            if (!atTavern && !atMarket)
                 return new Rect(0f, 0f, 0f, 0f);
 
             var width = Mathf.Min(560f, Screen.width - 24f);
             var height = 42f;
-            if (atWoods || atRiver) height += 34f;
-            if (atMine || atGarden || atSmithy) height += 34f;
             if (atMarket) height += 250f;
             if (atStable) height += 118f;
             if (atTavern)
@@ -2281,12 +2274,7 @@ namespace Pogranichye.Client
             var panel = GetContextActionRect();
             if (panel.width <= 0f) return;
 
-            var atWoods = _core.SupportsFeature("woods") && IsNearActivityPoi("woods", 10f);
-            var atRiver = _core.SupportsFeature("river") && IsNearActivityPoi("river", 10f);
-            var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
-            var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
-            var atSmithy = IsNearActivityPoi("smithy", 10f);
-            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+            var atTavern = _frame.Place.Tavern && IsAtTavern();
             var atStable = IsNearActivityPoi("granary", 10f);
             var atMarket = IsNearActivityPoi("market", 12f) || atStable;
 
@@ -2294,22 +2282,7 @@ namespace Pogranichye.Client
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
                 GUILayout.Width(panel.width), GUILayout.Height(panel.height));
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("МЕСТНОЕ ДЕЛО");
-            GUILayout.BeginHorizontal();
-            if (atWoods) DrawContextToolAction("axe", 8, "Топор", ActivityMiniGame.Woodcutting, "G");
-            if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "K");
-            GUILayout.EndHorizontal();
-
-            if (atMine || atGarden || atSmithy)
-            {
-                GUILayout.BeginHorizontal();
-                if (atMine && GUILayout.Button("⛏ Добыть руду")) QueueWorldAction("mine");
-                if (atGarden && GUILayout.Button("🌿 Собрать травы")) QueueWorldAction("gather");
-                if (atGarden && GUILayout.Button("🌾 Помочь в поле")) QueueWorldAction("farmwork");
-                if (atSmithy && GUILayout.Button("⚒ Помочь у горна")) QueueWorldAction("forge");
-                GUILayout.EndHorizontal();
-            }
-
+            GUILayout.Label("МЕСТНЫЕ ДЕЛА доступны через прицел и E — действие подтвердит сервер.");
             if (atMarket)
                 _core.DrawMarketContextActions(6);
 
