@@ -20,6 +20,8 @@ namespace Pogranichye.Client.Diagnostics
         private const int MaxRejectedFrames = 3;
         private const int MaxEvents = 100;
         private const int MaxFrameBytes = 256 * 1024;
+        // Character limit used by older dump capture call sites; keep it aligned with the byte cap.
+        private const int MaxFrameChars = MaxFrameBytes;
         private const int MaxDumpFiles = 5;
         private const long MaxDumpBytes = 10L * 1024L * 1024L;
 
