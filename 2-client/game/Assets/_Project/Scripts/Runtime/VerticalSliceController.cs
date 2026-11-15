@@ -495,6 +495,8 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+            DrawPendingActionIndicator();
+            if (_hudCollapsed) DrawObjectiveCard();
             if (_chatOpen)
                 DrawChatOverlay();
             else
