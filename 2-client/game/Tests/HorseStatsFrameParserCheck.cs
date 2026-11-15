@@ -57,7 +57,8 @@ internal static class HorseStatsFrameParserCheck
         var negativeStatsToken = JToken.Parse(statsJson.Replace("\"strength\":10", "\"strength\":-1"));
         StatsFrameParser.Validate(negativeStatsToken, "me.stats");
         var negativeStats = negativeStatsToken.ToObject<StatsFrame>();
-        Check("finite negative characteristic accepted", negativeStats != null && negativeStats.Strength == -1d);
+        Check("finite negative stat accepted for legacy and migration recovery",
+            negativeStats != null && negativeStats.Strength == -1d);
         var nonFiniteStats = (JObject)JToken.Parse(statsJson);
         nonFiniteStats["strength"] = new JValue(double.PositiveInfinity);
         ExpectFormat("non-finite stat rejected", () =>
