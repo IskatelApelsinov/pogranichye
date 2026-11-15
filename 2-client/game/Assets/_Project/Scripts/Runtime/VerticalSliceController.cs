@@ -165,7 +165,7 @@ namespace Pogranichye.Client
         private const float TalkConfirmationTimeoutSeconds = 48f;
         private const string DialogueRequestLabel = "Реплика NPC";
         private const string TalkRequestLabelPrefix = "Разговор NPC:";
-        private bool _firstPerson;
+        private bool _firstPerson = true;
         private bool _hudCollapsed;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
@@ -3788,7 +3788,7 @@ namespace Pogranichye.Client
                 _cameraRig.SetMouseGestureCapture(true);
             }
             SetChatOpen(false);
-            if (_firstPerson) SetCameraMode(false);
+            // Keep the configured first-person default across reconnects.
             socket?.Dispose();
             _status = status;
         }
@@ -4296,6 +4296,7 @@ namespace Pogranichye.Client
             _cameraRig.BindInput(_input);
             _interactionProbe.BindInput(_input);
             _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
+            _cameraRig.SetFirstPerson(_firstPerson);
 
             if (FindAnyObjectByType<Light>() == null)
             {
