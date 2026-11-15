@@ -54,6 +54,18 @@ namespace Pogranichye.Client.Presentation
             if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
 
+            // Grok's optional starter pack lives under Resources/WorldMaterials/Textures/Grok.
+            // Apply it first; the project's authored PBR maps below take precedence whenever present.
+            ApplyGrokWorldMaps(_ground, "grass_meadow", 10f, 10f);
+            ApplyGrokWorldMaps(_field, "dirt_soil", 8f, 8f);
+            ApplyGrokWorldMaps(_road, "cobble_path", 2f, 12f);
+            ApplyGrokWorldMaps(_timber, "wood_planks", 2f, 2f);
+            ApplyGrokWorldMaps(_roof, "thatch_roof", 2f, 3f);
+            ApplyGrokWorldMaps(_trunk, "bark_tree", 1f, 3f);
+            ApplyGrokWorldMaps(_stone, "stone_wall", 1.5f, 2f);
+            ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
+            ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
+
             // Prefer generated 512px PBR maps when the Blender asset pass has been run.
             // Existing 64px procedural surfaces remain the fallback for an untouched checkout.
             ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f);
@@ -1955,6 +1967,37 @@ namespace Pogranichye.Client.Presentation
                 if (material.HasProperty("_OcclusionStrength")) material.SetFloat("_OcclusionStrength", 1f);
                 material.EnableKeyword("_OCCLUSIONMAP");
             }
+        }
+
+        private static void ApplyGrokWorldMaps(Material material, string textureKey,
+            float tilingX, float tilingY, bool useNormal = true)
+        {
+            if (material == null || string.IsNullOrWhiteSpace(textureKey)) return;
+
+            var prefix = "WorldMaterials/Textures/Grok/" + textureKey;
+            var tiling = new Vector2(tilingX, tilingY);
+            var albedo = Resources.Load<Texture2D>(prefix);
+            if (albedo == null) return; // Keep the existing 64px procedural material when the optional pack is absent.
+
+            material.mainTexture = albedo;
+            material.mainTextureScale = tiling;
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", albedo);
+                material.SetTextureScale("_BaseMap", tiling);
+            }
+            // Authored colour must not be multiplied by the fallback material tint.
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
+            else if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+
+            if (!useNormal) return;
+            // Grok names normal maps with _n; Unity's importer converts them to Normal Map assets.
+            var normal = Resources.Load<Texture2D>(prefix + "_n");
+            if (normal == null || !material.HasProperty("_BumpMap")) return;
+            material.SetTexture("_BumpMap", normal);
+            material.SetTextureScale("_BumpMap", tiling);
+            if (material.HasProperty("_BumpScale")) material.SetFloat("_BumpScale", 0.75f);
+            material.EnableKeyword("_NORMALMAP");
         }
 
         private static Material MakeTexturedMaterial(string name, Color tint, int pattern, float tilingX, float tilingY)
