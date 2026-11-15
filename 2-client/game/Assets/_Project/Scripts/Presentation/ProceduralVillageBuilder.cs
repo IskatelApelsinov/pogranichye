@@ -4075,7 +4075,7 @@ namespace Pogranichye.Client.Presentation
         private static void CreateCameraObstacle(Transform parent, string name, Vector3 center, Vector3 size)
         {
             var obstacle = new GameObject(name);
-            obstacle.layer = 2; // Ignore Raycast: camera collision only, never blocks the interaction probe.
+            obstacle.layer = 2; // Shared camera/interaction occlusion; callers must leave door and open-front gaps uncollided.
             obstacle.transform.SetParent(parent, false);
             obstacle.transform.localPosition = center;
             var box = obstacle.AddComponent<BoxCollider>();
