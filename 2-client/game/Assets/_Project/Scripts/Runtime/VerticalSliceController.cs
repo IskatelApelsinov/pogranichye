@@ -3698,9 +3698,15 @@ namespace Pogranichye.Client
                 var next = player.position + worldMove.normalized * speed * movementDelta;
                 var origin = new Vector2(player.position.x, player.position.z);
                 var desired = new Vector2(next.x, next.z);
-                var flat = _layout != null
-                    ? _layout.ResolveMove(origin, desired)
-                    : Vector2.ClampMagnitude(desired, 29.5f);
+                // Never apply a previous settlement's local collision layout after a server
+                // handover. Until the matching layout arrives, the server alone validates movement.
+                var layoutMatchesPlace = PoiPositionPolicy.IsLayoutForSettlement(
+                    _layoutSettlementId, _frame?.Place?.Id);
+                var activeLayout = layoutMatchesPlace ? _layout : null;
+                var allowSeamlessExit = _worldManifest != null && _worldManifest.Seamless;
+                var flat = activeLayout != null
+                    ? activeLayout.ResolveMove(origin, desired, allowSeamlessExit)
+                    : desired;
                 player.position = new Vector3(flat.x, 0f, flat.y);
 
                 if (!_firstPerson)
