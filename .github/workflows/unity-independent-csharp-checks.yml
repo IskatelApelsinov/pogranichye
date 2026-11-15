@@ -216,8 +216,4 @@ jobs:
           mcs -out:/tmp/initial-full-frame-buffer.exe Tests/InitialFullFrameBufferCheck.cs Assets/_Project/Scripts/Runtime/InitialFullFrameBuffer.cs
           mono /tmp/initial-full-frame-buffer.exe
 
-      - name: Initial full-frame socket ownership regression checks
-        working-directory: 2-client/game
-        run: |
-          mcs -out:/tmp/initial-full-frame-buffer.exe Tests/InitialFullFrameBufferCheck.cs Assets/_Project/Scripts/Runtime/InitialFullFrameBuffer.cs
-          mono /tmp/initial-full-frame-buffer.exe
+
