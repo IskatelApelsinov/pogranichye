@@ -59,9 +59,23 @@ internal static class InitialFullFrameBufferCheck
         Check("ending the owning socket clears its pending snapshot",
             !buffer.TryTake(socketA, start.AddSeconds(21), out frame));
 
+        buffer.Begin(socketB, start.AddSeconds(24));
+        Check("previous session has a pending snapshot before reconnect",
+            buffer.TryBuffer(socketB, "previous-session", start.AddSeconds(23)));
         buffer.Begin(socketA, start.AddSeconds(25));
         Check("starting a new session resets the previous pending snapshot",
-            !buffer.TryTake(socketB, start.AddSeconds(26), out frame));
+            !buffer.TryTake(socketA, start.AddSeconds(26), out frame));
+
+        // A delayed close callback from the previous socket must not clear the
+        // replacement socket's pending initial snapshot.
+        buffer.Begin(socketB, start.AddSeconds(35));
+        Check("replacement session retains its own pending snapshot",
+            buffer.TryBuffer(socketB, "replacement-session", start.AddSeconds(34)));
+        buffer.End(socketA);
+        Check("late close from previous socket cannot clear replacement buffer",
+            buffer.TryTake(socketB, start.AddSeconds(35), out frame) && frame == "replacement-session");
+        Check("replacement snapshot is consumed only once",
+            !buffer.TryTake(socketB, start.AddSeconds(36), out frame));
 
         Console.WriteLine(_failures == 0
             ? "InitialFullFrameBuffer: " + _checks + " checks passed"
