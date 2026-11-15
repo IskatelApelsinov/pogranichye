@@ -105,3 +105,8 @@ The gameplay HUD now reads the existing shared `RequestGate` through read-only `
 ## Work note — 2026-11-15, iteration 3
 
 The optional H-toggle hint strip was reduced to first-play essentials (movement, mouse look, E interaction, sprint/jog/jump and journal navigation). Combat and weaving shortcuts were removed from this small overlay so the first minutes are not overwhelmed by advanced bindings; the full list remains in Settings/Controls. The wording was checked against `ClientInput.cs` bindings. This is a source-level change; actual overlap/readability at 1280×720 and larger resolutions still requires Unity acceptance.
+
+
+## Request de-duplication — 2026-11-15
+
+The shared RequestGate rejects an identical pending request (same visible action label and payload, ignoring generated reqid) before it can be sent twice. The tavern beer and card-game buttons additionally become visibly disabled while that exact action is pending. Different payloads under the same label remain available. This is a client UX safeguard only; server validation and outcomes remain authoritative. Pure C# CI passed in run #43754354166; Unity visual/runtime acceptance remains pending.
