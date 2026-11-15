@@ -119,22 +119,12 @@ namespace Pogranichye.Client.Presentation
                 }
             }
 
-            // v1.19: a generated settlement brings its own zones and roads. The hard-coded countryside
-            // below belongs to the tutorial village only.
-            if (layout.IsGenerated)
-            {
-                // Generated settlements have no tutorial marker objects. Add only the
-                // allow-listed E targets whose coordinates and supported intents come from
-                // this server Layout v2; no local POIs or gameplay outcomes are created.
-                WorldLayoutPoiTargetBuilder.Build(world, layout);
-                BuildGeneratedCountryside(world, layout);
-                RegisterAssets(root);
-                return;
-            }
+            // E interaction targets are projections of server Layout POIs for every settlement,
+            // not client-authored scene markers or gameplay objects.
+            WorldLayoutPoiTargetBuilder.Build(world, layout);
 
             // Both tutorial and generated settlements are rendered exclusively from the
-            // server-supplied zones, roads, buildings, river and POIs. No fixed-coordinate
-            // fields, forests, props or activity landmarks are fabricated by the client.
+            // server-supplied zones, roads, buildings, river and POIs.
             BuildGeneratedCountryside(world, layout);
             RegisterAssets(root);
             }
