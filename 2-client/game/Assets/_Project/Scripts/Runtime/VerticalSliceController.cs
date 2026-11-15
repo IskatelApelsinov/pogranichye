@@ -246,7 +246,7 @@ namespace Pogranichye.Client
             WorldPoi.Selected += OnPoiSelected;
             WorldNpc.Selected += OnNpcSelected;
             SetupPresentationScene();
-            ProceduralVillageBuilder.Build(_presentationRoot);
+            // No client-generated village fallback: world geometry is built only from server Layout/manifest data.
             _villageSoundscape = _presentationRoot.GetComponentInChildren<VillageSoundscape>();
             WorldEnvironmentBuilder.Build(_presentationRoot, _cameraRig != null ? _cameraRig.GetComponent<Camera>() : Camera.main);
             _audioDirector = _presentationRoot.gameObject.AddComponent<WorldAudioDirector>();
