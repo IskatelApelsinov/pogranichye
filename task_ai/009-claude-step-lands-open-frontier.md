@@ -1,5 +1,17 @@
-!В работе
+!Выполнено
 # 009 — Claude: OpenFrontier на пешем StepLands (P0 пустой горизонт)
+
+## Результат (2026-11-16)
+
+Ветка `feat/step-lands-opens-frontier`, PR #657 (squash-merge в main, commit 6663d6c).
+
+- `1-server/sim/worldpos.go`, `StepLands`: после успешного handover добавлены `LearnVisited(w, e, best.id)` и `OpenFrontier(w, e, best.id)` — как в `arrive()`. `GoTo(w,e,"well")` не копировал (см. спеку 0234 — сломал бы seamless).
+- Новые тесты в `1-server/sim/frontier_test.go`: `TestStepLandsOpensOuterFrontier` (Travel в ring0 → пешком в ring1 → сам переход открывает ring2; `LearnVisited` подтверждён; повторный StepLands не дублирует край; `WorldPos` непрерывен до/после) и `TestStepLandsInnerDoesNotOpenFrontier` (переход между стартовыми землями мир не растит).
+- До/после count settlements в тесте: стартовый мир → +4 (Travel в ring0) → +4 (StepLands в ring1, этот PR). До этого PR второй +4 не происходил вообще.
+- Проверки: `go build/vet/test ./... -count=1` зелёный (весь модуль, не только sim/server); `TestVerticalSliceTalkWorkBeer` отдельно `-count=3` в изоляции — чисто.
+- Wire/контракт не менялся — Unity/ChatGPT трогать не нужно.
+
+Следующий: task 010 (TerrainChunk content, зависит от этого task).
 
 **Исполнитель:** Claude  
 **Подсистема:** `1-server/sim/worldpos.go`, `frontier.go`, тесты  
