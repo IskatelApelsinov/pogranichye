@@ -2282,7 +2282,6 @@ namespace Pogranichye.Client
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
                 GUILayout.Width(panel.width), GUILayout.Height(panel.height));
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("МЕСТНЫЕ ДЕЛА доступны через прицел и E — действие подтвердит сервер.");
             if (atMarket)
                 _core.DrawMarketContextActions(6);
 
