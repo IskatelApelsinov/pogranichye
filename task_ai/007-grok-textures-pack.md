@@ -1,36 +1,45 @@
-!В работе
 # 007 — Grok: стартовый пакет procedural-текстур + интеграция
 
-**Исполнитель:** Grok (генерация) → ChatGPT (импорт в Unity) → владелец (приёмка)  
-**Подсистема:** `textures/grok/`, Unity client assets  
-**Приоритет:** P1.4 (визуальное качество), помогает P0.4 (поселение не выглядит набором заглушек).
+**Исполнитель:** Grok (генерация) → ChatGPT (Unity integration) → владелец (визуальная приёмка)
+**Подсистема:** `Assets/Resources/WorldMaterials/Textures/Grok/`
+**Приоритет:** P1.4 (визуальное качество), не блокирует симуляцию.
 
 ## Цель
 
-Дать минимальный набор бесшовных 512×512 albedo-текстур под средневековье, чтобы клиент мог быстрее закрыть «примитивы вместо домов/земли».
+Подключить стартовый набор бесшовных 512×512 albedo-текстур к существующим presentation materials поселения, сохранив fallback и авторские PBR-карты проекта.
 
-## Сделано Grok
+## Сделано
 
-- Сгенерированы 10 PNG (dirt, grass, cobble, wood, thatch, plaster, stone, bark, cloth, water).
-- README: `textures/grok/README.md`.
-- Comms ChatGPT: `3-dev/comms/0176-grok-to-chatgpt-textures.md`.
-- Бинарники переданы владельцу в artifacts.
+- Grok описал 10 albedo и 10 tangent-space normal maps (Sobel по luminance, OpenGL Y+).
+- Документы: `textures/grok/README.md`, `3-dev/docs/NORMAL-MAPS-GENERATION.md`.
+- Канонический Unity-путь: `2-client/game/Assets/Resources/WorldMaterials/Textures/Grok/`.
+- Runtime builder получил необязательную загрузку Grok maps; при отсутствии PNG остаются прежние procedural материалы.
+- Unity importer распознаёт суффикс `_n` как Normal Map, sRGB Off.
+- Авторские карты (например packed-road PBR) имеют приоритет над Grok fallback.
 
-## Следующие шаги (ChatGPT)
+## Бинарные файлы — блокер
 
-1. Выбрать целевую папку в `2-client` (например `Assets/Art/Textures/Grok/` или по текущему конвейеру из `ГРАФИЧЕСКИЙ-КОНВЕЙЕР-UNITY6-URP.md`).
-2. Импортировать PNG с настройками из README (Repeat, MipMaps, sRGB).
-3. Назначить на материалы земли/стен/крыш в стартовом поселении — только визуал, **не** менять server footprint/POI.
-4. Короткий ответ в comms: куда положили, какие материалы обновлены, нужен ли следующий пакет (normal maps / roughness).
+На GitHub main в текущей проверке отсутствуют все PNG Grok: там только README и описание. В comms 0176/0177 указано, что бинарники находятся в artifacts владельца, но доступного файла для импорта в репозиторий сейчас нет. Не отмечать текстуры как импортированные/визуально проверенные до появления реальных PNG.
 
-## Ограничения
+## Соответствия
 
-- Не создавать серверные сущности из текстур.
-- Не заменять лицензионные/купленные ассеты без решения владельца.
-- Не раздувать репозиторий огромными картами без согласования.
+- grass_meadow → meadow ground
+- dirt_soil → field ground
+- cobble_path → road fallback only
+- wood_planks → timber
+- thatch_roof → roof/straw
+- bark_tree → trunk
+- stone_wall → stone
+- cloth_linen → cloth props
+- water_shallow → water albedo only
+- plaster_wall → оставить до отдельного art pass стен
 
-## Критерии готовности
+## Критерии приёмки
 
-- Текстуры видны в Unity на земле/зданиях стартового демо.
-- Comms-ответ от ChatGPT с путём импорта.
-- Владелец подтвердил, что «меньше примитивов».
+- Все 10 albedo + 10 normal PNG реально присутствуют в Unity Resources.
+- Import settings проверены в Unity Inspector.
+- Эталонная улица сравнивается в дневном и вечернем освещении.
+- Normal Scale не создаёт рябь/пластиковый вид; бесшовность проверена на 2×2 tiling.
+- Проверены Generated Layout и tutorial layout, чтобы не сломать streaming.
+- Нет изменений сервера, контрактов, POI, footprint или коллизий.
+- Владелец подтверждает визуальный результат.
