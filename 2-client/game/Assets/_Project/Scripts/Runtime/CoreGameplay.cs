@@ -183,6 +183,15 @@ namespace Pogranichye.Client
         private ClientInput _input;
         private JObject _me;
         private JObject _place;
+        private GameplayStatusView _status;
+        private ActionResultFrame _result;
+        private CombatFrame _combat;
+        private JourneyFrame _journey;
+        private QuestsFrame _quests;
+        private StatsFrame _stats;
+        private CarryBagFrame _bag;
+        private HorseFrame _horse;
+        private RegionFrame _region;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -273,13 +282,13 @@ namespace Pogranichye.Client
             _input = input;
         }
 
-        private static void DrawAttribute(JObject stats, string key, string label)
+        private static void DrawAttribute(StatsFrame stats, string key, string label)
         {
-            if (stats == null || stats[key] == null) return;
+            if (stats == null) return;
             GUILayout.BeginHorizontal();
             GUILayout.Label(label);
             GUILayout.FlexibleSpace();
-            GUILayout.Label(Num(stats, key).ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(48f));
+            GUILayout.Label(stats.Get(key).ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(48f));
             GUILayout.EndHorizontal();
         }
 
@@ -308,8 +317,8 @@ namespace Pogranichye.Client
             var worn = Obj(inv, "worn");
             var hand = Str(inv, "hand");
             var stash = Obj(_me, "stash");
-            var bag = Obj(_me, "bag");
-            var horse = Obj(_me, "horse");
+            var bag = _bag;
+            var horse = _horse;
 
             // Coins are already server-authoritative in me.coins (core.PurseC.Coins).
             // Show that existing ledger here; do not invent a second balance for a future
@@ -331,7 +340,7 @@ namespace Pogranichye.Client
 
             // Character attributes are read directly from the server frame. They grow
             // through authoritative activities; the client only presents the current values.
-            var stats = Obj(_me, "stats");
+            var stats = _stats;
             if (stats != null)
             {
                 GUILayout.Space(6f);
@@ -465,20 +474,20 @@ namespace Pogranichye.Client
             GUILayout.BeginVertical(GUI.skin.box);
             if (bag != null)
             {
-                var load = Num(bag, "load");
-                var capacity = Num(bag, "cap");
+                var load = (float)bag.Load;
+                var capacity = (float)bag.Capacity;
                 GUILayout.Label("Нагрузка товаров: " + load.ToString("0.#", CultureInfo.InvariantCulture) + " / "
                     + capacity.ToString("0.#", CultureInfo.InvariantCulture)
-                    + (Flag(bag, "over") ? " — перегруз, движение замедлено" : ""));
+                    + (bag.Overloaded ? " — перегруз, движение замедлено" : ""));
             }
             else GUILayout.Label("Сведения о вместимости сумы пока недоступны.");
 
-            var horseBag = Obj(horse, "bag");
-            var horseHere = Flag(horse, "here");
+            var horseBag = horse?.Bag;
+            var horseHere = horse != null && horse.Here;
             if (horse != null)
             {
-                GUILayout.Label("Лошадь: " + Str(horse, "name") + (horseHere ? "" : " · в другом поселении"));
-                GUILayout.Label("Седло: " + (int)Num(horse, "bag_load") + " / " + (int)Num(horse, "bag_cap"));
+                GUILayout.Label("Лошадь: " + horse.Name + (horseHere ? "" : " · в другом поселении"));
+                GUILayout.Label("Седло: " + (int)horse.BagLoad + " / " + (int)horse.BagCapacity);
                 if (horseHere)
                 {
                     if (stash != null)
@@ -495,13 +504,13 @@ namespace Pogranichye.Client
                     }
                     if (horseBag != null)
                     {
-                        foreach (var packed in horseBag.Properties())
+                        foreach (var packed in horseBag)
                         {
-                            if (Num(horseBag, packed.Name) < 1f) continue;
+                            if (packed.Value < 1d) continue;
                             GUILayout.BeginHorizontal();
-                            GUILayout.Label(Name(packed.Name) + " ×" + (int)Num(horseBag, packed.Name), GUILayout.Width(190f));
+                            GUILayout.Label(Name(packed.Key) + " ×" + (int)packed.Value, GUILayout.Width(190f));
                             if (GUILayout.Button("Забрать"))
-                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Name, "qty", 1);
+                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
                             GUILayout.EndHorizontal();
                         }
                     }
@@ -565,21 +574,36 @@ namespace Pogranichye.Client
             var root = validatedDocument;
             _me = Obj(root, "me");
             _place = Obj(root, "place");
+            _status = frame.Me == null
+                ? null
+                : GameplayStatusView.From(
+                    frame.Me.Health, frame.Me.Energy, frame.Me.Mana, frame.Me.Drunk,
+                    frame.Me.Position == null ? 0d : frame.Me.Position.Stamina);
             if (root["hour"] != null)
             {
                 _hour = (int)Num(root, "hour");
                 WorldEnvironmentBuilder.SetServerHour(_hour);
             }
-            SyncFoes(Arr(_place, "foes"));
+            SyncFoes(frame.Place?.Foes);
             SyncExits(Arr(_place, "exits"));
             ApplySitePresentation();
-            ReadFeed(Arr(_me, "feed"));
-            ReadResult();
+            ReadFeed(frame.Me?.Feed);
+            _combat = frame.Me?.Combat;
+            _journey = frame.Me?.Journey;
+            _quests = frame.Me?.Quests;
+            _stats = frame.Me?.Stats;
+            _bag = frame.Me?.Bag;
+            _horse = frame.Me?.Horse;
+            _region = frame.Me?.Region;
+            _result = frame.Me?.Result;
+            ReadResult(_result);
         }
 
         public void ApplyFastFrame(FastFramePatch patch)
         {
             if (_me == null || patch == null) return;
+            _status = (_status ?? GameplayStatusView.Empty).Apply(patch.Status);
+            if (patch.HasCombat) _combat = patch.Combat;
             var me = patch.Me;
             if (me != null)
             {
@@ -596,14 +620,17 @@ namespace Pogranichye.Client
                 foreach (var property in place.Properties())
                     _place[property.Name] = property.Value;
 
-                if (place.Property("foes") != null)
-                    SyncFoes(Arr(_place, "foes"));
                 if (place.Property("exits") != null)
                     SyncExits(Arr(_place, "exits"));
                 ApplySitePresentation();
             }
-            ReadFeed(Arr(_me, "feed"));
-            ReadResult();
+            if (patch.HasFoes) SyncFoes(patch.Foes);
+            if (patch.HasFeed) ReadFeed(patch.Feed);
+            if (patch.HasResult)
+            {
+                _result = patch.Result;
+                ReadResult(_result);
+            }
         }
 
         public void Clear()
@@ -624,6 +651,15 @@ namespace Pogranichye.Client
             _feedSeq = 0;
             _me = null;
             _place = null;
+            _status = null;
+            _result = null;
+            _combat = null;
+            _journey = null;
+            _quests = null;
+            _stats = null;
+            _bag = null;
+            _horse = null;
+            _region = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -774,13 +810,12 @@ namespace Pogranichye.Client
             if (motion != null) motion.CancelWorkGesture();
         }
 
-        private void ReadResult()
+        private void ReadResult(ActionResultFrame result)
         {
-            var result = Obj(_me, "result");
             if (result == null || _gate == null) return;
             RequestGate.Item item;
-            var reason = Str(result, "reason");
-            var outcome = _gate.OnResult(Str(result, "reqid"), Flag(result, "ok"), Time.unscaledTime, out item);
+            var reason = result.Reason ?? string.Empty;
+            var outcome = _gate.OnResult(result.RequestId, result.Ok, Time.unscaledTime, out item);
             if (outcome == RequestGate.Outcome.Accepted || outcome == RequestGate.Outcome.Rejected)
             {
                 _stopPlayerWorkGesture();
@@ -811,29 +846,29 @@ namespace Pogranichye.Client
 
         // ------------------------------------------------------------------ foes
 
-        private void SyncFoes(JArray foes)
+        private void SyncFoes(IList<FoeFrame> foes)
         {
             _seen.Clear();
             if (foes != null)
             {
-                foreach (var token in foes)
+                foreach (var foe in foes)
                 {
-                    var id = Str(token, "id");
-                    if (string.IsNullOrEmpty(id)) continue;
+                    if (foe == null || string.IsNullOrEmpty(foe.Id)) continue;
+                    var id = foe.Id;
                     _seen.Add(id);
                     FoeRec rec;
                     if (!_foes.TryGetValue(id, out rec))
                     {
-                        rec = CreateFoe(id, Str(token, "kind"), Str(token, "name"));
-                        rec.Root.transform.position = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
+                        rec = CreateFoe(id, foe.Kind, foe.Name);
+                        rec.Root.transform.position = new Vector3((float)foe.X, 0f, (float)foe.Y);
                         _foes[id] = rec;
                     }
-                    rec.Target = new Vector3(Num(token, "x"), 0f, Num(token, "y"));
-                    rec.Yaw = EntityViewRegistry.FacingToUnityYaw(Num(token, "facing"));
-                    rec.Hp = Num(token, "hp");
-                    rec.Max = Mathf.Max(1f, Num(token, "max"));
-                    rec.Aware = Flag(token, "aware");
-                    rec.State = Str(token, "state");
+                    rec.Target = new Vector3((float)foe.X, 0f, (float)foe.Y);
+                    rec.Yaw = EntityViewRegistry.FacingToUnityYaw((float)foe.Facing);
+                    rec.Hp = (float)foe.Hp;
+                    rec.Max = Mathf.Max(1f, (float)foe.Max);
+                    rec.Aware = foe.Aware;
+                    rec.State = foe.State ?? string.Empty;
                     if (rec.Telegraph != null) rec.Telegraph.gameObject.SetActive(rec.State == "windup");
                     if (rec.Gait != null)
                     {
@@ -1093,23 +1128,24 @@ namespace Pogranichye.Client
 
         // ------------------------------------------------------------------ feed
 
-        private void ReadFeed(JArray feed)
+        private void ReadFeed(IList<FeedEntryFrame> feed)
         {
             if (feed == null) return;
-            foreach (var token in feed)
+            foreach (var item in feed)
             {
-                var seq = (long)Num(token, "seq");
+                if (item == null) continue;
+                var seq = item.Sequence;
                 if (seq <= _feedSeq) continue;
                 _feedSeq = seq;
-                var kind = Str(token, "kind");
-                var text = Str(token, "text");
-                var damage = Num(token, "dmg");
+                var kind = item.Kind ?? string.Empty;
+                var text = item.Text ?? string.Empty;
+                var damage = (float)item.Damage;
                 if (damage > 0f) text += " (" + Mathf.RoundToInt(damage) + ")";
                 _feed.Add(new FeedLine { Kind = kind, Text = text, At = Time.unscaledTime });
                 if (kind == "hurt" || kind == "backfire" || kind == "ko") _hurtFlash = kind == "ko" ? 1.6f : 0.35f;
                 if (kind == "hit" || kind == "kill") _hitMarker = 0.18f;
                 FoeRec struck;
-                var foeId = Str(token, "foe");
+                var foeId = item.Foe;
                 if (damage > 0f && !string.IsNullOrEmpty(foeId) && _foes.TryGetValue(foeId, out struck) && struck.Root != null)
                 {
                     var hurtsMe = kind == "hurt";
@@ -1175,7 +1211,7 @@ namespace Pogranichye.Client
             _hitMarker = Mathf.Max(0f, _hitMarker - Time.unscaledDeltaTime);
             while (_feed.Count > 0 && Time.unscaledTime - _feed[0].At > 10f) _feed.RemoveAt(0);
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
             UpdateMount();
@@ -1208,13 +1244,13 @@ namespace Pogranichye.Client
                 _menuOpen = false;
                 CloseWeave(false);
                 ReleaseGuard();
-                var roadEvent = Obj(journey, "event");
-                if (roadEvent != null && !Flag(journey, "follow"))
+                var roadEvent = journey.Event;
+                if (roadEvent != null && !journey.Follow)
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count && i < 9; i++)
                         if (_input != null && _input.JourneyChoicePressed(i))
-                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i].ToString());
+                            Ask("Выбор пути", "journey", "action", "choose", "choice", options[i]);
                 }
                 UpdateCursor(true);
                 return;
@@ -1312,7 +1348,7 @@ namespace Pogranichye.Client
             if (_input != null && _input.TrickSneakPressed) Send("trick", "trick", "sneak");
             if (_input != null && _input.CycleStancePressed)
             {
-                var stance = Str(Obj(_me, "combat"), "stance");
+                var stance = _combat?.Stance ?? string.Empty;
                 var next = stance == "balanced" ? "aggressive" : stance == "aggressive" ? "defensive" : "balanced";
                 Send("stance", "stance", next);
             }
@@ -1484,8 +1520,8 @@ namespace Pogranichye.Client
 
         private void Attack(float held, bool thrust)
         {
-            var combat = Obj(_me, "combat");
-            var ranged = Str(combat, "weapon") == "bow";
+            var combat = _combat;
+            var ranged = combat != null && combat.Weapon == "bow";
             CoreFoeView foe;
             string part;
             float accuracy, distance;
@@ -1500,7 +1536,7 @@ namespace Pogranichye.Client
                 Toast("Слишком много объектов на линии прицела", 1.1f);
                 return;
             }
-            var weapon = Str(combat, "weapon");
+            var weapon = combat?.Weapon ?? string.Empty;
             var lockedReach = ranged ? 50f : 3.0f;
             if (aimed && !string.IsNullOrEmpty(_lockedFoeId) && distance > lockedReach)
             {
@@ -1585,8 +1621,7 @@ namespace Pogranichye.Client
         // It remains presentation-only; ownership, stamina, inventory and mounting are server-owned.
         private void UpdateMount()
         {
-            var horse = Obj(_me, "horse");
-            var riding = Flag(horse, "mounted") && _player != null;
+            var riding = _horse != null && _horse.Mounted && _player != null;
             if (!riding)
             {
                 if (_mount != null) _mount.SetActive(false);
@@ -1737,7 +1772,7 @@ namespace Pogranichye.Client
 
         private void ApplyRiderPose()
         {
-            var mounted = Flag(Obj(_me, "horse"), "mounted") && !_firstPerson;
+            var mounted = _horse != null && _horse.Mounted && !_firstPerson;
             if (!_riderHomeCaptured) CaptureRiderHome();
             if (!_riderHomeCaptured || _riderBody == null || _riderHead == null ||
                 _riderLeftArm == null || _riderRightArm == null || _riderLeftLeg == null || _riderRightLeg == null) return;
@@ -1789,9 +1824,9 @@ namespace Pogranichye.Client
                 _handLight.range = 22f;
                 _handLight.intensity = 0f;
             }
-            var combat = Obj(_me, "combat");
-            var weapon = Str(combat, "weapon");
-            var weaveLight = Num(combat, "light") > 0f;
+            var combat = _combat;
+            var weapon = combat?.Weapon ?? string.Empty;
+            var weaveLight = combat != null && combat.Light > 0d;
             var lit = weaveLight || weapon == "torch" || weapon == "lantern";
             var night = _hour >= 20 || _hour < 6 ? 1f : _hour >= 18 || _hour < 8 ? 0.55f : 0.15f;
             _handLight.color = weaveLight ? new Color(0.75f, 0.85f, 1f) : new Color(1f, 0.76f, 0.48f);
@@ -1994,7 +2029,7 @@ namespace Pogranichye.Client
                 GUI.color = previous;
             }
 
-            var journey = Obj(_me, "journey");
+            var journey = _journey;
             if (journey != null)
             {
                 DrawRoad(journey);
@@ -2187,13 +2222,14 @@ namespace Pogranichye.Client
             const float width = 210f;
             var x = Screen.width * 0.5f - width * 0.5f;
             var y = Screen.height - 54f;
-            Bar(new Rect(x, y, width, 5f), Num(_me, "health") / 100f, new Color(0.55f, 0.66f, 0.42f));
-            Bar(new Rect(x, y + 8f, width, 4f), Num(Obj(_me, "pos"), "stam"), new Color(0.85f, 0.76f, 0.42f));
-            var mana = Num(_me, "mana");
+            var status = _status ?? GameplayStatusView.Empty;
+            Bar(new Rect(x, y, width, 5f), status.Health / 100f, new Color(0.55f, 0.66f, 0.42f));
+            Bar(new Rect(x, y + 8f, width, 4f), status.Stamina, new Color(0.85f, 0.76f, 0.42f));
+            var mana = status.Mana;
             if (mana > 0f)
                 Bar(new Rect(x, y + 15f, width, 4f), mana / 100f, new Color(0.5f, 0.65f, 0.88f));
 
-            var drunk = Mathf.Clamp(Num(_me, "drunk"), 0f, 100f);
+            var drunk = Mathf.Clamp(status.Drunk, 0f, 100f);
             if (drunk > 0f)
             {
                 Bar(new Rect(x, y + 22f, width, 3f), drunk / 100f, new Color(0.78f, 0.55f, 0.28f));
@@ -2201,19 +2237,19 @@ namespace Pogranichye.Client
                     "Хмель " + drunk.ToString("0", CultureInfo.InvariantCulture) + "%");
             }
 
-            var combat = Obj(_me, "combat");
-            var weapon = Str(combat, "weapon");
-            var stance = Str(combat, "stance");
-            var guard = Flag(combat, "guard");
-            var sneak = Flag(combat, "sneak");
-            var feint = Flag(combat, "feint");
-            var shield = Num(combat, "shield");
+            var combat = _combat;
+            var weapon = combat?.Weapon ?? string.Empty;
+            var stance = combat?.Stance ?? string.Empty;
+            var guard = combat != null && combat.Guard;
+            var sneak = combat != null && combat.Sneak;
+            var feint = combat != null && combat.Feint;
+            var shield = combat != null ? (float)combat.Shield : 0f;
             var combatIsNotable = !string.IsNullOrEmpty(weapon) || guard || sneak || feint ||
                 shield > 0f || (stance.Length > 0 && stance != "balanced");
             if (combatIsNotable)
             {
                 var line = "В руках: " + (string.IsNullOrEmpty(weapon) ? "оружие не выбрано" : Name(weapon))
-                    + (weapon == "bow" ? " · стрел " + (int)Num(combat, "arrows") : "")
+                    + (weapon == "bow" ? " · стрел " + (combat != null ? combat.Arrows : 0) : "")
                     + (stance == "aggressive" ? " · яростная стойка" : stance == "defensive" ? " · осторожная стойка" : "")
                     + (guard ? " · блок" : "") + (sneak ? " · скрытность" : "")
                     + (feint ? " · финт" : "") + (shield > 0f ? " · щит " + (int)shield : "");
@@ -2305,17 +2341,17 @@ namespace Pogranichye.Client
             }
             else
             {
-                var active = Arr(Obj(_me, "quests"), "active");
+                var active = _quests?.Active;
                 if (active == null || active.Count == 0) return;
                 var quest = active[0];
-                var kind = Str(quest, "kind");
+                var kind = quest.Kind ?? string.Empty;
                 var progress = kind == "deliver" || kind == "cull"
-                    ? " · " + Mathf.Min((int)Num(quest, "have"), (int)Num(quest, "qty")) +
-                      "/" + (int)Num(quest, "qty")
+                    ? " · " + Mathf.Min(quest.Have ?? 0, quest.Quantity) +
+                      "/" + quest.Quantity
                     : string.Empty;
                 title = "ЗАДАЧА";
-                objective = (Flag(quest, "ready") ? "Готово · " : "") + Str(quest, "text") + progress;
-                ready = Flag(quest, "ready");
+                ready = quest.Ready == true;
+                objective = (ready ? "Готово · " : "") + (quest.Text ?? string.Empty) + progress;
             }
 
             EnsureHudTextStyles();
@@ -2346,32 +2382,32 @@ namespace Pogranichye.Client
             }
         }
 
-        private void DrawRoad(JObject journey)
+        private void DrawRoad(JourneyFrame journey)
         {
             var width = Mathf.Min(680f, Screen.width - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.5f - 170f, width, 340f);
-            GUI.Box(rect, "Дорога в " + Str(journey, "to_name"));
+            GUI.Box(rect, "Дорога в " + (journey.ToName ?? string.Empty));
             GUILayout.BeginArea(new Rect(rect.x + 16f, rect.y + 30f, rect.width - 32f, rect.height - 40f));
-            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), Num(journey, "progress"), new Color(0.79f, 0.64f, 0.29f));
+            Bar(GUILayoutUtility.GetRect(rect.width - 32f, 12f), (float)journey.Progress, new Color(0.79f, 0.64f, 0.29f));
             GUILayout.Space(8f);
-            GUILayout.Label(Str(journey, "scene"));
-            var note = Str(journey, "note");
+            GUILayout.Label(journey.Scene ?? string.Empty);
+            var note = journey.Note;
             if (!string.IsNullOrEmpty(note)) GUILayout.Label(note);
-            var roadEvent = Obj(journey, "event");
+            var roadEvent = journey.Event;
             if (roadEvent != null)
             {
                 GUILayout.Space(8f);
-                GUILayout.Label(Str(roadEvent, "text"));
-                if (Flag(journey, "follow"))
+                GUILayout.Label(roadEvent.Text ?? string.Empty);
+                if (journey.Follow)
                 {
                     GUILayout.Label("Решает вожак отряда…");
                 }
                 else
                 {
-                    var options = Arr(roadEvent, "options");
+                    var options = roadEvent.Options;
                     for (var i = 0; options != null && i < options.Count; i++)
                     {
-                        var option = options[i].ToString();
+                        var option = options[i];
                         if (GUILayout.Button("[" + (i + 1) + "] " + OptionRu(option), GUILayout.Height(30f)))
                             Ask("Выбор пути", "journey", "action", "choose", "choice", option);
                     }
@@ -2379,7 +2415,7 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label("Ещё примерно " + (int)Num(journey, "eta") + " с пути.");
+                GUILayout.Label("Ещё примерно " + (int)journey.Eta + " с пути.");
             }
             GUILayout.EndArea();
         }
@@ -2736,16 +2772,16 @@ namespace Pogranichye.Client
                 foreach (var good in stash.Properties())
                     if (Num(stash, good.Name) >= 1f)
                         bagLine += Name(good.Name) + " ×" + (int)Num(stash, good.Name) + "   ";
-            var bagCapacity = Obj(_me, "bag");
+            var bagCapacity = _bag;
             GUILayout.Label("СУМА: " + (string.IsNullOrEmpty(bagLine) ? "пусто" : bagLine)
-                + (bagCapacity != null ? "   ·   " + (int)Num(bagCapacity, "load") + "/" + (int)Num(bagCapacity, "cap") : ""));
+                + (bagCapacity != null ? "   ·   " + (int)bagCapacity.Load + "/" + (int)bagCapacity.Capacity : ""));
 
-            var saddleContents = Obj(Obj(_me, "horse"), "bag");
+            var saddleContents = _horse?.Bag;
             var saddleLine = string.Empty;
             if (saddleContents != null)
-                foreach (var good in saddleContents.Properties())
-                    if (Num(saddleContents, good.Name) >= 1f)
-                        saddleLine += Name(good.Name) + " ×" + (int)Num(saddleContents, good.Name) + "   ";
+                foreach (var good in saddleContents)
+                    if (good.Value >= 1d)
+                        saddleLine += Name(good.Key) + " ×" + (int)good.Value + "   ";
             GUILayout.Label("СЕДЕЛЬНАЯ СУМКА: " + (string.IsNullOrEmpty(saddleLine) ? "пусто" : saddleLine));
             GUILayout.BeginHorizontal();
             foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
@@ -2769,39 +2805,41 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
 
             GUILayout.Space(8f);
-            var quests = Obj(_me, "quests");
-            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (int)Num(quests, "done") + ", слава здесь " + (int)Num(quests, "rep") + ")");
-            var active = Arr(quests, "active");
+            var quests = _quests;
+            GUILayout.Label("ПРОСЬБЫ  (выполнено " + (quests?.Done ?? 0) + ", слава здесь " + (quests?.Reputation ?? 0) + ")");
+            var active = quests?.Active;
             if (active != null)
                 foreach (var quest in active)
                 {
+                    var questReady = quest.Ready == true;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label((Flag(quest, "ready") ? "[готово] " : "... ") + Str(quest, "text"), GUILayout.Width(rect.width - 260f));
-                    GUI.enabled = Flag(quest, "ready");
-                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", Str(quest, "id"));
+                    GUILayout.Label((questReady ? "[готово] " : "... ") + (quest.Text ?? string.Empty), GUILayout.Width(rect.width - 260f));
+                    GUI.enabled = questReady;
+                    if (GUILayout.Button("сдать")) Ask("Просьба", "quest", "action", "turnin", "quest", quest.Id);
                     GUI.enabled = true;
-                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", Str(quest, "id"));
+                    if (GUILayout.Button("отказаться")) Ask("Просьба", "quest", "action", "drop", "quest", quest.Id);
                     GUILayout.EndHorizontal();
                 }
-            var offers = Arr(quests, "offers");
+            var offers = quests?.Offers;
             var currentTalk = Obj(_me, "talk");
             var currentTalkWith = Str(currentTalk, "with");
             if (offers != null)
                 foreach (var offer in offers)
                 {
                     GUILayout.BeginHorizontal();
-                    var via = Str(offer, "via");
-                    var giver = Str(offer, "giver");
+                    var via = offer.Via ?? string.Empty;
+                    var giver = offer.Giver ?? string.Empty;
                     var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
+                    var giverName = offer.GiverName ?? string.Empty;
                     var who = via == "board" ? "доска у колодца"
-                        : isCurrentNpc ? "собеседник " + Str(offer, "giver_name")
-                        : Str(offer, "giver_name");
-                    var pay = Num(offer, "coins") > 0f ? "  [" + (int)Num(offer, "coins") + " монет]" : string.Empty;
-                    GUILayout.Label(who + ": " + Str(offer, "text") + pay, GUILayout.Width(rect.width - 210f));
+                        : isCurrentNpc ? "собеседник " + giverName
+                        : giverName;
+                    var pay = offer.Coins > 0d ? "  [" + (int)offer.Coins + " монет]" : string.Empty;
+                    GUILayout.Label(who + ": " + (offer.Text ?? string.Empty) + pay, GUILayout.Width(rect.width - 210f));
                     if (via != "npc" || isCurrentNpc)
                     {
                         if (GUILayout.Button(isCurrentNpc ? "взяться у него" : "взяться"))
-                            Ask("Просьба", "quest", "action", "accept", "quest", Str(offer, "id"));
+                            Ask("Просьба", "quest", "action", "accept", "quest", offer.Id);
                     }
                     else
                     {
@@ -2820,26 +2858,31 @@ namespace Pogranichye.Client
             GUILayout.Label("КАРТА КРАЯ (только то, где был и о чём слышал; путь идёт по трактам)");
             DrawRegion(hereId);
 
-            var stats = Obj(_me, "stats");
+            var stats = _stats;
             if (stats != null)
             {
                 GUILayout.Space(8f);
                 GUILayout.Label("КАКОВ ТЫ САМ (растёт от дела)");
-                GUILayout.Label("сила " + Num(stats, "strength") + "   ловкость " + Num(stats, "agility") + "   выносливость " + Num(stats, "endurance")
-                    + "   ум " + Num(stats, "intellect") + "   восприятие " + Num(stats, "perception") + "   воля " + Num(stats, "will"));
+                GUILayout.Label("сила " + stats.Strength.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   ловкость " + stats.Agility.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   выносливость " + stats.Endurance.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   ум " + stats.Intellect.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   восприятие " + stats.Perception.ToString("0.#", CultureInfo.InvariantCulture)
+                    + "   воля " + stats.Will.ToString("0.#", CultureInfo.InvariantCulture));
                 GUILayout.Label(Flag(Obj(_me, "weave"), "gift")
                     ? "В тебе есть дар: ум удержит и сложный узор."
                     : "Дара нет: по силам лишь самые простые узоры. Учиться можно в местах силы и у магов.");
-                if (Num(_me, "drunk") > 0f) GUILayout.Label("Хмель: " + (int)Num(_me, "drunk"));
-                var bagInfo = Obj(_me, "bag");
-                if (bagInfo != null)
-                    GUILayout.Label("Сума: " + (int)Num(bagInfo, "load") + " из " + (int)Num(bagInfo, "cap")
-                        + (Flag(bagInfo, "over") ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
             }
+            var drunk = _status == null ? 0f : _status.Drunk;
+            if (drunk > 0f) GUILayout.Label("Хмель: " + (int)drunk);
+            var bagInfo = _bag;
+            if (bagInfo != null)
+                GUILayout.Label("Сума: " + (int)bagInfo.Load + " из " + (int)bagInfo.Capacity
+                    + (bagInfo.Overloaded ? " — ПЕРЕГРУЗ: идёшь медленно" : ""));
 
             GUILayout.Space(8f);
             GUILayout.Label("ЛОШАДЬ · покупка у конюха, верховая езда и уход");
-            var horse = Obj(_me, "horse");
+            var horse = _horse;
             var stable = Obj(_place, "stable");
             if (horse == null)
             {
@@ -2854,13 +2897,13 @@ namespace Pogranichye.Client
             }
             else
             {
-                GUILayout.Label(Str(horse, "name") + " · силы " + (int)Num(horse, "stam") + " · седельная сумка "
-                    + (int)Num(horse, "bag_load") + "/" + (int)Num(horse, "bag_cap") + (Flag(horse, "here") ? "" : " · осталась в другом селе"));
-                if (Flag(horse, "here"))
+                GUILayout.Label(horse.Name + " · силы " + (int)horse.Stamina + " · седельная сумка "
+                    + (int)horse.BagLoad + "/" + (int)horse.BagCapacity + (horse.Here ? "" : " · осталась в другом селе"));
+                if (horse.Here)
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button(Flag(horse, "mounted") ? "Слезть" : "В седло"))
-                        Ask("Лошадь", "horse", "action", Flag(horse, "mounted") ? "dismount" : "mount");
+                    if (GUILayout.Button(horse.Mounted ? "Слезть" : "В седло"))
+                        Ask("Лошадь", "horse", "action", horse.Mounted ? "dismount" : "mount");
                     if (GUILayout.Button("Покормить")) Ask("Корм", "horse", "action", "feed");
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
@@ -2868,11 +2911,11 @@ namespace Pogranichye.Client
                         foreach (var packed in stash.Properties())
                             if (Num(stash, packed.Name) >= 1f && GUILayout.Button("на лошадь: " + Name(packed.Name)))
                                 Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
-                    var saddle = Obj(horse, "bag");
+                    var saddle = horse.Bag;
                     if (saddle != null)
-                        foreach (var packed in saddle.Properties())
-                            if (GUILayout.Button("с лошади: " + Name(packed.Name)))
-                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Name, "qty", 1);
+                        foreach (var packed in saddle)
+                            if (GUILayout.Button("с лошади: " + Name(packed.Key)))
+                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
                     GUILayout.EndHorizontal();
                 }
             }
@@ -3086,9 +3129,8 @@ namespace Pogranichye.Client
         // Regional map as a list: server-known nodes only (me.region). Unknown road ends carry no name.
         private void DrawRegion(string hereId)
         {
-            var region = Obj(_me, "region");
-            var nodes = Arr(region, "nodes");
-            var roads = Arr(region, "roads");
+            var nodes = _region?.Nodes;
+            var roads = _region?.Roads;
             if (nodes == null) return;
 
             GUILayout.BeginHorizontal();
@@ -3111,19 +3153,17 @@ namespace Pogranichye.Client
             DrawRegionMap(nodes, roads, hereId);
             foreach (var node in nodes)
             {
-                var id = Str(node, "id");
-                var state = Str(node, "state");
-                if (state == "here") continue;
-                var title = state == "unknown" ? "куда-то ведёт тракт" : Str(node, "name");
-                var mark = state == "visited" ? "бывал" : state == "known" ? "слышал" : "неведомо";
+                if (node == null || node.State == "here") continue;
+                var title = node.State == "unknown" ? "куда-то ведёт тракт" : node.Name;
+                var mark = node.State == "visited" ? "бывал" : node.State == "known" ? "слышал" : "неведомо";
                 var length = string.Empty;
                 if (roads != null)
                     foreach (var road in roads)
-                        if ((Str(road, "a") == id && Str(road, "b") == hereId) || (Str(road, "b") == id && Str(road, "a") == hereId))
-                            length = " · " + (int)Num(road, "len") + " вёрст";
+                        if ((road.A == node.Id && road.B == hereId) || (road.B == node.Id && road.A == hereId))
+                            length = " · " + (int)road.Length + " вёрст";
                 if (GUILayout.Button(title + "  (" + mark + length + ")"))
                 {
-                    Ask("Дорога", "journey", "target", id);
+                    Ask("Дорога", "journey", "target", node.Id);
                     _menuOpen = false;
                 }
             }
@@ -3131,7 +3171,7 @@ namespace Pogranichye.Client
 
         // The regional map is a projection of me.region only. Coordinates and edges are
         // server supplied; absent settlements stay in the fog and unknown nodes are nameless.
-        private void DrawRegionMap(JArray nodes, JArray roads, string hereId)
+        private void DrawRegionMap(IList<RegionNodeFrame> nodes, IList<RegionRoadFrame> roads, string hereId)
         {
             var rect = GUILayoutUtility.GetRect(420f, 220f, GUILayout.ExpandWidth(true));
             GUI.Box(rect, GUIContent.none);
@@ -3155,9 +3195,9 @@ namespace Pogranichye.Client
             var maxY = float.MinValue;
             foreach (var node in nodes)
             {
-                var id = Str(node, "id");
-                var x = Num(node, "x");
-                var y = Num(node, "y");
+                var id = node.Id;
+                var x = (float)node.X;
+                var y = (float)node.Y;
                 points[id] = new Vector2(x, y);
                 minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
                 minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
@@ -3176,8 +3216,8 @@ namespace Pogranichye.Client
             {
                 foreach (var node in nodes)
                 {
-                    if (Str(node, "id") != hereId) continue;
-                    mapCenter = new Vector2(Num(node, "x"), Num(node, "y"));
+                    if (node.Id != hereId) continue;
+                    mapCenter = new Vector2((float)node.X, (float)node.Y);
                     break;
                 }
             }
@@ -3189,9 +3229,9 @@ namespace Pogranichye.Client
                 return new Vector2(screenCenter.x + (worldPoint.x - mapCenter.x) * scale,
                     screenCenter.y - (worldPoint.y - mapCenter.y) * scale);
             }
-            Vector2 Project(JToken node)
+            Vector2 Project(RegionNodeFrame node)
             {
-                return ProjectPoint(new Vector2(Num(node, "x"), Num(node, "y")));
+                return ProjectPoint(new Vector2((float)node.X, (float)node.Y));
             }
 
             // Group clips zoomed nodes and roads to the parchment map viewport.
@@ -3201,8 +3241,8 @@ namespace Pogranichye.Client
                 foreach (var road in roads)
                 {
                     Vector2 worldA, worldB;
-                    if (!points.TryGetValue(Str(road, "a"), out worldA) ||
-                        !points.TryGetValue(Str(road, "b"), out worldB)) continue;
+                    if (!points.TryGetValue(road.A, out worldA) ||
+                        !points.TryGetValue(road.B, out worldB)) continue;
                     var a = ProjectPoint(worldA);
                     var b = ProjectPoint(worldB);
                     var delta = b - a;
@@ -3220,7 +3260,7 @@ namespace Pogranichye.Client
 
             foreach (var node in nodes)
             {
-                var state = Str(node, "state");
+                var state = node.State;
                 var point = Project(node);
                 var previous = GUI.color;
                 GUI.color = state == "here" ? new Color(0.95f, 0.78f, 0.35f)
@@ -3229,7 +3269,7 @@ namespace Pogranichye.Client
                     : new Color(0.55f, 0.53f, 0.48f);
                 GUI.DrawTexture(new Rect(point.x - 5f, point.y - 5f, 10f, 10f), Texture2D.whiteTexture);
                 GUI.color = previous;
-                var label = state == "unknown" ? "?" : Str(node, "name");
+                var label = state == "unknown" ? "?" : node.Name;
                 if (state == "here") label = "Ты";
                 if (!string.IsNullOrEmpty(label))
                     GUI.Label(new Rect(point.x + 7f, point.y - 10f, 130f, 20f), label);

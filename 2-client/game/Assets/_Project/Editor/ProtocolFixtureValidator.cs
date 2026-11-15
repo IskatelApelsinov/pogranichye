@@ -1,7 +1,9 @@
 #if UNITY_EDITOR
 using System;
 using System.IO;
+using Pogranichye.Client;
 using Pogranichye.Client.Networking;
+using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -74,6 +76,12 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldV119Dtos();
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
+                ValidateFeedCases();
+                ValidateActionResultCases();
+                ValidateCombatFoeCases();
+                ValidateJourneyQuestCases();
+                ValidateRegionCases();
+                ValidateGameplayStatusView(frame);
                 Debug.Log($"v1.20 fixture valid. Player ID: {frame.Me.Id}; seq: {frame.Me.Position.Sequence}; neighbors: {frame.Place.Neighbors?.Count ?? 0}; settlement population: {frame.Place.Life.Population}. Full and fast frame parser checks passed.");
             }
             catch (Exception ex)
@@ -85,7 +93,7 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateFastFrameCases()
         {
-            const string fastJson = "{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"pos\\":{\\"x\\":4,\\"y\\":5},\\"health\\":91,\\"combat\\":{},\\"feed\\":[]},\\"place\\":{\\"neighbors\\":[{\\"id\\":\\"43\\",\\"pos\\":{\\"x\\":1,\\"y\\":2}}],\\"foes\":[{\\"id\\":\\"wolf-1\\",\\"kind\\":\\"wolf\\"}]}}";
+            const string fastJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"pos\":{\"x\":4,\"y\":5},\"health\":91,\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0},\"feed\":[]},\"place\":{\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":1,\"y\":2}}],\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":20,\"max\":30,\"state\":\"roam\",\"aware\":false,\"slow\":false,\"weak\":false,\"blind\":false,\"stun\":false,\"windup\":0}]}}";
             if (!FastFrameParser.TryParse(fastJson, out var patch) || patch == null ||
                 patch.Me == null || patch.Me["health"]?.Value<int>() != 91 || patch.Place == null)
                 throw new FormatException("Valid partial fast frame was not parsed.");
@@ -93,19 +101,19 @@ namespace Pogranichye.Client.Editor
             if (foes == null || foes.Count != 1 || foes[0]["id"]?.Value<string>() != "wolf-1")
                 throw new FormatException("Fast-frame foe array was not parsed.");
 
-            if (FastFrameParser.TryParse("{\\"v\\":1,\\"alive\\":true,\\"me\\":{\\"id\\":\\"42\\"}}", out _))
+            if (FastFrameParser.TryParse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"}}", out _))
                 throw new FormatException("A full frame must not be classified as a fast patch.");
 
-            ExpectFastRejected("{\\"v\\":2,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "unsupported fast protocol version");
-            var terminalFast = WorldFrameParser.Parse("{\\"v\\":1,\\"fast\\":true,\\"alive\\":false}", out _);
+            ExpectFastRejected("{\"v\":2,\"fast\":true,\"alive\":true,\"me\":{\"health\":1}}", "unsupported fast protocol version");
+            var terminalFast = WorldFrameParser.Parse("{\"v\":1,\"fast\":true,\"alive\":false}", out _);
             if (terminalFast.Alive || terminalFast.Me != null)
                 throw new FormatException("Terminal fast envelope must reach the normal alive:false lifecycle.");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":\\"true\\",\\"alive\\":true,\\"me\\":{\\"health\\":1}}", "non-boolean fast marker");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":[],\\"place\\":{}}", "non-object fast me");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"health\\":\\"high\\"}}", "non-numeric fast health");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"me\\":{\\"wounds\\":[]}}", "non-object fast wounds");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":{}}}", "non-array fast foes");
-            ExpectFastRejected("{\\"v\\":1,\\"fast\\":true,\\"alive\\":true,\\"place\\":{\\"foes\\":[{\\"id\\":42}]}}", "non-string fast foe id");
+            ExpectFastRejected("{\"v\":1,\"fast\":\"true\",\"alive\":true,\"me\":{\"health\":1}}", "non-boolean fast marker");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":[],\"place\":{}}", "non-object fast me");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":\"high\"}}", "non-numeric fast health");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"wounds\":[]}}", "non-object fast wounds");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"place\":{\"foes\":{}}}", "non-array fast foes");
+            ExpectFastRejected("{\"v\":1,\"fast\":true,\"alive\":true,\"place\":{\"foes\":[{\"id\":42}]}}", "non-string fast foe id");
         }
 
         private static void ExpectFastRejected(string json, string caseName)
@@ -117,6 +125,108 @@ namespace Pogranichye.Client.Editor
             catch (FormatException) { return; }
 
             throw new FormatException("Fast frame parser unexpectedly accepted invalid case: " + caseName);
+        }
+
+        private static void ValidateGameplayStatusView(WorldFrame frame)
+        {
+            const string drunkJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"drunk\":18}}";
+            var drunkFrame = WorldFrameParser.Parse(drunkJson);
+            if (drunkFrame.Me == null || drunkFrame.Me.Drunk != 18d)
+                throw new FormatException("Full-frame me.drunk must deserialize into CharacterFrame.");
+
+            var full = GameplayStatusView.From(
+                frame.Me.Health, frame.Me.Energy, frame.Me.Mana, frame.Me.Drunk,
+                frame.Me.Position == null ? 0d : frame.Me.Position.Stamina);
+
+            const string partialJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":47,\"pos\":{\"stam\":0.25}}}";
+            if (!FastFrameParser.TryParse(partialJson, out var partialPatch))
+                throw new FormatException("A valid typed status fast patch was not recognized.");
+            var partial = full.Apply(partialPatch.Status);
+            if (partial.Health != 47f || partial.Energy != full.Energy || partial.Mana != full.Mana ||
+                partial.Drunk != full.Drunk || Math.Abs(partial.Stamina - 0.25f) > 0.0001f)
+                throw new FormatException("A partial fast status patch must update only present fields.");
+
+            const string nullJson = "{\"v\":1,\"fast\":true,\"alive\":true,\"me\":{\"health\":null,\"pos\":null}}";
+            if (!FastFrameParser.TryParse(nullJson, out var nullPatch))
+                throw new FormatException("A fast status patch with explicit nulls was not recognized.");
+            var cleared = partial.Apply(nullPatch.Status);
+            if (cleared.Health != 0f || cleared.Stamina != 0f ||
+                cleared.Energy != partial.Energy || cleared.Mana != partial.Mana || cleared.Drunk != partial.Drunk)
+                throw new FormatException("Explicit nulls must clear replaced numeric values without erasing omitted fields.");
+
+            if (Math.Abs(full.Drunk - (float)frame.Me.Drunk) > 0.0001f)
+                throw new FormatException("Full-frame me.drunk must remain available to the typed status view.");
+        }
+
+        private static void ValidateFeedCases()
+        {
+            const string fullFeed = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":4,\"kind\":\"hit\",\"text\":\"Попадание\",\"foe\":\"wolf-1\",\"part\":\"head\",\"dmg\":3.5}]}}";
+            var frame = WorldFrameParser.Parse(fullFeed);
+            if (frame.Me?.Feed == null || frame.Me.Feed.Count != 1 ||
+                frame.Me.Feed[0].Sequence != 4 || frame.Me.Feed[0].Foe != "wolf-1" ||
+                Math.Abs(frame.Me.Feed[0].Damage - 3.5d) > 0.0001d)
+                throw new FormatException("A full frame must expose validated typed feed entries.");
+
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":2,\"kind\":\"hit\",\"text\":\"a\"},{\"seq\":2,\"kind\":\"loot\",\"text\":\"b\"}]}}", "duplicate feed sequence");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"feed\":[{\"seq\":1,\"kind\":\"hit\",\"text\":\"a\",\"dmg\":-1}]}}", "negative feed damage");
+        }
+
+        private static void ValidateActionResultCases()
+        {
+            const string fullResult = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":\"full-1\",\"ok\":false,\"reason\":\"нужно подойти\"}}}";
+            var frame = WorldFrameParser.Parse(fullResult);
+            if (frame.Me?.Result == null || frame.Me.Result.RequestId != "full-1" ||
+                frame.Me.Result.Ok || frame.Me.Result.Reason != "нужно подойти")
+                throw new FormatException("A full frame must expose a validated typed action result.");
+
+            var nullResult = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":null}}");
+            if (nullResult.Me == null || nullResult.Me.Result != null)
+                throw new FormatException("An explicit null me.result must remain null.");
+
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":\"x\",\"ok\":true}}}", "result missing reason");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"result\":{\"reqid\":42,\"ok\":true,\"reason\":\"ok\"}}}", "numeric result reqid");
+        }
+
+        private static void ValidateCombatFoeCases()
+        {
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"guard\":false,\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":2,\"weapon\":\"sword\",\"kills\":{\"wolf\":1},\"ko\":0}},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":\"wolf-1\",\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":3,\"y\":4,\"facing\":90,\"hp\":20,\"max\":30,\"state\":\"windup\",\"aware\":true,\"slow\":false,\"weak\":false,\"blind\":false,\"stun\":false,\"windup\":0.4}]}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Combat == null || frame.Me.Combat.Weapon != "sword" ||
+                frame.Me.Combat.Arrows != 2 || frame.Place?.Foes == null ||
+                frame.Place.Foes.Count != 1 || frame.Place.Foes[0].Id != "wolf-1" ||
+                frame.Place.Foes[0].State != "windup")
+                throw new FormatException("Full frame combat/foe views must deserialize to typed DTOs.");
+
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"combat\":{\"stance\":\"balanced\",\"sneak\":false,\"feint\":false,\"cd\":0,\"shield\":0,\"light\":0,\"arrows\":0,\"weapon\":\"\",\"kills\":{},\"ko\":0}}}", "combat missing guard");
+            ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\",\"foes\":[{\"id\":42,\"kind\":\"wolf\",\"name\":\"Волк\",\"x\":0,\"y\":0,\"facing\":0,\"hp\":1,\"max\":1,\"state\":\"roam\",\"aware\":false}]}}", "foe numeric id");
+        }
+
+        private static void ValidateJourneyQuestCases()
+        {
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"journey\":{\"to\":\"settlement-2\",\"to_name\":\"Лесное\",\"progress\":0.45,\"eta\":37,\"scene\":\"Дорога тянется через лес.\",\"note\":\"\",\"follow\":false,\"event\":{\"kind\":\"ambush\",\"foe\":\"bandit\",\"text\":\"На тропе люди с дубьём.\",\"options\":[\"fight\",\"pay\",\"flee\"]},\"via\":[\"Сосновка\"]},\"quests\":{\"offers\":[{\"id\":\"food:1:2\",\"kind\":\"deliver\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"good\":\"fish\",\"qty\":4,\"text\":\"Принеси рыбу.\",\"coins\":6}],\"active\":[{\"id\":\"cull:wolf:1:2\",\"kind\":\"cull\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"species\":\"wolf\",\"qty\":2,\"text\":\"Убей двух волков.\",\"coins\":8,\"have\":1,\"ready\":false,\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"}],\"done\":3,\"rep\":-2}}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Journey == null || frame.Me.Journey.To != "settlement-2" ||
+                frame.Me.Journey.Event?.Options == null || frame.Me.Journey.Event.Options.Count != 3 ||
+                frame.Me.Quests == null || frame.Me.Quests.Offers.Count != 1 ||
+                frame.Me.Quests.Active.Count != 1 || frame.Me.Quests.Active[0].Have != 1 ||
+                frame.Me.Quests.Reputation != -2)
+                throw new FormatException("Full frame journey/quest views must deserialize to typed DTOs.");
+
+            ExpectRejected(full.Replace("\"progress\":0.45", "\"progress\":1.5"), "journey progress above one");
+            ExpectRejected(full.Replace("\"ready\":false", "\"ready\":1"), "quest ready must be boolean");
+        }
+
+        private static void ValidateRegionCases()
+        {
+            const string full = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"region\":{\"nodes\":[{\"id\":\"1\",\"x\":0,\"y\":0,\"state\":\"here\",\"name\":\"Сосновка\",\"tier\":\"village\"},{\"id\":\"2\",\"x\":120,\"y\":-40,\"state\":\"unknown\",\"name\":\"\",\"tier\":\"\"}],\"roads\":[{\"a\":\"1\",\"b\":\"2\",\"len\":120}]}}}";
+            var frame = WorldFrameParser.Parse(full);
+            if (frame.Me?.Region == null || frame.Me.Region.Nodes.Count != 2 ||
+                frame.Me.Region.Nodes[1].State != "unknown" || frame.Me.Region.Nodes[1].Name != "" ||
+                frame.Me.Region.Roads.Count != 1)
+                throw new FormatException("Full frame regional map must deserialize to typed privacy-safe DTOs.");
+
+            ExpectRejected(full.Replace("\"name\":\"\",\"tier\":\"\"", "\"name\":\"Скрытое место\",\"tier\":\"city\""),
+                "unknown regional place name leak");
         }
 
         private static void ValidateNegativeCases()

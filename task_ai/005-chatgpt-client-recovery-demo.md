@@ -54,6 +54,46 @@
 **Следующий владелец:** ChatGPT продолжает клиент; пользователь выполняет Unity runtime smoke tests; Claude — серверные зависимости по comms 0232.
 
 
+## Consolidation note — 2026-11-14
+
+Typed HUD work from overlapping PRs #635 and #636 is consolidated in PR #641. Do not merge #635 or #636 independently; both will be closed as superseded once PR #641 is published. The complete status-view implementation from #636, the typed feed slice, DTO coverage inventory, recovery notes and human Unity acceptance checklist are retained. The seamless position parser fix remains in place and must not be duplicated.
+
+
+## Typed result continuation — 2026-11-14
+
+PR #641 now also types the existing single-slot `me.result` acknowledgement. `ActionResultFrameParser` validates full and fast results; `RequestGate` semantics remain unchanged (one in-flight request, matching reqid only). No server/wire change. Pure C# checks all passed in workflow run #43635516351 (17 steps); Unity Editor/PlayMode remain unverified.
+
+
+## Typed combat/foe continuation — 2026-11-14
+
+PR #641 now types the existing server `me.combat` view and `place.foes[]` arrays in both full and fast frames. `CoreGameplay` consumes typed combat values and server-owned foe frames; no local foe simulation or server changes. Parser checks and Editor fixture cases were added; all 18 CI steps passed in run #43636660993. Unity Editor/PlayMode remain unverified.
+
+
+## Current handoff — 2026-11-14
+
+PR #641 has been consolidated onto the current main while preserving the typed gameplay DTO work and the world-label occlusion fix. All 18 independent C# CI steps passed in run #43636660993. It consolidates typed status/feed/result/combat/foe views and the durable task/handoff documents. The manual Unity acceptance task is now `task_human/004`; do not mark it complete until the owner runs Unity 6000.6.7f1.
+
+
+## Stacked follow-up — 2026-11-14
+
+PR #641 now includes typed public JourneyView/QuestsView consumers in the same consolidated client change. All 19 independent C# CI steps passed in run #43638732127. No server/wire change; Unity runtime remains unverified.
+
+
+## Next client DTO slice
+
+Task #007 records the current `me.stats/me.bag/me.horse` server view audit and the existing but unconnected `HorseStatsFrames.cs` scaffold. No server change is requested; `me.bag` must not be misrepresented as a physical backpack.
+
+
+## Typed inventory foundation — 2026-11-14
+
+Task #007 completed the client-side DTO/consumer foundation for stats, carried load summary and horse state. Next continue with inventory items/equipment, regional map, card game, recipes and party, then settlement stable/site/market/exits/tavern counter. No server change.
+
+
+## Regional knowledge map — 2026-11-14
+
+The `me.region` projection and UI are now typed under task #008. Privacy checks reject unknown-place name/tier leaks; the client does not use the developer manifest to fill unknown map data. CI run #43638994608 passed all 21 independent C# steps. Runtime map acceptance remains with the project owner.
+
+
 ## Progress — 2026-11-14: world-label occlusion and readability
 
 - Source review confirmed that the generated Layout v2 already has server-footprint collision proxies on layer 2: a footprint BoxCollider for ordinary buildings and wall-segment BoxColliders around the tavern door. Starter prototype houses also have layer-2 camera-only proxies. The bug was that `SignFaceVisibility` and `BillboardLabel` queried only `Physics.DefaultRaycastLayers`, which excludes layer 2.
