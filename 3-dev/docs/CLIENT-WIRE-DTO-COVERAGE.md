@@ -30,8 +30,8 @@
 | `me.horse` | `HorseFrame` + `HorseFrameParser` | mount presentation, stamina, location and saddle-bag UI | Typed; server horse entity ID remains string; null means no owned horse |
 | `me.bag` | `CarryBagFrame` + `CarryBagFrameParser` | carried-bag load/capacity/overload UI | Typed; additive absence/null tolerated for older v1 servers |
 | `me.region` | `RegionFrame`, `RegionNodeFrame`, `RegionRoadFrame` + `RegionFrameParser` | regional map and road choices | Typed; privacy-safe states and edge references validated |
-| `me.journey` | Missing `JourneyFrame`, event/options DTOs | road progress, scene and event choices | **Gap** |
-| `me.quests` | Missing `QuestsFrame`, offer/active quest DTOs | needs/requests UI | **Gap** |
+| `me.journey` | `JourneyFrame`, `RoadEventFrame` + `JourneyFrameParser` | road progress, scene and event choices | Typed; public `sim.JourneyView` only, full-frame-only |
+| `me.quests` | `QuestsFrame`, `QuestFrame` + `QuestsFrameParser` | needs/requests UI | Typed; public `sim.QuestsView` only, full-frame-only |
 | `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
@@ -51,7 +51,7 @@
 | `place.site` | Missing `SiteFrame` | features, terrain, climate, specialty and state | **Gap** |
 | `place.market[]` | Missing `MarketItemFrame` | stock, buy/sell prices and ownership UI | **Gap** |
 | `place.stable` | Missing `StableFrame` and horse-offer DTO | horse availability and price | **Gap** |
-| `place.tavern_counter` | Missing `TavernCounterFrame` | counter/bartender affordance in controller | **Gap** |
+| `place.tavern_counter` | `TavernCounterFrame` + `TavernCounterFrameParser` | beer purchase affordance and keeper status | Typed; additive nullable v1 view, client-only hint, server revalidates |
 
 ## Fast frame: exact current server shape
 

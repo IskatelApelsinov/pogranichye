@@ -60,8 +60,10 @@ namespace Pogranichye.Client.Presentation
             if (_camera == null) return;
 
             var ray = _camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            // Include non-blocking POI/NPC trigger volumes. FindTargetBeforeObstacle skips
+            // unrelated triggers but still stops at the first solid wall/door collider.
             var count = Physics.RaycastNonAlloc(ray, _hits, interactRange,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
 
             // Unity may return an arbitrary subset when a NonAlloc buffer is full. If
             // we sorted that subset and selected a target, a nearer wall could be missing.
@@ -74,7 +76,7 @@ namespace Pogranichye.Client.Presentation
             // colliders and low-poly POI meshes. Solid world geometry still occludes targets.
             if (aimAssistRadius <= 0f) return;
             count = Physics.SphereCastNonAlloc(ray, aimAssistRadius, _hits, interactRange,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
             if (count >= _hits.Length) return;
             SortHits(count);
             FindTargetBeforeObstacle(count, out poi, out npc);
@@ -148,15 +150,18 @@ namespace Pogranichye.Client.Presentation
             var label = _poi != null
                 ? _poi.Title + "   [E]"
                 : "Поговорить: " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "житель" : _npc.DisplayName) + "   [E]";
-            var width = Mathf.Min(440f, Screen.width - 32f);
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.70f, width, 38f);
+            var width = Mathf.Min(560f, Mathf.Max(180f, Screen.width - 32f));
             EnsurePromptStyle();
+            var content = new GUIContent(label);
+            var height = Mathf.Max(42f, _promptStyle.CalcHeight(content, width - 24f) + 10f);
+            var rect = new Rect((Screen.width - width) * 0.5f,
+                Mathf.Max(12f, Screen.height - 112f - height), width, height);
 
             var previousColor = GUI.color;
-            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.88f);
+            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.92f);
             GUI.Box(rect, GUIContent.none);
             GUI.color = new Color(0.96f, 0.88f, 0.70f, 1f);
-            GUI.Label(rect, label, _promptStyle);
+            GUI.Label(rect, content, _promptStyle);
             GUI.color = previousColor;
         }
 
@@ -166,9 +171,11 @@ namespace Pogranichye.Client.Presentation
             _promptStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = 15,
+                fontSize = ClientUiTypography.HudBody,
                 fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Clip
+                wordWrap = true,
+                clipping = TextClipping.Overflow,
+                padding = new RectOffset(12, 12, 7, 7)
             };
             _promptStyle.normal.textColor = new Color(0.96f, 0.88f, 0.70f, 1f);
         }

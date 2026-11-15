@@ -226,6 +226,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("tavern")] public bool Tavern { get; set; }
         [JsonProperty("beer")] public double Beer { get; set; }
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
+        // Server-computed location and serving state for the physical tavern counter.
+        [JsonProperty("tavern_counter")] public TavernCounterFrame TavernCounter { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
         [JsonProperty("foes")] public List<FoeFrame> Foes { get; set; }
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }

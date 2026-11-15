@@ -111,6 +111,10 @@ namespace Pogranichye.Client.Presentation
             // below belongs to the tutorial village only.
             if (layout.IsGenerated)
             {
+                // Generated settlements have no tutorial marker objects. Add only the
+                // allow-listed E targets whose coordinates and supported intents come from
+                // this server Layout v2; no local POIs or gameplay outcomes are created.
+                WorldLayoutPoiTargetBuilder.Build(world, layout);
                 BuildGeneratedCountryside(world, layout);
                 RegisterAssets(root);
                 return;
@@ -1440,11 +1444,15 @@ namespace Pogranichye.Client.Presentation
             fireLight.shadows = LightShadows.None;
 
             // Back counter and three benches leave a readable path from the entrance.
-            var counter = new Vector3(width * 0.25f, 0f, depth * 0.28f);
+            // Server TavernCounter() is the geometric building centre with a 2.2 m purchase radius.
+            // Keep the visible bar within that radius for every generated tavern layout.
+            var counter = new Vector3(0f, 0f, 1.0f);
+            // Keep the serving frontage inside the server's 2.2m radius, including both ends.
+            var counterWidth = Mathf.Min(width * 0.42f, 3.6f);
             Create("Tavern serving counter", PrimitiveType.Cube, root,
-                counter + new Vector3(0f, 0.92f, 0f), new Vector3(width * 0.42f, 0.22f, 1.15f), _timber, false);
+                counter + new Vector3(0f, 0.92f, 0f), new Vector3(counterWidth, 0.22f, 1.15f), _timber, false);
             Create("Counter front timber", PrimitiveType.Cube, root,
-                counter + new Vector3(0f, 0.48f, -0.48f), new Vector3(width * 0.42f, 0.72f, 0.12f), _trunk, false);
+                counter + new Vector3(0f, 0.48f, -0.48f), new Vector3(counterWidth, 0.72f, 0.12f), _trunk, false);
             for (var i = 0; i < 3; i++)
             {
                 var x = -width * 0.30f + i * width * 0.30f;
@@ -1467,8 +1475,8 @@ namespace Pogranichye.Client.Presentation
             if (_activeBuildAssets != null) _activeBuildAssets.Add(foam);
             BuildWoodenTankard(root, table + new Vector3(-0.52f, 1.08f, 0f), foam, "Table tankard");
             BuildWoodenTankard(root, table + new Vector3(0.48f, 1.08f, 0.12f), foam, "Second table tankard");
-            BuildWoodenTankard(root, counter + new Vector3(-width * 0.12f, 1.25f, 0f), foam, "Counter tankard");
-            BuildWoodenTankard(root, counter + new Vector3(width * 0.12f, 1.25f, 0f), foam, "Counter second tankard");
+            BuildWoodenTankard(root, counter + new Vector3(-counterWidth * 0.28f, 1.25f, 0f), foam, "Counter tankard");
+            BuildWoodenTankard(root, counter + new Vector3(counterWidth * 0.28f, 1.25f, 0f), foam, "Counter second tankard");
 
             Create("Tavern wall shelf", PrimitiveType.Cube, root,
                 new Vector3(width * 0.28f, 2.15f, depth * 0.47f), new Vector3(width * 0.34f, 0.12f, 0.55f), _trunk, false);
@@ -1832,7 +1840,7 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 56;
+            text.fontSize = ClientUiTypography.SignLabelFontSize;
             // Larger physical glyphs remain readable at the deliberately short sign range.
             text.characterSize = Mathf.Clamp(boardWidth / Mathf.Max(14f, title.Length * 3.8f), 0.07f, 0.12f);
             text.color = new Color(1f, 0.88f, 0.62f);

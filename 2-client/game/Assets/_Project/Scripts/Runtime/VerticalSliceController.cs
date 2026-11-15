@@ -167,6 +167,9 @@ namespace Pogranichye.Client
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
         private string _lastDiagnosticDumpStatus = "Дамп ещё не сохранён";
+        private GUIStyle _statusTextStyle;
+        private GUIStyle _pendingActionStyle;
+        private GUIStyle _objectiveCardStyle;
         private Vector2 _movementInputDebug;
         private Vector2 _movementKeyboardDebug;
         private Vector2 _movementRawAxesDebug;
@@ -484,7 +487,8 @@ namespace Pogranichye.Client
 
                 GUILayout.Space(8f);
                 GUILayout.Label("Tab — открыть/закрыть · I — инвентарь · J — задания · M — карта · Esc — настройки");
-                GUILayout.Label(_status, GUILayout.Height(56));
+                EnsureStatusTextStyle();
+                GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(56f));
                 GUILayout.EndScrollView();
                 GUILayout.EndArea();
             }
@@ -596,7 +600,8 @@ namespace Pogranichye.Client
                 if (GUILayout.Button("Выход из игры", GUILayout.Height(34f))) Application.Quit();
             }
             GUILayout.Space(8f);
-            GUILayout.Label(_status, GUILayout.MinHeight(34f));
+            EnsureStatusTextStyle();
+            GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(48f));
             if (_connectionState == WorldConnectionState.Connecting || _connectionState == WorldConnectionState.AwaitingSnapshot)
                 GUILayout.Label(_connectionState == WorldConnectionState.Connecting ? "Устанавливаем связь…" : "Получаем состояние мира…");
             GUILayout.EndScrollView();
@@ -789,6 +794,103 @@ namespace Pogranichye.Client
             GUI.Label(new Rect(rect.x + 10f, rect.y + 336f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
             GUI.Label(new Rect(rect.x + 10f, rect.y + 360f, rect.width - 20f, 22f),
                 "Локальный файл: включает координаты и состояние персонажа.");
+        }
+
+        private void DrawObjectiveCard()
+        {
+            var message = TutorialObjectiveHint();
+            if (string.IsNullOrWhiteSpace(message)) return;
+
+            if (_objectiveCardStyle == null)
+            {
+                _objectiveCardStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = ClientUiTypography.HudBody,
+                    alignment = TextAnchor.UpperLeft,
+                    wordWrap = true,
+                    clipping = TextClipping.Overflow,
+                    padding = new RectOffset(12, 12, 8, 8)
+                };
+                _objectiveCardStyle.normal.textColor = new Color(0.94f, 0.88f, 0.75f, 1f);
+            }
+
+            var width = Mathf.Min(380f, Mathf.Max(250f, Screen.width * 0.32f));
+            var content = new GUIContent(message);
+            var height = Mathf.Max(62f, _objectiveCardStyle.CalcHeight(content, width - 24f) + 34f);
+            height = Mathf.Min(height, Mathf.Max(92f, Screen.height * 0.28f));
+            var rect = new Rect(12f, 12f, width, height);
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.90f);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = new Color(0.82f, 0.68f, 0.45f, 1f);
+            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width - 4f, 24f), "СЛЕДУЮЩИЙ ШАГ",
+                new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, fontSize = ClientUiTypography.HudSecondary });
+            GUI.color = new Color(0.94f, 0.88f, 0.75f, 1f);
+            GUI.Label(new Rect(rect.x, rect.y + 24f, rect.width, rect.height - 24f), content, _objectiveCardStyle);
+            GUI.color = previousColor;
+        }
+
+        private string TutorialObjectiveHint()
+        {
+            if (_frame == null || _frame.Me == null)
+                return "Подключитесь к миру, чтобы начать.";
+
+            var task = _frame.Me.Task;
+            if (task == null || !task.Met)
+                return _tutorialStep == 0
+                    ? "Подойдите к жителю, наведитесь и нажмите E. Выберите «Будем знакомы»."
+                    : "Ожидаем от сервера следующий шаг вводного маршрута.";
+
+            if (task.Issued != null)
+                return !string.IsNullOrWhiteSpace(task.Text) ? task.Text : "Выполните принятое поручение жителя.";
+
+            if (task.ErrandDone)
+                return task.Done ? string.Empty : "Поручение сдано. Загляните в корчму и выпейте пива.";
+
+            return "Вы знакомы с жителем. Поговорите с ним и примите актуальное поручение в окне «Дела».";
+        }
+
+        private void DrawPendingActionIndicator()
+        {
+            if (_core == null || !_core.HasPendingRequests) return;
+
+            if (_pendingActionStyle == null)
+            {
+                _pendingActionStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = ClientUiTypography.HudBody,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = true,
+                    clipping = TextClipping.Overflow,
+                    padding = new RectOffset(12, 12, 7, 7)
+                };
+                _pendingActionStyle.normal.textColor = new Color(0.96f, 0.88f, 0.70f, 1f);
+            }
+
+            var width = Mathf.Min(440f, Mathf.Max(220f, Screen.width - 540f));
+            var label = _core.PendingRequestLabel;
+            var message = string.IsNullOrWhiteSpace(label)
+                ? "Ожидаем подтверждения мира…"
+                : "Ожидаем подтверждения мира: " + label;
+            if (_core.PendingRequestCount > 1)
+                message += "  ·  в очереди: " + (_core.PendingRequestCount - 1);
+            var height = Mathf.Max(42f, _pendingActionStyle.CalcHeight(new GUIContent(message), width - 24f) + 10f);
+            var topOffset = 50f;
+            var neighbors = _frame != null && _frame.Place != null ? _frame.Place.Neighbors : null;
+            if (neighbors != null && IsAtTavern())
+            {
+                var inviteableCount = 0;
+                foreach (var neighbor in neighbors)
+                    if (neighbor != null && neighbor.Controlled) inviteableCount++;
+                if (inviteableCount > 0) topOffset = 18f + 56f + inviteableCount * 34f + 8f;
+            }
+            var rect = new Rect(Screen.width - width - 12f, topOffset, width, height);
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.94f);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = new Color(0.91f, 0.76f, 0.49f, 1f);
+            GUI.Label(rect, message, _pendingActionStyle);
+            GUI.color = previousColor;
         }
 
         private void DrawHudTabButton(string label, HudTab tab)
@@ -1872,13 +1974,24 @@ namespace Pogranichye.Client
             }
         }
 
+        private void EnsureStatusTextStyle()
+        {
+            if (_statusTextStyle != null) return;
+            _statusTextStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = ClientUiTypography.HudBody,
+                wordWrap = true,
+                alignment = TextAnchor.UpperLeft
+            };
+        }
+
         private void EnsureDialogueStyles()
         {
             if (_dialogueWhoStyle == null)
             {
                 _dialogueWhoStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 21,
+                    fontSize = ClientUiTypography.HudTitle,
                     fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleLeft
                 };
@@ -1888,7 +2001,7 @@ namespace Pogranichye.Client
             {
                 _dialogueLineStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 22,
+                    fontSize = ClientUiTypography.HudBody,
                     wordWrap = true,
                     richText = true,
                     alignment = TextAnchor.UpperLeft
@@ -1899,7 +2012,7 @@ namespace Pogranichye.Client
             {
                 _dialogueOptionStyle = new GUIStyle(GUI.skin.button)
                 {
-                    fontSize = 18,
+                    fontSize = ClientUiTypography.HudBody,
                     wordWrap = true,
                     alignment = TextAnchor.MiddleLeft,
                     padding = new RectOffset(14, 12, 6, 6)
@@ -1909,7 +2022,7 @@ namespace Pogranichye.Client
             {
                 _dialogueHintStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = 14,
+                    fontSize = ClientUiTypography.HudSecondary,
                     wordWrap = true,
                     alignment = TextAnchor.MiddleLeft
                 };
@@ -1962,7 +2075,8 @@ namespace Pogranichye.Client
                 var rect = new Rect(Screen.width - 430f, Screen.height - 126f, 410f, 110f);
                 GUI.Box(rect, "Разговор с жителем");
                 GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 28f, rect.width - 24f, rect.height - 38f));
-                GUILayout.Label(_talkFeedback, GUILayout.Height(66f));
+                EnsureDialogueStyles();
+                GUILayout.Label(_talkFeedback, _dialogueHintStyle, GUILayout.MinHeight(66f));
                 GUILayout.EndArea();
             }
 
@@ -1994,7 +2108,7 @@ namespace Pogranichye.Client
                 var inviteableCount = 0;
                 foreach (var neighbor in neighbors)
                     if (neighbor != null && neighbor.Controlled) inviteableCount++;
-                if (inviteableCount > 0)
+                if (inviteableCount > 0 && IsAtTavern())
                 {
                     var height = 56f + inviteableCount * 34f;
                     var rect = new Rect(Screen.width - 330f, 18f, 310f, height);
@@ -2048,6 +2162,41 @@ namespace Pogranichye.Client
             return dx * dx + dy * dy <= radius * radius;
         }
 
+        // The server's TavernCounterView and me.pos use the same settlement-local coordinates.
+        // This is only a presentation gate; BuyBeer always revalidates distance and keeper state.
+        private bool IsAtTavernCounter()
+        {
+            var counter = _frame?.Place?.TavernCounter;
+            var position = _frame?.Me?.Position;
+            if (counter == null || position == null || counter.Radius <= 0d) return false;
+            var dx = position.X - counter.X;
+            var dy = position.Y - counter.Y;
+            return dx * dx + dy * dy <= counter.Radius * counter.Radius;
+        }
+
+        private bool IsInsideTavernBuilding()
+        {
+            var position = _frame?.Me?.Position;
+            var buildings = _layout?.Buildings;
+            if (position == null || buildings == null) return false;
+            foreach (var building in buildings)
+            {
+                if (building == null || !string.Equals(building.BuildingId, "tavern", StringComparison.Ordinal))
+                    continue;
+                if (position.X >= building.X0 && position.X <= building.X1 &&
+                    position.Y >= building.Y0 && position.Y <= building.Y1)
+                    return true;
+            }
+            return false;
+        }
+
+        private bool IsAtTavern()
+        {
+            // Mirrors the server's broad social check: exterior tavern POI OR inside its
+            // server-projected building. Counter proximity remains a separate purchase rule.
+            return IsNearActivityPoi("tavern", 2.5f) || IsInsideTavernBuilding() || IsAtTavernCounter();
+        }
+
         private bool HasInventoryItem(string item)
         {
             return _frame?.Me?.Inventory?.Items != null &&
@@ -2076,7 +2225,7 @@ namespace Pogranichye.Client
             var atMine = _core.SupportsFeature("mine") && IsNearActivityPoi("mine", 10f);
             var atGarden = _core.SupportsFeature("garden") && IsNearActivityPoi("garden", 10f);
             var atSmithy = IsNearActivityPoi("smithy", 10f);
-            var atTavern = _frame.Place.Tavern && IsNearActivityPoi("tavern", 12f);
+            var atTavern = _frame.Place.Tavern && IsAtTavern();
             var atMarket = IsNearActivityPoi("market", 12f) || IsNearActivityPoi("granary", 12f);
             if (!atWoods && !atRiver && !atMine && !atGarden && !atSmithy && !atTavern && !atMarket)
                 return new Rect(0f, 0f, 0f, 0f);
@@ -2090,7 +2239,7 @@ namespace Pogranichye.Client
             {
                 var rooms = _frame.Place.Rooms?.Items;
                 var roomCount = rooms != null ? rooms.Count : 0;
-                height += 34f + 76f + roomCount * 32f;
+                height += 34f + 112f + roomCount * 32f;
                 var owned = _frame.Me.Room;
                 if (owned != null && owned.Indoor)
                 {
@@ -2143,22 +2292,39 @@ namespace Pogranichye.Client
 
             if (atTavern)
             {
-                GUILayout.BeginHorizontal();
                 if (_frame.Me.Mug)
                 {
                     if (GUILayout.Button("🍺 Выпить пиво")) QueueContextItemAction("consume", "beer", "Выпить пиво");
                 }
-                else if (_frame.Place.Beer > 0)
+                else
                 {
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = _frame.Me.Coins >= _frame.Place.BeerPrice;
-                    if (GUILayout.Button("🍺 Заказать кружку · " +
+                    var counter = _frame.Place.TavernCounter;
+                    if (counter == null)
+                    {
+                        GUILayout.Label("Стойка корчмы пока не описана сервером.");
+                    }
+                    else if (!IsAtTavernCounter())
+                    {
+                        GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
+                    }
+                    else if (!counter.BartenderPresent)
+                    {
+                        GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
+                    }
+                    else if (_frame.Place.Beer <= 0d)
+                    {
+                        GUILayout.Label("Пиво закончилось.");
+                    }
+                    else if (_frame.Me.Coins < _frame.Place.BeerPrice)
+                    {
+                        GUILayout.Label("Не хватает монет на кружку.");
+                    }
+                    else if (GUILayout.Button("🍺 Заказать кружку · " +
                         _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                    {
                         QueueContextItemAction("buy", "beer", "Заказать пиво");
-                    GUI.enabled = previousEnabled;
+                    }
                 }
-                else GUILayout.Label("Пиво закончилось.");
-                GUILayout.EndHorizontal();
                 DrawTavernRoomPanel();
             }
             GUILayout.EndVertical();
@@ -3086,6 +3252,32 @@ namespace Pogranichye.Client
                 var me = _frame != null ? _frame.Me : null;
                 var position = me != null ? me.Position : null;
                 var worldPosition = me != null ? me.WorldPosition : null;
+                var place = _frame != null ? _frame.Place : null;
+                var counter = place != null ? place.TavernCounter : null;
+                var neighborSummary = new Newtonsoft.Json.Linq.JArray();
+                if (place?.Neighbors != null)
+                {
+                    foreach (var neighbor in place.Neighbors)
+                    {
+                        if (neighbor == null) continue;
+                        var neighborPosition = neighbor.Position;
+                        neighborSummary.Add(new Newtonsoft.Json.Linq.JObject
+                        {
+                            ["id"] = neighbor.Id,
+                            ["player"] = neighbor.Controlled,
+                            ["role"] = neighbor.Role,
+                            ["act_code"] = neighbor.ActivityCode,
+                            ["pos"] = neighborPosition == null
+                                ? (Newtonsoft.Json.Linq.JToken)Newtonsoft.Json.Linq.JValue.CreateNull()
+                                : new Newtonsoft.Json.Linq.JObject
+                                {
+                                    ["x"] = neighborPosition.X,
+                                    ["y"] = neighborPosition.Y,
+                                    ["facing"] = neighborPosition.Facing
+                                }
+                        });
+                    }
+                }
                 var context = new Newtonsoft.Json.Linq.JObject
                 {
                     ["unity_version"] = Application.unityVersion,
@@ -3108,7 +3300,20 @@ namespace Pogranichye.Client
                     {
                         ["east"] = worldPosition.East, ["north"] = worldPosition.North, ["frame"] = worldPosition.Frame
                     },
-                    ["neighbor_count"] = _frame?.Place?.Neighbors?.Count ?? 0,
+                    ["neighbor_count"] = place?.Neighbors?.Count ?? 0,
+                    // Compact tavern field snapshot: no names, chat, voice or credentials.
+                    ["tavern"] = place != null && place.Tavern,
+                    ["beer_stock"] = place != null ? (Newtonsoft.Json.Linq.JToken)place.Beer : Newtonsoft.Json.Linq.JValue.CreateNull(),
+                    ["beer_price"] = place != null ? (Newtonsoft.Json.Linq.JToken)place.BeerPrice : Newtonsoft.Json.Linq.JValue.CreateNull(),
+                    ["mug"] = me != null && me.Mug,
+                    ["tavern_counter"] = counter == null
+                        ? (Newtonsoft.Json.Linq.JToken)Newtonsoft.Json.Linq.JValue.CreateNull()
+                        : new Newtonsoft.Json.Linq.JObject
+                        {
+                            ["x"] = counter.X, ["y"] = counter.Y, ["radius"] = counter.Radius,
+                            ["bartender_on_shift"] = counter.BartenderPresent
+                        },
+                    ["neighbors"] = neighborSummary,
                     ["remote_view_count"] = _views?.RemoteViewCount ?? 0,
                     ["terrain_chunks"] = _terrainChunks.Count,
                     ["terrain_requests_in_flight"] = _terrainChunkRequests.Count,

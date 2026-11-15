@@ -1,4 +1,5 @@
 using System;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client.Networking.Protocol;
 
@@ -27,6 +28,9 @@ internal static class TavernCounterFrameParserCheck
         Check("maps server counter position, radius and keeper presence", frame != null &&
             frame.X == -33d && frame.Y == 20d && Math.Abs(frame.Radius - 2.2d) < 0.0001d &&
             frame.BartenderPresent);
+        var roundTrip = JObject.Parse(JsonConvert.SerializeObject(frame));
+        Check("uses exact lowercase server wire field names", roundTrip["x"] != null &&
+            roundTrip["y"] != null && roundTrip["radius"] != null && roundTrip["bartender_present"] != null);
 
         TavernCounterFrameParser.Validate(null, "place.tavern_counter");
         TavernCounterFrameParser.Validate(JValue.CreateNull(), "place.tavern_counter");

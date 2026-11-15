@@ -61,3 +61,10 @@ Pack textures/grok уже есть. Дальше: материалы URP; 3–5 
 7. Art materials + key props
 
 Новые серверные системы для рыбалки/рубки/разговора не обязательны.
+
+
+## ChatGPT source audit — 2026-11-14
+
+E/Interact and a focus highlight already exist in the thick client: ClientInput maps E, WorldInteractionProbe selects nearby WorldPoi/WorldNpc through a short occlusion-aware probe, and WorldPoi.SetFocused applies a presentation-only material highlight. Targeted NPC conversation uses talk + RequestGate; it does not locally start dialogue. The remaining interaction gap is coverage: current WorldPoi components are created by the tutorial village builder, while generated-layout POIs/signs are not generally wired into the same probe. A future slice must add only server-supported actions and preserve anonymous NPC labels until acquainted.
+
+The current tavern PR adds word-wrapped status/reason and interaction prompt styles plus shared initial typography tokens. It does not yet replace every IMGUI style or globally resize map/nameplate text. Full typography normalization remains incremental.
