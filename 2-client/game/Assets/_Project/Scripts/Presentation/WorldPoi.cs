@@ -24,10 +24,12 @@ namespace Pogranichye.Client.Presentation
         public string InteractionId { get; private set; }
         public string Hint { get; private set; }
         public string UnavailableReason { get; private set; }
+        public string TargetType { get; private set; }
+        public string TargetId { get; private set; }
         public bool CanInteract { get; private set; } = true;
 
         public void Initialize(string title, string goal, Renderer visual, Color color, string action = null,
-            string interactionId = null, string hint = null, bool canInteract = true, string unavailableReason = null)
+            string interactionId = null, string hint = null, bool canInteract = true, string unavailableReason = null,\n            string targetType = null, string targetId = null)
         {
             Title = title;
             Goal = goal;
@@ -36,6 +38,8 @@ namespace Pogranichye.Client.Presentation
             Hint = hint;
             CanInteract = canInteract;
             UnavailableReason = unavailableReason;
+            TargetType = targetType;
+            TargetId = targetId;
             _visual = visual;
             _baseColor = color;
             _propertyBlock = new MaterialPropertyBlock();
