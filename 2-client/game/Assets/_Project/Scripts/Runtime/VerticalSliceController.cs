@@ -124,6 +124,7 @@ namespace Pogranichye.Client
         private int _terrainStreamGeneration;
         private string _terrainStreamSettlementId;
         private bool _hasTerrainCenter;
+        private int _terrainCenterFrame = -1;
         private long _terrainCenterX;
         private long _terrainCenterZ;
         private string _terrainAppliedSettlementId;
@@ -4220,10 +4221,12 @@ namespace Pogranichye.Client
                 CauldronRimPresentationBuilder.RequiredFarClip(_worldManifest.Rim));
             var centerX = position.Chunk[0];
             var centerZ = position.Chunk[1];
-            var centerChanged = !_hasTerrainCenter || centerX != _terrainCenterX || centerZ != _terrainCenterZ;
+            var centerChanged = !_hasTerrainCenter || position.Frame != _terrainCenterFrame ||
+                centerX != _terrainCenterX || centerZ != _terrainCenterZ;
             if (centerChanged)
             {
                 _hasTerrainCenter = true;
+                _terrainCenterFrame = position.Frame;
                 _terrainCenterX = centerX;
                 _terrainCenterZ = centerZ;
                 // A moved window gets a fresh retry budget; old chunk failures must not accumulate.
@@ -4231,7 +4234,7 @@ namespace Pogranichye.Client
                 var stale = new List<string>();
                 foreach (var pair in _terrainChunks)
                 {
-                    var candidate = new WorldChunkCoordinate(position.Frame,
+                    var candidate = new WorldChunkCoordinate(pair.Value.Frame,
                         pair.Value.Chunk[0], pair.Value.Chunk[1]);
                     if (!WorldChunkStreamingPolicy.IsWithinRetention(
                         new WorldChunkCoordinate(position.Frame, centerX, centerZ),
@@ -4243,7 +4246,7 @@ namespace Pogranichye.Client
                     _terrainChunks.Remove(id);
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                 }
-                CancelTerrainChunkRequestsOutsideRetention(centerX, centerZ);
+                CancelTerrainChunkRequestsOutsideRetention(position.Frame, centerX, centerZ);
             }
 
             var changedAnchor = _terrainAppliedSettlementId != frame.Place.Id ||
@@ -4292,17 +4295,19 @@ namespace Pogranichye.Client
             _terrainChunkCancellation.Clear();
         }
 
-        private void CancelTerrainChunkRequestsOutsideRetention(long centerX, long centerZ)
+        private void CancelTerrainChunkRequestsOutsideRetention(int frame, long centerX, long centerZ)
         {
             var stale = new List<string>();
+            var center = new WorldChunkCoordinate(frame, centerX, centerZ);
             foreach (var pair in _terrainChunkCancellation)
             {
                 var parts = pair.Key.Split(':');
                 if (parts.Length != 3 ||
+                    !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var requestFrame) ||
                     !long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x) ||
                     !long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var z) ||
-                    Math.Abs((decimal)x - centerX) > TerrainChunkRequestRadius ||
-                    Math.Abs((decimal)z - centerZ) > TerrainChunkRequestRadius)
+                    !WorldChunkStreamingPolicy.IsWithinRequest(center,
+                        new WorldChunkCoordinate(requestFrame, x, z), TerrainChunkRequestRadius))
                     stale.Add(pair.Key);
             }
 
@@ -4328,9 +4333,11 @@ namespace Pogranichye.Client
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
-                    if (!_hasTerrainCenter || Math.Abs((decimal)chunkX - _terrainCenterX) > TerrainChunkRetentionRadius ||
-                        Math.Abs((decimal)chunkZ - _terrainCenterZ) > TerrainChunkRetentionRadius || _frame == null ||
-                        _frame.Place == null || _frame.Place.Anchor == null)
+                    if (!_hasTerrainCenter || expectedFrame != _terrainCenterFrame ||
+                        !WorldChunkStreamingPolicy.IsWithinRetention(
+                            new WorldChunkCoordinate(_terrainCenterFrame, _terrainCenterX, _terrainCenterZ),
+                            new WorldChunkCoordinate(expectedFrame, chunkX, chunkZ), TerrainChunkRetentionRadius) ||
+                        _frame == null || _frame.Place == null || _frame.Place.Anchor == null)
                         return;
                     _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
@@ -4350,8 +4357,10 @@ namespace Pogranichye.Client
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
-                    if (_hasTerrainCenter && Math.Abs((decimal)chunkX - _terrainCenterX) <= TerrainChunkRetentionRadius &&
-                        Math.Abs((decimal)chunkZ - _terrainCenterZ) <= TerrainChunkRetentionRadius)
+                    if (_hasTerrainCenter && expectedFrame == _terrainCenterFrame &&
+                        WorldChunkStreamingPolicy.IsWithinRetention(
+                            new WorldChunkCoordinate(_terrainCenterFrame, _terrainCenterX, _terrainCenterZ),
+                            new WorldChunkCoordinate(expectedFrame, chunkX, chunkZ), TerrainChunkRetentionRadius))
                     {
                         _terrainChunkRetryAfter[chunkId] = Time.unscaledTime + TerrainChunkRetryDelaySeconds;
                         Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + "; повтор через " +
