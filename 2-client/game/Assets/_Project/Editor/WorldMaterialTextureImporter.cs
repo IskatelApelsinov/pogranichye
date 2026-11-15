@@ -26,7 +26,8 @@ namespace Pogranichye.Client.Editor
             importer.alphaIsTransparency = false;
 
             var file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
-            if (file.EndsWith("_normal", System.StringComparison.OrdinalIgnoreCase))
+            if (file.EndsWith("_normal", System.StringComparison.OrdinalIgnoreCase) ||
+                file.EndsWith("_n", System.StringComparison.OrdinalIgnoreCase))
             {
                 importer.textureType = TextureImporterType.NormalMap;
                 importer.sRGBTexture = false;

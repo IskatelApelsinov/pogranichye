@@ -32,6 +32,9 @@
 - Критерий: дневной, вечерний и ночной кадры читаемы, без клиппинга и резких скачков экспозиции.
 
 ### G2 — единый стандарт материалов
+
+**Реализация Grok starter pack:** канонический бинарный набор находится в корне репозитория: `grok/textures/grok/` (на текущем наборе — 116 PNG: 58 albedo + 58 парных normal). Не переносить исходники вручную. В Unity Editor выполнить `Tools → Pogranichye → Art → Import Grok Texture Pack`; `GrokTexturePackSync.cs` синхронизирует PNG в `Assets/Resources/WorldMaterials/Textures/Grok/`, удаляет устаревшие копии и применяет настройки импорта только при необходимости. Albedo: Default + sRGB On; tangent-space OpenGL Y+ normal с суффиксом `_n.png`: Normal Map + sRGB Off; обе категории — Repeat + mipmaps. Папка Resources является генерируемой копией, источник истины — корневой `grok/`. Runtime builder использует карты как необязательный fallback, authored PBR карты проекта применяются поверх них и имеют приоритет. Roughness/AO в первом пакете нет; не выводить roughness из albedo и не считать Sobel-normal эквивалентом high-poly bake. См. comms 0247 и task 007.
+
 - Создать библиотеку URP/Lit материалов и согласованные shader variants.
 - PBR-наборы: albedo/base color, normal, mask/metallic-smoothness; использовать карты только там, где они дают заметный результат.
 - Материальные семейства: дерево, штукатурка, камень, грунт/грязь, солома/дранка, ткань, кожа, металл, керамика.
