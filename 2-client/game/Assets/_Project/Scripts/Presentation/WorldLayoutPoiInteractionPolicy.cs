@@ -3,8 +3,8 @@ using System;
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>
-    /// Explicit allow-list mapping for server Layout v2 POIs that already have a supported
-    /// v1 player intention. Unknown POIs deliberately remain non-interactive.
+    /// Compatibility mapping for older Layout v2 POI payloads that predate server interaction descriptors.
+    /// New servers should send layout.interactions[] so titles, availability and intents stay server-authored.
     /// </summary>
     public struct WorldLayoutPoiInteraction
     {
