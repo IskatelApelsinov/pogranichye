@@ -3241,8 +3241,14 @@ namespace Pogranichye.Client
                 ClientDiagnosticDumps.RecordEvent("frame.rejected.full", ex.GetType().Name + ": " + ex.Message);
                 Enqueue(() =>
                 {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Ошибка кадра: " + ex.Message;
+                    if (!ReferenceEquals(_socket, socket)) return;
+
+                    // A rejected first full frame happens before the player can open F3.
+                    // Save the already-captured rejected payload automatically so startup
+                    // protocol failures always leave a local diagnostic artifact.
+                    SaveClientDiagnosticDump();
+                    _status = "Ошибка кадра: " + ex.Message +
+                        " | " + _lastDiagnosticDumpStatus;
                 });
             }
         }
