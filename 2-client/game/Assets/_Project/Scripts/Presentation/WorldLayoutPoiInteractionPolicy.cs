@@ -69,9 +69,11 @@ namespace Pogranichye.Client.Presentation
                     interaction = new WorldLayoutPoiInteraction(id, "Рудник · добывать руду", null, "mine");
                     return true;
                 default:
-                    interaction = default(WorldLayoutPoiInteraction);
-                    return false;
+                    break;
             }
+
+            interaction = default(WorldLayoutPoiInteraction);
+            return false;
         }
     }
 }
