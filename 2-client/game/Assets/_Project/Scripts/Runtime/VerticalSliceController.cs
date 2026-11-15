@@ -2333,7 +2333,7 @@ namespace Pogranichye.Client
                     GUIUtility.ExitGUI();
                 }
                 GUILayout.EndHorizontal();
-                _core.DrawMarketContextActions(6);
+                _core.DrawMarketContextActions();
             }
 
             if (atStable)
