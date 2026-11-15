@@ -2405,7 +2405,7 @@ namespace Pogranichye.Client
             GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
             if (game == null || string.IsNullOrEmpty(game.Game))
             {
-                GUILayout.Label("Сыграйте с корчмарём. Ставку и возможность начать подтвердит сервер.");
+                GUILayout.Label("Карточные игры доступны в корчме. Место, ставку и возможность начать проверит сервер.");
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Начать «Очко»"))
                     QueueCardGameAction("ochko", "start");
