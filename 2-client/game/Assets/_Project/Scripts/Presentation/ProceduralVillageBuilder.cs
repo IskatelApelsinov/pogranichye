@@ -4043,8 +4043,8 @@ namespace Pogranichye.Client.Presentation
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 48;
-            text.characterSize = 0.055f;
+            text.fontSize = 64;
+            text.characterSize = 0.075f;
             text.color = new Color(1f, 0.94f, 0.80f);
             text.richText = false;
         }
