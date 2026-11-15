@@ -82,3 +82,11 @@ If an implementation requires new server-owned state or an intent, stop and send
 
 - Added an explicit mouse-visible close control to the character/journal panel. It collapses the panel and releases the character-menu input capture; the existing Tab shortcut remains unchanged.
 - This closes one P1 navigation gap. Keyboard/cursor behavior still requires Unity PlayMode acceptance.
+
+
+## Progressive disclosure — 2026-11-15
+
+- The character summary now keeps the first-time path and tavern/social context visible while moving free-practice buttons, mini-games, mana and weave controls behind one explicit “Показать дополнительные занятия” toggle.
+- The hidden section is presentation-only; it does not hide server state or alter eligibility. The journal remains the authoritative explanation of the current task.
+- Goal: reduce the initial screen from a debug-like list of systems to the next useful step, while keeping advanced actions discoverable.
+- Requires Unity visual acceptance for scroll height, Russian text wrapping and toggle persistence.
