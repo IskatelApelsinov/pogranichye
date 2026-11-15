@@ -368,7 +368,7 @@ namespace Pogranichye.Client
             // me.skills is an open-ended server dictionary: render every key received,
             // rather than maintaining a client-side allow-list that silently hides new skills.
             var skills = Obj(_me, "skills");
-            if (skills != null && skills.Properties().Any())
+            if (skills != null && skills.HasValues)
             {
                 var skillRows = new List<JProperty>(skills.Properties());
                 skillRows.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
