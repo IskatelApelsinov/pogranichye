@@ -13,13 +13,22 @@ public static class RequestGateCheck
     {
         var sent = new List<string>();
         var gate = new RequestGate(p => sent.Add((string)p["reqid"]), 6f, 3);
-        Func<string, Dictionary<string, object>> pay = id => new Dictionary<string, object> { { "reqid", id } };
+        Func<string, string, Dictionary<string, object>> pay = (id, action) =>
+            new Dictionary<string, object> { { "reqid", id }, { "op", "act" }, { "action", action } };
         RequestGate.Item item;
 
         // two quick requests: only the first goes on the wire
-        gate.Enqueue("A", "a", pay("a"), 0f);
-        gate.Enqueue("B", "b", pay("b"), 0.1f);
+        gate.Enqueue("A", "a", pay("a", "chop"), 0f);
+        gate.Enqueue("B", "b", pay("b", "fish"), 0.1f);
         Check(sent.Count == 1 && sent[0] == "a", "second request waits while the first is in flight");
+        Check(!gate.Enqueue("A", "a-duplicate", pay("a-duplicate", "chop"), 0.15f),
+            "identical action cannot be submitted twice while in flight");
+        Check(gate.Enqueue("C", "c-queued", pay("c-queued", "cast"), 0.16f),
+            "different action can still be queued");
+        Check(!gate.Enqueue("C", "c-duplicate", pay("c-duplicate", "cast"), 0.17f),
+            "identical queued action cannot be duplicated");
+        Check(gate.Enqueue("C", "c-different", pay("c-different", "meditate"), 0.18f),
+            "same label with a different payload remains a distinct action");
 
         // an unrelated or stale result does not resolve anything (no false success)
         Check(gate.OnResult("zzz", true, 0.2f, out item) == RequestGate.Outcome.None && gate.Busy, "foreign reqid is ignored");
@@ -35,8 +44,8 @@ public static class RequestGateCheck
         Check(gate.Tick(100f, out item) == RequestGate.Outcome.None, "idle gate never reports a timeout");
 
         // timeout frees the gate; a late ACK of the expired request is not shown as someone else's success
-        gate.Enqueue("C", "c", pay("c"), 10f);
-        gate.Enqueue("D", "d", pay("d"), 10f);
+        gate.Enqueue("C", "c", pay("c", "cast"), 10f);
+        gate.Enqueue("D", "d", pay("d", "meditate"), 10f);
         Check(gate.Tick(15f, out item) == RequestGate.Outcome.None, "no timeout before the deadline");
         Check(gate.Tick(16.5f, out item) == RequestGate.Outcome.TimedOut && item.Label == "C", "in-flight request times out");
         Check(sent[sent.Count - 1] == "d", "queue advances after a timeout");
@@ -44,9 +53,9 @@ public static class RequestGateCheck
         Check(gate.OnResult("d", true, 17f, out item) == RequestGate.Outcome.Accepted, "the next request still gets its own ACK");
 
         // capacity and reset
-        gate.Enqueue("E", "e", pay("e"), 20f);
-        Check(gate.Enqueue("F", "f", pay("f"), 20f) && gate.Enqueue("G", "g", pay("g"), 20f) && gate.Enqueue("H", "h", pay("h"), 20f), "queue accepts up to capacity");
-        Check(!gate.Enqueue("I", "i", pay("i"), 20f), "overflow is refused instead of silently dropped later");
+        gate.Enqueue("E", "e", pay("e", "work"), 20f);
+        Check(gate.Enqueue("F", "f", pay("f", "eat"), 20f) && gate.Enqueue("G", "g", pay("g", "rest"), 20f) && gate.Enqueue("H", "h", pay("h", "study"), 20f), "queue accepts up to capacity");
+        Check(!gate.Enqueue("I", "i", pay("i", "trade"), 20f), "overflow is refused instead of silently dropped later");
         var before = sent.Count;
         gate.Clear();
         Check(!gate.Busy && gate.Waiting == 0 && gate.Tick(999f, out item) == RequestGate.Outcome.None && sent.Count == before, "Clear drops in-flight and queued requests (disconnect)");
