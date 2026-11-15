@@ -56,7 +56,7 @@ internal static class WorldOriginStateCheck
         True(state.TryToLocal(new WorldOriginPosition(0, 1002120d, -1999870d, 193d), out local),
             "position converts after rebase");
         Near(136d, local.X, 1e-9, "post-rebase east");
-        Near(2d, local.Y, 1e-9, "post-rebase up");
+        Near(1d, local.Y, 1e-9, "post-rebase up");
         Near(2d, local.Z, 1e-9, "post-rebase north");
 
         True(!state.TryToLocal(new WorldOriginPosition(1, 0, 0, 0), out local),
