@@ -59,3 +59,13 @@ If an implementation requires new server-owned state or an intent, stop and send
 
 - GitHub Actions `pure-csharp` run #43735210413 passed all 23 steps on source commit `dc44db79cd65f78260c51256b8f9e9dda80a99ef` (2026-11-15). This validates the repository's independent C# regression suites; it does not compile the full Unity scene or exercise IMGUI layout.
 - PR #642 remains open and stacked on PR #641. Unity Editor compile, PlayMode, and manual visual checks at 1280×720 / 1920×1080 / 2560×1440 remain required.
+
+
+## Duplicate-submit guard — 2026-11-15
+
+- Extended the shared `RequestGate` to reject a second pending request when both the player-facing action label and the full payload (excluding `reqid`) match an action already in flight or queued.
+- Payload comparison handles nested dictionaries and lists, so repeated card selections / weave payloads do not bypass the guard merely because their arrays were allocated separately.
+- Different payloads under the same label remain distinct (for example, choosing a different item); the guard does not block legitimate alternate actions.
+- Added pure C# regression cases for duplicate in-flight requests, duplicate queued requests and same-label/different-payload requests.
+- This is a safety net at the shared request boundary, not a visual disabled-button treatment. The remaining UI pass should add visible per-control pending states where they materially help.
+- Validation is pending a PR workflow run. No Unity Editor, PlayMode or live-server test is claimed.
