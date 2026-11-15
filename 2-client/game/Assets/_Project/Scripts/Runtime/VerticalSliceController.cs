@@ -519,8 +519,8 @@ namespace Pogranichye.Client
                 DrawChatOverlay();
             else
             {
-                // Character journal is the sole gameplay-data surface while open.
-                // Do not stack contextual action cards underneath/over it.
+                // Contextual actions remain visible beside the journal on wide screens.
+                // On narrow screens they move to the collapsed-HUD layout to avoid overlap.
                 DrawContextActions();
                 if (_hudCollapsed && _activityMiniGame != ActivityMiniGame.None)
                 {
@@ -2237,6 +2237,8 @@ namespace Pogranichye.Client
         {
             if (_frame?.Me == null || _frame.Place == null || _core == null ||
                 _activityMiniGame != ActivityMiniGame.None)
+                return new Rect(0f, 0f, 0f, 0f);
+            if (!_hudCollapsed && Screen.width < 1100f)
                 return new Rect(0f, 0f, 0f, 0f);
 
             var atTavern = _frame.Place.Tavern && IsAtTavern();
