@@ -218,3 +218,39 @@ func BenchmarkHeatTrackerStableTopology(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkTerrainBuildVsHeightQuery gives the baseline numbers behind the server-side Terrain
+// cache (comms 0208, item B): NewTerrain walks every settlement once to collect anchors, so
+// rebuilding it per stateJSON/HTTP request from every connected client cost O(P×settlements) per
+// game tick instead of O(settlements) — the server now caches one Terrain per world/settlement-count
+// (see server.(*Server).terrain). Height queries are NOT covered by that cache: Height's nearest-
+// anchor search is a linear scan over every settlement on EVERY call (used by /api/terrain for every
+// grid point in a chunk, e.g. 33×33 calls at step=8), so it stays O(settlements) per point regardless
+// of how many times Terrain itself is rebuilt. That remains unaddressed — flagged for the next slice
+// (e.g. a spatial index over anchors) once settlement counts grow enough to matter.
+// Run: go test ./sim -run '^$' -bench BenchmarkTerrainBuildVsHeightQuery -benchmem
+func BenchmarkTerrainBuildVsHeightQuery(b *testing.B) {
+	for _, settlementCount := range []int{100, 1000, 10000} {
+		w := core.NewWorld("terrain-bench")
+		region := w.Spawn(&core.RegionC{Name: "region", Biome: "plain"})
+		for i := 0; i < settlementCount; i++ {
+			w.Spawn(&core.SettlementC{Name: "village", Region: region.ID,
+				X: float64(100 + i%800), Y: float64(100 + (i/800)%800)})
+		}
+		b.Run(fmt.Sprintf("build/settlements_%d", settlementCount), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = NewTerrain(w)
+			}
+		})
+		t := NewTerrain(w) // built once, as the server cache now does across calls (see comms 0208)
+		b.Run(fmt.Sprintf("height_query/settlements_%d", settlementCount), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				t.Height(float64(i%2000), float64((i/2000)%2000))
+			}
+		})
+	}
+}
