@@ -11,7 +11,7 @@ namespace Pogranichye.Client.Presentation
     {
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
-            if (root == null || layout == null || !layout.IsGenerated || layout.Pois == null)
+            if (root == null || layout == null || layout.Pois == null)
                 return;
 
             var ids = WorldLayoutPoiInteractionPolicy.SupportedIds;
