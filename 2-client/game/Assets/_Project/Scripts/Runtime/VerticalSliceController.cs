@@ -3331,6 +3331,8 @@ namespace Pogranichye.Client
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                CauldronRimPresentationBuilder.Clear(_presentationRoot);
+                _cameraRig?.SetWorldHorizonDistance(0f);
                 _terrainAppliedSettlementId = null;
                 _terrainStreamSettlementId = null;
                 _terrainAppliedAnchorEast = double.NaN;
@@ -3946,6 +3948,8 @@ namespace Pogranichye.Client
             _layoutPrefetchInFlight.Clear();
             _layoutPrefetchRetryAfter.Clear();
             _worldManifest = null;
+            CauldronRimPresentationBuilder.Clear(_presentationRoot);
+            _cameraRig?.SetWorldHorizonDistance(0f);
             _nextWorldManifestRefreshAt = 0f;
             _nextSettlementPrefetchAt = 0f;
             _worldManifestLastPlaceId = null;
@@ -4025,6 +4029,12 @@ namespace Pogranichye.Client
             var anchor = frame.Place.Anchor;
             var position = frame.Me.WorldPosition;
             if (anchor.Frame != position.Frame || position.Frame != 0) return;
+
+            // Optional distant mountain LOD is built only from the server's rim profile.
+            // It has no collider; the server must enforce the cauldron boundary.
+            CauldronRimPresentationBuilder.BuildOrUpdate(_presentationRoot, _worldManifest.Rim, anchor);
+            _cameraRig?.SetWorldHorizonDistance(
+                CauldronRimPresentationBuilder.RequiredFarClip(_worldManifest.Rim));
             var centerX = position.Chunk[0];
             var centerZ = position.Chunk[1];
             var centerChanged = !_hasTerrainCenter || centerX != _terrainCenterX || centerZ != _terrainCenterZ;
