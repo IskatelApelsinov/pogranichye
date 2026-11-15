@@ -974,7 +974,7 @@ namespace Pogranichye.Client.Presentation
                     var glow = CreatePart("Held lantern • glass", PrimitiveType.Sphere, held,
                         new Vector3(0f, 0.43f, 0.065f), new Vector3(0.075f, 0.11f, 0.035f));
                     ApplyColor(glow.GetComponent<Renderer>(), new Color(1f, 0.72f, 0.30f));
-                    AddHeldLight(glow.transform, new Color(1f, 0.72f, 0.42f), 1.6f, 10f);
+                    AddHeldLight(glow.transform, new Color(1f, 0.78f, 0.50f), 3.2f, 16f);
                     break;
                 }
             }
