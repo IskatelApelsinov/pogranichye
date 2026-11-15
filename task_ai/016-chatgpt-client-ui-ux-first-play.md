@@ -90,3 +90,9 @@ If an implementation requires new server-owned state or an intent, stop and send
 - The hidden section is presentation-only; it does not hide server state or alter eligibility. The journal remains the authoritative explanation of the current task.
 - Goal: reduce the initial screen from a debug-like list of systems to the next useful step, while keeping advanced actions discoverable.
 - Requires Unity visual acceptance for scroll height, Russian text wrapping and toggle persistence.
+
+
+## Latest source verification — 2026-11-15
+
+- Unity-independent C# workflow run [#43754687513](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43754687513) completed successfully on head `a7f919c` after the panel close and progressive-disclosure changes.
+- This validates the repository's pure C# regression suite only. It does not compile `VerticalSliceController` inside Unity or verify IMGUI layout, cursor capture, and movement in PlayMode.
