@@ -37,22 +37,22 @@ namespace Pogranichye.Client.Presentation
                     interaction = new WorldLayoutPoiInteraction(id, "Корчма", "socialize", null);
                     return true;
                 case "smithy":
-                    interaction = new WorldLayoutPoiInteraction(id, "Кузница", "work", null);
+                    interaction = new WorldLayoutPoiInteraction(id, "Кузница · работать у горна", null, "forge");
                     return true;
                 case "market":
                     interaction = new WorldLayoutPoiInteraction(id, "Рынок", "eat", null);
                     return true;
                 case "garden":
-                    interaction = new WorldLayoutPoiInteraction(id, "Огород", "work", null);
+                    interaction = new WorldLayoutPoiInteraction(id, "Огород · собрать урожай и травы", null, "gather");
                     return true;
                 case "woods":
-                    interaction = new WorldLayoutPoiInteraction(id, "Лес", null, "chop");
+                    interaction = new WorldLayoutPoiInteraction(id, "Лес · рубить деревья", null, "chop");
                     return true;
                 case "river":
-                    interaction = new WorldLayoutPoiInteraction(id, "Река", null, "fish");
+                    interaction = new WorldLayoutPoiInteraction(id, "Река · ловить рыбу", null, "fish");
                     return true;
                 case "mine":
-                    interaction = new WorldLayoutPoiInteraction(id, "Рудник", null, "mine");
+                    interaction = new WorldLayoutPoiInteraction(id, "Рудник · добывать руду", null, "mine");
                     return true;
                 default:
                     interaction = default(WorldLayoutPoiInteraction);
