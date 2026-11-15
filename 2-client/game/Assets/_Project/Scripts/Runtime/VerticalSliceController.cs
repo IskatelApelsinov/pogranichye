@@ -37,6 +37,10 @@ namespace Pogranichye.Client
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private WorldSocketClient _socket;
+        // Buffer startup snapshots and validate only the newest one after a five-second warm-up.
+        private readonly object _initialFrameGate = new object();
+        private DateTime _initialFrameValidationAtUtc = DateTime.MinValue;
+        private string _pendingInitialFullFrame;
         private CoreGameplay _core; // protocol v1.10 gameplay: combat, weaves, requests, crafting, journeys, party
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
@@ -280,6 +284,18 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
+            string delayedInitialFrame = null;
+            lock (_initialFrameGate)
+            {
+                if (_pendingInitialFullFrame != null && DateTime.UtcNow >= _initialFrameValidationAtUtc)
+                {
+                    delayedInitialFrame = _pendingInitialFullFrame;
+                    _pendingInitialFullFrame = null;
+                    _initialFrameValidationAtUtc = DateTime.MinValue;
+                }
+            }
+            if (delayedInitialFrame != null && _socket != null)
+                ProcessFullWorldFrame(_socket, delayedInitialFrame);
             UpdateWorldStreaming();
             WorldWildSitePresentationBuilder.Update(_presentationRoot, _worldManifest, _frame);
             // Keep spatial player SFX and remote-voice range checks anchored to the
@@ -3099,6 +3115,11 @@ namespace Pogranichye.Client
                 var presentationCamera = _cameraRig != null
                     ? _cameraRig.GetComponent<Camera>() : Camera.main;
                 RuralHorizonBackdrop.Build(_presentationRoot, presentationCamera, (float)layout.WorldHalf);
+                lock (_initialFrameGate)
+                {
+                    _pendingInitialFullFrame = null;
+                    _initialFrameValidationAtUtc = DateTime.UtcNow.AddSeconds(5);
+                }
                 await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
@@ -3173,6 +3194,22 @@ namespace Pogranichye.Client
                 return;
             }
 
+            lock (_initialFrameGate)
+            {
+                if (_initialFrameValidationAtUtc != DateTime.MinValue &&
+                    DateTime.UtcNow < _initialFrameValidationAtUtc)
+                {
+                    // Keep the newest full snapshot received during warm-up.
+                    _pendingInitialFullFrame = json;
+                    return;
+                }
+            }
+
+            ProcessFullWorldFrame(socket, json);
+        }
+
+        private void ProcessFullWorldFrame(WorldSocketClient socket, string json)
+        {
             try
             {
                 var frame = WorldFrameParser.Parse(json, out var frameDocument);
