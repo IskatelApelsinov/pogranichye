@@ -100,7 +100,7 @@ namespace Pogranichye.Client
         private static bool SameRequest(Item pending, string label, Dictionary<string, object> payload)
         {
             if (pending == null || !string.Equals(pending.Label, label, StringComparison.Ordinal) ||
-                pending.Payload == null || pending.Payload.Count != payload.Count)
+                pending.Payload == null || ComparableFieldCount(pending.Payload) != ComparableFieldCount(payload))
                 return false;
 
             foreach (var pair in pending.Payload)
@@ -116,6 +116,14 @@ namespace Pogranichye.Client
                 if (!pending.Payload.ContainsKey(pair.Key)) return false;
             }
             return true;
+        }
+
+        private static int ComparableFieldCount(Dictionary<string, object> payload)
+        {
+            var count = 0;
+            foreach (var key in payload.Keys)
+                if (!string.Equals(key, "reqid", StringComparison.Ordinal)) count++;
+            return count;
         }
 
         private static bool ValuesEqual(object left, object right)
