@@ -154,6 +154,7 @@ namespace Pogranichye.Client
         private const string WorldActionLabelPrefix = "Действие мира:";
         private enum ActivityMiniGame { None, Woodcutting, Fishing }
         private ActivityMiniGame _activityMiniGame;
+        private int _selectedCardIndex = -1;
         private float _activityMiniGameStartedAt;
         private int _woodcuttingGoodHits;
         private string _activityMiniGameFeedback;
@@ -2260,6 +2261,7 @@ namespace Pogranichye.Client
                 var rooms = _frame.Place.Rooms?.Items;
                 var roomCount = rooms != null ? rooms.Count : 0;
                 height += 34f + 112f + roomCount * 32f;
+                height += 250f;
                 var owned = _frame.Me.Room;
                 if (owned != null && owned.Indoor)
                 {
@@ -2349,6 +2351,7 @@ namespace Pogranichye.Client
                         QueueContextItemAction("buy", "beer", "Заказать пиво");
                     }
                 }
+                DrawCardGamePanel();
                 DrawTavernRoomPanel();
             }
             GUILayout.EndVertical();
@@ -2420,6 +2423,179 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + label.ToLowerInvariant() + "…";
+        }
+
+        private void DrawCardGamePanel()
+        {
+            var game = _frame?.Me?.CardGame;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
+            if (game == null || string.IsNullOrEmpty(game.Game))
+            {
+                GUILayout.Label("Сыграйте с корчмарём. Сервер проверит, что вы находитесь у карточного стола.");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Очко · ставка 10"))
+                    QueueCardGameAction("ochko", "start");
+                if (GUILayout.Button("Дурак · ставка 10"))
+                    QueueCardGameAction("durak", "start");
+                GUILayout.EndHorizontal();
+            }
+            else
+            {
+                GUILayout.Label(game.Game == "durak" ? "Подкидной дурак" : "Очко");
+                if (!string.IsNullOrEmpty(game.Message))
+                    GUILayout.Label(game.Message, GUI.skin.box);
+                GUILayout.Label("Ставка: " + game.Stake.ToString("0.#", CultureInfo.InvariantCulture) + " монет");
+                if (game.Game == "ochko")
+                    DrawOchkoGame(game);
+                else if (game.Game == "durak")
+                    DrawDurakGame(game);
+
+                if (game.Done)
+                {
+                    if (GUILayout.Button("Начать новую партию"))
+                    {
+                        var nextGame = game.Game;
+                        QueueCardGameAction(nextGame, "start");
+                    }
+                }
+            }
+            GUILayout.EndVertical();
+        }
+
+        private void DrawOchkoGame(CardGameFrame game)
+        {
+            GUILayout.Label("Твои карты");
+            DrawCardRow(game.Player);
+            GUILayout.Label("Твои очки: " + game.PlayerTotal);
+            GUILayout.Label("Корчмарь");
+            DrawCardRow(game.Dealer);
+            if (!game.Done)
+                GUILayout.Label("Скрытых карт корчмаря: " + game.HiddenDealerCards);
+            else if (game.DealerTotal.HasValue)
+                GUILayout.Label("Очки корчмаря: " + game.DealerTotal.Value);
+
+            if (!game.Done)
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Ещё карту"))
+                    QueueCardGameAction("ochko", "hit");
+                if (GUILayout.Button("Хватит"))
+                    QueueCardGameAction("ochko", "stand");
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawDurakGame(CardGameFrame game)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Козырь: " + (game.Trump ?? "—"));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Колода: " + game.DeckCount + " · у корчмаря: " + game.DealerCardCount);
+            GUILayout.EndHorizontal();
+            GUILayout.Label("Карты на столе");
+            if (game.Table == null || game.Table.Count == 0)
+                GUILayout.Label("Стол пока пуст.");
+            else
+            {
+                for (var i = 0; i < game.Table.Count; i++)
+                {
+                    var pair = game.Table[i];
+                    GUILayout.BeginHorizontal(GUI.skin.box);
+                    GUILayout.Label(pair?.Attack?.Code ?? "?", GUILayout.Width(80f));
+                    GUILayout.Label("→", GUILayout.Width(24f));
+                    GUILayout.Label(pair?.Defence?.Code ?? "—");
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            GUILayout.Label("Твои карты");
+            DrawCardSelectionRow(game.Player);
+            if (game.Done) return;
+            if (!game.YourTurn)
+            {
+                GUILayout.Label("Сейчас ход корчмаря…");
+                return;
+            }
+
+            var hasSelection = game.Player != null && _selectedCardIndex >= 0 &&
+                _selectedCardIndex < game.Player.Count;
+            if (game.Role == "attack")
+            {
+                GUILayout.BeginHorizontal();
+                GUI.enabled = hasSelection;
+                if (GUILayout.Button("Подкинуть выбранную карту"))
+                    QueueCardGameAction("durak", "attack", _selectedCardIndex);
+                GUI.enabled = true;
+                if (GUILayout.Button("Бито / закончить заход"))
+                    QueueCardGameAction("durak", "done");
+                GUILayout.EndHorizontal();
+            }
+            else
+            {
+                GUILayout.BeginHorizontal();
+                GUI.enabled = hasSelection;
+                if (GUILayout.Button("Отбиться выбранной картой"))
+                    QueueCardGameAction("durak", "defend", _selectedCardIndex);
+                GUI.enabled = true;
+                if (GUILayout.Button("Взять карты"))
+                    QueueCardGameAction("durak", "take");
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawCardRow(List<CardGameCardFrame> cards)
+        {
+            if (cards == null || cards.Count == 0)
+            {
+                GUILayout.Label("Карт нет.");
+                return;
+            }
+            GUILayout.BeginHorizontal();
+            for (var i = 0; i < cards.Count; i++)
+            {
+                var code = cards[i]?.Code ?? "?";
+                GUILayout.Label(code, GUI.skin.box, GUILayout.MinWidth(42f), GUILayout.Height(38f));
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawCardSelectionRow(List<CardGameCardFrame> cards)
+        {
+            if (cards == null || cards.Count == 0)
+            {
+                GUILayout.Label("На руках нет карт.");
+                _selectedCardIndex = -1;
+                return;
+            }
+            if (_selectedCardIndex >= cards.Count) _selectedCardIndex = -1;
+            GUILayout.BeginHorizontal();
+            for (var i = 0; i < cards.Count; i++)
+            {
+                var previous = GUI.backgroundColor;
+                if (_selectedCardIndex == i)
+                    GUI.backgroundColor = new Color(0.86f, 0.66f, 0.32f, 1f);
+                if (GUILayout.Button(cards[i]?.Code ?? "?", GUILayout.MinWidth(42f), GUILayout.Height(42f)))
+                    _selectedCardIndex = i;
+                GUI.backgroundColor = previous;
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void QueueCardGameAction(string game, string action, int index = -1)
+        {
+            var queued = index >= 0
+                ? _core != null && _core.QueueRequest("Карточная игра: " + action,
+                    "card_game", "game", game, "action", action, "index", index)
+                : _core != null && _core.QueueRequest("Карточная игра: " + action,
+                    "card_game", "game", game, "action", action);
+            if (!queued)
+            {
+                _status = "Не удалось отправить ход. Дождитесь ответа сервера.";
+                return;
+            }
+            _selectedCardIndex = -1;
+            _status = "Ожидаю подтверждения сервера: " + action + "…";
         }
 
         private void DrawTavernRoomPanel()
