@@ -57,7 +57,7 @@ UV tiling дороги сохраняется: 2×12. URP Lit читает smoot
 - `oak_planks_ao.png` — отдельная линейная AO;
 - `oak_planks_material.json` — диапазоны PBR-карт и отчёт бесшовности.
 
-Для URP Lit включается Albedo Alpha smoothness (`_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0). Отдельная roughness-карта сохраняется для других шейдеров и экспорта. `WorldMaterialTextureImporter` уже задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear data для roughness/AO.
+Для URP Lit включается Albedo Alpha smoothness (`_SmoothnessTextureChannel = 1`, `_Smoothness = 1`, metallic = 0). Отдельная roughness-карта сохраняется для других шейдеров и экспорта. Переключение alpha выполняется только при наличии соответствующего `*_material.json`, чтобы старые PNG с непрозрачной alpha не стали неожиданно глянцевыми. `WorldMaterialTextureImporter` уже задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear data для roughness/AO.
 
 Пересборка требует Python 3.10+, Pillow, NumPy и OpenCV:
 
