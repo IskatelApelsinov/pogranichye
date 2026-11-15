@@ -132,71 +132,10 @@ namespace Pogranichye.Client.Presentation
                 return;
             }
 
-            // Broad, readable agricultural and woodland zones establish the scale of the 300 m world.
-            Create("West forest floor", PrimitiveType.Cube, world, new Vector3(-108f, 0.025f, 0f),
-                new Vector3(78f, 0.12f, 280f), _forest, false);
-            Create("East grain country", PrimitiveType.Cube, world, new Vector3(103f, 0.025f, 10f),
-                new Vector3(88f, 0.10f, 260f), _field, false);
-            Create("North meadow", PrimitiveType.Cube, world, new Vector3(8f, 0.025f, 112f),
-                new Vector3(115f, 0.10f, 64f), _field, false);
-
-            // Long crop strips make the eastern agricultural zone read as cultivated land.
-            // They are presentation-only: no colliders, gameplay harvest state or navigation data.
-            BuildCropRows(world);
-            BuildMeadowGrass(world);
-            BuildFarmProps(world);
-            BuildWoodcutterCamp(world);
-            BuildWindmill(world);
-
-            // The same roads connect the server POIs: woods, fields, mine and river bridge.
-            if (layout.Pois.TryGetValue("woods", out var woods))
-                AddRoad(world, Vector2.zero, new Vector2((float)woods.X, (float)woods.Y), 3.2f);
-            if (layout.Pois.TryGetValue("garden", out var garden))
-                AddRoad(world, Vector2.zero, new Vector2((float)garden.X, (float)garden.Y), 3.0f);
-            if (layout.Pois.TryGetValue("mine", out var mine) && garden != null)
-                AddRoad(world, new Vector2((float)garden.X, (float)garden.Y), new Vector2((float)mine.X, (float)mine.Y), 2.5f);
-            AddRoad(world, Vector2.zero, new Vector2(20f, 0f), 2.8f);
-            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, -60f), 2.8f);
-            var bridgeCenter = new Vector2(
-                (float)((layout.River.BridgeX0 + layout.River.BridgeX1) * 0.5),
-                (float)((layout.River.Y0 + layout.River.Y1) * 0.5));
-            AddRoad(world, new Vector2(20f, -60f), bridgeCenter, 2.8f);
-            AddRoad(world, bridgeCenter, new Vector2(bridgeCenter.x, -110f), 2.8f);
-            AddRoad(world, new Vector2(20f, 0f), new Vector2(20f, (float)layout.WorldHalf - 10f), 2.8f);
-            var random = new System.Random(417);
-            var trunkVertices = new System.Collections.Generic.List<Vector3>(9000);
-            var trunkTriangles = new System.Collections.Generic.List<int>(18000);
-            var canopyVertices = new System.Collections.Generic.List<Vector3>(36000);
-            var canopyTriangles = new System.Collections.Generic.List<int>(72000);
-            var bushVertices = new System.Collections.Generic.List<Vector3>(18000);
-            var bushTriangles = new System.Collections.Generic.List<int>(36000);
-            var canopyTipIndices = new System.Collections.Generic.List<int>(18000);
-            var treesAdded = 0;
-            for (var attempt = 0; attempt < 900 && treesAdded < 150; attempt++)
-            {
-                var x = -145f + (float)random.NextDouble() * 70f;
-                var z = -142f + (float)random.NextDouble() * 284f;
-                if (VegetationBlocked(layout, x, z, 2.8f, 5.0f, 8.0f)) continue;
-                var height = 4f + (float)random.NextDouble() * 5f;
-                var radius = 1.65f + (float)random.NextDouble() * 1.05f;
-                AddLowPolyTree(trunkVertices, trunkTriangles, canopyVertices, canopyTriangles, canopyTipIndices,
-                    new Vector3(x, 0f, z), height, radius, random);
-                treesAdded++;
-            }
-            var bushesAdded = 0;
-            for (var attempt = 0; attempt < 1100 && bushesAdded < 300; attempt++)
-            {
-                var x = -145f + (float)random.NextDouble() * 70f;
-                var z = -142f + (float)random.NextDouble() * 284f;
-                if (VegetationBlocked(layout, x, z, 1.2f, 2.4f, 5.0f)) continue;
-                AddLowPolyBush(bushVertices, bushTriangles, new Vector3(x, 0f, z),
-                    0.65f + (float)random.NextDouble() * 0.55f,
-                    0.45f + (float)random.NextDouble() * 0.35f, random);
-                bushesAdded++;
-            }
-            CreateCombinedMesh(world, "Far woodland • combined trunks", trunkVertices, trunkTriangles, _trunk);
-            CreateCombinedMesh(world, "Far woodland • low-poly canopies", canopyVertices, canopyTriangles, _forest);
-            CreateCombinedMesh(world, "Far woodland • understorey shrubs", bushVertices, bushTriangles, _grass);
+            // Both tutorial and generated settlements are rendered exclusively from the
+            // server-supplied zones, roads, buildings, river and POIs. No fixed-coordinate
+            // fields, forests, props or activity landmarks are fabricated by the client.
+            BuildGeneratedCountryside(world, layout);
             RegisterAssets(root);
             }
             catch
@@ -303,7 +242,7 @@ namespace Pogranichye.Client.Presentation
                         new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
                         new Vector3(x1 - x0, thickness, z1 - z0), material, false);
 
-                    if (zone.Kind != "forest" && zone.Kind != "copse") continue;
+                    if (zone.Kind != "forest") continue;
 
                     // A real woodland is dense in its core and gradually thins at its perimeter.
                     // Keep each zone in its own mesh batch so Unity can cull separate forest patches.
