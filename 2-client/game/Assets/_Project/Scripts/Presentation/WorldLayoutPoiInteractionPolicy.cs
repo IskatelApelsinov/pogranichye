@@ -31,6 +31,11 @@ namespace Pogranichye.Client.Presentation
 
         public static bool TryResolve(string id, out WorldLayoutPoiInteraction interaction)
         {
+            return TryResolve(id, null, out interaction);
+        }
+
+        public static bool TryResolve(string id, string woodsZoneKind, out WorldLayoutPoiInteraction interaction)
+        {
             switch (id)
             {
                 case "tavern":
@@ -46,8 +51,17 @@ namespace Pogranichye.Client.Presentation
                     interaction = new WorldLayoutPoiInteraction(id, "Огород · собрать урожай и травы", null, "gather");
                     return true;
                 case "woods":
-                    interaction = new WorldLayoutPoiInteraction(id, "Лес · рубить деревья", null, "chop");
-                    return true;
+                    if (woodsZoneKind == "forest")
+                    {
+                        interaction = new WorldLayoutPoiInteraction(id, "Лес", null, "chop");
+                        return true;
+                    }
+                    if (woodsZoneKind == "copse")
+                    {
+                        interaction = new WorldLayoutPoiInteraction(id, "Рощица · хворост", null, "gather_brushwood");
+                        return true;
+                    }
+                    break;
                 case "river":
                     interaction = new WorldLayoutPoiInteraction(id, "Река · ловить рыбу", null, "fish");
                     return true;
@@ -55,9 +69,11 @@ namespace Pogranichye.Client.Presentation
                     interaction = new WorldLayoutPoiInteraction(id, "Рудник · добывать руду", null, "mine");
                     return true;
                 default:
-                    interaction = default(WorldLayoutPoiInteraction);
-                    return false;
+                    break;
             }
+
+            interaction = default(WorldLayoutPoiInteraction);
+            return false;
         }
     }
 }

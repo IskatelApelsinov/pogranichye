@@ -27,9 +27,15 @@ internal static class WorldLayoutPoiInteractionPolicyCheck
         Check("garden maps to server gather action on E",
             WorldLayoutPoiInteractionPolicy.TryResolve("garden", out interaction) &&
             interaction.Goal == null && interaction.ActionIntent == "gather");
-        Check("woods maps to existing chop action",
-            WorldLayoutPoiInteractionPolicy.TryResolve("woods", out interaction) &&
-            interaction.Goal == null && interaction.ActionIntent == "chop");
+        Check("real forest maps to existing chop action",
+            WorldLayoutPoiInteractionPolicy.TryResolve("woods", "forest", out interaction) &&
+            interaction.Title == "Лес" && interaction.Goal == null && interaction.ActionIntent == "chop");
+        Check("copse maps to brushwood, not timber chopping",
+            WorldLayoutPoiInteractionPolicy.TryResolve("woods", "copse", out interaction) &&
+            interaction.Title == "Рощица · хворост" && interaction.ActionIntent == "gather_brushwood");
+        Check("woods without a matching authoritative zone fails closed",
+            !WorldLayoutPoiInteractionPolicy.TryResolve("woods", out interaction) &&
+            !WorldLayoutPoiInteractionPolicy.TryResolve("woods", "meadow", out interaction));
         Check("river maps to existing fish action",
             WorldLayoutPoiInteractionPolicy.TryResolve("river", out interaction) &&
             interaction.Goal == null && interaction.ActionIntent == "fish");

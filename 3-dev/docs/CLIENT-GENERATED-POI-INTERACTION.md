@@ -1,7 +1,7 @@
 # Generated Layout v2 — E/Interact POI targets
 
 Date: 2026-11-15  
-Status: source implementation added to stacked client PR #642; Unity runtime acceptance pending.
+Status: source implementation in PR #642; raycast-occlusion follow-up in PR #646; Unity runtime acceptance pending.
 
 ## Finding
 
@@ -26,7 +26,7 @@ Added:
 | `smithy` | goal `work` |
 | `market` | goal `eat` |
 | `garden` | goal `work` |
-| `woods` | action `chop` |
+| `woods` | `forest` → action `chop`; `copse` → action `gather_brushwood` |
 | `river` | action `fish` |
 | `mine` | action `mine` |
 
@@ -48,3 +48,42 @@ A dedicated pure C# regression runner is wired into Unity-independent CI. This d
 ## CI result — 2026-11-15
 
 All 23 Unity-independent workflow steps passed in run #43643297028, including the new generated-layout POI interaction allow-list runner. This validates the pure mapping policy only; Unity target placement, raycast occlusion and PlayMode remain unverified.
+
+
+## Independent source audit — 2026-11-15
+
+The seven mappings were checked against current server code:
+
+- `mind/decide.go` defines the existing `eat`, `work` and `socialize` goals.
+- `server/server.go` dispatches the existing `chop`, `gather_brushwood`, `fish` and `mine` actions.
+- `sim/layout_gen.go` emits the seven matching keys. Building POIs are assigned to the generated outside door-approach point; `woods` is placed in its forest/copse zone, `garden` in its field/meadow zone, `mine` at its generated mine point, and `river` on the bank or at the generated pond. These coordinates are settlement-local, matching `WorldLayoutFrame` and `me.pos`.
+
+### Occlusion defect found and fixed in PR #646
+
+`WorldLayoutPresentationBuilder` deliberately places generated building shells and tavern wall segments on Unity's built-in Ignore Raycast layer (2). `PresentationCameraRig` uses that layer for camera collision, but `WorldInteractionProbe` used `Physics.DefaultRaycastLayers`, which excludes layer 2. Thus the probe's hit-ordering logic was correct, but it could not see those solid walls; E could select a target through a generated building or tavern wall.
+
+PR #646 adds the Ignore Raycast bit to both the raycast and sphere-cast interaction mask. It retains `QueryTriggerInteraction.Collide`, so the presentation-only POI triggers remain selectable; `FindTargetBeforeObstacle` still skips unrelated triggers and stops at the first solid collider. The camera's layer-2-only collision mask is unchanged.
+
+Pure C# regression checks verify both the zone-aware woodland action mapping and that the interaction mask preserves the default mask while adding only Unity's built-in Ignore Raycast bit. These are source-level regression checks, not a Unity physics simulation.
+
+### Remaining owner acceptance
+
+In Unity 6.7, walk to a generated settlement and test all seven targets. Confirm that each target is aimable from its approach, a solid wall/closed tavern door blocks E through the wall, the actual doorway remains usable, and the trigger volume does not obstruct movement. Also verify the server's real result/refusal for each mapped intent. No wire or server change is proposed.
+
+
+### Zone-aware woodland intent
+
+A second mapping issue was found in the server generator/action pair. `sim/layout_gen.go` always emits the `woods` POI, but the matching zone is either `forest` (when the settlement has the `woods` feature) or a small `copse` (when it does not). The server explicitly separates these actions: `ChopWood` requires the real `woods` feature, while `GatherBrushwood` requires the player to be inside a `copse`.
+
+The original static mapping sent `chop` for both layouts, so a generated settlement with only a copse exposed an E target that the server correctly rejected. PR #646 now resolves the zone containing the server's `woods` POI: `forest → chop`, `copse → gather_brushwood`; missing or ambiguous zone metadata fails closed. The target builder also skips any POI for which the authoritative `WorldLayoutFrame.IsBlocked(x,y)` reports a blocked point.
+
+The regression runner now covers both woodland cases and the fail-closed missing/unknown-zone cases. No new action or wire field is added; `gather_brushwood` is already handled by the v1 `op:"act"` dispatcher. The E prompt title for a copse is explicitly `Рощица · хворост`, so the visible small grove does not advertise timber chopping.
+
+
+## PR #646 CI follow-up — 2026-11-15
+
+- [Unity-independent C# checks run #400](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43749470229): **success**, all 26 steps completed.
+- Generated POI action policy: **14 checks passed** (forest/copse split and fail-closed cases included).
+- Interaction raycast mask policy: **5 checks passed**.
+- The first run (#397) stopped at a stale assertion that expected finite negative character stats to be rejected. That expectation contradicted main commit f00bf1d; the test now verifies the intended finite-negative compatibility while retaining non-finite rejection.
+- This validates pure C# policies only. Unity Editor, physics raycasts and PlayMode remain unverified.

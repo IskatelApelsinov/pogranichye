@@ -42,13 +42,17 @@ namespace Pogranichye.Client.Presentation
 
             // Compatibility path for older servers: coordinates still come from server Layout POIs.
             if (layout.Pois == null) return;
+            var woodsZoneKind = ResolveWoodsZoneKind(layout);
             var ids = WorldLayoutPoiInteractionPolicy.SupportedIds;
             for (var i = 0; i < ids.Length; i++)
             {
                 var id = ids[i];
-                if (!WorldLayoutPoiInteractionPolicy.TryResolve(id, out var interaction) ||
-                    !layout.Pois.TryGetValue(id, out var point) || point == null ||
-                    !IsFinite(point.X) || !IsFinite(point.Y))
+                if (!layout.Pois.TryGetValue(id, out var point) || point == null ||
+                    !IsFinite(point.X) || !IsFinite(point.Y) || layout.IsBlocked(point.X, point.Y))
+                    continue;
+
+                var zoneKind = id == "woods" ? woodsZoneKind : null;
+                if (!WorldLayoutPoiInteractionPolicy.TryResolve(id, zoneKind, out var interaction))
                     continue;
 
                 var target = new GameObject("E interaction target • " + id);
@@ -56,7 +60,7 @@ namespace Pogranichye.Client.Presentation
                 target.transform.localPosition = new Vector3((float)point.X, 0.9f, (float)point.Y);
 
                 var hitArea = target.AddComponent<SphereCollider>();
-                hitArea.radius = 1.25f;
+                hitArea.radius = 0.85f;
                 // Interaction volumes must never become invisible physical obstacles.
                 // WorldInteractionProbe explicitly includes triggers and filters unrelated ones.
                 hitArea.isTrigger = true;
@@ -64,6 +68,26 @@ namespace Pogranichye.Client.Presentation
                 var poi = target.AddComponent<WorldPoi>();
                 poi.Initialize(interaction.Title, interaction.Goal, null, Color.clear, interaction.ActionIntent);
             }
+        }
+
+        private static string ResolveWoodsZoneKind(WorldLayoutFrame layout)
+        {
+            if (layout == null || layout.Pois == null || layout.Zones == null ||
+                !layout.Pois.TryGetValue("woods", out var point) || point == null)
+                return null;
+
+            string result = null;
+            foreach (var zone in layout.Zones)
+            {
+                if (zone == null || (zone.Kind != "forest" && zone.Kind != "copse") ||
+                    point.X < zone.X0 || point.X > zone.X1 ||
+                    point.Y < zone.Y0 || point.Y > zone.Y1)
+                    continue;
+
+                if (result != null && result != zone.Kind) return null;
+                result = zone.Kind;
+            }
+            return result;
         }
 
         private static bool IsFinite(double value)

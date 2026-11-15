@@ -13,6 +13,10 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float aimAssistRadius = 0.18f;
         private const int HitCapacity = 32;
         private readonly RaycastHit[] _hits = new RaycastHit[HitCapacity];
+        // Building shells and tavern wall segments intentionally use Unity's Ignore Raycast layer (2)
+        // for the camera rig. Include that layer here so solid walls still occlude E/Interact.
+        private static readonly int InteractionRaycastMask =
+            WorldInteractionRaycastMaskPolicy.IncludeIgnoreRaycastLayer(Physics.DefaultRaycastLayers);
         private Camera _camera;
         private PresentationCameraRig _cameraRig;
         private Pogranichye.Client.ClientInput _input;
@@ -63,7 +67,7 @@ namespace Pogranichye.Client.Presentation
             // Include non-blocking POI/NPC trigger volumes. FindTargetBeforeObstacle skips
             // unrelated triggers but still stops at the first solid wall/door collider.
             var count = Physics.RaycastNonAlloc(ray, _hits, interactRange,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+                InteractionRaycastMask, QueryTriggerInteraction.Collide);
 
             // Unity may return an arbitrary subset when a NonAlloc buffer is full. If
             // we sorted that subset and selected a target, a nearer wall could be missing.
@@ -76,7 +80,7 @@ namespace Pogranichye.Client.Presentation
             // colliders and low-poly POI meshes. Solid world geometry still occludes targets.
             if (aimAssistRadius <= 0f) return;
             count = Physics.SphereCastNonAlloc(ray, aimAssistRadius, _hits, interactRange,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+                InteractionRaycastMask, QueryTriggerInteraction.Collide);
             if (count >= _hits.Length) return;
             SortHits(count);
             FindTargetBeforeObstacle(count, out poi, out npc);
