@@ -37,10 +37,9 @@ namespace Pogranichye.Client
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private WorldSocketClient _socket;
-        // Buffer startup snapshots and validate only the newest one after a five-second warm-up.
-        private readonly object _initialFrameGate = new object();
-        private DateTime _initialFrameValidationAtUtc = DateTime.MinValue;
-        private string _pendingInitialFullFrame;
+        // The initial snapshot warm-up is socket-scoped so a late callback from an old
+        // connection can never become the first frame of a replacement session.
+        private readonly InitialFullFrameBuffer _initialFullFrameBuffer = new InitialFullFrameBuffer();
         private CoreGameplay _core; // protocol v1.10 gameplay: combat, weaves, requests, crafting, journeys, party
         private EntityViewRegistry _views;
         private PresentationCameraRig _cameraRig;
@@ -284,18 +283,10 @@ namespace Pogranichye.Client
         private void Update()
         {
             while (_mainThread.TryDequeue(out var action)) action();
-            string delayedInitialFrame = null;
-            lock (_initialFrameGate)
-            {
-                if (_pendingInitialFullFrame != null && DateTime.UtcNow >= _initialFrameValidationAtUtc)
-                {
-                    delayedInitialFrame = _pendingInitialFullFrame;
-                    _pendingInitialFullFrame = null;
-                    _initialFrameValidationAtUtc = DateTime.MinValue;
-                }
-            }
-            if (delayedInitialFrame != null && _socket != null)
-                ProcessFullWorldFrame(_socket, delayedInitialFrame);
+            var activeSocket = _socket;
+            if (activeSocket != null &&
+                _initialFullFrameBuffer.TryTake(activeSocket, DateTime.UtcNow, out var delayedInitialFrame))
+                ProcessFullWorldFrame(activeSocket, delayedInitialFrame);
             UpdateWorldStreaming();
             WorldWildSitePresentationBuilder.Update(_presentationRoot, _worldManifest, _frame);
             // Keep spatial player SFX and remote-voice range checks anchored to the
@@ -3115,11 +3106,7 @@ namespace Pogranichye.Client
                 var presentationCamera = _cameraRig != null
                     ? _cameraRig.GetComponent<Camera>() : Camera.main;
                 RuralHorizonBackdrop.Build(_presentationRoot, presentationCamera, (float)layout.WorldHalf);
-                lock (_initialFrameGate)
-                {
-                    _pendingInitialFullFrame = null;
-                    _initialFrameValidationAtUtc = DateTime.UtcNow.AddSeconds(5);
-                }
+                _initialFullFrameBuffer.Begin(socket, DateTime.UtcNow.AddSeconds(5));
                 await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
@@ -3135,6 +3122,7 @@ namespace Pogranichye.Client
                 Enqueue(() =>
                 {
                     if (!ReferenceEquals(_socket, socket)) return;
+                    _initialFullFrameBuffer.End(socket);
                     _socket = null;
                     _connectionState = WorldConnectionState.Closed;
                     socket.Dispose();
@@ -3149,6 +3137,7 @@ namespace Pogranichye.Client
             // A delayed close from an older socket must not tear down a newer session.
             if (!ReferenceEquals(_socket, socket)) return;
 
+            _initialFullFrameBuffer.End(socket);
             _voiceChat?.StopVoice();
             _socket = null;
             _connectionState = WorldConnectionState.Closed;
@@ -3194,16 +3183,11 @@ namespace Pogranichye.Client
                 return;
             }
 
-            lock (_initialFrameGate)
-            {
-                if (_initialFrameValidationAtUtc != DateTime.MinValue &&
-                    DateTime.UtcNow < _initialFrameValidationAtUtc)
-                {
-                    // Keep the newest full snapshot received during warm-up.
-                    _pendingInitialFullFrame = json;
-                    return;
-                }
-            }
+            // Buffer only the socket that owns the current connection attempt. A stale
+            // callback from a replaced socket falls through and is rejected by the normal
+            // ReferenceEquals guard in ProcessFullWorldFrame's main-thread continuation.
+            if (_initialFullFrameBuffer.TryBuffer(socket, json, DateTime.UtcNow))
+                return;
 
             ProcessFullWorldFrame(socket, json);
         }
