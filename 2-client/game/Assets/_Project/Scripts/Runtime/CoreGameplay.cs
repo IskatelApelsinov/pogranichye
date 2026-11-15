@@ -192,6 +192,7 @@ namespace Pogranichye.Client
         private CarryBagFrame _bag;
         private HorseFrame _horse;
         private RegionFrame _region;
+        private TavernCounterFrame _tavernCounter;
         private int _hour = 12;
 
         private readonly Dictionary<string, FoeRec> _foes = new Dictionary<string, FoeRec>();
@@ -227,6 +228,7 @@ namespace Pogranichye.Client
         private GUIStyle _questTitleStyle;
         private GUIStyle _questBodyStyle;
         private GUIStyle _hintTextStyle;
+        private GUIStyle _toastStyle;
         private Vector2 _menuScroll;
         private float _regionMapZoom = 1f;
         private bool _weaveOpen;
@@ -271,6 +273,11 @@ namespace Pogranichye.Client
 
         /// <summary>Raised on the Unity main thread when a queued result-bearing request resolves.</summary>
         public event Action<string, RequestGate.Outcome, string> RequestResolved;
+
+        /// <summary>Read-only view of the shared result-bearing queue for the gameplay HUD.</summary>
+        public bool HasPendingRequests => _gate != null && (_gate.Busy || _gate.Waiting > 0);
+        public string PendingRequestLabel => _gate != null ? _gate.InFlightLabel : null;
+        public int PendingRequestCount => _gate == null ? 0 : (_gate.Busy ? 1 : 0) + _gate.Waiting;
 
         public void Bind(Action<Dictionary<string, object>> sender)
         {
@@ -595,6 +602,7 @@ namespace Pogranichye.Client
             _bag = frame.Me?.Bag;
             _horse = frame.Me?.Horse;
             _region = frame.Me?.Region;
+            _tavernCounter = frame.Place?.TavernCounter;
             _result = frame.Me?.Result;
             ReadResult(_result);
         }
@@ -660,6 +668,7 @@ namespace Pogranichye.Client
             _bag = null;
             _horse = null;
             _region = null;
+            _tavernCounter = null;
             _riderVisualRoot = null;
             _riderBody = _riderHead = _riderLeftArm = _riderRightArm = _riderLeftLeg = _riderRightLeg = null;
             _riderHomePositions = null;
@@ -2047,9 +2056,38 @@ namespace Pogranichye.Client
                 GUI.Label(new Rect(Screen.width * 0.5f - 10f, Screen.height * 0.5f - 34f, 40f, 24f), "x");
             DrawFloaters();
             if (!string.IsNullOrEmpty(_toast) && Time.unscaledTime < _toastUntil)
-                GUI.Box(new Rect(Screen.width * 0.5f - 150f, Screen.height * 0.62f, 300f, 28f), _toast);
+                DrawToast();
             if (_weaveOpen) DrawWeave();
             if (_menuOpen) DrawMenu();
+        }
+
+        private void DrawToast()
+        {
+            if (_toastStyle == null)
+            {
+                _toastStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = ClientUiTypography.HudBody,
+                    alignment = TextAnchor.MiddleCenter,
+                    wordWrap = true,
+                    clipping = TextClipping.Overflow,
+                    padding = new RectOffset(12, 12, 8, 8)
+                };
+                _toastStyle.normal.textColor = new Color(0.98f, 0.93f, 0.83f, 1f);
+            }
+
+            var width = Mathf.Min(620f, Mathf.Max(180f, Screen.width - 32f));
+            var content = new GUIContent(_toast);
+            var height = Mathf.Max(38f, _toastStyle.CalcHeight(content, width - 24f) + 12f);
+            var maxHeight = Mathf.Max(56f, Screen.height * 0.28f);
+            height = Mathf.Min(height, maxHeight);
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.58f, width, height);
+            var previous = GUI.color;
+            GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.94f);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = Color.white;
+            GUI.Label(rect, content, _toastStyle);
+            GUI.color = previous;
         }
 
         private void DrawWorldContextAction()
@@ -2262,9 +2300,9 @@ namespace Pogranichye.Client
                 var hintRect = new Rect(12f, Screen.height - 66f, Mathf.Min(390f, Screen.width - 24f), 54f);
                 GUI.Box(hintRect, GUIContent.none, GUI.skin.box);
                 GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 4f, hintRect.width - 16f, 22f),
-                    "WASD — ходить · E — действие · T — чат · Tab — персонаж", _hintTextStyle);
+                    "WASD — ходить · мышь — смотреть · E — взаимодействовать", _hintTextStyle);
                 GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 27f, hintRect.width - 16f, 22f),
-                    "ЛКМ — удар · ПКМ — блок · Q — уворот · F — укол · H — скрыть", _hintTextStyle);
+                    "Shift — бег · Alt — лёгкий бег · Space — прыжок · Tab — дела · H — скрыть", _hintTextStyle);
             }
         }
 
@@ -2494,6 +2532,16 @@ namespace Pogranichye.Client
                 Num(pos, "x"), Num(pos, "y"), anchor.X, anchor.Y, radius);
         }
 
+        private bool NearTavernCounter()
+        {
+            var pos = Obj(_me, "pos");
+            if (_tavernCounter == null || pos == null || _tavernCounter.Radius <= 0d)
+                return false;
+            return PoiPositionPolicy.IsWithin(
+                Num(pos, "x"), Num(pos, "y"),
+                _tavernCounter.X, _tavernCounter.Y, _tavernCounter.Radius);
+        }
+
         private static float Count(JObject bag, string key)
         {
             return bag == null ? 0f : Num(bag, key);
@@ -2674,16 +2722,35 @@ namespace Pogranichye.Client
             DrawSettlementPulse();
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
-                GUILayout.BeginHorizontal();
-                var beerPrice = Num(_place, "beer_price");
-                var previousEnabled = GUI.enabled;
-                GUI.enabled = previousEnabled && !Flag(_me, "mug") &&
-                    Num(_place, "beer") >= 1f && coins >= beerPrice;
-                if (GUILayout.Button("Заказать пива (" + beerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " монеты)")) Ask("Пиво", "buy", "item", "beer");
-                GUI.enabled = previousEnabled && Flag(_me, "mug");
-                if (GUILayout.Button("Выпить")) Ask("Выпить", "consume", "item", "beer");
-                GUI.enabled = previousEnabled;
-                GUILayout.EndHorizontal();
+                if (Flag(_me, "mug"))
+                {
+                    if (GUILayout.Button("Выпить")) Ask("Выпить", "consume", "item", "beer");
+                }
+                else if (_tavernCounter == null)
+                {
+                    GUILayout.Label("Стойка корчмы пока не описана сервером.");
+                }
+                else if (!NearTavernCounter())
+                {
+                    GUILayout.Label("Покупка пива доступна у стойки внутри корчмы.");
+                }
+                else if (!_tavernCounter.BartenderPresent)
+                {
+                    GUILayout.Label("Корчмарь сейчас не на смене.");
+                }
+                else if (Num(_place, "beer") <= 0f)
+                {
+                    GUILayout.Label("Пиво закончилось.");
+                }
+                else if (coins < Num(_place, "beer_price"))
+                {
+                    GUILayout.Label("Не хватает монет на кружку.");
+                }
+                else if (GUILayout.Button("Заказать пива (" +
+                    Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)"))
+                {
+                    Ask("Пиво", "buy", "item", "beer");
+                }
             }
 
             DrawCardGames();

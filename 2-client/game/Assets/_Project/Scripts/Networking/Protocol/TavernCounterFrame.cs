@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Pogranichye.Client.Networking.Protocol
@@ -7,10 +8,10 @@ namespace Pogranichye.Client.Networking.Protocol
     [Serializable]
     public sealed class TavernCounterFrame
     {
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Radius { get; set; }
-        public bool BartenderPresent { get; set; }
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("radius")] public double Radius { get; set; }
+        [JsonProperty("bartender_present")] public bool BartenderPresent { get; set; }
     }
 
     public static class TavernCounterFrameParser

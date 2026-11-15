@@ -1277,7 +1277,7 @@ namespace Pogranichye.Client.Presentation
             var text = labelObject.AddComponent<TextMesh>();
             text.anchor = TextAnchor.LowerCenter;
             text.alignment = TextAlignment.Center;
-            text.fontSize = 42;
+            text.fontSize = ClientUiTypography.WorldLabelFontSize;
             text.characterSize = 0.065f;
             text.color = Color.white;
             text.richText = false;

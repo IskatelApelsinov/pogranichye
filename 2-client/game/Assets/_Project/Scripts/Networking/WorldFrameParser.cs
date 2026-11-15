@@ -87,6 +87,7 @@ namespace Pogranichye.Client.Networking
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
                     ValidateWorldAnchor(place["anchor"], "place.anchor");
+                    TavernCounterFrameParser.Validate(place["tavern_counter"], "place.tavern_counter");
                     FoeFrameParser.Validate(place["foes"], "place.foes");
                     ValidatePlaceRooms(place["rooms"], "place.rooms");
                     var neighbors = place["neighbors"];
