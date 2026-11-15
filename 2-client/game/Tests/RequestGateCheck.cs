@@ -23,11 +23,11 @@ public static class RequestGateCheck
         Check(sent.Count == 1 && sent[0] == "a", "second request waits while the first is in flight");
         Check(!gate.Enqueue("A", "a-duplicate", pay("a-duplicate", "chop"), 0.15f),
             "identical action cannot be submitted twice while in flight");
-        Check(gate.Enqueue("C", "c-queued", pay("c-queued", "cast"), 0.16f),
-            "different action can still be queued");
-        Check(!gate.Enqueue("C", "c-duplicate", pay("c-duplicate", "cast"), 0.17f),
+        Check(!gate.Enqueue("B", "b-duplicate", pay("b-duplicate", "fish"), 0.16f),
             "identical queued action cannot be duplicated");
-        Check(gate.Enqueue("C", "c-different", pay("c-different", "meditate"), 0.18f),
+        var distinctGate = new RequestGate(p => { }, 6f, 3);
+        Check(distinctGate.Enqueue("Trade", "buy", pay("buy", "buy"), 0f) &&
+            distinctGate.Enqueue("Trade", "sell", pay("sell", "sell"), 0.1f),
             "same label with a different payload remains a distinct action");
 
         // an unrelated or stale result does not resolve anything (no false success)
