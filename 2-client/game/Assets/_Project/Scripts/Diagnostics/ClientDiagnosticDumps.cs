@@ -38,9 +38,9 @@ namespace Pogranichye.Client.Diagnostics
                     kind == "rejected" ? RejectedFrames : FullFrames;
                 var limit = kind == "fast" ? MaxFastFrames :
                     kind == "rejected" ? MaxRejectedFrames : MaxFullFrames;
-                if (json.Length > MaxFrameChars)
+                if (Encoding.UTF8.GetByteCount(json) > MaxFrameBytes)
                 {
-                    AddEventLocked("capture.skipped", kind + " frame exceeds " + MaxFrameChars + " chars");
+                    AddEventLocked("capture.skipped", kind + " frame exceeds " + MaxFrameBytes + " bytes");
                     return;
                 }
 
