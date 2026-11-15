@@ -56,7 +56,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (_camera == null) return;
             var target = distance > 0f ? Mathf.Max(_baseFarClipPlane, distance) : _baseFarClipPlane;
-            _camera.farClipPlane = Mathf.Clamp(target, _baseFarClipPlane, 60000f);
+            _camera.farClipPlane = Mathf.Clamp(target, _baseFarClipPlane, 100000f);
         }
 
         public void SetLookSettings(float sensitivity, bool invertY)
