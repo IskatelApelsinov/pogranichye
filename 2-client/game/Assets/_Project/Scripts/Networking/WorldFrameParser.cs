@@ -61,6 +61,15 @@ namespace Pogranichye.Client.Networking
                 if (me == null || me.Type != JTokenType.Object)
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
+                ActionResultFrameParser.Validate(me["result"], "me.result");
+                CombatFrameParser.Validate(me["combat"], "me.combat");
+                JourneyFrameParser.Validate(me["journey"], "me.journey");
+                QuestsFrameParser.Validate(me["quests"], "me.quests");
+                StatsFrameParser.Validate(me["stats"], "me.stats");
+                CarryBagFrameParser.Validate(me["bag"], "me.bag");
+                HorseFrameParser.Validate(me["horse"], "me.horse");
+                RegionFrameParser.Validate(me["region"], "me.region");
+                FeedFrameParser.Validate(me["feed"], "me.feed");
                 ValidateJournal(me["journal"], "me.journal");
                 ValidateWorldPosition(me["wpos"], "me.wpos");
 
@@ -78,6 +87,7 @@ namespace Pogranichye.Client.Networking
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
                     ValidateWorldAnchor(place["anchor"], "place.anchor");
+                    FoeFrameParser.Validate(place["foes"], "place.foes");
                     ValidatePlaceRooms(place["rooms"], "place.rooms");
                     var neighbors = place["neighbors"];
                     if (neighbors != null && neighbors.Type != JTokenType.Null)

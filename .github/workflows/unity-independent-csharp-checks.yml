@@ -3,53 +3,69 @@ name: Unity-independent C# checks
 on:
   pull_request:
     paths:
-      - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
-      - '2-client/game/Tests/RequestGateCheck.cs'
-      - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
-      - '2-client/game/Tests/CharacterMenuHotkeyPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
-      - '2-client/game/Tests/InputEventDebugStateCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
-      - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
-      - '2-client/game/Tests/HexCellCoordinateCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
-      - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
-      - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
-      - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
-      - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
-      - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
-      - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
-      - '2-client/game/Tests/FoePresentationPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
-      - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
-      - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/SignFaceVisibility.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/BillboardLabel.cs'
-      - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralVillageBuilder.cs'
       - '.github/workflows/unity-independent-csharp-checks.yml'
-
+      - '2-client/game/Assets/_Project/Editor/ProtocolFixtureValidator.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/BillboardLabel.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralVillageBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/SignFaceVisibility.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
+      - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
+      - '2-client/game/Tests/CharacterMenuHotkeyPolicyCheck.cs'
+      - '2-client/game/Tests/CombatFoeFrameParserCheck.cs'
+      - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
+      - '2-client/game/Tests/FeedFrameParserCheck.cs'
+      - '2-client/game/Tests/FoePresentationPolicyCheck.cs'
+      - '2-client/game/Tests/GameplayStatusViewCheck.cs'
+      - '2-client/game/Tests/HexCellCoordinateCheck.cs'
+      - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
+      - '2-client/game/Tests/InputEventDebugStateCheck.cs'
+      - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
+      - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
+      - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
+      - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
+      - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
+      - '2-client/game/Tests/RegionFrameParserCheck.cs'
+      - '2-client/game/Tests/RequestGateCheck.cs'
+      - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
+      - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
 jobs:
   pure-csharp:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+     - uses: actions/checkout@v4
       - name: Install Mono compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y mono-mcs
+          sudo apt-get install -y mono-mcs libnewtonsoft-json-cil-dev
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
@@ -115,3 +131,50 @@ jobs:
         run: |
           mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
           mono /tmp/map-label-layout.exe
+      - name: Typed gameplay status view regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/gameplay-status-view.exe Tests/GameplayStatusViewCheck.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/gameplay-status-view.exe
+      - name: Typed feed frame parser regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/feed-frame-parser.exe
+      - name: Typed action result parser regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/action-result-parser.exe
+      - name: Typed combat and foe frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/combat-foe-frame.exe Tests/CombatFoeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mono /tmp/combat-foe-frame.exe
+      - name: Typed journey and quest frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
+          mono /tmp/journey-quest-frame.exe
+      - name: Typed horse, stats and carried bag frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
+          mono /tmp/horse-stats-frame.exe
+      - name: Typed regional map frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/region-frame.exe Tests/RegionFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs
+          mono /tmp/region-frame.exe

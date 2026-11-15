@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using Pogranichye.Client.Networking;
 using UnityEngine;
 
 namespace Pogranichye.Client.Networking.Protocol
@@ -45,11 +46,22 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("act_code")] public string ActivityCode { get; set; }
         [JsonProperty("mug")] public bool Mug { get; set; }
         [JsonProperty("mana")] public double Mana { get; set; }
+        // v1.12 full-frame intoxication level; omitted by the current fast-frame shape.
+        [JsonProperty("drunk")] public double Drunk { get; set; }
         [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
+        [JsonProperty("combat")] public CombatFrame Combat { get; set; }
+        [JsonProperty("journey")] public JourneyFrame Journey { get; set; }
+        [JsonProperty("quests")] public QuestsFrame Quests { get; set; }
+        [JsonProperty("stats")] public StatsFrame Stats { get; set; }
+        [JsonProperty("bag")] public CarryBagFrame Bag { get; set; }
+        [JsonProperty("horse")] public HorseFrame Horse { get; set; }
+        [JsonProperty("region")] public RegionFrame Region { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
         [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
         [JsonProperty("result")] public ActionResultFrame Result { get; set; }
+        // Server-confirmed events; validated once and consumed as typed entries.
+        [JsonProperty("feed")] public List<FeedEntryFrame> Feed { get; set; }
         [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
         [JsonProperty("journal")] public List<JournalEntryFrame> Journal { get; set; }
         [JsonProperty("last")] public string Last { get; set; }
@@ -215,6 +227,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("beer")] public double Beer { get; set; }
         [JsonProperty("beer_price")] public double BeerPrice { get; set; }
         [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
+        [JsonProperty("foes")] public List<FoeFrame> Foes { get; set; }
         [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
         // v1.19 global anchor. Local pos remains settlement-relative.
         [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
@@ -305,14 +318,6 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("hand")] public string Hand { get; set; }
         [JsonProperty("worn")] public Dictionary<string, string> Worn { get; set; }
-    }
-
-    [Serializable]
-    public sealed class ActionResultFrame
-    {
-        [JsonProperty("reqid")] public string RequestId { get; set; }
-        [JsonProperty("ok")] public bool Ok { get; set; }
-        [JsonProperty("reason")] public string Reason { get; set; }
     }
 
     [Serializable]
