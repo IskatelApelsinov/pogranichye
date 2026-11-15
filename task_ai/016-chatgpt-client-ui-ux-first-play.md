@@ -59,3 +59,40 @@ If an implementation requires new server-owned state or an intent, stop and send
 
 - GitHub Actions `pure-csharp` run #43735210413 passed all 23 steps on source commit `dc44db79cd65f78260c51256b8f9e9dda80a99ef` (2026-11-15). This validates the repository's independent C# regression suites; it does not compile the full Unity scene or exercise IMGUI layout.
 - PR #642 remains open and stacked on PR #641. Unity Editor compile, PlayMode, and manual visual checks at 1280×720 / 1920×1080 / 2560×1440 remain required.
+
+
+## Duplicate-submit guard — 2026-11-15
+
+- Extended the shared `RequestGate` to reject a second pending request when both the player-facing action label and the full payload (excluding `reqid`) match an action already in flight or queued.
+- Payload comparison handles nested dictionaries and lists, so repeated card selections / weave payloads do not bypass the guard merely because their arrays were allocated separately.
+- Different payloads under the same label remain distinct (for example, choosing a different item); the guard does not block legitimate alternate actions.
+- Added pure C# regression cases for duplicate in-flight requests, duplicate queued requests and same-label/different-payload requests.
+- This is a safety net at the shared request boundary, not a visual disabled-button treatment. The remaining UI pass should add visible per-control pending states where they materially help.
+- Validation is pending a PR workflow run. No Unity Editor, PlayMode or live-server test is claimed.
+
+
+## CI verification — 2026-11-15
+
+- PR #648: Unity-independent C# workflow run [#43754354166](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43754354166) completed successfully on commit `f006cf7`.
+- This run covers the shared RequestGate regression runner and the repository's independent C# checks. It does not compile the Unity project or verify IMGUI visuals / live-server behavior.
+- PR #648 remains draft/open; no merge was performed.
+
+
+## Panel close affordance — 2026-11-15
+
+- Added an explicit mouse-visible close control to the character/journal panel. It collapses the panel and releases the character-menu input capture; the existing Tab shortcut remains unchanged.
+- This closes one P1 navigation gap. Keyboard/cursor behavior still requires Unity PlayMode acceptance.
+
+
+## Progressive disclosure — 2026-11-15
+
+- The character summary now keeps the first-time path and tavern/social context visible while moving free-practice buttons, mini-games, mana and weave controls behind one explicit “Показать дополнительные занятия” toggle.
+- The hidden section is presentation-only; it does not hide server state or alter eligibility. The journal remains the authoritative explanation of the current task.
+- Goal: reduce the initial screen from a debug-like list of systems to the next useful step, while keeping advanced actions discoverable.
+- Requires Unity visual acceptance for scroll height, Russian text wrapping and toggle persistence.
+
+
+## Latest source verification — 2026-11-15
+
+- Unity-independent C# workflow run [#43754687513](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43754687513) completed successfully on head `a7f919c` after the panel close and progressive-disclosure changes.
+- This validates the repository's pure C# regression suite only. It does not compile `VerticalSliceController` inside Unity or verify IMGUI layout, cursor capture, and movement in PlayMode.

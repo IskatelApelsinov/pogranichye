@@ -770,6 +770,11 @@ namespace Pogranichye.Client
         /// Public entry point for other client layers (notably NPC talk): every action that expects
         /// me.result must share this one gate. Returns false when disconnected or the bounded queue is full.
         /// </summary>
+        public bool IsRequestPending(string label, string op, params object[] pairs)
+        {
+            return _gate != null && _gate.ContainsDuplicate(label, Payload(op, pairs));
+        }
+
         public bool QueueRequest(string label, string op, params object[] pairs)
         {
             if (_send == null) return false;
@@ -778,6 +783,16 @@ namespace Pogranichye.Client
             var reqid = Guid.NewGuid().ToString("N");
             payload["reqid"] = reqid;
             return _gate.Enqueue(label, reqid, payload, Time.unscaledTime);
+        }
+
+        private bool RequestButton(string buttonText, string requestLabel, string op, params object[] pairs)
+        {
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && !IsRequestPending(requestLabel, op, pairs);
+            var clicked = GUILayout.Button(buttonText);
+            GUI.enabled = previousEnabled;
+            if (clicked) Ask(requestLabel, op, pairs);
+            return clicked;
         }
 
         private void Ask(string label, string op, params object[] pairs)
@@ -2726,7 +2741,7 @@ namespace Pogranichye.Client
             {
                 if (Flag(_me, "mug"))
                 {
-                    if (GUILayout.Button("Выпить")) Ask("Выпить", "consume", "item", "beer");
+                    RequestButton("Выпить", "Выпить", "consume", "item", "beer");
                 }
                 else if (_tavernCounter == null)
                 {
@@ -2748,10 +2763,11 @@ namespace Pogranichye.Client
                 {
                     GUILayout.Label("Не хватает монет на кружку.");
                 }
-                else if (GUILayout.Button("Заказать пива (" +
-                    Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)"))
+                else
                 {
-                    Ask("Пиво", "buy", "item", "beer");
+                    RequestButton("Заказать пива (" +
+                        Num(_place, "beer_price").ToString("0.#", CultureInfo.InvariantCulture) + " монеты)",
+                        "Пиво", "buy", "item", "beer");
                 }
             }
 
@@ -3082,8 +3098,8 @@ namespace Pogranichye.Client
                     GUILayout.Label("Клавиши: 1 — очко · 2 — подкидной дурак");
                     GUILayout.BeginHorizontal();
                     GUI.enabled = Num(_me, "coins") >= 10f;
-                    if (GUILayout.Button("Сыграть в очко")) Ask("Очко", "card_game", "game", "ochko", "action", "start");
-                    if (GUILayout.Button("Сыграть в подкидного дурака")) Ask("Дурак", "card_game", "game", "durak", "action", "start");
+                    RequestButton("Сыграть в очко", "Очко", "card_game", "game", "ochko", "action", "start");
+                    RequestButton("Сыграть в подкидного дурака", "Дурак", "card_game", "game", "durak", "action", "start");
                     GUI.enabled = true;
                     GUILayout.EndHorizontal();
                 }
@@ -3105,8 +3121,8 @@ namespace Pogranichye.Client
                 if (!done && atTable)
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Ещё карту")) Ask("Очко: взять карту", "card_game", "game", "ochko", "action", "hit");
-                    if (GUILayout.Button("Хватит")) Ask("Очко: остановиться", "card_game", "game", "ochko", "action", "stand");
+                    RequestButton("Ещё карту", "Очко: взять карту", "card_game", "game", "ochko", "action", "hit");
+                    RequestButton("Хватит", "Очко: остановиться", "card_game", "game", "ochko", "action", "stand");
                     GUILayout.EndHorizontal();
                 }
             }
@@ -3134,21 +3150,21 @@ namespace Pogranichye.Client
                             var code = Str(hand[i], "c");
                             if (role == "attack" && phase == "attack")
                             {
-                                if (GUILayout.Button("Подкинуть / зайти: " + code))
-                                    Ask("Дурак: атака", "card_game", "game", "durak", "action", "attack", "index", i);
+                                RequestButton("Подкинуть / зайти: " + code, "Дурак: атака",
+                                    "card_game", "game", "durak", "action", "attack", "index", i);
                             }
                             else if (role == "defend" && phase == "defend")
                             {
-                                if (GUILayout.Button("Отбиться: " + code))
-                                    Ask("Дурак: отбивание", "card_game", "game", "durak", "action", "defend", "index", i);
+                                RequestButton("Отбиться: " + code, "Дурак: отбивание",
+                                    "card_game", "game", "durak", "action", "defend", "index", i);
                             }
                         }
                     }
-                    if (role == "defend" && phase == "defend" && GUILayout.Button("Взять карты"))
-                        Ask("Дурак: взять", "card_game", "game", "durak", "action", "take");
-                    if (role == "attack" && phase == "attack" && DurakTableBeaten(Arr(game, "table")) &&
-                        GUILayout.Button("Бито — закончить заход"))
-                        Ask("Дурак: бито", "card_game", "game", "durak", "action", "done");
+                    if (role == "defend" && phase == "defend")
+                        RequestButton("Взять карты", "Дурак: взять", "card_game", "game", "durak", "action", "take");
+                    if (role == "attack" && phase == "attack" && DurakTableBeaten(Arr(game, "table")))
+                        RequestButton("Бито — закончить заход", "Дурак: бито",
+                            "card_game", "game", "durak", "action", "done");
                 }
             }
             GUILayout.EndVertical();
