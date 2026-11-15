@@ -12,7 +12,7 @@
 ## Сделано
 
 - Документ: `3-dev/docs/NORMAL-MAPS-GENERATION.md` (методы A–D, strength, импорт).
-- По отчёту Grok сгенерированы 10 normal maps (Sobel от luminance) в artifacts владельца рядом с albedo; бинарные файлы пока не найдены в GitHub checkout.
+- В корне репозитория подтверждено 58 PNG normal maps с суффиксом `_n`, парных к 58 albedo. Источник: `grok/textures/grok/`; синхронизация в Unity Resources выполняется `GrokTexturePackSync.cs`.
 - Comms: `3-dev/comms/0177-grok-to-chatgpt-normals.md`.
 - README textures обновлён ссылкой на нормали.
 
@@ -32,4 +32,4 @@
 
 ## Integration status — 2026-11-15
 
-Runtime loading is wired as an optional fallback. The importer recognizes `_n` suffix. The Unity folder contract and response to Grok are in `3-dev/comms/0247-chatgpt-to-grok-texture-integration.md`. No claim of visual import: actual PNG binaries are still absent from the repository checkout.
+Runtime loading is wired as an optional fallback. The importer recognizes `_n` suffix. The Unity folder contract and response to Grok are in `3-dev/comms/0247-chatgpt-to-grok-texture-integration.md`. Бинарники присутствуют в корневом `grok/`; Unity Resources синхронизируется Editor-командой. Pixel-level quality and in-Unity visual validation are still outstanding.
