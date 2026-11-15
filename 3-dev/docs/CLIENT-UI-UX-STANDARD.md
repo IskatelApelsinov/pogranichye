@@ -106,6 +106,19 @@ The gameplay HUD now reads the existing shared `RequestGate` through read-only `
 
 The optional H-toggle hint strip was reduced to first-play essentials (movement, mouse look, E interaction, sprint/jog/jump and journal navigation). Combat and weaving shortcuts were removed from this small overlay so the first minutes are not overwhelmed by advanced bindings; the full list remains in Settings/Controls. The wording was checked against `ClientInput.cs` bindings. This is a source-level change; actual overlap/readability at 1280×720 and larger resolutions still requires Unity acceptance.
 
+## Cursor ownership follow-up — 2026-11-16
+
+The gameplay controller now locks and hides the cursor only while the world connection is active, gameplay input is not blocked, and the application has focus. Chat, menus, contextual POI windows, mini-games, loading/login and loss of application focus release the cursor. The controller reasserts the lock on subsequent focused gameplay updates because Unity may release it after focus changes. This is a source-level fix; verify mouse-look, menu cursor availability, Alt-Tab recovery and controller/gamepad behavior in Unity PlayMode.
+
+
+## Contextual POI window navigation — 2026-11-16
+
+- «← Назад» и «× Закрыть» принадлежат только контекстным окнам конкретных мест/активностей (корчма, рынок, конюшня и т.п.). Не добавлять их в постоянную верхнюю панель или основное TAB-меню.
+- Каждое открытое контекстное окно обязано иметь видимые действия навигации/закрытия и поддерживать Escape.
+- Открытие по E на соответствующем server-authored interaction target; пока окно открыто, блокируется управление персонажем и освобождается курсор. Закрытие любым предусмотренным способом немедленно возвращает управление и захват курсора.
+- «Назад» возвращает из вложенного экрана к предыдущему экрану того же места; «Закрыть» закрывает всё окно места и возвращает в игровой мир. Если вложенного экрана нет, «Назад» не показывается.
+- TAB остаётся отдельной панелью персонажа/журнала/карты и не получает кнопки закрытия контекстных окон.
+
 
 ## Request de-duplication — 2026-11-15
 

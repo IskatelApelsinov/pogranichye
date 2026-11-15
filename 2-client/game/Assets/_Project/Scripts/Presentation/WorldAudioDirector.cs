@@ -10,8 +10,7 @@ namespace Pogranichye.Client.Presentation
         private const int Rate = 22050;
         private const float NearbyVoiceMaxDistance = 24f;
         private AudioSource _oneShot;
-        private AudioSource _fire;
-        private AudioClip _step, _run, _magic, _beer, _fireLoop;
+        private AudioClip _step, _run, _magic, _beer;
         private AudioClip _npcWoodcut, _npcForge, _npcFishing, _npcFieldwork, _npcMining, _npcHearth, _npcHerding;
         private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
         private int _nearbyVoiceCursor;
@@ -37,7 +36,6 @@ namespace Pogranichye.Client.Presentation
             _run = MakeNoise("Running footsteps", 0.20f, 0.065f, 0.17f);
             _magic = MakeTone("Magic cast shimmer", 0.38f, 0.42f, 0.19f);
             _beer = MakeNoise("Beer sip and mug", 0.15f, 0.24f, 0.13f);
-            _fireLoop = MakeNoise("Village campfire crackle", 0.055f, 0.18f, 0.08f, 4);
             _npcWoodcut = MakeNoise("Nearby NPC axe and wood", 0.22f, 0.13f, 0.055f);
             _npcForge = MakeMetalTap("Nearby NPC forge hammer", 690f, 0.18f);
             _npcFishing = MakeNoise("Nearby NPC fishing splash", 0.10f, 0.16f, 0.07f);
@@ -45,19 +43,6 @@ namespace Pogranichye.Client.Presentation
             _npcMining = MakeMetalTap("Nearby NPC mining pick", 430f, 0.15f);
             _npcHearth = MakeNoise("Nearby NPC hearth tending", 0.075f, 0.12f, 0.055f);
             _npcHerding = MakeNoise("Nearby NPC livestock handling", 0.065f, 0.15f, 0.08f);
-            var fireObject = new GameObject("Ambience • campfire crackle");
-            fireObject.transform.SetParent(transform, false);
-            fireObject.transform.localPosition = new Vector3(-3.5f, 0.8f, 4.5f);
-            _fire = fireObject.AddComponent<AudioSource>();
-            _fire.clip = _fireLoop;
-            _fire.loop = true;
-            _fire.playOnAwake = false;
-            _fire.spatialBlend = 1f;
-            _fire.minDistance = 2f;
-            _fire.maxDistance = 18f;
-            _fire.dopplerLevel = 0f;
-            _fire.volume = 0.42f * _ambienceVolume;
-            _fire.Play();
             for (var i = 0; i < _nearbyVoices.Length; i++)
             {
                 var voiceObject = new GameObject("Nearby entity SFX voice " + (i + 1));
@@ -83,7 +68,6 @@ namespace Pogranichye.Client.Presentation
             _sfxVolume = Mathf.Clamp01(sfx);
             _ambienceVolume = Mathf.Clamp01(ambience);
             if (_oneShot != null) _oneShot.volume = _sfxVolume;
-            if (_fire != null) _fire.volume = 0.42f * _ambienceVolume;
             for (var i = 0; i < _nearbyVoices.Length; i++)
                 if (_nearbyVoices[i] != null) _nearbyVoices[i].volume = _sfxVolume;
         }
@@ -235,7 +219,7 @@ namespace Pogranichye.Client.Presentation
             EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
             EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;
             DestroyClip(_step); DestroyClip(_run);
-            DestroyClip(_magic); DestroyClip(_beer); DestroyClip(_fireLoop);
+            DestroyClip(_magic); DestroyClip(_beer);
             DestroyClip(_npcWoodcut); DestroyClip(_npcForge); DestroyClip(_npcFishing);
             DestroyClip(_npcFieldwork); DestroyClip(_npcMining); DestroyClip(_npcHearth);
             DestroyClip(_npcHerding);

@@ -165,6 +165,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("z")] public double HeightAboveGround { get; set; }
         [JsonProperty("chunk")] public long[] Chunk { get; set; }
         [JsonProperty("layer")] public long Layer { get; set; }
+        // Optional semantic location inside a building/cave; not a replacement for global E/N/U.
+        [JsonProperty("space_id")] public string SpaceId { get; set; }
+        [JsonProperty("level_id")] public string LevelId { get; set; }
         [JsonProperty("lat")] public double Latitude { get; set; }
         [JsonProperty("lon")] public double Longitude { get; set; }
         public bool IsValid
@@ -505,6 +508,15 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("side")] public int Side { get; set; }
         [JsonProperty("heights")] public List<double> Heights { get; set; }
         [JsonProperty("settlements")] public List<TerrainSettlementFrame> Settlements { get; set; }
+        // Optional additive terrain presentation descriptors. Missing values preserve the legacy heightfield.
+        [JsonProperty("seed")] public long? Seed { get; set; }
+        [JsonProperty("gen")] public int? GeneratorVersion { get; set; }
+        [JsonProperty("biome")] public string Biome { get; set; }
+        [JsonProperty("cover")] public TerrainCoverFrame Cover { get; set; }
+        [JsonProperty("water")] public List<TerrainWaterFeatureFrame> Water { get; set; }
+        [JsonProperty("roads")] public List<TerrainPathFeatureFrame> Roads { get; set; }
+        [JsonProperty("resources")] public List<TerrainResourceHintFrame> Resources { get; set; }
+        [JsonProperty("wild")] public List<TerrainWildHintFrame> Wild { get; set; }
         public bool IsValid
         {
             get

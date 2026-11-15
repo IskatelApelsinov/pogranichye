@@ -228,6 +228,37 @@ namespace Pogranichye.Client.Networking
             }
         }
 
+        /// <summary>
+        /// Fetches optional multi-level static spaces intersecting a world chunk.
+        /// Endpoint is additive and may return 404 until the server implements the agreed descriptor.
+        /// </summary>
+        public async Task<WorldSpaceChunkFrame> GetWorldSpacesAsync(long chunkX, long chunkZ,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var url = _baseUrl + "/api/spaces?cx=" +
+                chunkX.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&cz=" + chunkZ.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/spaces: " + request.error);
+                var spaces = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(request.downloadHandler.text);
+                if (!WorldSpaceDescriptorValidator.IsValid(spaces) ||
+                    spaces.Chunk[0] != chunkX || spaces.Chunk[1] != chunkZ)
+                    throw new InvalidOperationException("Сервер вернул некорректные пространственные дескрипторы.");
+                return spaces;
+            }
+        }
+
         private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
         public Task<AuthResponse> RegisterAsync(string login, string password)

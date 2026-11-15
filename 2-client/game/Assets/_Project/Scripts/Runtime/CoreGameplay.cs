@@ -2696,8 +2696,19 @@ namespace Pogranichye.Client
             var width = Mathf.Min(900f, Screen.width - 40f);
             var height = Mathf.Min(680f, Screen.height - 40f);
             var rect = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
-            GUI.Box(rect, "Персонаж  [Tab — закрыть]");
+            GUI.Box(rect, "Персонаж");
             GUILayout.BeginArea(new Rect(rect.x + 14f, rect.y + 28f, rect.width - 28f, rect.height - 38f));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Информация, поклажа и занятия", GUILayout.ExpandWidth(true));
+            if (GUILayout.Button("× Закрыть", GUILayout.Width(110f)))
+            {
+                _menuOpen = false;
+                _holding = false;
+                ReleaseGuard();
+                UpdateCursor(_externalCharacterMenuOpen || _weaveOpen);
+                GUIUtility.ExitGUI();
+            }
+            GUILayout.EndHorizontal();
             _menuScroll = GUILayout.BeginScrollView(_menuScroll);
 
             var inv = Obj(_me, "inv");

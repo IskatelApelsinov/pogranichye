@@ -74,6 +74,7 @@ namespace Pogranichye.Client.Editor
                 ValidateMapProjection();
                 ValidateWorldPositionProjection();
                 ValidateWorldV119Dtos();
+                ValidateSpatialDescriptorDtos();
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
                 ValidateFeedCases();
@@ -310,6 +311,32 @@ namespace Pogranichye.Client.Editor
                 layout.Roads.Count != 1 || layout.Homes == null || layout.Homes.Count != 1 ||
                 layout.Entry == null || layout.Entry.X != 0d || !layout.IsGenerated)
                 throw new FormatException("Settlement layout v1.19 DTO deserialization failed.");
+        }
+
+        private static void ValidateSpatialDescriptorDtos()
+        {
+            const string terrainJson = "{\"id\":\"0:0:0\",\"frame\":0,\"chunk\":[0,0],\"origin\":{\"e\":0,\"n\":0},\"size_m\":256,\"step_m\":64,\"side\":5,\"heights\":[0,0,0,0,0,0,0,10,0,0,0,0,20,0,0,0,0,0,0,0,0,0,0,0,0],\"settlements\":[],\"seed\":1234,\"gen\":1,\"biome\":\"mountain\",\"cover\":{\"forest\":0.1,\"grass\":0.2,\"rock\":0.6,\"wet\":0.1},\"water\":[{\"id\":\"river-1\",\"kind\":\"river\",\"width_m\":8,\"water_level_m\":4,\"flow\":0.8,\"points\":[{\"x\":0,\"z\":0,\"surface_m\":4},{\"x\":256,\"z\":256,\"surface_m\":3}]}]}";
+            var terrain = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.TerrainChunkFrame>(terrainJson);
+            if (terrain == null || !terrain.IsValid || terrain.Seed != 1234L ||
+                terrain.Biome != "mountain" || terrain.Cover == null || terrain.Cover.Rock != 0.6d ||
+                terrain.Water == null || terrain.Water.Count != 1 || terrain.Water[0].Points.Count != 2)
+                throw new FormatException("Additive terrain descriptors failed to deserialize.");
+            if (!Pogranichye.Client.Presentation.TerrainHeightSampler.TrySample(
+                    terrain, 128d, 128d, out _, out var slope, out var normal) ||
+                slope <= 0f || normal.sqrMagnitude < 0.99f)
+                throw new FormatException("Terrain heightfield must provide a finite slope and surface normal.");
+
+            const string spacesJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"chunk\":[0,0],\"revision\":1,\"spaces\":[{\"id\":\"house-1\",\"kind\":\"building\",\"frame\":0,\"origin\":{\"e\":10,\"n\":20,\"u\":0},\"bounds\":{\"min_e\":10,\"min_n\":20,\"min_u\":-4,\"max_e\":20,\"max_n\":30,\"max_u\":8},\"floors\":[{\"id\":\"basement\",\"kind\":\"basement\",\"elevation_m\":-3,\"walkable\":true},{\"id\":\"ground\",\"kind\":\"ground\",\"elevation_m\":0,\"walkable\":true},{\"id\":\"upper\",\"kind\":\"floor\",\"elevation_m\":3.2,\"walkable\":true}],\"surfaces\":[{\"id\":\"floor-1\",\"floor_id\":\"ground\",\"kind\":\"floor\",\"points\":[{\"x\":0,\"y\":0,\"z\":0},{\"x\":4,\"y\":0,\"z\":0},{\"x\":4,\"y\":0,\"z\":4}],\"collidable\":true,\"walkable\":true}],\"portals\":[{\"id\":\"stairs-door\",\"target_space_id\":\"house-1\",\"kind\":\"door\",\"e\":12,\"n\":20,\"u\":0,\"width_m\":1,\"height_m\":2,\"open\":true}],\"stairs\":[{\"id\":\"stair-1\",\"from_floor\":\"ground\",\"to_floor\":\"upper\",\"kind\":\"wooden\",\"width_m\":1,\"step_count\":12,\"points\":[{\"x\":2,\"y\":0,\"z\":1},{\"x\":2,\"y\":3.2,\"z\":3}]}]}]}";
+            var spaces = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldSpaceChunkFrame>(spacesJson);
+            if (!Pogranichye.Client.Networking.WorldSpaceDescriptorValidator.IsValid(spaces) ||
+                spaces.Spaces.Count != 1 || spaces.Spaces[0].Floors.Count != 3 ||
+                spaces.Spaces[0].Stairs[0].StepCount != 12)
+                throw new FormatException("Multi-level world-space descriptor validation failed.");
+
+            const string invalidSpacesJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"chunk\":[0,0],\"spaces\":[{\"id\":\"bad\",\"kind\":\"cave\",\"frame\":0,\"origin\":{\"e\":0,\"n\":0,\"u\":0},\"bounds\":{\"min_e\":0,\"min_n\":0,\"min_u\":0,\"max_e\":1,\"max_n\":1,\"max_u\":1},\"stairs\":[{\"id\":\"bad-stair\",\"width_m\":-1,\"points\":[{\"x\":0,\"y\":0,\"z\":0},{\"x\":1,\"y\":1,\"z\":1}]}]}]}";
+            var invalidSpaces = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldSpaceChunkFrame>(invalidSpacesJson);
+            if (Pogranichye.Client.Networking.WorldSpaceDescriptorValidator.IsValid(invalidSpaces))
+                throw new FormatException("Malformed space descriptor with negative stair width must be rejected.");
         }
 
         private static void ValidateWorldPositionProjection()
