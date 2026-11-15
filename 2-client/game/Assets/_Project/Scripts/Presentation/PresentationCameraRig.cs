@@ -23,6 +23,7 @@ namespace Pogranichye.Client.Presentation
         [SerializeField] private float sprintFieldOfViewBoost = 3f;
         [SerializeField] private float fieldOfViewSharpness = 7f;
         private Camera _camera;
+        private float _baseFarClipPlane = 1000f;
         private Pogranichye.Client.ClientInput _input;
         private float _defaultFieldOfView = 48f;
         private float _headBobPhase;
@@ -50,6 +51,14 @@ namespace Pogranichye.Client.Presentation
 
         public void SetMouseGestureCapture(bool active) { _captureMouseForGesture = active; }
 
+        /// <summary>Extends visibility for the server-authored distant cauldron rim LOD.</summary>
+        public void SetWorldHorizonDistance(float distance)
+        {
+            if (_camera == null) return;
+            var target = distance > 0f ? Mathf.Max(_baseFarClipPlane, distance) : _baseFarClipPlane;
+            _camera.farClipPlane = Mathf.Clamp(target, _baseFarClipPlane, 60000f);
+        }
+
         public void SetLookSettings(float sensitivity, bool invertY)
         {
             mouseSensitivity = Mathf.Clamp(sensitivity, 0.008f, 0.09f);
@@ -60,7 +69,11 @@ namespace Pogranichye.Client.Presentation
         {
             _zoomDistance = offset.magnitude;
             _camera = GetComponent<Camera>();
-            if (_camera != null) _defaultFieldOfView = _camera.fieldOfView;
+            if (_camera != null)
+            {
+                _defaultFieldOfView = _camera.fieldOfView;
+                _baseFarClipPlane = _camera.farClipPlane;
+            }
         }
 
         public void SetTarget(Transform target)
