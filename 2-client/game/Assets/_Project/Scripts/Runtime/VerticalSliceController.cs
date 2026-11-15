@@ -520,8 +520,7 @@ namespace Pogranichye.Client
             {
                 // Character journal is the sole gameplay-data surface while open.
                 // Do not stack contextual action cards underneath/over it.
-                if (_hudCollapsed)
-                    DrawContextActions();
+                DrawContextActions();
                 if (_hudCollapsed && _activityMiniGame != ActivityMiniGame.None)
                 {
                     var miniWidth = Mathf.Min(420f, Screen.width - 24f);
@@ -2266,7 +2265,8 @@ namespace Pogranichye.Client
             // The panel grows to fit normal use, then becomes a real scroll view on short screens
             // or when a room chest contains many items. Never let the content fall outside its area.
             height = Mathf.Min(height, Mathf.Max(160f, Screen.height - 24f));
-            return new Rect((Screen.width - width) * 0.5f, Screen.height - height - 12f, width, height);
+            var panelX = _hudCollapsed ? (Screen.width - width) * 0.5f : Mathf.Max(12f, Screen.width - width - 12f);
+            return new Rect(panelX, Screen.height - height - 12f, width, height);
         }
 
         private void DrawContextActions()
