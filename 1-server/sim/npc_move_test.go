@@ -17,7 +17,6 @@ func villager(w *core.World, role, goal string, set core.ID) *core.Entity {
 	)
 }
 
-
 func TestHotMovementUsesMaterializedBodiesOnly(t *testing.T) {
 	w := core.NewWorld("hot-index")
 	hot := w.Spawn(&core.SettlementC{Name: "hot"}, &HeatC{Level: 2})
@@ -71,6 +70,40 @@ func TestNPCWalksToActivityPOI(t *testing.T) {
 	}
 	if Blocked(p.X, p.Y) {
 		t.Fatalf("кузнец встал в стене: (%.2f,%.2f)", p.X, p.Y)
+	}
+}
+
+// TestTavernkeeperWalksToCounterNotDoor — comms 0244 (task 013): после ужесточения atTavernCounter
+// (0223 — меряет от геометрического центра здания, не от внешнего порога двери) корчмарь на смене
+// должен физически идти К СТОЙКЕ внутри, а не к двери снаружи — иначе стойка визуально пуста и для
+// AOI/клиента, хотя bartenderServing (по ActCode) считает его "на смене". НЕ телепортируем ни
+// игрока, ни корчмаря — обычное движение StepNPCMovement до установившейся позиции.
+func TestTavernkeeperWalksToCounterNotDoor(t *testing.T) {
+	w := core.NewWorld("t")
+	e := villager(w, "tavernkeeper", "work", 100)
+	core.Mind(e).ActCode = "keep_tavern" // "за стойкой корчмы" (sim/activity.go)
+	for i := 0; i < 150; i++ {           // ~60 c по 0.4 c/тик — достаточно дойти от спавна
+		StepNPCMovement(w, 0.4, nil)
+	}
+	p := ScenePos(e)
+	if p == nil {
+		t.Fatal("корчмарь должен был получить ScenePos")
+	}
+	l := StarterLayout()
+	if !l.insideTavernBuilding(p.X, p.Y) {
+		tx, ty := l.POI("tavern")
+		dDoor := math.Hypot(p.X-tx, p.Y-ty)
+		t.Fatalf("корчмарь на смене должен стоять ВНУТРИ здания корчмы (у стойки), а не у двери: pos=(%.1f,%.1f), |до двери|=%.2f", p.X, p.Y, dDoor)
+	}
+	cx, cy, _, ok := l.TavernCounter()
+	if !ok {
+		t.Fatal("у стартовой раскладки должна быть стойка")
+	}
+	if d := math.Hypot(p.X-cx, p.Y-cy); d > 8 { // с учётом личного смещения/обхода у цели (как у TestNPCWalksToActivityPOI)
+		t.Fatalf("корчмарь должен осесть рядом со стойкой: |до стойки|=%.2f (pos %.1f,%.1f)", d, p.X, p.Y)
+	}
+	if Blocked(p.X, p.Y) {
+		t.Fatalf("корчмарь встал в стене: (%.2f,%.2f)", p.X, p.Y)
 	}
 }
 
