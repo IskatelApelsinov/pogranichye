@@ -327,7 +327,22 @@
         "slow": false,
         "weak": false,
         "blind": false,
-        "stun": false
+        "stun": false,
+        "windup": 0,
+        "wpos": {
+          "scheme": "yof-tangent",
+          "v": 1,
+          "frame": 0,
+          "e": 539.5,
+          "n": -27204.9,
+          "u": 131.4,
+          "ground": 131.4,
+          "z": 0,
+          "chunk": [2, -107],
+          "layer": 2,
+          "lat": 47.9553,
+          "lon": 12.5087
+        }
       }
     ],
     "market": [

@@ -152,8 +152,6 @@ func foeSpot(l *Layout, species string, settlement core.ID, n int) (float64, flo
 	return x, y
 }
 
-
-
 // --- подсев врагов из поголовья угодий ---
 
 // populateFoes поднимает в сцену горячего поселения зверей по РЕАЛЬНОМУ поголовью (и стан лихих людей).
@@ -297,7 +295,6 @@ func StepCombatAtHour(w *core.World, dt float64, hour int, controlled func(core.
 func stepFoe(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, dt float64, s *dice.Stream) {
 	stepFoeAtHour(w, fe, f, ps, dt, 12, s)
 }
-
 
 // hasHeldLight is server-authoritative: a torch/lantern must be in Hand, not merely in Items.
 // Timed magical light is the existing CombatC.Light countdown.
@@ -990,13 +987,101 @@ func FoesView(w *core.World, settlement core.ID) []map[string]any {
 		if f.Settlement != settlement {
 			return
 		}
-		out = append(out, map[string]any{
-			"id": eidStr(fe.ID), "kind": f.Species, "name": FoeName(f.Species),
-			"x": round1x(f.X), "y": round1x(f.Y), "facing": math.Round(f.Facing),
-			"hp": math.Round(math.Max(0, f.HP)), "max": f.Max, "state": f.State, "aware": f.Aware,
-			"slow": f.Slow, "weak": f.Weak, "blind": f.Blind > 0, "stun": f.Stun > 0,
-			"windup": round1x(f.Windup),
-		})
+		out = append(out, foeEntryBase(fe, f, f.X, f.Y))
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i]["id"].(string) < out[j]["id"].(string) })
+	return out
+}
+
+// foeWorldPos — каноническое мировое положение врага сцены: якорь его села + локальные X/Y. У FoeC
+// нет PlaceC/ScenePos, поэтому WorldPosOf к нему неприменим — считаем напрямую. ok=false — нет села.
+func foeWorldPos(w *core.World, t *Terrain, f *FoeC) (WorldPos, bool) {
+	if f == nil {
+		return WorldPos{}, false
+	}
+	s := settleOf(w, f.Settlement)
+	if s == nil {
+		return WorldPos{}, false
+	}
+	if t == nil {
+		t = NewTerrain(w)
+	}
+	ax, an := Anchor(w, s)
+	x, y := ax+f.X, an+f.Y
+	return WorldPosMeters(0, x, y, t.Height(x, y)), true
+}
+
+// FoeWorldPosView — поле wpos врага сцены для кадра (та же схема, что me.wpos/neighbors[].wpos, v1.23).
+func FoeWorldPosView(w *core.World, t *Terrain, f *FoeC) any {
+	p, ok := foeWorldPos(w, t, f)
+	if !ok {
+		return nil
+	}
+	return worldPosViewFrom(w, t, p)
+}
+
+func foeEntryBase(fe *core.Entity, f *FoeC, x, y float64) map[string]any {
+	return map[string]any{
+		"id": eidStr(fe.ID), "kind": f.Species, "name": FoeName(f.Species),
+		"x": round1x(x), "y": round1x(y), "facing": math.Round(f.Facing),
+		"hp": math.Round(math.Max(0, f.HP)), "max": f.Max, "state": f.State, "aware": f.Aware,
+		"slow": f.Slow, "weak": f.Weak, "blind": f.Blind > 0, "stun": f.Stun > 0,
+		"windup": round1x(f.Windup),
+	}
+}
+
+// aoiFoeRadiusM — радиус межсельской видимости врагов сцены (v1.23, остаток comms 0219 п.3): враг
+// ЧУЖОГО (но тоже горячего) села попадает в place.foes смотрящего, только если его реальная мировая
+// точка не дальше этого радиуса от смотрящего — у самой межи бандит соседнего села виден, но весь
+// чужой стан за километр в кадр не течёт (пространственно и детерминированно, п.4). Враги СВОЕГО
+// села отдаются как раньше, без радиуса (вся сцена поселения видна). ~одна сцена села (300 м).
+const aoiFoeRadiusM = 300.0
+
+// FoesViewAOI — враги сцены для кадра с межсельской областью видимости (place.foes, v1.23, остаток
+// comms 0219 п.3). В отличие от FoesView (только своё село по f.Settlement) ещё включает врагов
+// близких ГОРЯЧИХ сёл (в пределах aoiSettlementPrefilterM по якорям) в радиусе aoiFoeRadiusM от
+// смотрящего — так бандит соседнего села у самой межи не исчезает из кадра. Их x/y выражаются от
+// якоря СМОТРЯЩЕГО (как neighborRenderPos для соседей), к каждому врагу добавляется аддитивное поле
+// "wpos" (та же схема, что neighbors[].wpos) — клиент проецирует глобальную точку в свою локальную
+// сцену и держит стабильный id. Для мира без близких горячих соседей кандидат-село одно (своё),
+// поэтому список и порядок — РОВНО как у FoesView, плюс новое поле wpos. Дедуп невозможен структурно:
+// w.Each("foe") обходит каждую сущность ровно раз. viewer — тело смотрящего (для его мировой точки);
+// anchorE/anchorN — якорь села смотрящего (Anchor его Settlement).
+func FoesViewAOI(w *core.World, t *Terrain, viewer *core.Entity, origin core.ID, anchorE, anchorN float64) []map[string]any {
+	out := []map[string]any{}
+	if t == nil {
+		t = NewTerrain(w)
+	}
+	op, haveOp := WorldPos{}, false
+	if viewer != nil {
+		op, haveOp = WorldPosOf(w, t, viewer)
+	}
+	cand := AOICandidateSettlements(w, origin)
+	w.Each("foe", func(fe *core.Entity) {
+		f := Foe(fe)
+		if f == nil {
+			return
+		}
+		x, y := f.X, f.Y
+		if f.Settlement != origin {
+			// Чужое село: должно быть близким кандидатом И враг — в радиусе межсельской видимости.
+			if !cand[f.Settlement] || !haveOp {
+				return
+			}
+			fp, ok := foeWorldPos(w, t, f)
+			if !ok {
+				return
+			}
+			if d, ok := WorldDist(op, fp); !ok || d > aoiFoeRadiusM {
+				return
+			}
+			// та же мировая точка, выраженная от якоря смотрящего — его локальная сцена
+			fx, fy, _ := fp.Meters()
+			x, y = fx-anchorE, fy-anchorN
+		}
+		m := foeEntryBase(fe, f, x, y)
+		m["wpos"] = FoeWorldPosView(w, t, f) // v1.23: глобальная точка, как neighbors[].wpos
+		out = append(out, m)
 	})
 	sort.Slice(out, func(i, j int) bool { return out[i]["id"].(string) < out[j]["id"].(string) })
 	return out

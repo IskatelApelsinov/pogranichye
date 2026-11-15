@@ -282,6 +282,13 @@ func WorldPosViewUsing(t *Terrain, w *core.World, e *core.Entity) any {
 	if !ok {
 		return nil
 	}
+	return worldPosViewFrom(w, t, p)
+}
+
+// worldPosViewFrom — карта кадра для ГОТОВОЙ мировой точки (та же схема, что me.wpos/neighbors[].wpos).
+// Выделено из WorldPosViewUsing, чтобы её могли использовать и сущности без PlaceC (враги сцены,
+// у которых мировая точка = якорь села + локальные X/Y, а не Place+ScenePos). t обязателен.
+func worldPosViewFrom(w *core.World, t *Terrain, p WorldPos) map[string]any {
 	x, y, u := p.Meters()
 	cx, cz := p.Chunk()
 	ground := t.Height(x, y)

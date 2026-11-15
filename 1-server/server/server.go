@@ -1045,7 +1045,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"beer_price":     sim.BeerPrice,                                     // цена кружки
 				"tavern_counter": sim.TavernCounterView(s.world, pl.Settlement, se), // comms 0223: где стойка и прислуживает ли корчмарь — аддитивно, может быть nil
 				"neighbors":      neighbors,
-				"foes":           sim.AOIFoes(s.world, pl.Settlement, vanchorE, vanchorN),  // звери/лихие люди сцены + близких чужих сёл у межи (comms 0219 п.3, v1.23)
+				"foes":           sim.FoesViewAOI(s.world, terrain, e, pl.Settlement, vanchorE, vanchorN),  // звери/лихие люди сцены + близких чужих сёл у межи (comms 0219 п.3, v1.23)
 				"exits":          sim.ExitsView(s.world, e, pl.Settlement),                 // выезды: тракты к соседям и перевал (v1.15)
 				"site":           sim.SiteView(s.world, se),                                // место на планете и характер села (v1.14)
 				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                   // v1.19: центр села в мире; мир = anchor + pos
