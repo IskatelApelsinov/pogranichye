@@ -32,6 +32,9 @@
 - Критерий: дневной, вечерний и ночной кадры читаемы, без клиппинга и резких скачков экспозиции.
 
 ### G2 — единый стандарт материалов
+
+**Реализация Grok starter pack:** бинарные карты должны находиться в `Assets/Resources/WorldMaterials/Textures/Grok/`. Albedo именуются по поверхности; tangent-space OpenGL Y+ normal — с суффиксом `_n.png`. Импортёр: albedo sRGB On, normal sRGB Off + Texture Type Normal Map; Repeat + mipmaps. Runtime builder может использовать эти карты как необязательный fallback, но authored PBR карты проекта применяются поверх них и имеют приоритет. Roughness/AO в первом пакете нет; не выводить roughness из albedo и не считать Sobel-normal эквивалентом high-poly bake. См. comms 0247 и task 007.
+
 - Создать библиотеку URP/Lit материалов и согласованные shader variants.
 - PBR-наборы: albedo/base color, normal, mask/metallic-smoothness; использовать карты только там, где они дают заметный результат.
 - Материальные семейства: дерево, штукатурка, камень, грунт/грязь, солома/дранка, ткань, кожа, металл, керамика.
