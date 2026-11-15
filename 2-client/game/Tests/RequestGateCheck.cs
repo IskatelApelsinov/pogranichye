@@ -23,6 +23,15 @@ public static class RequestGateCheck
         Check(sent.Count == 1 && sent[0] == "a", "second request waits while the first is in flight");
         Check(!gate.Enqueue("A", "a-duplicate", pay("a-duplicate", "chop"), 0.15f),
             "identical action cannot be submitted twice while in flight");
+        Check(gate.ContainsDuplicate("A", new Dictionary<string, object>
+            { { "op", "act" }, { "action", "chop" } }),
+            "pending lookup works without a generated reqid");
+        var listGate = new RequestGate(p => { }, 6f, 2);
+        listGate.Enqueue("Weave", "w1", new Dictionary<string, object>
+            { { "reqid", "w1" }, { "op", "weave" }, { "nodes", new object[] { "fire", "wind" } } }, 0f);
+        Check(listGate.ContainsDuplicate("Weave", new Dictionary<string, object>
+            { { "op", "weave" }, { "nodes", new object[] { "fire", "wind" } } }),
+            "equivalent nested list payloads are compared structurally");
         Check(!gate.Enqueue("B", "b-duplicate", pay("b-duplicate", "fish"), 0.16f),
             "identical queued action cannot be duplicated");
         var distinctGate = new RequestGate(p => { }, 6f, 3);
