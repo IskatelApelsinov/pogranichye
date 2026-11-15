@@ -591,10 +591,12 @@ namespace Pogranichye.Client.Networking.Protocol
         /// <summary>True when the river band is real geometry inside the settlement land.</summary>
         public bool RiverPresent => River != null && (HasRiver ?? true);
 
-        public bool IsBlocked(double x, double y)
+        public bool IsBlocked(double x, double y) => IsBlocked(x, y, false);
+
+        private bool IsBlocked(double x, double y, bool allowOutsideSettlement)
         {
             var inside = x >= -WorldHalf && x <= WorldHalf && y >= -WorldHalf && y <= WorldHalf;
-            if (!inside && !Open) return true;
+            if (!inside && !Open && !allowOutsideSettlement) return true;
             if (Buildings != null)
                 foreach (var b in Buildings)
                 {
@@ -618,11 +620,18 @@ namespace Pogranichye.Client.Networking.Protocol
                 (x < River.BridgeX0 || x > River.BridgeX1);
         }
 
-        public Vector2 ResolveMove(Vector2 origin, Vector2 desired)
+        public Vector2 ResolveMove(Vector2 origin, Vector2 desired) => ResolveMove(origin, desired, false);
+
+        /// <summary>
+        /// Seamless-world prediction may leave the current settlement layout. The server remains
+        /// authoritative for the handover and terrain; this only stops stale settlement bounds
+        /// from acting as an invisible wall on the client.
+        /// </summary>
+        public Vector2 ResolveMove(Vector2 origin, Vector2 desired, bool allowOutsideSettlement)
         {
-            if (!IsBlocked(desired.x, desired.y)) return desired;
-            if (!IsBlocked(desired.x, origin.y)) return new Vector2(desired.x, origin.y);
-            if (!IsBlocked(origin.x, desired.y)) return new Vector2(origin.x, desired.y);
+            if (!IsBlocked(desired.x, desired.y, allowOutsideSettlement)) return desired;
+            if (!IsBlocked(desired.x, origin.y, allowOutsideSettlement)) return new Vector2(desired.x, origin.y);
+            if (!IsBlocked(origin.x, desired.y, allowOutsideSettlement)) return new Vector2(origin.x, desired.y);
             return origin;
         }
     }
