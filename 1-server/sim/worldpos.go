@@ -469,6 +469,13 @@ func StepLands(w *core.World, controlled func(core.ID) bool) {
 		}
 		EndTalk(e)
 		say(w, e, "road", "Межа позади: дальше лежат земли другого села.")
+		// comms 0234: бесшовный пеший переход должен расти как мир так же, как arrive() после
+		// тракта — иначе рост мира завязан только на journey/врата, а пешком за своё село выходишь
+		// в пустоту без новых якорей (P0.7 "пустой горизонт"). GoTo(w,e,"well") из arrive НЕ
+		// копируем: игрок уже непрерывно стоит на меже (WorldPos до/после совпадает), телепорт к
+		// колодцу сломал бы seamless. OpenFrontier сам идемпотентен (Opened/не-Outer/Max — no-op).
+		LearnVisited(w, e, best.id)
+		OpenFrontier(w, e, best.id)
 	}
 }
 

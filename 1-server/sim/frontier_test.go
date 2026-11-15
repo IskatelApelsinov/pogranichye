@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"testing"
 
 	"pogranichye/core"
@@ -147,5 +148,119 @@ func TestFrontierStatsReadOnlyAndAccurate(t *testing.T) {
 	st = FrontierStats(w)
 	if st["settlements"].(int) != base+3 || st["opened"].(int) != 1 || st["max"].(int) != base+100 {
 		t.Fatalf("статистика после открытия: %v", st)
+	}
+}
+
+// TestStepLandsOpensOuterFrontier — comms 0234 (P0.7 "пустой горизонт"): до этого PR рост мира был
+// завязан только на journey/врата (arrive→OpenFrontier), а бесшовный пеший переход между землями
+// (StepLands) молча менял Place/ScenePos, не открывая следующий край и не отмечая новое село
+// посещённым — пешком за свои земли игрок уходил в пустоту без новых якорей. Сценарий: Travel через
+// врата в первый внешний край (ring0), затем пешком (StepLands, без тракта/врат) — в один из
+// появившихся за ним сёл (ring1); этот шаг САМ должен открыть ring2, в точности как arrive().
+func TestStepLandsOpensOuterFrontier(t *testing.T) {
+	w, e, _ := starterPlayer(t)
+	SetSeamless(w, true)
+	var ring0 *core.Entity
+	w.Each("settlement", func(o *core.Entity) {
+		if ring0 == nil && isOuter(w, core.Settle(o)) {
+			ring0 = o
+		}
+	})
+	if ring0 == nil {
+		t.Skip("нет внешнего мира")
+	}
+	base := numSettlements(w)
+	ConfigureFrontier(w, FrontierCfgC{Enabled: true, Max: base + 50, Villages: 4, Folk: 5})
+	if ok, why := Travel(w, e, ring0.ID); !ok {
+		t.Fatalf("врата в ring0: %s", why)
+	}
+	if numSettlements(w) != base+4 {
+		t.Fatalf("Travel должен открыть ring1 (4 деревни): было %d, стало %d", base, numSettlements(w))
+	}
+	afterRing1 := numSettlements(w)
+
+	// найти свежее село ring1 — соседнее с ring0, физически достижимое пешком (оба Outer)
+	var ring1 *core.Entity
+	w.Each("settlement", func(o *core.Entity) {
+		if ring1 != nil || o.ID == ring0.ID {
+			return
+		}
+		if re := w.Get(core.Settle(o).Region); re != nil {
+			if f, _ := re.Get("frontier").(*FrontierC); f != nil && f.Ring == 1 {
+				ring1 = o
+			}
+		}
+	})
+	if ring1 == nil {
+		t.Fatal("ring1 должен существовать после Travel")
+	}
+
+	// пешком стоим прямо на землях ring1 (StepLands сам довершит переход и LearnVisited/OpenFrontier)
+	s0, s1 := core.Settle(ring0), core.Settle(ring1)
+	e0, n0 := Anchor(w, s0)
+	e1, n1 := Anchor(w, s1)
+	pl, p := core.Place(e), EnsureScenePos(w, e)
+	pl.Settlement = ring0.ID
+	p.X, p.Y = (e1-e0)+1, (n1-n0)+1 // на мгновение "видим" обе точки: де-факто уже внутри ring1
+	before := numSettlements(w)
+
+	StepLands(w, nil)
+
+	if pl.Settlement != ring1.ID {
+		t.Fatalf("StepLands должен перевести игрока на ring1 (%d), получили %d", ring1.ID, pl.Settlement)
+	}
+	if !knowsPlace(e, ring1.ID) {
+		t.Fatal("StepLands должен вызвать LearnVisited для нового села — как arrive()")
+	}
+	if numSettlements(w) != afterRing1+4 {
+		t.Fatalf("пеший переход в ring1 должен сам открыть ring2 (+4): было %d, стало %d", before, numSettlements(w))
+	}
+	// WorldPos (якорь нового села + локальная точка) должен совпасть с тем, где игрок физически
+	// стоял до перехода (e1,n1 — якорь ring1, плюс тот же (1,1) локальный остаток).
+	wx0, wy0 := e1+1, n1+1
+
+	// повторный StepLands на тех же землях — без дублирования края и без лишнего перехода
+	StepLands(w, nil)
+	if pl.Settlement != ring1.ID || numSettlements(w) != afterRing1+4 {
+		t.Fatal("повторный StepLands на тех же землях не должен открывать край снова")
+	}
+	e1b, n1b := Anchor(w, core.Settle(ring1))
+	wx1, wy1 := e1b+p.X, n1b+p.Y
+	if math.Abs(wx1-wx0) > 0.01 || math.Abs(wy1-wy0) > 0.01 {
+		t.Fatalf("WorldPos должен остаться непрерывным: было (%.3f,%.3f), стало (%.3f,%.3f)", wx0, wy0, wx1, wy1)
+	}
+}
+
+// TestStepLandsInnerDoesNotOpenFrontier — handover между двумя НЕ-outer (стартовыми) землями не
+// должен открывать/растить мир: стартовый котёл конечен по концепции (ADR 0003/0006).
+func TestStepLandsInnerDoesNotOpenFrontier(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	SetSeamless(w, true)
+	var other *core.Entity
+	w.Each("settlement", func(o *core.Entity) {
+		if other == nil && o.ID != se.ID && !isOuter(w, core.Settle(o)) {
+			other = o
+		}
+	})
+	if other == nil {
+		t.Skip("нужно хотя бы два стартовых (не-outer) села")
+	}
+	base := numSettlements(w)
+	ConfigureFrontier(w, FrontierCfgC{Enabled: true, Max: base + 50, Villages: 4, Folk: 5})
+
+	s0, s1 := core.Settle(se), core.Settle(other)
+	e0, n0 := Anchor(w, s0)
+	e1, n1 := Anchor(w, s1)
+	pl, p := core.Place(e), EnsureScenePos(w, e)
+	pl.Settlement = se.ID
+	p.X, p.Y = (e1-e0)+1, (n1-n0)+1
+
+	StepLands(w, nil)
+
+	if pl.Settlement != other.ID {
+		t.Fatalf("handover между стартовыми землями должен сработать как раньше: получили %d", pl.Settlement)
+	}
+	if numSettlements(w) != base {
+		t.Fatalf("стартовые земли не должны расти от пешего перехода: было %d, стало %d", base, numSettlements(w))
 	}
 }
