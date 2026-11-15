@@ -21,12 +21,21 @@ namespace Pogranichye.Client.Presentation
         public string Title { get; private set; }
         public string Goal { get; private set; }
         public string ActionIntent { get; private set; }
+        public string InteractionId { get; private set; }
+        public string Hint { get; private set; }
+        public string UnavailableReason { get; private set; }
+        public bool CanInteract { get; private set; } = true;
 
-        public void Initialize(string title, string goal, Renderer visual, Color color, string action = null)
+        public void Initialize(string title, string goal, Renderer visual, Color color, string action = null,
+            string interactionId = null, string hint = null, bool canInteract = true, string unavailableReason = null)
         {
             Title = title;
             Goal = goal;
             ActionIntent = action;
+            InteractionId = interactionId;
+            Hint = hint;
+            CanInteract = canInteract;
+            UnavailableReason = unavailableReason;
             _visual = visual;
             _baseColor = color;
             _propertyBlock = new MaterialPropertyBlock();
@@ -35,7 +44,7 @@ namespace Pogranichye.Client.Presentation
 
         public void RequestInteraction()
         {
-            if (enabled && (!string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(ActionIntent)))
+            if (enabled && CanInteract && (!string.IsNullOrEmpty(InteractionId) || !string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(ActionIntent)))
                 Selected?.Invoke(this);
         }
 
