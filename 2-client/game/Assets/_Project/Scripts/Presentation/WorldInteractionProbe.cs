@@ -148,7 +148,10 @@ namespace Pogranichye.Client.Presentation
             if (!hasTarget) return;
 
             var label = _poi != null
-                ? _poi.Title + "   [E]"
+                ? (_poi.CanInteract
+                    ? _poi.Title + (string.IsNullOrWhiteSpace(_poi.Hint) ? string.Empty : "\n" + _poi.Hint) + "   [E]"
+                    : _poi.Title + (string.IsNullOrWhiteSpace(_poi.UnavailableReason)
+                        ? "\nСейчас недоступно" : "\n" + _poi.UnavailableReason))
                 : "Поговорить: " + (string.IsNullOrWhiteSpace(_npc.DisplayName) ? "житель" : _npc.DisplayName) + "   [E]";
             var width = Mathf.Min(560f, Mathf.Max(180f, Screen.width - 32f));
             EnsurePromptStyle();
