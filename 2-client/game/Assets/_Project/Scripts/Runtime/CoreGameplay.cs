@@ -231,6 +231,7 @@ namespace Pogranichye.Client
         private GUIStyle _hintTextStyle;
         private GUIStyle _toastStyle;
         private Vector2 _menuScroll;
+        private Vector2 _marketRowsScroll;
         private float _regionMapZoom = 1f;
         private bool _weaveOpen;
         private readonly List<string> _pattern = new List<string>();
@@ -360,6 +361,32 @@ namespace Pogranichye.Client
                 DrawAttribute(stats, "intellect", "Ум");
                 DrawAttribute(stats, "perception", "Восприятие");
                 DrawAttribute(stats, "will", "Воля");
+                GUILayout.EndVertical();
+            }
+
+            // The six core attributes above are not the complete progression sheet.
+            // me.skills is an open-ended server dictionary: render every key received,
+            // rather than maintaining a client-side allow-list that silently hides new skills.
+            var skills = Obj(_me, "skills");
+            if (skills != null && skills.HasValues)
+            {
+                var skillRows = new List<JProperty>(skills.Properties());
+                skillRows.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
+                GUILayout.Space(6f);
+                GUILayout.Label("НАВЫКИ · развитие от занятий");
+                GUILayout.BeginVertical(GUI.skin.box);
+                foreach (var skill in skillRows)
+                {
+                    double value;
+                    if (skill.Value == null || !double.TryParse(skill.Value.ToString(),
+                        NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                        double.IsNaN(value) || double.IsInfinity(value)) continue;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(skill.Name));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.Label(value.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(52f));
+                    GUILayout.EndHorizontal();
+                }
                 GUILayout.EndVertical();
             }
 
@@ -2648,7 +2675,7 @@ namespace Pogranichye.Client
         }
 
         /// <summary>Compact, discoverable market controls shown at the physical market stall.</summary>
-        public void DrawMarketContextActions(int maxRows = 6)
+        public void DrawMarketContextActions()
         {
             if (!_active || _me == null || _place == null) return;
             var market = Arr(_place, "market");
@@ -2662,11 +2689,11 @@ namespace Pogranichye.Client
             var stash = Obj(_me, "stash");
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("ЛАВКА · МОНЕТЫ: " + coins.ToString("0.#", CultureInfo.InvariantCulture));
-            GUILayout.Label("Покупка кладёт товар в поклажу; продажа забирает его из поклажи. Каждая операция подтверждается сервером.");
-            var shown = 0;
+            GUILayout.Label("Полный ассортимент из place.market. Покупка кладёт товар в поклажу; продажа забирает его из поклажи. Каждая операция подтверждается сервером.");
+            _marketRowsScroll = GUILayout.BeginScrollView(_marketRowsScroll,
+                GUILayout.Height(Mathf.Min(300f, Mathf.Max(120f, Screen.height * 0.34f))));
             foreach (var row in market)
             {
-                if (shown++ >= Mathf.Max(1, maxRows)) break;
                 var good = Str(row, "good");
                 if (string.IsNullOrEmpty(good)) continue;
                 var stock = Num(row, "stock");
@@ -2675,7 +2702,7 @@ namespace Pogranichye.Client
                 var owned = Count(stash, good);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(Name(good) + " · запас " + stock.ToString("0.#", CultureInfo.InvariantCulture) +
-                    " · у тебя " + owned.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(260f));
+                    " · у тебя " + owned.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.MinWidth(210f));
                 var previousEnabled = GUI.enabled;
                 GUI.enabled = previousEnabled && stock >= 1f && coins >= buyPrice;
                 if (GUILayout.Button("Купить · " + buyPrice.ToString("0.#", CultureInfo.InvariantCulture),
@@ -2688,6 +2715,7 @@ namespace Pogranichye.Client
                 GUI.enabled = previousEnabled;
                 GUILayout.EndHorizontal();
             }
+            GUILayout.EndScrollView();
             GUILayout.EndVertical();
         }
 
