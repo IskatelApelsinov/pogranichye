@@ -69,3 +69,10 @@ If an implementation requires new server-owned state or an intent, stop and send
 - Added pure C# regression cases for duplicate in-flight requests, duplicate queued requests and same-label/different-payload requests.
 - This is a safety net at the shared request boundary, not a visual disabled-button treatment. The remaining UI pass should add visible per-control pending states where they materially help.
 - Validation is pending a PR workflow run. No Unity Editor, PlayMode or live-server test is claimed.
+
+
+## CI verification — 2026-11-15
+
+- PR #648: Unity-independent C# workflow run [#43754354166](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43754354166) completed successfully on commit `f006cf7`.
+- This run covers the shared RequestGate regression runner and the repository's independent C# checks. It does not compile the Unity project or verify IMGUI visuals / live-server behavior.
+- PR #648 remains draft/open; no merge was performed.
