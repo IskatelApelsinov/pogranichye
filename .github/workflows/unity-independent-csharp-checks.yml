@@ -46,6 +46,10 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/WorldOriginState.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/WorldChunkStreamingPolicy.cs'
+      - '2-client/game/Tests/WorldOriginStateCheck.cs'
+      - '2-client/game/Tests/WorldChunkStreamingPolicyCheck.cs'
       - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
       - '2-client/game/Tests/CardGameFrameParserCheck.cs'
       - '2-client/game/Tests/CharacterMenuHotkeyPolicyCheck.cs'
@@ -129,6 +133,16 @@ jobs:
         run: |
           mcs -out:/tmp/hex-cell-streaming-policy.exe Tests/HexCellStreamingPolicyCheck.cs Assets/_Project/Scripts/World/HexCellCoordinate.cs Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs
           mono /tmp/hex-cell-streaming-policy.exe
+      - name: Floating origin precision and rebase regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-origin-state.exe Tests/WorldOriginStateCheck.cs Assets/_Project/Scripts/World/WorldOriginState.cs
+          mono /tmp/world-origin-state.exe
+      - name: Square world chunk streaming regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-chunk-streaming.exe Tests/WorldChunkStreamingPolicyCheck.cs Assets/_Project/Scripts/World/WorldChunkStreamingPolicy.cs
+          mono /tmp/world-chunk-streaming.exe
       - name: Foe presentation policy regression checks
         working-directory: 2-client/game
         run: |
