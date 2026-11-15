@@ -47,10 +47,10 @@ internal static class WorldOriginStateCheck
             "small movement does not rebase");
         Equal(generation, state.Generation, "generation unchanged without rebase");
 
-        True(state.TryRebase(new WorldOriginPosition(0, 1002100d, -1_999_900d, 200d),
+        True(state.TryRebase(new WorldOriginPosition(0, 1002100d, -1999900d, 200d),
             2048d, 256d, 64d, out var shift), "large movement rebases");
         Near(1001984d, shift.Current.East, 1e-9, "east snaps to 256m grid");
-        Near(-1_999_872d, shift.Current.North, 1e-9, "north snaps to 256m grid");
+        Near(-1999872d, shift.Current.North, 1e-9, "north snaps to 256m grid");
         Near(192d, shift.Current.Up, 1e-9, "up snaps to 64m grid");
         Equal(generation + 1, state.Generation, "generation increments once");
         True(state.TryToLocal(new WorldOriginPosition(0, 1002120d, -1999870d, 193d), out local),
