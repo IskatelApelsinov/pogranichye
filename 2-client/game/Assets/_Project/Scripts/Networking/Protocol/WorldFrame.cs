@@ -456,10 +456,33 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("seamless")] public bool Seamless { get; set; }
         [JsonProperty("frames")] public List<WorldMapFrame> Frames { get; set; }
         [JsonProperty("rim_radius_m")] public double RimRadiusMeters { get; set; }
+        // Optional server-authored low-detail cauldron mountain profile for the distant horizon.
+        [JsonProperty("rim")] public CauldronRimFrame Rim { get; set; }
         [JsonProperty("settlements")] public List<WorldSettlementFrame> Settlements { get; set; }
         [JsonProperty("roads")] public List<WorldRoadFrame> Roads { get; set; }
         // v1.21: deterministic wilderness landmarks outside settlement layouts.
         [JsonProperty("wildsites")] public List<WorldWildSiteFrame> WildSites { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CauldronRimFrame
+    {
+        [JsonProperty("center_e")] public double CenterEast { get; set; }
+        [JsonProperty("center_n")] public double CenterNorth { get; set; }
+        [JsonProperty("samples")] public List<CauldronRimSampleFrame> Samples { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CauldronRimSampleFrame
+    {
+        // Degrees from +East, counter-clockwise toward +North.
+        [JsonProperty("angle_deg")] public double AngleDegrees { get; set; }
+        [JsonProperty("inner_radius_m")] public double InnerRadiusMeters { get; set; }
+        [JsonProperty("crest_radius_m")] public double CrestRadiusMeters { get; set; }
+        [JsonProperty("outer_radius_m")] public double OuterRadiusMeters { get; set; }
+        [JsonProperty("inner_ground_m")] public double InnerGroundMeters { get; set; }
+        [JsonProperty("crest_m")] public double CrestMeters { get; set; }
+        [JsonProperty("outer_ground_m")] public double OuterGroundMeters { get; set; }
     }
 
     [Serializable]
