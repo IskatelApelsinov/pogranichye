@@ -110,3 +110,8 @@ The optional H-toggle hint strip was reduced to first-play essentials (movement,
 ## Request de-duplication — 2026-11-15
 
 The shared RequestGate rejects an identical pending request (same visible action label and payload, ignoring generated reqid) before it can be sent twice. The tavern beer and card-game buttons additionally become visibly disabled while that exact action is pending. Different payloads under the same label remain available. This is a client UX safeguard only; server validation and outcomes remain authoritative. Pure C# CI passed in run #43754354166; Unity visual/runtime acceptance remains pending.
+
+
+## Panel navigation follow-up — 2026-11-15
+
+The character/journal panel has an explicit top-right close affordance in addition to the existing Tab toggle. Closing it releases character-menu input capture. This source-level change still needs Unity PlayMode verification for cursor and movement behavior.
