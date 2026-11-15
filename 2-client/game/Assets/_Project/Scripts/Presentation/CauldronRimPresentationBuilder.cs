@@ -14,12 +14,18 @@ namespace Pogranichye.Client.Presentation
     {
         private const string ObjectName = "ServerCauldronMountainRimLOD";
         private static Material _material;
+        private static CauldronRimFrame _lastRim;
+        private static double _lastAnchorEast = double.NaN;
+        private static double _lastAnchorNorth = double.NaN;
+        private static double _lastAnchorUp = double.NaN;
 
         public static void Clear(Transform root)
         {
             if (root == null) return;
             var old = root.Find(ObjectName);
             if (old != null) UnityEngine.Object.Destroy(old.gameObject);
+            _lastRim = null;
+            _lastAnchorEast = _lastAnchorNorth = _lastAnchorUp = double.NaN;
         }
 
         public static void BuildOrUpdate(Transform root, CauldronRimFrame rim, WorldAnchorFrame anchor)
@@ -31,6 +37,12 @@ namespace Pogranichye.Client.Presentation
                 Clear(root);
                 return;
             }
+
+            if (ReferenceEquals(_lastRim, rim) &&
+                Math.Abs(_lastAnchorEast - anchor.East) < 0.001 &&
+                Math.Abs(_lastAnchorNorth - anchor.North) < 0.001 &&
+                Math.Abs(_lastAnchorUp - anchor.Up) < 0.001)
+                return;
 
             var samples = rim.Samples;
             var vertices = new Vector3[samples.Count * 3];
@@ -115,6 +127,20 @@ namespace Pogranichye.Client.Presentation
             meshFilter.sharedMesh = mesh;
             if (oldMesh != null) UnityEngine.Object.Destroy(oldMesh);
             // Deliberately no MeshCollider: the server owns the impassable boundary.
+            _lastRim = rim;
+            _lastAnchorEast = anchor.East;
+            _lastAnchorNorth = anchor.North;
+            _lastAnchorUp = anchor.Up;
+        }
+
+        public static float RequiredFarClip(CauldronRimFrame rim)
+        {
+            if (rim?.Samples == null) return 0f;
+            var outer = 0d;
+            foreach (var sample in rim.Samples)
+                if (sample != null && Finite(sample.OuterRadiusMeters))
+                    outer = Math.Max(outer, sample.OuterRadiusMeters);
+            return outer > 0d ? Mathf.Clamp((float)(outer * 2.05d + 500d), 1000f, 60000f) : 0f;
         }
 
         private static bool Valid(CauldronRimSampleFrame sample)
