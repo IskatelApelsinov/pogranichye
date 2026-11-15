@@ -65,7 +65,8 @@ namespace Pogranichye.Client.Networking
                 CombatFrameParser.Validate(me["combat"], "me.combat");
                 JourneyFrameParser.Validate(me["journey"], "me.journey");
                 QuestsFrameParser.Validate(me["quests"], "me.quests");
-                StatsFrameParser.Validate(me["stats"], "me.stats");
+                // Stats are presentation/gameplay values, not a reason to reject the whole world snapshot.
+                // Keep the raw DTO conversion tolerant; missing or malformed stats must not block world entry.
                 CarryBagFrameParser.Validate(me["bag"], "me.bag");
                 HorseFrameParser.Validate(me["horse"], "me.horse");
                 RegionFrameParser.Validate(me["region"], "me.region");
