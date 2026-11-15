@@ -62,6 +62,7 @@ namespace Pogranichye.Client.Networking
                     throw new FormatException("В живом кадре отсутствует объект me.");
                 RequireStringId(me["id"], "me.id");
                 ActionResultFrameParser.Validate(me["result"], "me.result");
+                CardGameFrameParser.Validate(me["card_game"], "me.card_game");
                 CombatFrameParser.Validate(me["combat"], "me.combat");
                 JourneyFrameParser.Validate(me["journey"], "me.journey");
                 QuestsFrameParser.Validate(me["quests"], "me.quests");

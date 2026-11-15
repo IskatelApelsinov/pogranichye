@@ -107,3 +107,18 @@ Client task #015 is implemented in stacked PR #642: `place.tavern_counter` is no
 - Reduced building-sign range to 24 m and NPC/world-label range to 45 m; increased the physical glyph size on the settlement and starter signs.
 - Added pure C# regression checks for range, facing threshold, and the reserved occluder layer. GitHub Actions result is pending; Unity Editor/PlayMode has not been run.
 - Runtime acceptance still required: inspect signs from both sides of the tavern/shops, verify that walls hide nameplates, and confirm text readability at normal gameplay distance.
+
+
+## Client continuation status — 2026-11-15
+
+| Slice | PR / source | Independent CI | Remaining gate |
+|---|---|---|---|
+| Initial full-frame startup buffering (socket-scoped warm-up) | PR #647 | Run #43750702065 passed | Unity reconnect/startup test; PR is clean but based on an older main SHA |
+| Generated POI raycast/forest compatibility mapping | PR #646 | Run #43751274116 passed | PR branch is dirty against current main and needs rebase/port before merge; Unity generated-settlement test |
+| First-play UI, duplicate action guard, panel close, progressive disclosure | PR #648 | Run #43754902105 passed | Unity compile + visual/input acceptance at target resolutions |
+| Typed card-game state + privacy validation + typed CoreGameplay consumer | PR #649 | Run #43755452041 passed | Unity compile + actual Ochko/Durak playtest |
+| Cauldron mountain rim visual DTO/builder | main commits `0227961`–`c77e3f4` | no Unity CI | Claude must send `world.rim` profile and authoritative movement boundary; then Unity runtime test |
+
+All PRs remain open drafts; none was merged. Pure C# CI does not prove a Unity build or live-server scenario.
+
+Server-owned frontier/chunk/tavern tasks 009–013 remain Claude's responsibility. Client must not fake missing terrain content, POIs, resources, NPCs or activities while waiting for those server descriptors.

@@ -8,6 +8,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs'
@@ -45,6 +46,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
+      - '2-client/game/Tests/CardGameFrameParserCheck.cs'
       - '2-client/game/Tests/CharacterMenuHotkeyPolicyCheck.cs'
       - '2-client/game/Tests/CombatFoeFrameParserCheck.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
@@ -181,6 +183,13 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
           mono /tmp/horse-stats-frame.exe
+      - name: Typed card game frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/card-game-frame.exe Tests/CardGameFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs
+          mono /tmp/card-game-frame.exe
       - name: Typed regional map frame regression checks
         working-directory: 2-client/game
         run: |
@@ -200,6 +209,12 @@ jobs:
         run: |
           mcs -out:/tmp/layout-poi-interactions.exe Tests/WorldLayoutPoiInteractionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs
           mono /tmp/layout-poi-interactions.exe
+
+      - name: Initial full-frame socket ownership regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/initial-full-frame-buffer.exe Tests/InitialFullFrameBufferCheck.cs Assets/_Project/Scripts/Runtime/InitialFullFrameBuffer.cs
+          mono /tmp/initial-full-frame-buffer.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game

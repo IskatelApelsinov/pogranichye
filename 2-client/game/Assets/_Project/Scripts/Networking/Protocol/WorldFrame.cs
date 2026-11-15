@@ -81,47 +81,6 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
-    public sealed class CardGameFrame
-    {
-        [JsonProperty("game")] public string Game { get; set; }
-        [JsonProperty("phase")] public string Phase { get; set; }
-        [JsonProperty("stake")] public double Stake { get; set; }
-        [JsonProperty("done")] public bool Done { get; set; }
-        [JsonProperty("result")] public string Result { get; set; }
-        [JsonProperty("message")] public string Message { get; set; }
-        [JsonProperty("player")] public List<CardGameCardFrame> Player { get; set; }
-        // Ochko exposes one dealer card until settlement; Durak exposes only the count.
-        [JsonProperty("dealer")] public List<CardGameCardFrame> Dealer { get; set; }
-        [JsonProperty("dealer_cards")] public int DealerCardCount { get; set; }
-        [JsonProperty("ptotal")] public int PlayerTotal { get; set; }
-        [JsonProperty("dtotal")] public int? DealerTotal { get; set; }
-        [JsonProperty("hidden")] public int HiddenDealerCards { get; set; }
-        [JsonProperty("trump")] public string Trump { get; set; }
-        [JsonProperty("trump_card")] public string TrumpCard { get; set; }
-        [JsonProperty("deck")] public int DeckCount { get; set; }
-        [JsonProperty("attacker")] public string Attacker { get; set; }
-        [JsonProperty("role")] public string Role { get; set; }
-        [JsonProperty("your_turn")] public bool YourTurn { get; set; }
-        [JsonProperty("table")] public List<DurakTablePairFrame> Table { get; set; }
-    }
-
-    [Serializable]
-    public sealed class CardGameCardFrame
-    {
-        [JsonProperty("c")] public string Code { get; set; }
-        [JsonProperty("v")] public int Value { get; set; }
-        [JsonProperty("rank")] public int Rank { get; set; }
-        [JsonProperty("suit")] public string Suit { get; set; }
-    }
-
-    [Serializable]
-    public sealed class DurakTablePairFrame
-    {
-        [JsonProperty("a")] public CardGameCardFrame Attack { get; set; }
-        [JsonProperty("d")] public CardGameCardFrame Defence { get; set; }
-    }
-
-    [Serializable]
     public sealed class RoomFrame
     {
         [JsonProperty("id")] public string Id { get; set; }
