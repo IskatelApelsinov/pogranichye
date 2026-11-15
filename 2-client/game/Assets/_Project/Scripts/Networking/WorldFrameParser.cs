@@ -89,6 +89,8 @@ namespace Pogranichye.Client.Networking
                     if (place.Type != JTokenType.Object)
                         throw new FormatException("Поле place должно быть объектом.");
                     ValidateWorldAnchor(place["anchor"], "place.anchor");
+                    // Optional POI metadata must not reject the authoritative world snapshot.
+                    NormalizeTavernCounterForClient(place);
                     TavernCounterFrameParser.Validate(place["tavern_counter"], "place.tavern_counter");
                     FoeFrameParser.Validate(place["foes"], "place.foes");
                     ValidatePlaceRooms(place["rooms"], "place.rooms");
@@ -182,6 +184,26 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+        private static void NormalizeTavernCounterForClient(JToken placeToken)
+        {
+            var place = placeToken as JObject;
+            if (place == null) return;
+
+            var counter = place["tavern_counter"];
+            if (counter == null || counter.Type == JTokenType.Null) return;
+
+            try
+            {
+                TavernCounterFrameParser.Validate(counter, "place.tavern_counter");
+            }
+            catch (FormatException)
+            {
+                // Invalid optional geometry means the interaction is unavailable.
+                // Do not invent coordinates or radius; hide this POI for this frame.
+                place["tavern_counter"] = JValue.CreateNull();
+            }
+        }
 
         private static void NormalizeStatsForClient(JToken meToken)
         {
