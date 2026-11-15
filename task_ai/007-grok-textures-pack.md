@@ -6,20 +6,20 @@
 
 ## Цель
 
-Подключить стартовый набор бесшовных 512×512 albedo-текстур к существующим presentation materials поселения, сохранив fallback и авторские PBR-карты проекта.
+Подключить стартовый набор бесшовных albedo-текстур к существующим presentation materials поселения, сохранив fallback и авторские PBR-карты проекта.
 
 ## Сделано
 
-- Grok описал 10 albedo и 10 tangent-space normal maps (Sobel по luminance, OpenGL Y+).
+- В канонической папке `grok/textures/grok/` найдено 58 albedo + 58 tangent-space normal maps (OpenGL Y+), всего 116 PNG.
 - Документы: `textures/grok/README.md`, `3-dev/docs/NORMAL-MAPS-GENERATION.md`.
 - Канонический источник: `grok/textures/grok/`; Unity Resources — синхронизируемая копия.
 - Runtime builder получил необязательную загрузку Grok maps; при отсутствии PNG остаются прежние procedural материалы.
 - Unity importer распознаёт суффикс `_n` как Normal Map, sRGB Off.
 - Авторские карты (например packed-road PBR) имеют приоритет над Grok fallback.
 
-## Бинарные файлы — блокер
+## Бинарные файлы — найдены, импорт в Unity ожидает запуска
 
-На GitHub main в текущей проверке отсутствуют все PNG Grok: там только README и описание. В comms 0176/0177 указано, что бинарники находятся в artifacts владельца, но доступного файла для импорта в репозиторий сейчас нет. Не отмечать текстуры как импортированные/визуально проверенные до появления реальных PNG.
+Бинарники уже присутствуют в `grok/textures/grok/`: 116 PNG, 58 albedo + 58 normal, около 22.2 MB. Это канонический источник. Unity Resources — генерируемая копия; синхронизация выполняется Editor-командой `Tools → Pogranichye → Art → Import Grok Texture Pack` из `GrokTexturePackSync.cs`. Команду ещё должен запустить владелец в Unity. Не отмечать карты импортированными или визуально проверенными до этого шага и Game View-приёмки.
 
 ## Соответствия
 
