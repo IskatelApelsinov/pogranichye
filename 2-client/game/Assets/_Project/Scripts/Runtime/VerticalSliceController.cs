@@ -312,6 +312,32 @@ namespace Pogranichye.Client
                 _core?.SetExternalCharacterMenuOpen(!_hudCollapsed);
             }
 
+            // Dedicated section keys open the character journal directly. They are processed
+            // before movement gating so the same key press cannot leak into gameplay movement.
+            var characterHotkey = _input == null
+                ? CharacterMenuHotkeySection.None
+                : CharacterMenuHotkeyPolicy.Resolve(_input.InventoryMenuPressed,
+                    _input.JournalMenuPressed, _input.MapMenuPressed);
+            if (_connectionState == WorldConnectionState.Active && !_systemMenuOpen &&
+                !_chatOpen && _activityMiniGame == ActivityMiniGame.None &&
+                characterHotkey != CharacterMenuHotkeySection.None)
+            {
+                switch (characterHotkey)
+                {
+                    case CharacterMenuHotkeySection.Inventory:
+                        _hudTab = HudTab.Inventory;
+                        break;
+                    case CharacterMenuHotkeySection.Journal:
+                        _hudTab = HudTab.Journal;
+                        break;
+                    case CharacterMenuHotkeySection.Map:
+                        _hudTab = HudTab.Map;
+                        break;
+                }
+                _hudCollapsed = false;
+                _core?.SetExternalCharacterMenuOpen(true);
+            }
+
             if (_input != null && _input.ToggleHudPressed)
                 SetSystemMenuOpen(!_systemMenuOpen);
             else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
@@ -434,9 +460,9 @@ namespace Pogranichye.Client
 
                 GUILayout.BeginHorizontal();
                 DrawHudTabButton("Сводка", HudTab.Character);
-                DrawHudTabButton("Инвентарь", HudTab.Inventory);
-                DrawHudTabButton("Журнал", HudTab.Journal);
-                DrawHudTabButton("Карта", HudTab.Map);
+                DrawHudTabButton("Инвентарь [I]", HudTab.Inventory);
+                DrawHudTabButton("Задания [J]", HudTab.Journal);
+                DrawHudTabButton("Карта [M]", HudTab.Map);
                 GUILayout.EndHorizontal();
                 GUILayout.Space(8f);
 
@@ -457,7 +483,7 @@ namespace Pogranichye.Client
                 }
 
                 GUILayout.Space(8f);
-                GUILayout.Label("Tab — закрыть меню персонажа · Esc — системные настройки");
+                GUILayout.Label("Tab — открыть/закрыть · I — инвентарь · J — задания · M — карта · Esc — настройки");
                 GUILayout.Label(_status, GUILayout.Height(56));
                 GUILayout.EndScrollView();
                 GUILayout.EndArea();
@@ -810,7 +836,7 @@ namespace Pogranichye.Client
             if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
             if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
             GUILayout.EndHorizontal();
-            GUILayout.Label("G — начать рубку у леса · J — начать рыбалку у воды. Нужен топор/удочка в руке.");
+            GUILayout.Label("G — начать рубку у леса · K — начать рыбалку у воды. Нужен топор/удочка в руке.");
             GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
             if (me.Weave != null)
             {
@@ -2099,7 +2125,7 @@ namespace Pogranichye.Client
             GUILayout.Label("МЕСТНОЕ ДЕЛО");
             GUILayout.BeginHorizontal();
             if (atWoods) DrawContextToolAction("axe", 8, "Топор", ActivityMiniGame.Woodcutting, "G");
-            if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "J");
+            if (atRiver) DrawContextToolAction("rod", 6, "Удочка", ActivityMiniGame.Fishing, "K");
             GUILayout.EndHorizontal();
 
             if (atMine || atGarden || atSmithy)

@@ -20,6 +20,7 @@ namespace Pogranichye.Client
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
         private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
+        private InputAction _openInventory, _openJournal, _openMap;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
         private InputAction _chat, _voicePushToTalk;
@@ -41,6 +42,9 @@ namespace Pogranichye.Client
         public bool ToggleDiagnosticsPressed => _toggleDiagnostics.WasPressedThisFrame();
         public bool ToggleFullscreenPressed => _toggleFullscreen.WasPressedThisFrame();
         public bool MenuPressed => _menu.WasPressedThisFrame();
+        public bool InventoryMenuPressed => _openInventory.WasPressedThisFrame();
+        public bool JournalMenuPressed => _openJournal.WasPressedThisFrame();
+        public bool MapMenuPressed => _openMap.WasPressedThisFrame();
         public bool CancelPressed => _cancel.WasPressedThisFrame();
         public bool ChatPressed => _chat.WasPressedThisFrame();
         public bool VoicePushToTalkHeld => _voicePushToTalk != null && _voicePushToTalk.IsPressed();
@@ -92,6 +96,9 @@ namespace Pogranichye.Client
             _toggleDiagnostics = Button("ToggleDiagnostics", "<Keyboard>/f3");
             _toggleFullscreen = Button("ToggleFullscreen", "<Keyboard>/f11");
             _menu = Button("Menu", "<Keyboard>/tab");
+            _openInventory = Button("OpenInventory", CharacterMenuHotkeyPolicy.InventoryBinding);
+            _openJournal = Button("OpenJournal", CharacterMenuHotkeyPolicy.JournalBinding);
+            _openMap = Button("OpenMap", CharacterMenuHotkeyPolicy.MapBinding);
             _cancel = Button("Cancel", "<Keyboard>/escape");
             _chat = Button("Chat", "<Keyboard>/t");
             _voicePushToTalk = Button("VoicePushToTalk", "<Keyboard>/p");
@@ -109,7 +116,7 @@ namespace Pogranichye.Client
             _trickSneak = Button("TrickSneak", "<Keyboard>/c");
             _cycleStance = Button("CycleStance", "<Keyboard>/n");
             _startWoodcut = Button("StartWoodcut", "<Keyboard>/g");
-            _startFishing = Button("StartFishing", "<Keyboard>/j");
+            _startFishing = Button("StartFishing", CharacterMenuHotkeyPolicy.FishingBinding);
             _lockTarget = _actions.AddAction("LockTarget", InputActionType.Button);
             _lockTarget.AddBinding("<Keyboard>/capsLock");
             _lockTarget.AddBinding("<Mouse>/middleButton");
@@ -184,13 +191,16 @@ namespace Pogranichye.Client
                 if (keyboard.spaceKey.isPressed) keys.Add("Space");
                 if (keyboard.eKey.isPressed) keys.Add("E");
                 if (keyboard.tabKey.isPressed) keys.Add("Tab");
+                if (keyboard.iKey.isPressed) keys.Add("I (инвентарь)");
+                if (keyboard.jKey.isPressed) keys.Add("J (задания)");
+                if (keyboard.mKey.isPressed) keys.Add("M (карта)");
+                if (keyboard.kKey.isPressed) keys.Add("K (рыбалка)");
                 if (keyboard.escapeKey.isPressed) keys.Add("Esc");
                 if (keyboard.rKey.isPressed) keys.Add("R");
                 if (keyboard.backspaceKey.isPressed) keys.Add("Backspace");
                 if (keyboard.qKey.isPressed) keys.Add("Q");
                 if (keyboard.fKey.isPressed) keys.Add("F");
                 if (keyboard.gKey.isPressed) keys.Add("G");
-                if (keyboard.jKey.isPressed) keys.Add("J");
                 if (keyboard.capsLockKey.isPressed) keys.Add("Caps");
                 if (keyboard.tKey.isPressed) keys.Add("T");
                 if (keyboard.pKey.isPressed) keys.Add("P (голос)");
