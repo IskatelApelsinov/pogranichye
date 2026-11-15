@@ -67,6 +67,7 @@ namespace Pogranichye.Client.Networking
                 QuestsFrameParser.Validate(me["quests"], "me.quests");
                 // Stats are presentation/gameplay values, not a reason to reject the whole world snapshot.
                 // Keep the raw DTO conversion tolerant; missing or malformed stats must not block world entry.
+                NormalizeStatsForClient(me);
                 CarryBagFrameParser.Validate(me["bag"], "me.bag");
                 HorseFrameParser.Validate(me["horse"], "me.horse");
                 RegionFrameParser.Validate(me["region"], "me.region");
@@ -181,6 +182,35 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+        private static void NormalizeStatsForClient(JToken meToken)
+        {
+            var me = meToken as JObject;
+            if (me == null) return;
+
+            var source = me["stats"] as JObject;
+            var normalized = new JObject();
+            foreach (var key in new[] { "strength", "agility", "endurance", "intellect", "perception", "will" })
+            {
+                var token = source != null ? source[key] : null;
+                double value;
+                if (token == null ||
+                    (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
+                    !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                    double.IsNaN(value) || double.IsInfinity(value))
+                    value = 0d;
+
+                normalized[key] = value;
+            }
+
+            // Keep unknown future fields so additive protocol extensions remain available.
+            if (source != null)
+                foreach (var property in source.Properties())
+                    if (normalized[property.Name] == null)
+                        normalized[property.Name] = property.Value.DeepClone();
+
+            me["stats"] = normalized;
+        }
 
         private static void ValidateWorldPosition(JToken token, string fieldName)
         {
