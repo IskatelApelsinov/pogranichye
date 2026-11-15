@@ -2405,11 +2405,11 @@ namespace Pogranichye.Client
             GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
             if (game == null || string.IsNullOrEmpty(game.Game))
             {
-                GUILayout.Label("Сыграйте с корчмарём. Сервер проверит, что вы находитесь у карточного стола.");
+                GUILayout.Label("Сыграйте с корчмарём. Ставку и возможность начать подтвердит сервер.");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Очко · ставка 10"))
+                if (GUILayout.Button("Начать «Очко»"))
                     QueueCardGameAction("ochko", "start");
-                if (GUILayout.Button("Дурак · ставка 10"))
+                if (GUILayout.Button("Начать «Дурак»"))
                     QueueCardGameAction("durak", "start");
                 GUILayout.EndHorizontal();
             }
