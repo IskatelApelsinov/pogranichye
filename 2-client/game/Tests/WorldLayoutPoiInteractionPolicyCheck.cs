@@ -18,15 +18,15 @@ internal static class WorldLayoutPoiInteractionPolicyCheck
         Check("tavern maps to existing socialize goal",
             WorldLayoutPoiInteractionPolicy.TryResolve("tavern", out interaction) &&
             interaction.Goal == "socialize" && interaction.ActionIntent == null);
-        Check("smithy maps to existing work goal",
+        Check("smithy maps to server forge action on E",
             WorldLayoutPoiInteractionPolicy.TryResolve("smithy", out interaction) &&
-            interaction.Goal == "work" && interaction.ActionIntent == null);
+            interaction.Goal == null && interaction.ActionIntent == "forge");
         Check("market maps to existing eat goal",
             WorldLayoutPoiInteractionPolicy.TryResolve("market", out interaction) &&
             interaction.Goal == "eat" && interaction.ActionIntent == null);
-        Check("garden maps to existing work goal",
+        Check("garden maps to server gather action on E",
             WorldLayoutPoiInteractionPolicy.TryResolve("garden", out interaction) &&
-            interaction.Goal == "work" && interaction.ActionIntent == null);
+            interaction.Goal == null && interaction.ActionIntent == "gather");
         Check("woods maps to existing chop action",
             WorldLayoutPoiInteractionPolicy.TryResolve("woods", out interaction) &&
             interaction.Goal == null && interaction.ActionIntent == "chop");
