@@ -61,16 +61,19 @@ namespace Pogranichye.Client.Networking.Protocol
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
             if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
-            foreach (var key in Keys) RequireNumber(obj[key], path + "." + key, 0d);
+            foreach (var key in Keys) RequireFiniteNumber(obj[key], path + "." + key);
         }
 
-        private static void RequireNumber(JToken token, string path, double min)
+        private static void RequireFiniteNumber(JToken token, string path)
         {
+            // Characteristics have no gameplay hard cap and may legitimately be negative
+            // during migration/legacy-state recovery. Validate only wire shape and finiteness;
+            // never reject an otherwise usable world frame because of a stat range.
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
                 !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < min)
-                throw new FormatException(path + " содержит некорректное значение характеристики.");
+                double.IsNaN(value) || double.IsInfinity(value))
+                throw new FormatException(path + " должно быть конечным числом.");
         }
     }
 
