@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -40,7 +41,11 @@ namespace Pogranichye.Client.Editor
                 DestinationAssetPath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(destination);
 
+            var sourceNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files) sourceNames.Add(Path.GetFileName(file));
+
             var copied = 0;
+            var removed = 0;
             try
             {
                 AssetDatabase.StartAssetEditing();
@@ -53,6 +58,14 @@ namespace Pogranichye.Client.Editor
                         copied++;
                     }
                 }
+
+                // Keep the generated Resources folder an exact PNG mirror of the canonical source.
+                foreach (var existing in Directory.GetFiles(destination, "*.png", SearchOption.TopDirectoryOnly))
+                {
+                    if (sourceNames.Contains(Path.GetFileName(existing))) continue;
+                    File.Delete(existing);
+                    removed++;
+                }
             }
             finally
             {
@@ -60,7 +73,7 @@ namespace Pogranichye.Client.Editor
             }
 
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            var configured = 0;
+            var reimported = 0;
             foreach (var file in files)
             {
                 var assetPath = DestinationAssetPath + "/" + Path.GetFileName(file);
@@ -69,8 +82,20 @@ namespace Pogranichye.Client.Editor
 
                 var isNormal = Path.GetFileNameWithoutExtension(file)
                     .EndsWith("_n", StringComparison.OrdinalIgnoreCase);
-                importer.textureType = isNormal ? TextureImporterType.NormalMap : TextureImporterType.Default;
-                importer.sRGBTexture = !isNormal;
+                var desiredType = isNormal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+                var desiredSrgb = !isNormal;
+                if (importer.textureType == desiredType &&
+                    importer.sRGBTexture == desiredSrgb &&
+                    importer.mipmapEnabled &&
+                    importer.wrapMode == TextureWrapMode.Repeat &&
+                    importer.filterMode == FilterMode.Trilinear &&
+                    importer.anisoLevel == 8 &&
+                    importer.maxTextureSize == 2048 &&
+                    !importer.alphaIsTransparency)
+                    continue;
+
+                importer.textureType = desiredType;
+                importer.sRGBTexture = desiredSrgb;
                 importer.mipmapEnabled = true;
                 importer.wrapMode = TextureWrapMode.Repeat;
                 importer.filterMode = FilterMode.Trilinear;
@@ -78,7 +103,7 @@ namespace Pogranichye.Client.Editor
                 importer.maxTextureSize = 2048;
                 importer.alphaIsTransparency = false;
                 importer.SaveAndReimport();
-                configured++;
+                reimported++;
             }
 
             var baseMaps = 0;
@@ -91,12 +116,22 @@ namespace Pogranichye.Client.Editor
                     baseMaps++;
             }
 
+            var missingNormals = 0;
+            foreach (var file in files)
+            {
+                var stem = Path.GetFileNameWithoutExtension(file);
+                if (stem.EndsWith("_n", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!sourceNames.Contains(stem + "_n.png")) missingNormals++;
+            }
+
             EditorUtility.DisplayDialog(
                 "Grok texture pack imported",
                 "Source: " + SourceRelativePath + "\n" +
                 "PNG files: " + files.Length + " (" + baseMaps + " albedo, " + normalMaps + " normal)\n" +
                 "Copied/updated: " + copied + "\n" +
-                "Import settings applied: " + configured + "\n\n" +
+                "Removed stale copies: " + removed + "\n" +
+                "Import settings changed: " + reimported + "\n" +
+                "Albedo without matching normal: " + missingNormals + "\n\n" +
                 "Runtime Resources path: " + DestinationAssetPath,
                 "OK");
         }
