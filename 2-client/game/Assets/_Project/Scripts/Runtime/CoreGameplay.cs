@@ -166,7 +166,13 @@ namespace Pogranichye.Client
             { "cheese", "сыр" }, { "egg", "яйца" }, { "milk", "молоко" }, { "wool", "шерсть" },
             { "cloth", "сукно" }, { "tools", "инструмент" }, { "hay", "сено" }, { "feather", "перо" },
             { "flax", "лён" }, { "linen", "холст" }, { "remedy", "лекарство" }, { "honey", "мёд" },
-            { "mead", "медовуха" }
+            { "mead", "медовуха" },
+            { "woodcutter", "лесоруб" }, { "miner", "рудокоп" }, { "smith", "кузнец" },
+            { "blade", "владение клинком" }, { "brawl", "рукопашный бой" }, { "archery", "стрельба из лука" },
+            { "hunter", "охота" }, { "fisher", "рыбалка" }, { "herbalist", "травничество" },
+            { "cunning", "хитрость" }, { "mage", "магия" }, { "cook", "кулинария" },
+            { "crafter", "ремесло" }, { "farmer", "земледелие" }, { "herder", "скотоводство" },
+            { "weaver", "ткачество" }, { "builder", "строительство" }
         };
 
         private static readonly string[] Nodes = { "knot", "thread", "loop", "fork", "barb", "seal" };
