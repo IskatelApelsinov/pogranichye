@@ -11,9 +11,37 @@ namespace Pogranichye.Client.Presentation
     {
         public static void Build(Transform root, WorldLayoutFrame layout)
         {
-            if (root == null || layout == null || layout.Pois == null)
+            if (root == null || layout == null)
                 return;
 
+            // New server-authored descriptors take precedence over the legacy POI intent map.
+            // Their coordinates may represent a counter, workstation, bench or interior object.
+            if (layout.Interactions != null && layout.Interactions.Count > 0)
+            {
+                foreach (var descriptor in layout.Interactions)
+                {
+                    if (descriptor == null || string.IsNullOrWhiteSpace(descriptor.Id) ||
+                        !IsFinite(descriptor.X) || !IsFinite(descriptor.Y))
+                        continue;
+
+                    var target = new GameObject("Server interaction target • " + descriptor.Id);
+                    target.transform.SetParent(root, false);
+                    target.transform.localPosition = new Vector3((float)descriptor.X, 0.9f, (float)descriptor.Y);
+                    var hitArea = target.AddComponent<SphereCollider>();
+                    hitArea.radius = Mathf.Clamp(IsFinite(descriptor.Radius) && descriptor.Radius > 0d
+                        ? (float)descriptor.Radius : 0.9f, 0.35f, 3.5f);
+                    hitArea.isTrigger = true;
+                    var poi = target.AddComponent<WorldPoi>();
+                    poi.Initialize(
+                        string.IsNullOrWhiteSpace(descriptor.Title) ? "Взаимодействие" : descriptor.Title,
+                        null, null, Color.clear, null, descriptor.Id, descriptor.Hint,
+                        descriptor.Available, descriptor.Reason, descriptor.TargetType, descriptor.TargetId);
+                }
+                return;
+            }
+
+            // Compatibility path for older servers: coordinates still come from server Layout POIs.
+            if (layout.Pois == null) return;
             var ids = WorldLayoutPoiInteractionPolicy.SupportedIds;
             for (var i = 0; i < ids.Length; i++)
             {
