@@ -94,6 +94,11 @@ Task #007 completed the client-side DTO/consumer foundation for stats, carried l
 The `me.region` projection and UI are now typed under task #008. Privacy checks reject unknown-place name/tier leaks; the client does not use the developer manifest to fill unknown map data. CI run #43638994608 passed all 21 independent C# steps. Runtime map acceptance remains with the project owner.
 
 
+## Tavern interaction follow-up — 2026-11-14
+
+Client task #015 is implemented in stacked PR #642: `place.tavern_counter` is now a typed nullable v1 view; both beer UIs require the server counter radius and current bartender hint; co-drink affordance mirrors the broad server tavern zone and controlled-player marker. Human acceptance is in `task_human/008-test-tavern-counter-and-codrink.md`. No Unity runtime acceptance is claimed.
+
+
 ## Progress — 2026-11-14: world-label occlusion and readability
 
 - Source review confirmed that the generated Layout v2 already has server-footprint collision proxies on layer 2: a footprint BoxCollider for ordinary buildings and wall-segment BoxColliders around the tavern door. Starter prototype houses also have layer-2 camera-only proxies. The bug was that `SignFaceVisibility` and `BillboardLabel` queried only `Physics.DefaultRaycastLayers`, which excludes layer 2.
