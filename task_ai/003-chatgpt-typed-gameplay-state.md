@@ -157,3 +157,21 @@ Task #007 extends the typed DTO coverage to `me.stats`, `me.bag`, and `me.horse`
 ## Typed regional map continuation — 2026-11-14
 
 Task #008 adds typed `me.region` nodes/roads and migrates the region map UI off raw JObject/JArray. Unknown node names/tiers are explicitly required to remain empty; road endpoints must reference visible nodes. All 21 independent C# CI steps passed in run #43638994608. Unity Editor remains unverified.
+
+
+## Ограниченная typed-миграция: карточная игра — 2026-11-15
+
+- Вынесены `CardGameFrame`, карты и пары стола в `Protocol/CardGameFrames.cs`; добавлен отдельный валидатор точного публичного view для `ochko` и `durak`.
+- `WorldFrameParser` валидирует `me.card_game` до DTO conversion. Отсутствующее/null поле остаётся совместимым со старыми v1 snapshot.
+- Валидатор проверяет фазы, типы и значения карт, открытую руку игрока и публичный стол. Он отклоняет полную скрытую руку корчмаря в активном «Очко» и любую раскрытую руку корчмаря в «Дураке».
+- `CoreGameplay` хранит typed `CardGameFrame` и читает из него игру/ход/руку/стол для UI и hotkeys; больше не читает `me.card_game` через JObject selectors.
+- Fast frame не затирает карточную игру: серверный fast contract её не присылает, состояние обновляется только из полного snapshot.
+- Добавлены pure C# parser/DTO checks; ожидается PR CI. Unity compile/PlayMode и реальная партия остаются отдельными проверками.
+- Wire contract и серверная логика не менялись.
+
+
+## CI verification — 2026-11-15
+
+- PR #649 pure-C# workflow [#43755452041](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43755452041) completed successfully on source commit `25f0bae`.
+- The new `Typed card game frame regression checks` step passed with the repository suite. This does not compile the full Unity project or run an actual tavern game in PlayMode.
+- PR #649 remains draft/open; no merge performed.

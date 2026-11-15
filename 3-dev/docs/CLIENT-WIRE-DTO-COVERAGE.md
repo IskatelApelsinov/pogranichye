@@ -32,7 +32,7 @@
 | `me.region` | `RegionFrame`, `RegionNodeFrame`, `RegionRoadFrame` + `RegionFrameParser` | regional map and road choices | Typed; privacy-safe states and edge references validated |
 | `me.journey` | `JourneyFrame`, `RoadEventFrame` + `JourneyFrameParser` | road progress, scene and event choices | Typed; public `sim.JourneyView` only, full-frame-only |
 | `me.quests` | `QuestsFrame`, `QuestFrame` + `QuestsFrameParser` | needs/requests UI | Typed; public `sim.QuestsView` only, full-frame-only |
-| `me.card_game` | Missing `CardGameFrame` and game-specific card DTOs | Ochko/Durak panel | **Gap**; preserve hidden-card privacy |
+| `me.card_game` | `CardGameFrame`, `CardGameCardFrame`, `DurakTablePairFrame` + `CardGameFrameParser` | Ochko/Durak panel and hotkeys | Typed in the card-game slice; validates public state and rejects hidden dealer-hand leaks; full-frame-only |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
 | `me.party` | Missing `PartyFrame` and member/invite DTOs | party panel | **Gap** |
@@ -118,3 +118,11 @@ No wire field, server behavior, protocol version, persistence format, settlement
 - Client validator checks unique IDs, exactly one `here` node when the node list is non-empty, known state values, no unknown-place name/tier leak, and non-duplicate edges with valid endpoints.
 - Missing/null `me.region` is tolerated for older additive v1 snapshots. A present object must contain both arrays.
 - `CoreGameplay.DrawRegion/DrawRegionMap` now consumes `RegionFrame`; map labels and route choices remain based solely on server-supplied knowledge. No developer manifest is introduced into this map.
+
+
+## Card-game DTO consumer update — 2026-11-15
+
+The card-game slice is now typed end-to-end for its selected consumer: `WorldFrameParser` validates the public card-game view, and `CoreGameplay` stores/reads `CardGameFrame` for the game panel and hotkeys. The raw JObject adapter remains for other un-migrated gameplay groups. See task 003 and the card-game parser regression suite. No fast-frame patch carries `card_game`; the last full-frame state is preserved until the next full snapshot.
+
+
+Card-game parser regression run: [#43755452041](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43755452041) passed. Unity runtime acceptance is still pending.
