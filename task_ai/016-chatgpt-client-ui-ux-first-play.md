@@ -76,3 +76,9 @@ If an implementation requires new server-owned state or an intent, stop and send
 - PR #648: Unity-independent C# workflow run [#43754354166](https://github.com/IskatelApelsinov/pogranichye/actions/runs/43754354166) completed successfully on commit `f006cf7`.
 - This run covers the shared RequestGate regression runner and the repository's independent C# checks. It does not compile the Unity project or verify IMGUI visuals / live-server behavior.
 - PR #648 remains draft/open; no merge was performed.
+
+
+## Panel close affordance — 2026-11-15
+
+- Added an explicit mouse-visible close control to the character/journal panel. It collapses the panel and releases the character-menu input capture; the existing Tab shortcut remains unchanged.
+- This closes one P1 navigation gap. Keyboard/cursor behavior still requires Unity PlayMode acceptance.
