@@ -1697,7 +1697,7 @@ namespace Pogranichye.Client
             _mount.SetActive(true);
             var facing = Quaternion.Euler(0f, _player.eulerAngles.y, 0f);
             _mount.transform.SetPositionAndRotation(_player.position, facing);
-            var stamina = Num(horse, "stam");
+            var stamina = Mathf.Clamp((float)_horse.Stamina, 0f, 100f);
             var breath = 1f + Mathf.Sin(Time.time * 2.1f) * 0.008f * (1f - stamina / 100f);
             _mount.transform.localScale = new Vector3(1f, breath, 1f);
         }
