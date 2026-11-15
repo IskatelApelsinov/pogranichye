@@ -566,6 +566,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("buildings")] public List<WorldRectFrame> Buildings { get; set; }
         [JsonProperty("river")] public WorldRiverFrame River { get; set; }
         [JsonProperty("pois")] public Dictionary<string, WorldPointFrame> Pois { get; set; }
+        // Optional server-authored E interactions: points, workstations, counters and interior objects.
+        [JsonProperty("interactions")] public List<WorldInteractionDescriptorFrame> Interactions { get; set; }
 
         // v1.19 (additive): every settlement has its own layout, fetched with ?settlement=<place.id>.
         /// <summary>"starter" for the hand-made tutorial village; otherwise a generated plan.</summary>
@@ -623,6 +625,21 @@ namespace Pogranichye.Client.Networking.Protocol
             if (!IsBlocked(origin.x, desired.y)) return new Vector2(origin.x, desired.y);
             return origin;
         }
+    }
+
+    [Serializable]
+    public sealed class WorldInteractionDescriptorFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("target_type")] public string TargetType { get; set; }
+        [JsonProperty("target_id")] public string TargetId { get; set; }
+        [JsonProperty("title")] public string Title { get; set; }
+        [JsonProperty("hint")] public string Hint { get; set; }
+        [JsonProperty("available")] public bool Available { get; set; }
+        [JsonProperty("reason")] public string Reason { get; set; }
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("radius")] public double Radius { get; set; }
     }
 
     [Serializable]
