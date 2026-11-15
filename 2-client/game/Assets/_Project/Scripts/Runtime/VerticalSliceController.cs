@@ -168,6 +168,7 @@ namespace Pogranichye.Client
         private const string TalkRequestLabelPrefix = "Разговор NPC:";
         private bool _firstPerson = true;
         private bool _hudCollapsed;
+        private bool _showAdvancedCharacterActions;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
@@ -953,45 +954,63 @@ namespace Pogranichye.Client
                     ? "Последнее действие выполнено."
                     : "Не удалось выполнить: " + (me.Result.Reason ?? "попробуйте ещё раз."));
             GUILayout.Label(_tutorialStep == 0
-                ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы». Свободные занятия доступны ниже."
-                : "Свободные занятия — не поручение. Мир проверит, доступны ли они сейчас:");
-            if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
-            if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
-            if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
+                ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы»."
+                : "Следующий шаг вводного маршрута отмечен в журнале. Дополнительные занятия необязательны.");
+            if (GUILayout.Button(_showAdvancedCharacterActions
+                ? "Скрыть дополнительные занятия"
+                : "Показать дополнительные занятия"))
+                _showAdvancedCharacterActions = !_showAdvancedCharacterActions;
+
+            if (_showAdvancedCharacterActions)
+            {
+                GUILayout.Space(4f);
+                GUILayout.Label("СВОБОДНАЯ ПРАКТИКА · НЕ ОБЯЗАТЕЛЬНАЯ ЧАСТЬ ПОРУЧЕНИЯ");
+                GUILayout.Label("Мир проверит место, инструмент и возможность действия на сервере.");
+                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
+                if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
+                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
+            }
+
             GUILayout.Space(5f);
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
             GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("🪓 Рубка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
-            if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
-            if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
-            GUILayout.EndHorizontal();
-            GUILayout.Label("G — начать рубку у леса · K — начать рыбалку у воды. Нужен топор/удочка в руке.");
-            GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
-            if (me.Weave != null)
+
+            if (_showAdvancedCharacterActions)
             {
                 GUILayout.Space(6f);
-                GUILayout.Label("ПЛЕТЕНИЯ");
-                GUILayout.Label("Дар: " + (me.Weave.Gift ? "пробуждён" : "не пробуждён") +
-                    " · предел сложности " + me.Weave.Limit.ToString("0.#") +
-                    " · ёмкость ума " + me.Weave.Capacity.ToString("0.#"));
-                if (me.Weave.Known != null && me.Weave.Known.Count > 0)
+                GUILayout.Label("ДРУГИЕ ЗАНЯТИЯ");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("🪓 Рубка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+                if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
+                if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
+                GUILayout.EndHorizontal();
+                GUILayout.Label("G — начать рубку у леса · K — начать рыбалку у воды. Нужен топор/удочка в руке.");
+                GUILayout.Label("Мана: " + me.Mana.ToString("0.0"));
+                if (me.Weave != null)
                 {
-                    GUILayout.Label("Знакомые узоры:");
-                    foreach (var schema in me.Weave.Known)
+                    GUILayout.Space(6f);
+                    GUILayout.Label("ПЛЕТЕНИЯ");
+                    GUILayout.Label("Дар: " + (me.Weave.Gift ? "пробуждён" : "не пробуждён") +
+                        " · предел сложности " + me.Weave.Limit.ToString("0.#") +
+                        " · ёмкость ума " + me.Weave.Capacity.ToString("0.#"));
+                    if (me.Weave.Known != null && me.Weave.Known.Count > 0)
                     {
-                        if (schema == null || string.IsNullOrWhiteSpace(schema.Name)) continue;
-                        var nodes = schema.Nodes != null ? string.Join(" → ", schema.Nodes.ToArray()) : "";
-                        GUILayout.Label("• " + schema.Name + (nodes.Length > 0 ? " — " + nodes : ""));
+                        GUILayout.Label("Знакомые узоры:");
+                        foreach (var schema in me.Weave.Known)
+                        {
+                            if (schema == null || string.IsNullOrWhiteSpace(schema.Name)) continue;
+                            var nodes = schema.Nodes != null ? string.Join(" → ", schema.Nodes.ToArray()) : "";
+                            GUILayout.Label("• " + schema.Name + (nodes.Length > 0 ? " — " + nodes : ""));
+                        }
                     }
+                    else GUILayout.Label("Знакомые узоры пока не открыты.");
+                    if (me.Weave.CanLearn && GUILayout.Button("Медитировать и постигать плетения"))
+                        QueueWorldAction("meditate");
+                    if (me.Weave.CanStudy && GUILayout.Button("Учиться у мага рядом"))
+                        QueueWorldAction("study");
+                    if (!me.Weave.CanLearn && !me.Weave.CanStudy)
+                        GUILayout.Label("Сейчас некому учить и нет места силы поблизости.");
                 }
-                else GUILayout.Label("Знакомые узоры пока не открыты.");
-                if (me.Weave.CanLearn && GUILayout.Button("Медитировать и постигать плетения"))
-                    QueueWorldAction("meditate");
-                if (me.Weave.CanStudy && GUILayout.Button("Учиться у мага рядом"))
-                    QueueWorldAction("study");
-                if (!me.Weave.CanLearn && !me.Weave.CanStudy)
-                    GUILayout.Label("Сейчас некому учить и нет места силы поблизости.");
             }
         }
 
