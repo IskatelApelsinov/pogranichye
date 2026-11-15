@@ -31,8 +31,8 @@ internal static class WorldOriginStateCheck
     {
         var state = new WorldOriginState();
         Throws<InvalidOperationException>(() => { var ignored = state.Origin; }, "origin must be initialized");
-        state.Initialize(new WorldOriginPosition(0, 1_000_000d, -2_000_000d, 128d));
-        var world = new WorldOriginPosition(0, 1_000_012.25d, -1_999_991.5d, 130.75d);
+        state.Initialize(new WorldOriginPosition(0, 1000000d, -2000000d, 128d));
+        var world = new WorldOriginPosition(0, 1000012.25d, -1999991.5d, 130.75d);
         True(state.TryToLocal(world, out var local), "large global coordinate converts");
         Near(12.25d, local.X, 1e-9, "east local precision");
         Near(2.75d, local.Y, 1e-9, "up local precision");
@@ -43,19 +43,19 @@ internal static class WorldOriginStateCheck
         Near(world.Up, roundTrip.Up, 1e-9, "up round trip");
 
         var generation = state.Generation;
-        True(!state.TryRebase(new WorldOriginPosition(0, 1_000_100d, -1_999_900d, 128d), out _),
+        True(!state.TryRebase(new WorldOriginPosition(0, 1000100d, -1999900d, 128d), out _),
             "small movement does not rebase");
         Equal(generation, state.Generation, "generation unchanged without rebase");
 
-        True(state.TryRebase(new WorldOriginPosition(0, 1_002_100d, -1_999_900d, 200d),
+        True(state.TryRebase(new WorldOriginPosition(0, 1002100d, -1_999_900d, 200d),
             2048d, 256d, 64d, out var shift), "large movement rebases");
-        Near(1_002_112d, shift.Current.East, 1e-9, "east snaps to 256m grid");
+        Near(1001984d, shift.Current.East, 1e-9, "east snaps to 256m grid");
         Near(-1_999_872d, shift.Current.North, 1e-9, "north snaps to 256m grid");
         Near(192d, shift.Current.Up, 1e-9, "up snaps to 64m grid");
         Equal(generation + 1, state.Generation, "generation increments once");
-        True(state.TryToLocal(new WorldOriginPosition(0, 1_002_120d, -1_999_870d, 193d), out local),
+        True(state.TryToLocal(new WorldOriginPosition(0, 1002120d, -1999870d, 193d), out local),
             "position converts after rebase");
-        Near(8d, local.X, 1e-9, "post-rebase east");
+        Near(136d, local.X, 1e-9, "post-rebase east");
         Near(2d, local.Y, 1e-9, "post-rebase up");
         Near(2d, local.Z, 1e-9, "post-rebase north");
 
@@ -63,8 +63,10 @@ internal static class WorldOriginStateCheck
             "different world frame rejected");
         True(!state.TryRebase(new WorldOriginPosition(1, 0, 0, 0), out shift),
             "different frame cannot rebase");
-        Throws<ArgumentOutOfRangeException>(() => state.TryRebase(
-            new WorldOriginPosition(0, 0, 0, 0), 0, 256, 64, out shift), "zero threshold rejected");
+        Throws<ArgumentOutOfRangeException>(() => {
+            WorldOriginShift ignored;
+            state.TryRebase(new WorldOriginPosition(0, 0, 0, 0), 0, 256, 64, out ignored);
+        }, "zero threshold rejected");
 
         Console.WriteLine("World origin state checks passed: " + _checks);
         return 0;
