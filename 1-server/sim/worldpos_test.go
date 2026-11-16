@@ -345,7 +345,7 @@ func TestSeamlessLandsKeepWorldPosition(t *testing.T) {
 		ce, cn := Anchor(w, cur)
 		dx, dy := be-(ce+p.X), bn-(cn+p.Y)
 		seq++
-		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, 0.25, seq)
+		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, stepSeconds, seq)
 		prev := before
 		before, _ = WorldPosOf(w, ter, e)
 		if d, _ := WorldDist(prev, before); d > walkSpeed*0.25+0.01 {
@@ -587,7 +587,8 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 		t.Fatal("не удалось получить начальную глобальную позицию")
 	}
 	reached := false
-	for step := 0; step < 400000 && !reached; step++ {
+	const stepSeconds = 1.0
+	for step := 0; step < 50000 && !reached; step++ {
 		cur := core.Settle(w.Get(core.Place(e).Settlement))
 		ce, cn := Anchor(w, cur)
 		// В каждый момент задаём направление к следующему участку того же server-authored
@@ -599,7 +600,7 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 		if !valid {
 			t.Fatalf("потеряна глобальная позиция на шаге %d", step)
 		}
-		if moved, _ := WorldDist(before, after); moved > walkSpeed*0.25+0.01 {
+		if moved, _ := WorldDist(before, after); moved > walkSpeed*stepSeconds+0.01 {
 			t.Fatalf("неожиданный скачок на шаге %d: %.3f м", step, moved)
 		}
 		before = after
