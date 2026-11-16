@@ -8,6 +8,10 @@
 
 ## Change
 
+- Replaced the narrow 500×620 left-side character strip with a centered, responsive journal overlay (88% viewport, capped at 1600×1000).
+- Moved navigation into a persistent left rail: Character, Inventory, Journal, Map; added a visible close control and kept Esc/system settings separate.
+- Main page content scrolls independently from the navigation rail; the world remains visible around the panel.
+
 - Local settlement map now grows from 320 px to a responsive maximum of 400 px.
 - Added left-button drag-pan while the map panel is open.
 - Added mouse-wheel zoom within the map viewport; the event is consumed so the parent journal scroll view does not steal the gesture.
