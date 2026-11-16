@@ -1353,7 +1353,7 @@ namespace Pogranichye.Client
             if (GUILayout.Button("Сброс", GUILayout.Width(54f))) { nextZoom = 1f; _mapPan = Vector2.zero; }
             _mapZoom = Mathf.Clamp(nextZoom, 1f, 24f);
             GUILayout.EndHorizontal();
-            GUILayout.Label("Колесо — приблизить/отдалить · ЛКМ — двигать карту · Север ↑");
+            GUILayout.Label("Карта ориентирована на север: вверх — север, вправо — восток. Колесо — масштаб, ЛКМ — перемещение.");
             if (manifest?.Settlements == null || place == null || anchor == null)
             {
                 GUILayout.Label("Карта мира ожидает серверный манифест и глобальное положение персонажа.");
@@ -1385,28 +1385,34 @@ namespace Pogranichye.Client
                 return WorldMapProjection.ToMapPoint(east - centerEast, north - centerNorth, mapHalf, rect);
             }
 
-            // World roads are drawn only from the authoritative server road graph.
             var settlementsById = new Dictionary<string, WorldSettlementFrame>(StringComparer.Ordinal);
             foreach (var settlement in manifest.Settlements)
                 if (settlement != null && settlement.Frame == anchor.Frame && !string.IsNullOrWhiteSpace(settlement.Id))
                     settlementsById[settlement.Id] = settlement;
-            if (manifest.Roads != null)
-            {
-                foreach (var road in manifest.Roads)
-                {
-                    if (road == null || !settlementsById.TryGetValue(road.From, out var from) ||
-                        !settlementsById.TryGetValue(road.To, out var to)) continue;
-                    DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
-                        mapHalf < 12000d ? 2.4f : 1.5f, new Color(0.73f, 0.58f, 0.36f, 0.9f));
-                }
-            }
 
+            // Character knowledge gates both settlement labels and the road connections that
+            // would otherwise reveal the exact location of an unknown neighboring town.
             var knownNames = new Dictionary<string, string>(StringComparer.Ordinal);
             var knownPlaces = _frame.Me?.KnownPlaces;
             if (knownPlaces != null)
                 foreach (var known in knownPlaces)
                     if (known != null && !string.IsNullOrWhiteSpace(known.Id))
                         knownNames[known.Id] = string.IsNullOrWhiteSpace(known.Name) ? "Неизвестное место" : known.Name;
+            knownNames[place.Id] = place.Name;
+
+            // Roads are server-authored, but only connections between known places are shown.
+            // The endpoint line is a graph connection, not a surveyed walking route.
+            if (manifest.Roads != null)
+            {
+                foreach (var road in manifest.Roads)
+                {
+                    if (road == null || !knownNames.ContainsKey(road.From) || !knownNames.ContainsKey(road.To) ||
+                        !settlementsById.TryGetValue(road.From, out var from) ||
+                        !settlementsById.TryGetValue(road.To, out var to)) continue;
+                    DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
+                        mapHalf < 12000d ? 2.4f : 1.5f, new Color(0.73f, 0.58f, 0.36f, 0.9f));
+                }
+            }
 
             foreach (var settlement in settlementsById.Values)
             {
@@ -1465,7 +1471,25 @@ namespace Pogranichye.Client
             {
                 var point = ProjectGlobal(playerEast, playerNorth);
                 GUI.Box(new Rect(point.x-9f,point.y-9f,18f,18f),"★",_mapPlayerStyle);
+                var mapCamera = Camera.main;
+                var yaw = mapCamera != null ? mapCamera.transform.eulerAngles.y : 0f;
+                var facing = new Vector2(Mathf.Sin(yaw * Mathf.Deg2Rad), -Mathf.Cos(yaw * Mathf.Deg2Rad));
+                DrawMapLine(point, point + facing * 24f, 3f, new Color(1f, 0.88f, 0.55f, 1f));
             }
+
+            // A compact north-up compass and scale are drawn inside the map viewport.
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 7f, 82f, 22f), "С ↑  В →", _mapPoiLabelStyle);
+            var scaleMeters = ChooseMapScaleDistance(mapHalf * 0.42d);
+            var scalePixels = (float)(scaleMeters / (mapHalf * 2d) * rect.width);
+            var scaleStart = new Vector2(rect.x + 12f, rect.yMax - 18f);
+            DrawMapLine(scaleStart, scaleStart + Vector2.right * scalePixels, 3f, Color.white);
+            DrawMapLine(scaleStart + Vector2.up * -4f, scaleStart + Vector2.up * 4f, 2f, Color.white);
+            DrawMapLine(scaleStart + Vector2.right * scalePixels + Vector2.up * -4f,
+                scaleStart + Vector2.right * scalePixels + Vector2.up * 4f, 2f, Color.white);
+            GUI.Label(new Rect(scaleStart.x, scaleStart.y - 20f, 120f, 18f),
+                scaleMeters >= 1000d ? (scaleMeters / 1000d).ToString("0.#", CultureInfo.InvariantCulture) + " км" :
+                scaleMeters.ToString("0", CultureInfo.InvariantCulture) + " м", _mapPoiLabelStyle);
+
             var oldColor = GUI.color;
             GUI.color = Color.white;
             DrawMapFill(new Rect(rect.x,rect.y,rect.width,2f),new Color(0.08f,0.11f,0.08f,1f));
@@ -1482,15 +1506,17 @@ namespace Pogranichye.Client
                     " м · от центра поселения " + distanceToCenter.ToString("0",CultureInfo.InvariantCulture) + " м");
                 var mapCamera = Camera.main;
                 if (mapCamera != null)
-                    GUILayout.Label("Направление взгляда: " + CompassDirection(mapCamera.transform.eulerAngles.y) +
+                    GUILayout.Label("Куда смотрите: " + CompassDirection(mapCamera.transform.eulerAngles.y) +
                         " · азимут " + Mathf.Repeat(mapCamera.transform.eulerAngles.y, 360f).ToString("0", CultureInfo.InvariantCulture) + "°");
+                DrawKnownSettlementBearings(playerEast, playerNorth, place.Id, knownNames, settlementsById);
             }
             GUILayout.Label(mapHalf > 1800d
                 ? "Масштаб мира: города, известные поселения и серверные дороги."
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
-            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ серверная дорога · здания и POI появляются при приближении.");
+            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ связь по графу дорог. Линии не показывают точную трассу пути.");
+            GUILayout.Label("Расстояния до соседних мест ниже указаны по прямой; фактическая пешая дорога может быть длиннее.");
         }
 
         private static string CompassDirection(float yaw)
@@ -1499,6 +1525,44 @@ namespace Pogranichye.Client
                 "юг", "юго-запад", "запад", "северо-запад" };
             var index = Mathf.RoundToInt(Mathf.Repeat(yaw, 360f) / 45f) % directions.Length;
             return directions[index];
+        }
+
+        private static double ChooseMapScaleDistance(double targetMeters)
+        {
+            if (targetMeters <= 0d || double.IsNaN(targetMeters) || double.IsInfinity(targetMeters)) return 100d;
+            var magnitude = Math.Pow(10d, Math.Floor(Math.Log10(targetMeters)));
+            var normalized = targetMeters / magnitude;
+            var step = normalized >= 5d ? 5d : normalized >= 2d ? 2d : 1d;
+            return step * magnitude;
+        }
+
+        private static void DrawKnownSettlementBearings(double playerEast, double playerNorth, string currentId,
+            Dictionary<string, string> knownNames, Dictionary<string, WorldSettlementFrame> settlements)
+        {
+            if (knownNames == null || settlements == null) return;
+            var nearest = new List<KeyValuePair<double, string>>();
+            foreach (var pair in settlements)
+            {
+                if (pair.Key == currentId || !knownNames.TryGetValue(pair.Key, out var name)) continue;
+                var settlement = pair.Value;
+                var east = settlement.East - playerEast;
+                var north = settlement.North - playerNorth;
+                var distance = Math.Sqrt(east * east + north * north);
+                if (distance < 1d) continue;
+                var bearing = Mathf.Repeat(Mathf.Atan2((float)east, (float)north) * Mathf.Rad2Deg, 360f);
+                var line = name + " — " + CompassDirection(bearing) + ", " +
+                    (distance >= 1000d
+                        ? (distance / 1000d).ToString("0.#", CultureInfo.InvariantCulture) + " км"
+                        : distance.ToString("0", CultureInfo.InvariantCulture) + " м") + " по прямой";
+                var insertAt = nearest.Count;
+                while (insertAt > 0 && nearest[insertAt - 1].Key > distance) insertAt--;
+                nearest.Insert(insertAt, new KeyValuePair<double, string>(distance, line));
+                if (nearest.Count > 3) nearest.RemoveAt(nearest.Count - 1);
+            }
+
+            if (nearest.Count == 0) return;
+            GUILayout.Label("ИЗВЕСТНЫЕ МЕСТА РЯДОМ");
+            foreach (var item in nearest) GUILayout.Label("• " + item.Value);
         }
 
         private static double ResolveUnifiedMapRadius(WorldManifestFrame manifest, WorldAnchorFrame anchor)
