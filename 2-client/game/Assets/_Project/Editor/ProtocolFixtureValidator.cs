@@ -75,6 +75,7 @@ namespace Pogranichye.Client.Editor
                 ValidateWorldPositionProjection();
                 ValidateWorldV119Dtos();
                 ValidateSpatialDescriptorDtos();
+                ValidateTrailDtos();
                 ValidateWorldV120Dtos();
                 ValidateFastFrameCases();
                 ValidateFeedCases();
@@ -91,6 +92,32 @@ namespace Pogranichye.Client.Editor
             }
         }
 
+
+        private static void ValidateTrailDtos()
+        {
+            const string json = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"trail\":{\"id\":\"road-2-54\",\"kind\":\"trail\",\"a\":\"Починок\",\"b\":\"Броды\",\"boost\":1.15}},\"place\":{}}";
+            var frame = WorldFrameParser.Parse(json);
+            if (frame.Me?.Trail == null || frame.Me.Trail.Kind != "trail" ||
+                frame.Me.Trail.FromSettlement != "Починок" ||
+                Math.Abs(frame.Me.Trail.Boost - 1.15d) > 0.0001d)
+                throw new FormatException("v1.27 me.trail must deserialize its kind, settlement names and boost.");
+
+            const string manifestJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"movement\":{\"walk_mps\":1.4,\"jog_mps\":3.2,\"run_mps\":6,\"trail\":{\"trail_boost\":1.15,\"road_boost\":1.25,\"trail_width_m\":1.6,\"road_width_m\":4,\"reach_m\":1.5}},\"roads\":[{\"a\":\"2\",\"b\":\"54\",\"id\":\"road-2-54\",\"kind\":\"trail\",\"width_m\":1.6,\"len_m\":1234}]}";
+            var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldManifestFrame>(manifestJson);
+            if (manifest?.Movement?.Trail == null || manifest.Movement.Trail.TrailBoost != 1.15d ||
+                manifest.Movement.Trail.RoadBoost != 1.25d || manifest.Movement.Trail.ReachMeters != 1.5d ||
+                manifest.Roads == null || manifest.Roads.Count != 1 ||
+                manifest.Roads[0].Kind != "trail" || manifest.Roads[0].WidthMeters != 1.6d ||
+                manifest.Roads[0].LengthMeters != 1234d)
+                throw new FormatException("v1.27 world movement.trail and world.roads metadata must deserialize.");
+
+            const string terrainJson = "{\"id\":\"0:0:0\",\"frame\":0,\"chunk\":[0,0],\"origin\":{\"e\":0,\"n\":0},\"size_m\":256,\"step_m\":64,\"side\":5,\"heights\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"roads\":[{\"id\":\"road-2-54\",\"kind\":\"trail\",\"width_m\":1.6,\"points\":[{\"x\":1,\"z\":2},{\"x\":30,\"z\":40},{\"x\":80,\"z\":90}]},{\"id\":\"road-2-54#2\",\"kind\":\"trail\",\"width_m\":1.6,\"points\":[{\"x\":240,\"z\":200},{\"x\":250,\"z\":220}]}]}";
+            var terrain = Newtonsoft.Json.JsonConvert.DeserializeObject<TerrainChunkFrame>(terrainJson);
+            if (terrain?.Roads == null || terrain.Roads.Count != 2 ||
+                terrain.Roads[0].Points == null || terrain.Roads[0].Points.Count != 3 ||
+                terrain.Roads[1].Id != "road-2-54#2" || terrain.Roads[1].Points.Count != 2)
+                throw new FormatException("v1.27 terrain roads must preserve arbitrary polylines and repeated chunk-run IDs.");
+        }
 
         private static void ValidateFastFrameCases()
         {
