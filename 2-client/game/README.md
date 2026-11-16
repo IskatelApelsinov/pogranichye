@@ -186,3 +186,12 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 - Full v1 snapshots may include top-level `hour` (0–23). Unity maps this optional field through `WorldFrame.Hour` and calls `WorldEnvironmentBuilder.SetServerHour`, synchronizing sky tint, sun direction/intensity, stars, ambient light and fog palette with the server clock.
 - Older v1 snapshots without `hour` remain valid and keep the local visual preview cycle. The shared fixture and Editor validator cover deserialization, range rejection and backward compatibility.
 - This is presentation synchronization only; it does not change server time, weather or gameplay. Unity Editor/PlayMode verification remains required.
+
+
+## v1.22 client feature hookup — 2026-11-16
+
+- `place.sites[]` now appears in the character panel. The client offers approach (`op:goto`, `site`) and only the actions advertised by the server (`op:site`, `site`, `action`). Site proximity, daily reuse, finite stock and outcomes are never predicted locally.
+- On connect, the client optionally loads `/api/catalog` and shows the current item/equipment list, recipes and weave node/schema reference in the Inventory tab. This is descriptive data; ownership and all actions remain server-authoritative.
+- The weave canvas includes the four new server nodes `heat`, `chill`, `veil`, `eye`; its preview follows the server's node-priority rules. Legacy number shortcuts 1–6 are preserved; all ten nodes are selectable by mouse.
+- Server terrain `biome`/`cover` now tint the chunk; `roads` and optional `water` descriptors are drawn as chunk-local ribbons. The heightfield still owns ground mesh/collision. `water` is optional and awaits server PR #662; `resources`/`wild` chunk hints are not yet rendered. Global wild landmarks remain separate.
+- Source-level implementation only. Unity Editor 6000.6.7f1 compile, PlayMode, URP water material appearance and live server acceptance are still required.
