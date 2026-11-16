@@ -3764,6 +3764,7 @@ namespace Pogranichye.Client
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                WorldSpacePresentationBuilder.Clear(_presentationRoot);
                 WorldFrontierBiomeBuilder.Clear(_presentationRoot);
                 CauldronRimPresentationBuilder.Clear(_presentationRoot);
                 _cameraRig?.SetWorldHorizonDistance(0f);
@@ -4574,9 +4575,23 @@ namespace Pogranichye.Client
         {
             try
             {
-                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
+                var http = new HttpAuthClient(serverUrl);
+                var chunk = await http.GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
                 if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
                     throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
+                WorldSpaceChunkFrame spaces = null;
+                try
+                {
+                    spaces = await http.GetWorldSpacesAsync(chunkX, chunkZ, cancellation.Token);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception spaceError)
+                {
+                    // Terrain and ordinary settlement play remain available if optional space
+                    // streaming is temporarily unavailable; the next terrain refresh can retry.
+                    Enqueue(() => Debug.LogWarning("Многоуровневые пространства пока недоступны для чанка " +
+                        chunkId + ": " + spaceError.Message));
+                }
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
@@ -4589,6 +4604,8 @@ namespace Pogranichye.Client
                     _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    if (spaces != null)
+                        WorldSpacePresentationBuilder.Apply(_presentationRoot, spaces, _frame.Place.Anchor);
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
                     _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
