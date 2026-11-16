@@ -60,9 +60,9 @@ The server currently supplies one biome label per chunk. A biome boundary can th
 
 For fast visual inspection without traveling to each region, use the Unity menu:
 - `Pogranichye → Debug → Build Frontier Biome Test Strip`
-- Five 256 m fixture chunks are placed in a row along +Z: forest, plain, hills, coast, steppe.
+- Five 256 m fixture chunks are placed in a row along +Z near the current Scene view pivot: forest, plain, hills, coast, steppe.
 - A simple test trail crosses each chunk so you can check that vegetation respects path corridors.
-- Select the generated `FrontierBiomePreview_TEST_ONLY` root and move the Scene/Game camera along +Z.
+- The Scene view frames the first chunk automatically; pan/orbit along +Z to inspect the remaining chunks.
 - Remove it with `Pogranichye → Debug → Clear Frontier Biome Test Strip`.
 
 These fixtures exist only in the local Editor scene. They are not sent to the server and do not change the live world. The preview uses the same terrain and vegetation builders as streamed chunks.
