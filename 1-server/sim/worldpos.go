@@ -119,6 +119,7 @@ type Terrain struct {
 	seed    uint64
 	rimR    float64 // радиус гребня гор вокруг котла, м
 	anchors [][3]float64
+	biomes  []string // параллельно anchors: биом региона того же села (comms 0235/0254, task 010)
 }
 
 const (
@@ -133,13 +134,22 @@ func NewTerrain(w *core.World) *Terrain {
 	type an struct {
 		e, n  float64
 		inner bool
+		biome string
 	}
 	var as []an
 	w.Each("settlement", func(se *core.Entity) {
 		s := core.Settle(se)
 		e, n := Anchor(w, s)
 		in := !isOuter(w, s)
-		as = append(as, an{e, n, in})
+		biome := "plain" // стартовый котёл по умолчанию — ополье (sim/worldgen.go)
+		if s.Region != 0 {
+			if re := w.Get(s.Region); re != nil {
+				if r := core.Region(re); r != nil && r.Biome != "" {
+					biome = r.Biome
+				}
+			}
+		}
+		as = append(as, an{e, n, in, biome})
 		if in {
 			far = math.Max(far, math.Hypot(e, n))
 		}
@@ -147,6 +157,7 @@ func NewTerrain(w *core.World) *Terrain {
 	t.rimR = far + 9000 // гребень — в девяти километрах за самым дальним селом котла
 	for _, a := range as {
 		t.anchors = append(t.anchors, [3]float64{a.e, a.n, t.raw(a.e, a.n)})
+		t.biomes = append(t.biomes, a.biome)
 	}
 	return t
 }
@@ -205,6 +216,19 @@ func (t *Terrain) Height(e, n float64) float64 {
 	k := (best - siteFlatR) / (siteBlendR - siteFlatR)
 	k = k * k * (3 - 2*k)
 	return bh + (h-bh)*k
+}
+
+// Biome — биом ближайшего села в точке (e,n): та же правило «чьё село ближе» (comms 0235/0254,
+// task 010), что и у Height — соседние чанки у границы земель одного села получают один биом без
+// рваных швов. "plain", если в мире вообще нет поселений (не ожидается вне пустых тестовых миров).
+func (t *Terrain) Biome(e, n float64) string {
+	best, bb := math.MaxFloat64, "plain"
+	for i, a := range t.anchors {
+		if d := math.Hypot(e-a[0], n-a[1]); d < best {
+			best, bb = d, t.biomes[i]
+		}
+	}
+	return bb
 }
 
 // --- положение сущности ---
@@ -378,8 +402,16 @@ func TerrainChunkUsing(w *core.World, t *Terrain, cx, cz int64, step int) map[st
 			sets = append(sets, map[string]any{"id": eidStr(se.ID), "e": r3(e), "n": r3(nn)})
 		}
 	})
-	return map[string]any{"id": ChunkID(0, cx, cz), "frame": 0, "chunk": []int64{cx, cz}, "origin": map[string]float64{"e": oe, "n": on},
-		"size_m": ChunkMeters, "step_m": step, "side": n + 1, "heights": hs, "settlements": sets}
+	cxCenter, cyCenter := oe+ChunkMeters/2, on+ChunkMeters/2
+	biome := t.Biome(cxCenter, cyCenter)
+	out := map[string]any{"id": ChunkID(0, cx, cz), "frame": 0, "chunk": []int64{cx, cz}, "origin": map[string]float64{"e": oe, "n": on},
+		"size_m": ChunkMeters, "step_m": step, "side": n + 1, "heights": hs, "settlements": sets,
+		// comms 0235/0254 Этап A (task 010) — аддитивно, старые клиенты поля не читают:
+		"seed": int64(t.seed), "gen": terrainContentGen, "biome": biome,
+		"cover": chunkCover(t, biome, oe, on), "roads": chunkRoads(w, oe, on),
+		"resources": chunkResources(t, biome, cx, cz), "wild": chunkWild(w, oe, on),
+	}
+	return out
 }
 
 // --- бесшовный мир: земли сёл ---
