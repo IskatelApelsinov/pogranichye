@@ -2240,6 +2240,19 @@ namespace Pogranichye.Client
                     new BindingRow("Голосовой PTT", "VoicePushToTalk"),
                     new BindingRow("Отмена / назад", "Cancel")
                 });
+                DrawBindingSection("МАГИЯ — ВЫБОР УЗЛОВ", new[]
+                {
+                    new BindingRow("Узел 1", "WeaveNode1"),
+                    new BindingRow("Узел 2", "WeaveNode2"),
+                    new BindingRow("Узел 3", "WeaveNode3"),
+                    new BindingRow("Узел 4", "WeaveNode4"),
+                    new BindingRow("Узел 5", "WeaveNode5"),
+                    new BindingRow("Узел 6", "WeaveNode6"),
+                    new BindingRow("Узел 7", "WeaveNode7"),
+                    new BindingRow("Узел 8", "WeaveNode8"),
+                    new BindingRow("Узел 9", "WeaveNode9"),
+                    new BindingRow("Узел 10", "WeaveNode10")
+                });
                 DrawBindingSection("БОЙ И МАГИЯ", new[]
                 {
                     new BindingRow("Основная атака", "Primary"),
