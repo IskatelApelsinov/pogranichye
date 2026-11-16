@@ -191,6 +191,8 @@ namespace Pogranichye.Client
         private ClientInput _input;
         private JObject _me;
         private JObject _place;
+        private JObject _catalog;
+        private bool _catalogExpanded;
         private GameplayStatusView _status;
         private ActionResultFrame _result;
         private CombatFrame _combat;
@@ -299,6 +301,13 @@ namespace Pogranichye.Client
             _input = input;
         }
 
+        public void SetCatalog(JObject catalog)
+        {
+            // The catalogue is static reference data. Keep the last validated snapshot across
+            // ordinary world frames; it is never used to predict an action or mutate inventory.
+            _catalog = catalog;
+        }
+
         private static void DrawAttribute(StatsFrame stats, string key, string label)
         {
             if (stats == null) return;
@@ -319,6 +328,73 @@ namespace Pogranichye.Client
             Bar(barRect, value / 100f, color);
             GUILayout.Label(value.ToString("0", CultureInfo.InvariantCulture), GUILayout.Width(32f));
             GUILayout.EndHorizontal();
+        }
+
+        private void DrawCatalogReference()
+        {
+            if (_catalog == null) return;
+            var items = Arr(_catalog, "items");
+            var recipes = Arr(_catalog, "recipes");
+            var nodes = Arr(_catalog, "weave_nodes");
+            var schemas = Arr(_catalog, "weave_schemas");
+            var label = "СПРАВОЧНИК МИРА · " + (items?.Count ?? 0) + " предметов · " +
+                (recipes?.Count ?? 0) + " рецептов · " + (nodes?.Count ?? 0) + " узлов плетения";
+            _catalogExpanded = GUILayout.Toggle(_catalogExpanded, label, GUI.skin.button);
+            if (!_catalogExpanded) return;
+
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ПРЕДМЕТЫ И СНАРЯЖЕНИЕ");
+            if (items != null)
+            {
+                foreach (var item in items)
+                {
+                    var name = Str(item, "name");
+                    var id = Str(item, "item");
+                    if (string.IsNullOrEmpty(name)) name = Name(id);
+                    var details = new List<string>();
+                    var slot = Str(item, "slot");
+                    if (!string.IsNullOrEmpty(slot)) details.Add("слот: " + slot);
+                    if (Flag(item, "hand")) details.Add("в руку");
+                    if (item["price"] != null) details.Add("цена: " + Num(item, "price").ToString("0.#", CultureInfo.InvariantCulture));
+                    foreach (var effect in new[] { "armor", "carry", "pace", "rest" })
+                        if (item[effect] != null && Num(item, effect) != 0)
+                            details.Add(effect + " +" + Num(item, effect).ToString("0.#", CultureInfo.InvariantCulture));
+                    GUILayout.Label(name + (details.Count == 0 ? "" : " · " + string.Join(" · ", details.ToArray())));
+                }
+            }
+
+            GUILayout.Space(6f);
+            GUILayout.Label("РЕМЕСЛО · РЕЦЕПТЫ");
+            if (recipes != null)
+            {
+                foreach (var recipe in recipes)
+                {
+                    var needs = Obj(recipe, "needs");
+                    var parts = new List<string>();
+                    if (needs != null)
+                        foreach (var need in needs.Properties())
+                            parts.Add(Name(need.Name) + " ×" + need.Value);
+                    GUILayout.Label(Str(recipe, "name") + " · " + Str(recipe, "at") +
+                        (parts.Count == 0 ? "" : " · нужно: " + string.Join(", ", parts.ToArray())) +
+                        " · результат: " + Name(Str(recipe, "gives")) + " ×" + Num(recipe, "qty").ToString("0", CultureInfo.InvariantCulture));
+                }
+            }
+
+            GUILayout.Space(6f);
+            GUILayout.Label("УЗЛЫ И СХЕМЫ ПЛЕТЕНИЙ");
+            if (nodes != null)
+                foreach (var node in nodes)
+                    GUILayout.Label(Str(node, "name") + " · " + Str(node, "hint"));
+            if (schemas != null)
+                foreach (var schema in schemas)
+                {
+                    var sequence = Arr(schema, "nodes");
+                    var ids = new List<string>();
+                    if (sequence != null)
+                        foreach (var node in sequence) ids.Add(node.ToString());
+                    GUILayout.Label(Str(schema, "name") + ": " + string.Join(" → ", ids.ToArray()));
+                }
+            GUILayout.EndVertical();
         }
 
         public void DrawInventoryTab()
@@ -347,6 +423,8 @@ namespace Pogranichye.Client
 
             // Vitals are server-owned; hunger is a rising need (0 = full), not a satiety score.
             GUILayout.Space(6f);
+            DrawCatalogReference();
+
             GUILayout.Label("СОСТОЯНИЕ");
             GUILayout.BeginVertical(GUI.skin.box);
             DrawCondition(_me, "health", "Здоровье", new Color(0.55f, 0.66f, 0.42f));
