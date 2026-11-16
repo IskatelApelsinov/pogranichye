@@ -183,6 +183,159 @@ namespace Pogranichye.Client.Presentation
             renderer.sharedMaterial = _material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = true;
+            ApplyBiomeTint(renderer, chunk);
+            ApplyTerrainFeatures(go.transform, chunk, anchor);
+        }
+
+        private static void ApplyBiomeTint(MeshRenderer renderer, TerrainChunkFrame chunk)
+        {
+            var tint = new Color(1f, 1f, 1f, 1f);
+            switch ((chunk.Biome ?? string.Empty).ToLowerInvariant())
+            {
+                case "forest": tint = new Color(0.78f, 0.91f, 0.72f); break;
+                case "mountain": tint = new Color(0.88f, 0.86f, 0.82f); break;
+                case "wetland": case "swamp": tint = new Color(0.78f, 0.86f, 0.70f); break;
+                case "steppe": tint = new Color(1.00f, 0.91f, 0.72f); break;
+                case "taiga": tint = new Color(0.76f, 0.88f, 0.78f); break;
+            }
+            if (chunk.Cover != null)
+            {
+                var cover = chunk.Cover;
+                var total = Math.Max(0.0001d, cover.Forest + cover.Grass + cover.Rock + cover.Wet);
+                var rock = (float)(cover.Rock / total);
+                var wet = (float)(cover.Wet / total);
+                tint = Color.Lerp(tint, new Color(0.78f, 0.77f, 0.73f), Mathf.Clamp01(rock * 0.55f));
+                tint = Color.Lerp(tint, new Color(0.76f, 0.82f, 0.69f), Mathf.Clamp01(wet * 0.35f));
+            }
+            var block = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(block);
+            block.SetColor("_BaseColor", tint);
+            block.SetColor("_Color", tint);
+            renderer.SetPropertyBlock(block);
+        }
+
+        private static void ApplyTerrainFeatures(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
+        {
+            if (chunk.Water != null)
+                foreach (var water in chunk.Water)
+                {
+                    if (water == null || water.Points == null || water.Points.Count < 2 || water.WidthMeters <= 0) continue;
+                    var y = (float)(water.WaterLevelMeters - anchor.Up);
+                    var mesh = BuildRibbon(water.Points, (float)water.WidthMeters, _ => y, "Water " + water.Id);
+                    AddFeatureMesh(root, "Water_" + SafeName(water.Id), mesh, WaterMaterial());
+                }
+
+            if (chunk.Roads != null)
+                foreach (var road in chunk.Roads)
+                {
+                    if (road == null || road.Points == null || road.Points.Count < 2) continue;
+                    var width = road.WidthMeters > 0 ? (float)road.WidthMeters : 3f;
+                    var mesh = BuildRibbon(road.Points, width, point =>
+                    {
+                        double height;
+                        float slope;
+                        Vector3 normal;
+                        var east = chunk.Origin.East + point.X;
+                        var north = chunk.Origin.North + point.Z;
+                        return TerrainHeightSampler.TrySample(chunk, east, north, out height, out slope, out normal)
+                            ? (float)(height - anchor.Up + 0.035d) : 0.035f;
+                    }, "Road " + road.Id);
+                    AddFeatureMesh(root, "Road_" + SafeName(road.Id), mesh, RoadMaterial());
+                }
+        }
+
+        private static Mesh BuildRibbon(System.Collections.Generic.List<TerrainFeaturePointFrame> points,
+            float width, Func<TerrainFeaturePointFrame, float> height, string name)
+        {
+            var vertices = new Vector3[points.Count * 2];
+            var uvs = new Vector2[vertices.Length];
+            var triangles = new int[(points.Count - 1) * 6];
+            var half = Mathf.Max(0.25f, width) * 0.5f;
+            var distance = 0f;
+            for (var i = 0; i < points.Count; i++)
+            {
+                var previous = points[Math.Max(0, i - 1)];
+                var next = points[Math.Min(points.Count - 1, i + 1)];
+                var dx = (float)(next.X - previous.X);
+                var dz = (float)(next.Z - previous.Z);
+                var length = Mathf.Sqrt(dx * dx + dz * dz);
+                if (length < 0.001f) { dx = 1f; dz = 0f; length = 1f; }
+                var px = -dz / length * half;
+                var pz = dx / length * half;
+                var point = points[i];
+                var y = height(point);
+                vertices[i * 2] = new Vector3((float)point.X + px, y, (float)point.Z + pz);
+                vertices[i * 2 + 1] = new Vector3((float)point.X - px, y, (float)point.Z - pz);
+                if (i > 0)
+                {
+                    var prev = points[i - 1];
+                    distance += Vector2.Distance(new Vector2((float)point.X, (float)point.Z),
+                        new Vector2((float)prev.X, (float)prev.Z));
+                }
+                uvs[i * 2] = new Vector2(0f, distance / Mathf.Max(1f, width));
+                uvs[i * 2 + 1] = new Vector2(1f, distance / Mathf.Max(1f, width));
+            }
+            var t = 0;
+            for (var i = 0; i < points.Count - 1; i++)
+            {
+                var a = i * 2;
+                var b = a + 1;
+                var c = a + 2;
+                var d = a + 3;
+                triangles[t++] = a; triangles[t++] = c; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = c; triangles[t++] = d;
+            }
+            var mesh = new Mesh { name = name };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AddFeatureMesh(Transform parent, string name, Mesh mesh, Material material)
+        {
+            if (mesh == null || material == null) { if (mesh != null) UnityEngine.Object.Destroy(mesh); return; }
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = true;
+        }
+
+        private static string SafeName(string value)
+        {
+            return (value ?? string.Empty).Replace(':', '_').Replace('/', '_').Replace('\\\\', '_');
+        }
+
+        private static Material _waterMaterial;
+        private static Material _roadMaterial;
+
+        private static Material WaterMaterial()
+        {
+            if (_waterMaterial != null) return _waterMaterial;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
+            _waterMaterial = new Material(shader) { name = "World water • river", color = new Color(0.13f, 0.39f, 0.48f, 0.82f) };
+            if (_waterMaterial.HasProperty("_BaseColor")) _waterMaterial.SetColor("_BaseColor", new Color(0.13f, 0.39f, 0.48f, 0.82f));
+            if (_waterMaterial.HasProperty("_Surface")) _waterMaterial.SetFloat("_Surface", 1f);
+            if (_waterMaterial.HasProperty("_ZWrite")) _waterMaterial.SetFloat("_ZWrite", 0f);
+            _waterMaterial.renderQueue = 3000;
+            return _waterMaterial;
+        }
+
+        private static Material RoadMaterial()
+        {
+            if (_roadMaterial != null) return _roadMaterial;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
+            _roadMaterial = new Material(shader) { name = "World path • packed earth", color = new Color(0.35f, 0.29f, 0.20f) };
+            if (_roadMaterial.HasProperty("_BaseColor")) _roadMaterial.SetColor("_BaseColor", new Color(0.35f, 0.29f, 0.20f));
+            if (_roadMaterial.HasProperty("_Smoothness")) _roadMaterial.SetFloat("_Smoothness", 0.05f);
+            return _roadMaterial;
         }
     }
 }
