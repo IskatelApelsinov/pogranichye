@@ -1754,11 +1754,12 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0f, wallHeight * 0.95f, -depth * 0.5f + 0.12f),
                     new Vector3(width + 0.22f, 0.16f, 0.16f), _trunk, false);
             }
-            else
+            else if (building.Kind != "tavern")
             {
-                // Building types share the same roof grammar but vary in pitch and eaves.
-                var roofPitch = building.Kind == "granary" ? 23f :
-                    building.Kind == "tavern" ? 16f : 19f;
+                // The tavern roof is now supplied by /api/spaces as server-authored roof
+                // surfaces. Do not create a second local roof over that authoritative geometry.
+                // Other footprint-only buildings keep this visual fallback until their spaces exist.
+                var roofPitch = building.Kind == "granary" ? 23f : 19f;
                 var slopeWidth = width * 0.56f;
                 var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
