@@ -37,7 +37,8 @@ namespace Pogranichye.Client.Presentation
             var environment = new GameObject("WorldEnvironment").transform;
             environment.SetParent(root, false);
             BuildSky(environment, camera);
-            BuildDistantLandscape(environment);
+            // Do not invent a client-only mountain ring. The distant cauldron rim must be
+            // rendered exclusively from the server-authored world.rim profile.
             BuildClouds(environment, camera);
             BuildGrass(environment);
             BuildForest(environment);
