@@ -170,6 +170,7 @@ namespace Pogranichye.Client
         private const string TalkRequestLabelPrefix = "Разговор NPC:";
         private bool _firstPerson = true;
         private bool _hudCollapsed;
+        private bool _autoWalk;
         private bool _showAdvancedCharacterActions;
         private bool _marketPanelOpen;
         private bool _stablePanelOpen;
@@ -388,9 +389,15 @@ namespace Pogranichye.Client
             // Any open gameplay/system window owns input and prevents movement/camera leakage.
             var pointerOverUi = IsPointerOverUi();
             var contextualWindowOpen = _marketPanelOpen || _stablePanelOpen || _tavernPanelOpen;
-            var gameplayInputBlocked = _systemMenuOpen || _chatOpen || contextualWindowOpen || pointerOverUi ||
-                (_core != null && _core.CapturesInput) ||
-                _activityMiniGame != ActivityMiniGame.None;
+            var hardGameplayInputBlock = _systemMenuOpen || _chatOpen || contextualWindowOpen ||
+                (_core != null && _core.CapturesInput) || _activityMiniGame != ActivityMiniGame.None;
+            var gameplayInputBlocked = hardGameplayInputBlock || pointerOverUi;
+            // Never let auto-walk resume unexpectedly after a modal, chat, minigame or disconnect.
+            // Merely hovering the small auto-walk control pauses movement but preserves its state.
+            if (hardGameplayInputBlock || _connectionState != WorldConnectionState.Active)
+                _autoWalk = false;
+            else if (_input != null && _input.AutoWalkTogglePressed)
+                _autoWalk = !_autoWalk;
             _core?.SetExternalUiCapture(_systemMenuOpen || _chatOpen || contextualWindowOpen || pointerOverUi ||
                 _activityMiniGame != ActivityMiniGame.None);
             _core?.SetExternalModalMenuOpen(_systemMenuOpen || contextualWindowOpen);
@@ -473,6 +480,7 @@ namespace Pogranichye.Client
             }
 
             if (new Rect(Screen.width - 124f, 12f, 112f, 28f).Contains(guiPoint)) return true;
+            if (_hudCollapsed && GetAutoWalkControlRect().Contains(guiPoint)) return true;
             if (_frame.Me.Talk?.Options != null && _frame.Me.Talk.Options.Count > 0 &&
                 new Rect(Screen.width - 450f, Screen.height - 540f, 430f, 520f).Contains(guiPoint)) return true;
             if (_frame.Me.InviteFrom != null &&
@@ -562,7 +570,11 @@ namespace Pogranichye.Client
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
             DrawPendingActionIndicator();
-            if (_hudCollapsed) DrawObjectiveCard();
+            if (_hudCollapsed)
+            {
+                DrawObjectiveCard();
+                DrawAutoWalkControl();
+            }
             if (_chatOpen)
                 DrawChatOverlay();
             else
@@ -863,6 +875,32 @@ namespace Pogranichye.Client
                 "Локальный файл: включает координаты и состояние персонажа.");
         }
 
+        private static Rect GetAutoWalkControlRect()
+        {
+            return new Rect(12f, Screen.height - 58f, 214f, 44f);
+        }
+
+        private void DrawAutoWalkControl()
+        {
+            var rect = GetAutoWalkControlRect();
+            var previousColor = GUI.color;
+            var previousBackground = GUI.backgroundColor;
+            var previousContent = GUI.contentColor;
+            GUI.color = Color.white;
+            GUI.backgroundColor = _autoWalk
+                ? new Color(0.30f, 0.48f, 0.31f, 0.98f)
+                : new Color(0.13f, 0.12f, 0.10f, 0.96f);
+            GUI.contentColor = _autoWalk
+                ? new Color(0.96f, 0.98f, 0.88f, 1f)
+                : new Color(0.91f, 0.87f, 0.77f, 1f);
+            var label = _autoWalk ? "АВТОХОДЬБА  ВКЛ  [ = ]" : "АВТОХОДЬБА  [ = ]";
+            if (GUI.Button(rect, label))
+                _autoWalk = !_autoWalk;
+            GUI.color = previousColor;
+            GUI.backgroundColor = previousBackground;
+            GUI.contentColor = previousContent;
+        }
+
         private void DrawObjectiveCard()
         {
             var message = TutorialObjectiveHint();
@@ -978,6 +1016,7 @@ namespace Pogranichye.Client
             GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
             GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
             GUILayout.Label($"Выносливость: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
+            GUILayout.Label("Автоходьба: кнопка внизу экрана или =. Любое ручное направление отключает её.");
 
             if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
                 SetCameraMode(!_firstPerson);
@@ -4086,6 +4125,11 @@ namespace Pogranichye.Client
             // Gamepad/stick support will be added as an explicit, tested binding rather than
             // inheriting arbitrary legacy axes that could drift and move the character.
             var keyboardInput = _input != null ? _input.Move : Vector2.zero;
+            // Manual directional input always takes priority and cancels auto-walk.
+            if (_autoWalk && keyboardInput.sqrMagnitude > 0.01f)
+                _autoWalk = false;
+            if (_autoWalk)
+                keyboardInput = Vector2.up;
             var rawAxes = keyboardInput;
             _movementRawAxesDebug = rawAxes;
             var input = Time.timeScale <= 0f ? Vector2.zero : Vector2.ClampMagnitude(keyboardInput, 1f);
