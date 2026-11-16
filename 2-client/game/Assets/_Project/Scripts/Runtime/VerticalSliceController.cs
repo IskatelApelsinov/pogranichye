@@ -53,6 +53,7 @@ namespace Pogranichye.Client
         private string _password = "";
         private string _status = "Введите учётные данные сервера.";
         private bool _showMainSettings;
+        private int _settingsTab = 2;
         private Vector2 _mainMenuScroll;
         private float _masterVolume = 0.85f;
         private float _sfxVolume = 0.9f;
@@ -2083,162 +2084,194 @@ namespace Pogranichye.Client
             _status = "Настройки сброшены.";
         }
 
-        private void DrawOptionsControls()
+        private void DrawSettingsTabButton(string label, int tab)
         {
-            GUILayout.Label("ЗВУК");
-            DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
-            DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
-            DrawVolumeSlider("Окружение: ветер, птицы, вода, костёр", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
-            _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
-            _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
-
-            GUILayout.Space(8f);
-            GUILayout.Label("ГРАФИКА");
-            var qualityNames = QualitySettings.names;
-            if (qualityNames != null && qualityNames.Length > 0)
+            var previous = GUI.color;
+            if (_settingsTab == tab) GUI.color = new Color(0.88f, 0.72f, 0.48f);
+            if (GUILayout.Button(label, GUILayout.Height(34f)))
             {
-                GUILayout.Label("Общий пресет качества");
-                var quality = QualitySettings.GetQualityLevel();
-                var selected = GUILayout.SelectionGrid(quality, qualityNames, Mathf.Min(3, qualityNames.Length), GUILayout.MinHeight(32f));
-                if (selected != quality && selected >= 0 && selected < qualityNames.Length)
+                if (_settingsTab != tab && _rebindingAction != null)
                 {
-                    QualitySettings.SetQualityLevel(selected, true);
-                    SaveInt("Pogranichye.QualityLevel", selected);
+                    _input?.CancelRebind();
+                    _rebindingAction = null;
+                    _rebindingBindingIndex = -1;
+                    _bindingStatus = "Переназначение отменено при смене раздела.";
                 }
+                _settingsTab = tab;
             }
-            GUILayout.Label("Дальность теней: " + Mathf.RoundToInt(_shadowDistance) + " м");
-            var shadows = GUILayout.HorizontalSlider(_shadowDistance, 35f, 220f);
-            if (!Mathf.Approximately(shadows, _shadowDistance))
-            {
-                _shadowDistance = shadows;
-                QualitySettings.shadowDistance = shadows;
-                SaveFloat("Pogranichye.ShadowDistance", shadows);
-            }
-            GUILayout.Label("Детализация объектов (LOD): " + _lodBias.ToString("0.0") + "×");
-            var lod = GUILayout.HorizontalSlider(_lodBias, 0.5f, 2.5f);
-            if (!Mathf.Approximately(lod, _lodBias))
-            {
-                _lodBias = lod;
-                QualitySettings.lodBias = lod;
-                SaveFloat("Pogranichye.LodBias", lod);
-            }
-            GUILayout.Label("Сглаживание краёв");
-            var aaOptions = new[] { 0, 2, 4, 8 };
-            var aaLabels = new[] { "Выкл.", "2×", "4×", "8×" };
-            var aaIndex = Array.IndexOf(aaOptions, _antiAliasing);
-            if (aaIndex < 0) aaIndex = 0;
-            var nextAa = GUILayout.SelectionGrid(aaIndex, aaLabels, 4, GUILayout.MinHeight(30f));
-            if (nextAa != aaIndex && nextAa >= 0 && nextAa < aaOptions.Length)
-            {
-                _antiAliasing = aaOptions[nextAa];
-                QualitySettings.antiAliasing = _antiAliasing;
-                SaveInt("Pogranichye.AntiAliasing", _antiAliasing);
-            }
-            var sync = GUILayout.Toggle(_vSync, "Вертикальная синхронизация");
-            if (sync != _vSync)
-            {
-                _vSync = sync;
-                QualitySettings.vSyncCount = sync ? 1 : 0;
-                SaveInt("Pogranichye.VSync", sync ? 1 : 0);
-            }
-            GUILayout.Label("Ограничение кадров");
-            var fpsOptions = new[] { 30, 60, 90, 120, 144, 0 };
-            var fpsLabels = new[] { "30", "60", "90", "120", "144", "Без ограничения" };
-            var fpsIndex = Array.IndexOf(fpsOptions, _targetFrameRate);
-            if (fpsIndex < 0) fpsIndex = 1;
-            var newFpsIndex = GUILayout.SelectionGrid(fpsIndex, fpsLabels, 3, GUILayout.MinHeight(32f));
-            if (newFpsIndex != fpsIndex && newFpsIndex >= 0 && newFpsIndex < fpsOptions.Length)
-            {
-                _targetFrameRate = fpsOptions[newFpsIndex];
-                Application.targetFrameRate = _targetFrameRate == 0 ? -1 : _targetFrameRate;
-                SaveInt("Pogranichye.TargetFrameRate", _targetFrameRate);
-            }
-            GUILayout.Label("Режим экрана");
-            if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(32f)))
-                ToggleFullscreen();
-            GUILayout.Label($"{Screen.width}×{Screen.height} · {(Screen.fullScreen ? "полный экран" : "окно")}");
-
-            GUILayout.Space(8f);
-            GUILayout.Label("УПРАВЛЕНИЕ");
-            GUILayout.Label("Чувствительность мыши: " + _mouseSensitivity.ToString("0.000"));
-            var sensitivity = GUILayout.HorizontalSlider(_mouseSensitivity, 0.008f, 0.09f);
-            if (!Mathf.Approximately(sensitivity, _mouseSensitivity))
-            {
-                _mouseSensitivity = sensitivity;
-                _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
-                SaveFloat("Pogranichye.MouseSensitivity", sensitivity);
-            }
-            var invert = GUILayout.Toggle(_invertMouseY, "Инвертировать вертикальный обзор");
-            if (invert != _invertMouseY)
-            {
-                _invertMouseY = invert;
-                _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
-                SaveInt("Pogranichye.InvertMouseY", invert ? 1 : 0);
-            }
-            if (GUILayout.Button(_firstPerson ? "Камера: первое лицо" : "Камера: третье лицо", GUILayout.Height(30f)))
-                SetCameraMode(!_firstPerson);
-            GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие · F1 — интерфейс\nЛКМ — атака/выстрел · ПКМ — блок · Q — уворот · R — плетение\nZ/X/V/B/C — боевые приёмы · N — стойка · T — чат · Tab — дела и меню");
-
-            GUILayout.Space(10f);
-            GUILayout.Label("ПЕРЕНАЗНАЧЕНИЕ КЛАВИШ");
-            GUILayout.Label("Нажмите кнопку рядом с действием, затем клавишу или кнопку мыши. Esc отменяет назначение.");
-            DrawBindingSection("ПЕРЕДВИЖЕНИЕ", new[]
-            {
-                new BindingRow("Вперёд", "Move", 1),
-                new BindingRow("Назад", "Move", 2),
-                new BindingRow("Влево", "Move", 3),
-                new BindingRow("Вправо", "Move", 4),
-                new BindingRow("Прыжок", "Jump"),
-                new BindingRow("Лёгкий бег", "Jog"),
-                new BindingRow("Бег", "Sprint"),
-                new BindingRow("Автоходьба", "ToggleAutoWalk")
-            });
-            DrawBindingSection("ВЗАИМОДЕЙСТВИЕ И ИНТЕРФЕЙС", new[]
-            {
-                new BindingRow("Взаимодействие", "Interact"),
-                new BindingRow("Инвентарь", "OpenInventory"),
-                new BindingRow("Журнал / задания", "OpenJournal"),
-                new BindingRow("Карта", "OpenMap"),
-                new BindingRow("Системное меню", "Menu"),
-                new BindingRow("Скрыть / показать HUD", "ToggleHud"),
-                new BindingRow("Полный экран", "ToggleFullscreen"),
-                new BindingRow("Подсказки", "ToggleHints"),
-                new BindingRow("Техническая диагностика", "ToggleDiagnostics"),
-                new BindingRow("Чат", "Chat"),
-                new BindingRow("Голосовой PTT", "VoicePushToTalk"),
-                new BindingRow("Отмена / назад", "Cancel")
-            });
-            DrawBindingSection("БОЙ И МАГИЯ", new[]
-            {
-                new BindingRow("Основная атака", "Primary"),
-                new BindingRow("Вторичное действие / блок", "Secondary"),
-                new BindingRow("Быстрая атака", "QuickAttack"),
-                new BindingRow("Уворот", "Dodge"),
-                new BindingRow("Начать плетение", "WeaveHold"),
-                new BindingRow("Убрать узел плетения", "WeaveRemove"),
-                new BindingRow("Смена стойки", "CycleStance"),
-                new BindingRow("Песчаный приём", "TrickSand"),
-                new BindingRow("Толчок", "TrickShove"),
-                new BindingRow("Обманный выпад", "TrickFeint"),
-                new BindingRow("Приманка", "TrickBait"),
-                new BindingRow("Скрытный приём", "TrickSneak"),
-                new BindingRow("Захват цели", "LockTarget")
-            });
-            DrawBindingSection("РЕМЁСЛА И ЗАНЯТИЯ", new[]
-            {
-                new BindingRow("Начать рубку", "StartWoodcut"),
-                new BindingRow("Начать рыбалку", "StartFishing")
-            });
-            GUILayout.Label(_bindingStatus);
-            if (GUILayout.Button("Сбросить только управление", GUILayout.Height(30f)))
-            {
-                _input?.ResetBindingOverrides();
-                _rebindingAction = null;
-                _rebindingBindingIndex = -1;
-                _bindingStatus = "Стандартная раскладка управления восстановлена.";
-            }
+            GUI.color = previous;
         }
 
+        private void DrawOptionsControls()
+        {
+            GUILayout.BeginHorizontal();
+            DrawSettingsTabButton("ЗВУК", 0);
+            DrawSettingsTabButton("ГРАФИКА", 1);
+            DrawSettingsTabButton("УПРАВЛЕНИЕ", 2);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8f);
+
+            if (_settingsTab == 0)
+            {
+                GUILayout.Label("ЗВУК");
+                DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
+                DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
+                DrawVolumeSlider("Окружение: ветер, птицы, вода, костёр", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
+                _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
+                _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
+            }
+            else if (_settingsTab == 1)
+            {
+                GUILayout.Space(8f);
+                GUILayout.Label("ГРАФИКА");
+                var qualityNames = QualitySettings.names;
+                if (qualityNames != null && qualityNames.Length > 0)
+                {
+                    GUILayout.Label("Общий пресет качества");
+                    var quality = QualitySettings.GetQualityLevel();
+                    var selected = GUILayout.SelectionGrid(quality, qualityNames, Mathf.Min(3, qualityNames.Length), GUILayout.MinHeight(32f));
+                    if (selected != quality && selected >= 0 && selected < qualityNames.Length)
+                    {
+                        QualitySettings.SetQualityLevel(selected, true);
+                        SaveInt("Pogranichye.QualityLevel", selected);
+                    }
+                }
+                GUILayout.Label("Дальность теней: " + Mathf.RoundToInt(_shadowDistance) + " м");
+                var shadows = GUILayout.HorizontalSlider(_shadowDistance, 35f, 220f);
+                if (!Mathf.Approximately(shadows, _shadowDistance))
+                {
+                    _shadowDistance = shadows;
+                    QualitySettings.shadowDistance = shadows;
+                    SaveFloat("Pogranichye.ShadowDistance", shadows);
+                }
+                GUILayout.Label("Детализация объектов (LOD): " + _lodBias.ToString("0.0") + "×");
+                var lod = GUILayout.HorizontalSlider(_lodBias, 0.5f, 2.5f);
+                if (!Mathf.Approximately(lod, _lodBias))
+                {
+                    _lodBias = lod;
+                    QualitySettings.lodBias = lod;
+                    SaveFloat("Pogranichye.LodBias", lod);
+                }
+                GUILayout.Label("Сглаживание краёв");
+                var aaOptions = new[] { 0, 2, 4, 8 };
+                var aaLabels = new[] { "Выкл.", "2×", "4×", "8×" };
+                var aaIndex = Array.IndexOf(aaOptions, _antiAliasing);
+                if (aaIndex < 0) aaIndex = 0;
+                var nextAa = GUILayout.SelectionGrid(aaIndex, aaLabels, 4, GUILayout.MinHeight(30f));
+                if (nextAa != aaIndex && nextAa >= 0 && nextAa < aaOptions.Length)
+                {
+                    _antiAliasing = aaOptions[nextAa];
+                    QualitySettings.antiAliasing = _antiAliasing;
+                    SaveInt("Pogranichye.AntiAliasing", _antiAliasing);
+                }
+                var sync = GUILayout.Toggle(_vSync, "Вертикальная синхронизация");
+                if (sync != _vSync)
+                {
+                    _vSync = sync;
+                    QualitySettings.vSyncCount = sync ? 1 : 0;
+                    SaveInt("Pogranichye.VSync", sync ? 1 : 0);
+                }
+                GUILayout.Label("Ограничение кадров");
+                var fpsOptions = new[] { 30, 60, 90, 120, 144, 0 };
+                var fpsLabels = new[] { "30", "60", "90", "120", "144", "Без ограничения" };
+                var fpsIndex = Array.IndexOf(fpsOptions, _targetFrameRate);
+                if (fpsIndex < 0) fpsIndex = 1;
+                var newFpsIndex = GUILayout.SelectionGrid(fpsIndex, fpsLabels, 3, GUILayout.MinHeight(32f));
+                if (newFpsIndex != fpsIndex && newFpsIndex >= 0 && newFpsIndex < fpsOptions.Length)
+                {
+                    _targetFrameRate = fpsOptions[newFpsIndex];
+                    Application.targetFrameRate = _targetFrameRate == 0 ? -1 : _targetFrameRate;
+                    SaveInt("Pogranichye.TargetFrameRate", _targetFrameRate);
+                }
+                GUILayout.Label("Режим экрана");
+                if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(32f)))
+                    ToggleFullscreen();
+                GUILayout.Label($"{Screen.width}×{Screen.height} · {(Screen.fullScreen ? "полный экран" : "окно")}");
+            }
+            else
+            {
+                GUILayout.Space(8f);
+                GUILayout.Label("УПРАВЛЕНИЕ");
+                GUILayout.Label("Чувствительность мыши: " + _mouseSensitivity.ToString("0.000"));
+                var sensitivity = GUILayout.HorizontalSlider(_mouseSensitivity, 0.008f, 0.09f);
+                if (!Mathf.Approximately(sensitivity, _mouseSensitivity))
+                {
+                    _mouseSensitivity = sensitivity;
+                    _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
+                    SaveFloat("Pogranichye.MouseSensitivity", sensitivity);
+                }
+                var invert = GUILayout.Toggle(_invertMouseY, "Инвертировать вертикальный обзор");
+                if (invert != _invertMouseY)
+                {
+                    _invertMouseY = invert;
+                    _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
+                    SaveInt("Pogranichye.InvertMouseY", invert ? 1 : 0);
+                }
+                if (GUILayout.Button(_firstPerson ? "Камера: первое лицо" : "Камера: третье лицо", GUILayout.Height(30f)))
+                    SetCameraMode(!_firstPerson);
+                GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие · F1 — интерфейс\nЛКМ — атака/выстрел · ПКМ — блок · Q — уворот · R — плетение\nZ/X/V/B/C — боевые приёмы · N — стойка · T — чат · Tab — дела и меню");
+
+                GUILayout.Space(10f);
+                GUILayout.Label("ПЕРЕНАЗНАЧЕНИЕ КЛАВИШ");
+                GUILayout.Label("Нажмите кнопку рядом с действием, затем клавишу или кнопку мыши. Esc отменяет назначение.");
+                DrawBindingSection("ПЕРЕДВИЖЕНИЕ", new[]
+                {
+                    new BindingRow("Вперёд", "Move", 1),
+                    new BindingRow("Назад", "Move", 2),
+                    new BindingRow("Влево", "Move", 3),
+                    new BindingRow("Вправо", "Move", 4),
+                    new BindingRow("Прыжок", "Jump"),
+                    new BindingRow("Лёгкий бег", "Jog"),
+                    new BindingRow("Бег", "Sprint"),
+                    new BindingRow("Автоходьба", "ToggleAutoWalk")
+                });
+                DrawBindingSection("ВЗАИМОДЕЙСТВИЕ И ИНТЕРФЕЙС", new[]
+                {
+                    new BindingRow("Взаимодействие", "Interact"),
+                    new BindingRow("Инвентарь", "OpenInventory"),
+                    new BindingRow("Журнал / задания", "OpenJournal"),
+                    new BindingRow("Карта", "OpenMap"),
+                    new BindingRow("Системное меню", "Menu"),
+                    new BindingRow("Скрыть / показать HUD", "ToggleHud"),
+                    new BindingRow("Полный экран", "ToggleFullscreen"),
+                    new BindingRow("Подсказки", "ToggleHints"),
+                    new BindingRow("Техническая диагностика", "ToggleDiagnostics"),
+                    new BindingRow("Чат", "Chat"),
+                    new BindingRow("Голосовой PTT", "VoicePushToTalk"),
+                    new BindingRow("Отмена / назад", "Cancel")
+                });
+                DrawBindingSection("БОЙ И МАГИЯ", new[]
+                {
+                    new BindingRow("Основная атака", "Primary"),
+                    new BindingRow("Вторичное действие / блок", "Secondary"),
+                    new BindingRow("Быстрая атака", "QuickAttack"),
+                    new BindingRow("Уворот", "Dodge"),
+                    new BindingRow("Начать плетение", "WeaveHold"),
+                    new BindingRow("Убрать узел плетения", "WeaveRemove"),
+                    new BindingRow("Смена стойки", "CycleStance"),
+                    new BindingRow("Песчаный приём", "TrickSand"),
+                    new BindingRow("Толчок", "TrickShove"),
+                    new BindingRow("Обманный выпад", "TrickFeint"),
+                    new BindingRow("Приманка", "TrickBait"),
+                    new BindingRow("Скрытный приём", "TrickSneak"),
+                    new BindingRow("Захват цели", "LockTarget")
+                });
+                DrawBindingSection("РЕМЁСЛА И ЗАНЯТИЯ", new[]
+                {
+                    new BindingRow("Начать рубку", "StartWoodcut"),
+                    new BindingRow("Начать рыбалку", "StartFishing")
+                });
+                GUILayout.Label(_bindingStatus);
+                if (GUILayout.Button("Сбросить только управление", GUILayout.Height(30f)))
+                {
+                    _input?.ResetBindingOverrides();
+                    _rebindingAction = null;
+                    _rebindingBindingIndex = -1;
+                    _bindingStatus = "Стандартная раскладка управления восстановлена.";
+                }
+            }
+            }
+        }
 
         private struct BindingRow
         {
