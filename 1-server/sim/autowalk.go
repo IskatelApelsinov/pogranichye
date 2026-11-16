@@ -178,6 +178,9 @@ func stepFieldWalk(w *core.World, e *core.Entity, c *AutoWalkC, p *ScenePosC, dt
 	if n < 1e-6 {
 		return false
 	}
+	if !inScene { // в поле шаг зависит от склона; кручу клиент-менеджер одолевает ползком, а не встаёт
+		speed *= math.Max(0.2, TerrainMult(w, terrainFor(w), e, dx, dy))
+	}
 	step := math.Min(speed*dt, n)
 	p.X, p.Y = l.ResolveMove(p.X, p.Y, p.X+dx/n*step, p.Y+dy/n*step)
 	p.Facing = math.Mod(math.Atan2(dy, dx)*180/math.Pi+360, 360)
