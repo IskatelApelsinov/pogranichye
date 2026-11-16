@@ -216,6 +216,7 @@ namespace Pogranichye.Client.Presentation
 
         private static void ApplyTerrainFeatures(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
         {
+            AddResourceMarkers(root, chunk, anchor);
             if (chunk.Water != null)
                 foreach (var water in chunk.Water)
                 {
@@ -251,6 +252,80 @@ namespace Pogranichye.Client.Presentation
                         (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
         }
+
+        private static Material _resourceMaterial;
+
+        private static void AddResourceMarkers(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
+        {
+            if (chunk.Resources == null || chunk.Resources.Count == 0) return;
+            var material = ResourceMaterial();
+            if (material == null) return;
+            foreach (var resource in chunk.Resources)
+            {
+                if (resource == null || string.IsNullOrEmpty(resource.Kind) ||
+                    !IsFinite(resource.X) || !IsFinite(resource.Z) ||
+                    resource.X < 0 || resource.X > chunk.SizeMeters ||
+                    resource.Z < 0 || resource.Z > chunk.SizeMeters) continue;
+                double ground;
+                float slope;
+                Vector3 normal;
+                var east = chunk.Origin.East + resource.X;
+                var north = chunk.Origin.North + resource.Z;
+                if (!TerrainHeightSampler.TrySample(chunk, east, north, out ground, out slope, out normal)) continue;
+
+                var kind = resource.Kind.ToLowerInvariant();
+                var primitive = kind == "ore" ? PrimitiveType.Cube :
+                    kind == "wood" ? PrimitiveType.Cylinder : PrimitiveType.Sphere;
+                var marker = GameObject.CreatePrimitive(primitive);
+                marker.name = "Resource_" + SafeName(resource.Id);
+                marker.transform.SetParent(root, false);
+                var count = Mathf.Clamp(resource.Count, 1, 3);
+                var scale = 0.42f + count * 0.10f;
+                marker.transform.localPosition = new Vector3(
+                    (float)(chunk.Origin.East - anchor.East) + (float)resource.X,
+                    (float)(ground - anchor.Up) + scale * 0.45f + 0.06f,
+                    (float)(chunk.Origin.North - anchor.North) + (float)resource.Z);
+                marker.transform.localScale = kind == "wood"
+                    ? new Vector3(scale * 0.72f, scale * 1.6f, scale * 0.72f)
+                    : new Vector3(scale, scale, scale);
+                var collider = marker.GetComponent<Collider>();
+                if (collider != null) collider.enabled = false;
+                var renderer = marker.GetComponent<MeshRenderer>();
+                renderer.sharedMaterial = material;
+                var tint = kind == "ore" ? new Color(0.48f, 0.49f, 0.50f) :
+                    kind == "wood" ? new Color(0.38f, 0.27f, 0.16f) :
+                    kind == "fish" ? new Color(0.30f, 0.57f, 0.70f) :
+                    kind == "veg" ? new Color(0.56f, 0.62f, 0.28f) :
+                    new Color(0.36f, 0.55f, 0.31f);
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor("_BaseColor", tint);
+                block.SetColor("_Color", tint);
+                renderer.SetPropertyBlock(block);
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = true;
+            }
+        }
+
+        private static Material ResourceMaterial()
+        {
+            if (_resourceMaterial != null) return _resourceMaterial;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
+            _resourceMaterial = new Material(shader) { name = "World resource markers", color = Color.white };
+            if (_resourceMaterial.HasProperty("_BaseColor")) _resourceMaterial.SetColor("_BaseColor", Color.white);
+            return _resourceMaterial;
+        }
+
+        private static bool AreFeaturePointsValid(System.Collections.Generic.List<TerrainFeaturePointFrame> points)
+        {
+            if (points == null || points.Count < 2) return false;
+            foreach (var point in points)
+                if (point == null || !IsFinite(point.X) || !IsFinite(point.Z)) return false;
+            return true;
+        }
+
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
         private static Mesh BuildRibbon(System.Collections.Generic.List<TerrainFeaturePointFrame> points,
             float width, Func<TerrainFeaturePointFrame, float> height, string name)
