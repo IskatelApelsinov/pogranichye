@@ -2218,7 +2218,8 @@ namespace Pogranichye.Client
             for (var i = 0; i < Nodes.Length; i++)
             {
                 var c = NodeCenter(i);
-                GUI.Box(new Rect(c.x - 44f, c.y - 30f, 88f, 60f), NodeGlyph[i] + "\n" + (i + 1) + " " + NodeRu[i]);
+                var shortcut = i == 9 ? "0" : (i + 1).ToString(CultureInfo.InvariantCulture);
+                GUI.Box(new Rect(c.x - 44f, c.y - 30f, 88f, 60f), NodeGlyph[i] + "\n" + shortcut + " " + NodeRu[i]);
             }
 
             var weave = Obj(_me, "weave");
