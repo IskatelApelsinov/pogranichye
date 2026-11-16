@@ -674,6 +674,94 @@ namespace Pogranichye.Client
             GUILayout.Label("Предметы и экипировка подтверждаются сервером. Внешний вид экипировки будет отображаться по мере подключения моделей и слотов персонажа.");
         }
 
+        public void DrawQuestJournal()
+        {
+            if (!_active)
+            {
+                GUILayout.Label("Задания появятся после подключения к миру.");
+                return;
+            }
+
+            var quests = _quests;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ПРОСЬБЫ И ПОРУЧЕНИЯ");
+            GUILayout.Label("Выполнено: " + (quests != null ? quests.Done : 0) +
+                "   ·   Репутация в поселениях: " + (quests != null ? quests.Reputation : 0));
+            var active = quests != null ? quests.Active : null;
+            if (active == null || active.Count == 0)
+            {
+                GUILayout.Label("Сейчас нет принятых поручений.");
+            }
+            else
+            {
+                foreach (var quest in active)
+                {
+                    if (quest == null) continue;
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label(quest.Text ?? "Поручение");
+                    if (!string.IsNullOrWhiteSpace(quest.GiverName))
+                        GUILayout.Label("Кто попросил: " + quest.GiverName);
+                    if (!string.IsNullOrWhiteSpace(quest.SettlementName))
+                        GUILayout.Label("Место: " + quest.SettlementName);
+                    var have = Mathf.Max(0, quest.Have ?? 0);
+                    var quantity = Mathf.Max(1, quest.Quantity);
+                    GUILayout.Label(have + " / " + quantity);
+                    var progress = GUILayoutUtility.GetRect(1f, 8f, GUILayout.ExpandWidth(true));
+                    var oldColor = GUI.color;
+                    GUI.color = new Color(0.13f, 0.14f, 0.12f, 1f);
+                    GUI.DrawTexture(progress, Texture2D.whiteTexture);
+                    GUI.color = new Color(0.65f, 0.53f, 0.34f, 1f);
+                    GUI.DrawTexture(new Rect(progress.x, progress.y,
+                        progress.width * Mathf.Clamp01(have / (float)quantity), progress.height), Texture2D.whiteTexture);
+                    GUI.color = oldColor;
+                    GUILayout.Label(quest.Ready == true ? "Готово к сдаче" : "Выполняется");
+                    GUILayout.BeginHorizontal();
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && quest.Ready == true;
+                    if (GUILayout.Button("Сдать"))
+                        Ask("Поручение", "quest", "action", "turnin", "quest", quest.Id);
+                    GUI.enabled = previousEnabled;
+                    if (GUILayout.Button("Отказаться"))
+                        Ask("Поручение", "quest", "action", "drop", "quest", quest.Id);
+                    GUILayout.EndHorizontal();
+                    GUILayout.EndVertical();
+                }
+            }
+
+            GUILayout.Space(5f);
+            GUILayout.Label("ДОСТУПНЫЕ ПРОСЬБЫ");
+            var offers = quests != null ? quests.Offers : null;
+            if (offers == null || offers.Count == 0)
+            {
+                GUILayout.Label("Новых просьб пока нет. Поговорите с жителями или загляните к доске объявлений.");
+            }
+            else
+            {
+                var talk = Obj(_me, "talk");
+                var currentTalkWith = Str(talk, "with");
+                foreach (var offer in offers)
+                {
+                    if (offer == null) continue;
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label(offer.Text ?? "Просьба");
+                    var via = offer.Via ?? string.Empty;
+                    var giver = offer.Giver ?? string.Empty;
+                    var isCurrentNpc = via == "npc" && !string.IsNullOrEmpty(currentTalkWith) && giver == currentTalkWith;
+                    var who = via == "board" ? "Доска объявлений" :
+                        !string.IsNullOrWhiteSpace(offer.GiverName) ? offer.GiverName : "Житель";
+                    GUILayout.Label(who + (offer.Coins > 0d ? " · награда " + offer.Coins.ToString("0.##", CultureInfo.InvariantCulture) + " монет" : string.Empty));
+                    if (via != "npc" || isCurrentNpc)
+                    {
+                        if (GUILayout.Button("Принять поручение"))
+                            Ask("Поручение", "quest", "action", "accept", "quest", offer.Id);
+                    }
+                    else GUILayout.Label("Чтобы принять, сначала заговорите с этим жителем.");
+                    GUILayout.EndVertical();
+                }
+            }
+            GUILayout.EndVertical();
+        }
+
         private void DrawEquipmentSlot(string label, string itemId, string slot, JObject items)
         {
             GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(62f));
