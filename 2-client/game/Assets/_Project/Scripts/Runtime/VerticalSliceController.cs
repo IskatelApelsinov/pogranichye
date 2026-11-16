@@ -2260,9 +2260,6 @@ namespace Pogranichye.Client
                 _input.GetBindingDisplayString(row.Action, row.BindingIndex);
             if (GUILayout.Button(current, GUILayout.MinWidth(118f), GUILayout.Height(28f)))
             {
-                _rebindingAction = row.Action;
-                _rebindingBindingIndex = row.BindingIndex;
-                _bindingStatus = "Ожидание ввода: " + row.Label + ". Esc — отмена.";
                 var started = _input.StartRebind(row.Action, row.BindingIndex,
                     display =>
                     {
@@ -2279,7 +2276,13 @@ namespace Pogranichye.Client
                         _rebindingBindingIndex = -1;
                         _bindingStatus = "Переназначение отменено.";
                     });
-                if (!started)
+                if (started)
+                {
+                    _rebindingAction = row.Action;
+                    _rebindingBindingIndex = row.BindingIndex;
+                    _bindingStatus = "Ожидание ввода: " + row.Label + ". Esc — отмена.";
+                }
+                else
                 {
                     _rebindingAction = null;
                     _rebindingBindingIndex = -1;
