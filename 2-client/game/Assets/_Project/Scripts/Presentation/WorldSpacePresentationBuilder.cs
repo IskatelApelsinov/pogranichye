@@ -182,24 +182,44 @@ namespace Pogranichye.Client.Presentation
                     steps = Mathf.Min(steps, remaining);
                     if (steps <= 0) continue;
                     remaining -= steps;
-                    var forward = direction / length;
-                    var rotation = Quaternion.LookRotation(forward, Vector3.up);
-                    var run = length / steps;
+                    var horizontal = new Vector3(direction.x, 0f, direction.z);
+                    var horizontalLength = horizontal.magnitude;
+                    var width = Mathf.Clamp((float)stair.WidthMeters, 0.6f, 4f);
+                    var from = new Vector3((float)a.X, (float)a.Y, (float)a.Z);
+                    var to = new Vector3((float)b.X, (float)b.Y, (float)b.Z);
+                    if (horizontalLength < 0.05f)
+                    {
+                        // Vertical ladder/shaft segment: render discrete rungs, not sloped stair slabs.
+                        for (var rung = 0; rung < steps; rung++)
+                        {
+                            var fraction = (rung + 0.5f) / steps;
+                            var centre = Vector3.Lerp(from, to, fraction);
+                            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                            go.name = "LadderRung_" + SafeName(stair.Id) + "_" + rung;
+                            go.transform.SetParent(parent, false);
+                            go.transform.localPosition = centre;
+                            go.transform.localScale = new Vector3(width, 0.09f, 0.12f);
+                            go.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
+                        }
+                        continue;
+                    }
+
+                    // Treads stay level with world-up. Only their yaw follows the stair run;
+                    // tilting every tread along the slope looks like a ramp, not real steps.
+                    var rotation = Quaternion.LookRotation(horizontal / horizontalLength, Vector3.up);
+                    var run = horizontalLength / steps;
+                    var rise = (to.y - from.y) / steps;
                     for (var step = 0; step < steps; step++)
                     {
                         var fraction = (step + 0.5f) / steps;
-                        var centre = Vector3.Lerp(
-                            new Vector3((float)a.X, (float)a.Y, (float)a.Z),
-                            new Vector3((float)b.X, (float)b.Y, (float)b.Z), fraction);
+                        var centre = Vector3.Lerp(from, to, fraction);
+                        centre.y = from.y + rise * (step + 1) - 0.07f;
                         var tread = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         tread.name = "Stair_" + SafeName(stair.Id) + "_" + step;
                         tread.transform.SetParent(parent, false);
                         tread.transform.localPosition = centre;
                         tread.transform.localRotation = rotation;
-                        tread.transform.localScale = new Vector3(
-                            Mathf.Clamp((float)stair.WidthMeters, 0.6f, 4f),
-                            Mathf.Max(0.08f, Mathf.Abs(direction.y) / steps + 0.08f),
-                            Mathf.Max(0.12f, run));
+                        tread.transform.localScale = new Vector3(width, 0.14f, Mathf.Max(0.16f, run + 0.04f));
                         // Local collider is useful for presentation physics only; server movement
                         // validation remains authoritative and must agree with this stair corridor.
                         tread.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
