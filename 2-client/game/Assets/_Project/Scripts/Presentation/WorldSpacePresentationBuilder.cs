@@ -190,14 +190,20 @@ namespace Pogranichye.Client.Presentation
         {
             switch (kind)
             {
-                case "floor": return _floor ?? (_floor = MakeMaterial("Server space • timber floor", new Color(0.29f, 0.20f, 0.13f)));
-                case "ceiling": return _ceiling ?? (_ceiling = MakeMaterial("Server space • ceiling", new Color(0.22f, 0.18f, 0.14f)));
-                case "roof": return _roof ?? (_roof = MakeMaterial("Server space • roof", new Color(0.27f, 0.22f, 0.15f)));
+                case "floor": return _floor ?? (_floor = MakeMaterial("Server space • timber floor",
+                    new Color(0.29f, 0.20f, 0.13f), "wood_planks"));
+                case "ceiling": return _ceiling ?? (_ceiling = MakeMaterial("Server space • ceiling",
+                    new Color(0.22f, 0.18f, 0.14f), "wood_planks"));
+                case "roof": return _roof ?? (_roof = MakeMaterial("Server space • roof",
+                    new Color(0.27f, 0.22f, 0.15f), "thatch_roof"));
                 case "cliff":
                 case "cave_wall":
-                case "waterbed": return _stone ?? (_stone = MakeMaterial("Server space • stone", new Color(0.31f, 0.30f, 0.27f)));
-                case "wall": return _wall ?? (_wall = MakeMaterial("Server space • wall", new Color(0.34f, 0.25f, 0.17f)));
-                default: return _floor ?? (_floor = MakeMaterial("Server space • timber floor", new Color(0.29f, 0.20f, 0.13f)));
+                case "waterbed": return _stone ?? (_stone = MakeMaterial("Server space • stone",
+                    new Color(0.31f, 0.30f, 0.27f), "rock_dark"));
+                case "wall": return _wall ?? (_wall = MakeMaterial("Server space • wall",
+                    new Color(0.34f, 0.25f, 0.17f), "wattle_daub"));
+                default: return _floor ?? (_floor = MakeMaterial("Server space • timber floor",
+                    new Color(0.29f, 0.20f, 0.13f), "wood_planks"));
             }
         }
 
@@ -206,10 +212,32 @@ namespace Pogranichye.Client.Presentation
             return _stair ?? (_stair = MakeMaterial("Server space • stair timber", new Color(0.32f, 0.23f, 0.15f)));
         }
 
-        private static Material MakeMaterial(string name, Color color)
+        private static Material MakeMaterial(string name, Color color, string textureKey)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var material = new Material(shader) { name = name, color = color };
+            var prefix = "WorldMaterials/Textures/Grok/" + textureKey;
+            var albedo = Resources.Load<Texture2D>(prefix);
+            if (albedo != null)
+            {
+                material.mainTexture = albedo;
+                material.mainTextureScale = new Vector2(2f, 2f);
+                if (material.HasProperty("_BaseMap"))
+                {
+                    material.SetTexture("_BaseMap", albedo);
+                    material.SetTextureScale("_BaseMap", new Vector2(2f, 2f));
+                    material.SetColor("_BaseColor", Color.white);
+                }
+                else if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+            }
+
+            var normal = Resources.Load<Texture2D>(prefix + "_n");
+            if (normal != null && material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", new Vector2(2f, 2f));
+                material.EnableKeyword("_NORMALMAP");
+            }
             return material;
         }
 
