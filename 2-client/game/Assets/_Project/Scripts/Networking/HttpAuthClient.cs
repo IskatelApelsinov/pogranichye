@@ -250,6 +250,9 @@ namespace Pogranichye.Client.Networking
                     await completion.Task;
                 }
                 cancellationToken.ThrowIfCancellationRequested();
+                // Multi-level spaces are optional until the server endpoint is deployed.
+                // A 404 is a supported legacy response; other transport errors remain visible.
+                if (request.responseCode == 404) return null;
                 if (request.result != UnityWebRequest.Result.Success)
                     throw new InvalidOperationException("Не удалось получить /api/spaces: " + request.error);
                 var spaces = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(request.downloadHandler.text);
