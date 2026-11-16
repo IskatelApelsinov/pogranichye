@@ -17,6 +17,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/BillboardLabel.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ClientUiTypography.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
@@ -77,6 +79,8 @@ on:
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
       - '2-client/game/Tests/WildSiteMapProjectionPolicyCheck.cs'
+      - '2-client/game/Tests/WorldSpaceDescriptorValidatorCheck.cs'
+      - '3-dev/contract/fixtures/spaces_v1.example.json'
 jobs:
   pure-csharp:
     runs-on: ubuntu-latest
@@ -245,6 +249,14 @@ jobs:
         run: |
           mcs -out:/tmp/wild-site-map-projection.exe Tests/WildSiteMapProjectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs
           mono /tmp/wild-site-map-projection.exe
+
+      - name: Server-authored multi-level space descriptor regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
+          mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
