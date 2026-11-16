@@ -222,7 +222,8 @@ namespace Pogranichye.Client.Presentation
                     if (water == null || water.Points == null || water.Points.Count < 2 || water.WidthMeters <= 0) continue;
                     var y = (float)(water.WaterLevelMeters - anchor.Up);
                     var mesh = BuildRibbon(water.Points, (float)water.WidthMeters, _ => y, "Water " + water.Id);
-                    AddFeatureMesh(root, "Water_" + SafeName(water.Id), mesh, WaterMaterial());
+                    AddFeatureMesh(root, "Water_" + SafeName(water.Id), mesh, WaterMaterial(),
+                        (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
 
             if (chunk.Roads != null)
@@ -240,7 +241,8 @@ namespace Pogranichye.Client.Presentation
                         return TerrainHeightSampler.TrySample(chunk, east, north, out height, out slope, out normal)
                             ? (float)(height - anchor.Up + 0.035d) : 0.035f;
                     }, "Road " + road.Id);
-                    AddFeatureMesh(root, "Road_" + SafeName(road.Id), mesh, RoadMaterial());
+                    AddFeatureMesh(root, "Road_" + SafeName(road.Id), mesh, RoadMaterial(),
+                        (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
         }
 
@@ -294,11 +296,13 @@ namespace Pogranichye.Client.Presentation
             return mesh;
         }
 
-        private static void AddFeatureMesh(Transform parent, string name, Mesh mesh, Material material)
+        private static void AddFeatureMesh(Transform parent, string name, Mesh mesh, Material material,
+            float offsetEast, float offsetNorth)
         {
             if (mesh == null || material == null) { if (mesh != null) UnityEngine.Object.Destroy(mesh); return; }
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(offsetEast, 0f, offsetNorth);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
@@ -323,6 +327,9 @@ namespace Pogranichye.Client.Presentation
             if (_waterMaterial.HasProperty("_BaseColor")) _waterMaterial.SetColor("_BaseColor", new Color(0.13f, 0.39f, 0.48f, 0.82f));
             if (_waterMaterial.HasProperty("_Surface")) _waterMaterial.SetFloat("_Surface", 1f);
             if (_waterMaterial.HasProperty("_ZWrite")) _waterMaterial.SetFloat("_ZWrite", 0f);
+            if (_waterMaterial.HasProperty("_SrcBlend")) _waterMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (_waterMaterial.HasProperty("_DstBlend")) _waterMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _waterMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             _waterMaterial.renderQueue = 3000;
             return _waterMaterial;
         }
