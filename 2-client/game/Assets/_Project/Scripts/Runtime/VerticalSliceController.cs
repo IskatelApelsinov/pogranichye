@@ -2270,7 +2270,6 @@ namespace Pogranichye.Client
                     _bindingStatus = "Стандартная раскладка управления восстановлена.";
                 }
             }
-            }
         }
 
         private struct BindingRow
