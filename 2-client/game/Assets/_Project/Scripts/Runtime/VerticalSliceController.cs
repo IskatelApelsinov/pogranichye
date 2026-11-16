@@ -1345,6 +1345,21 @@ namespace Pogranichye.Client
             if (mouseReleased) currentEvent.Use();
         }
 
+        private bool TryGetPlayerMapLocalPosition(out Vector2 local)
+        {
+            local = Vector2.zero;
+            if (WorldPositionProjection.TryToUnityPosition(
+                _frame?.Me?.WorldPosition, _frame?.Place?.Anchor, out var projected))
+            {
+                local = new Vector2(projected.x, projected.z);
+                return true;
+            }
+            var position = _frame?.Me?.Position;
+            if (position == null) return false;
+            local = new Vector2((float)position.X, (float)position.Y);
+            return true;
+        }
+
         private void HandleLocalMapPointer(Rect mapRect, double worldHalf)
         {
             var currentEvent = Event.current;
@@ -1383,17 +1398,16 @@ namespace Pogranichye.Client
                     _mapPan.y += delta.y * (2f * half / Mathf.Max(1f, mapRect.height));
 
                     // Keep the viewport within the server-authored settlement bounds.
-                    var centerX = _frame?.Me?.Position != null
-                        ? _frame.Me.Position.X + _mapPan.x : _mapPan.x;
-                    var centerY = _frame?.Me?.Position != null
-                        ? _frame.Me.Position.Y + _mapPan.y : _mapPan.y;
+                    var hasPlayerPosition = TryGetPlayerMapLocalPosition(out var playerLocal);
+                    var centerX = hasPlayerPosition ? playerLocal.x + _mapPan.x : _mapPan.x;
+                    var centerY = hasPlayerPosition ? playerLocal.y + _mapPan.y : _mapPan.y;
                     var maxCenter = Math.Max(0d, worldHalf - half);
                     centerX = Math.Max(-maxCenter, Math.Min(maxCenter, centerX));
                     centerY = Math.Max(-maxCenter, Math.Min(maxCenter, centerY));
-                    if (_frame?.Me?.Position != null)
+                    if (hasPlayerPosition)
                     {
-                        _mapPan.x = (float)(centerX - _frame.Me.Position.X);
-                        _mapPan.y = (float)(centerY - _frame.Me.Position.Y);
+                        _mapPan.x = (float)(centerX - playerLocal.x);
+                        _mapPan.y = (float)(centerY - playerLocal.y);
                     }
                     else
                     {
@@ -1434,11 +1448,11 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var playerPosition = _frame?.Me?.Position;
-            var centerX = _mapZoom > 1.01f && playerPosition != null
-                ? playerPosition.X + _mapPan.x : 0d;
-            var centerY = _mapZoom > 1.01f && playerPosition != null
-                ? playerPosition.Y + _mapPan.y : 0d;
+            var hasPlayerPosition = TryGetPlayerMapLocalPosition(out var playerMapLocal);
+            var centerX = _mapZoom > 1.01f && hasPlayerPosition
+                ? playerMapLocal.x + _mapPan.x : 0d;
+            var centerY = _mapZoom > 1.01f && hasPlayerPosition
+                ? playerMapLocal.y + _mapPan.y : 0d;
             var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
@@ -1513,7 +1527,7 @@ namespace Pogranichye.Client
                         ? new Color(0.36f, 0.66f, 0.42f, 1f)
                         : new Color(0.43f, 0.38f, 0.62f, 1f);
                     GUI.contentColor = Color.white;
-                    GUI.Box(marker, WildSiteMapGlyph(site.Kind), _mapPoiStyle);
+                    GUI.Box(marker, new GUIContent(WildSiteMapGlyph(site.Kind), site.Note ?? string.Empty), _mapPoiStyle);
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
 
@@ -1536,9 +1550,16 @@ namespace Pogranichye.Client
             {
                 foreach (var neighbor in neighbors)
                 {
-                    if (neighbor?.Position == null) continue;
+                    if (neighbor == null) continue;
+                    Vector3 neighborLocal;
+                    if (!WorldPositionProjection.TryToUnityPosition(
+                        neighbor.WorldPosition, settlementAnchor, out neighborLocal))
+                    {
+                        if (neighbor.Position == null) continue;
+                        neighborLocal = EntityViewRegistry.ToUnityPosition(neighbor.Position);
+                    }
                     var position = WorldMapProjection.ToMapPoint(
-                        neighbor.Position.X - centerX, neighbor.Position.Y - centerY, half, mapRect);
+                        neighborLocal.x - centerX, neighborLocal.z - centerY, half, mapRect);
                     if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 4f, position.y - 4f, 8f, 8f);
                     var previousBackground = GUI.backgroundColor;
@@ -1570,10 +1591,10 @@ namespace Pogranichye.Client
                 }
             }
 
-            if (playerPosition != null)
+            if (hasPlayerPosition)
             {
                 var position = WorldMapProjection.ToMapPoint(
-                    playerPosition.X - centerX, playerPosition.Y - centerY, half, mapRect);
+                    playerMapLocal.x - centerX, playerMapLocal.y - centerY, half, mapRect);
                 var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
@@ -1590,10 +1611,35 @@ namespace Pogranichye.Client
             DrawMapFill(new Rect(mapRect.x, mapRect.yMax - 2f, mapRect.width, 2f), borderColor);
             DrawMapFill(new Rect(mapRect.x, mapRect.y, 2f, mapRect.height), borderColor);
             DrawMapFill(new Rect(mapRect.xMax - 2f, mapRect.y, 2f, mapRect.height), borderColor);
-            if (playerPosition != null)
-                GUILayout.Label($"Ваше положение: X {playerPosition.X:0.0} м · Y {playerPosition.Y:0.0} м");
+            if (hasPlayerPosition)
+                GUILayout.Label($"Ваше положение: восток {playerMapLocal.x:0.0} м · север {playerMapLocal.y:0.0} м (от центра поселения)");
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
+            var realm = _frame?.Place?.Realm;
+            if (realm != null)
+            {
+                var realmLine = "Земли державы: " + realm.Name + " · столица: " + realm.Capital +
+                    " · поселений: " + realm.Size;
+                if (!string.IsNullOrWhiteSpace(realm.WarWith)) realmLine += " · война с " + realm.WarWith;
+                GUILayout.Label(realmLine);
+            }
+            else
+            {
+                GUILayout.Label("Вольная земля · поселение не входит в державу.");
+            }
+            var nearbyCaravans = _frame?.Place?.Caravans;
+            if (nearbyCaravans != null && nearbyCaravans.Count > 0)
+            {
+                GUILayout.Label("Обозы поблизости");
+                foreach (var caravan in nearbyCaravans)
+                {
+                    if (caravan == null) continue;
+                    var cargo = !string.IsNullOrWhiteSpace(caravan.GoodName) ? caravan.GoodName : caravan.Good;
+                    GUILayout.Label((cargo ?? "Груз") + " ×" + caravan.Amount.ToString("0", CultureInfo.InvariantCulture) +
+                        " · " + caravan.From + " → " + caravan.To + " · " +
+                        caravan.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м · " + caravan.Direction);
+                }
+            }
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
         }
 
