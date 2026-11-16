@@ -16,10 +16,16 @@ import (
 // существующие WildSiteC (сервер и так ими владеет через /api/world.wildsites — здесь не выдаём
 // developer manifest за карту знаний персонажа, тот же набор полей, что уже публичен).
 //
-// Не в этом PR (сознательно): water (0235 допускает отложить — у Terrain пока нет модели
-// ширины/уровня/течения воды вовсе, выдумывать её здесь неверно) и kind-различение road|trail|
-// bridge|pass (0254) — сейчас все перегоны RoadGraph помечены просто "road". Оба — отдельные
-// маленькие PR после обкатки этого слоя (см. comms-ответ).
+// water (0254 Этап A, продолжение task 010): НЕ изобретаем отдельную глобальную гидрологию —
+// единственная модель реки, что уже есть у сервера, это локальная река поселения (Layout.HasRiver/
+// RiverY0/RiverY1/BridgeX0/BridgeX1, layout_gen.go), которую клиент и так рисует в сцене села.
+// chunkWater проецирует ЭТУ ЖЕ полосу в мировые координаты (якорь + локальная точка, как и
+// остальные дескрипторы здесь) и подрезает её границей чанка — так видно воду у берегового/речного
+// села и за пределами его сцены, честно НЕ утверждая непрерывную реку между сёлами, которой в
+// модели пока нет (это следующий отдельный шаг, если понадобится).
+//
+// Не в этом PR (сознательно): kind-различение road|trail|bridge|pass (0254) — сейчас все перегоны
+// RoadGraph помечены просто "road". Отдельный маленький PR после обкатки этого слоя (см. comms-ответ).
 
 const terrainContentGen = 1 // версия формулы content-дескрипторов — bump при смене алгоритма
 
@@ -146,6 +152,44 @@ func chunkRoads(w *core.World, oe, on float64) []map[string]any {
 			})
 		}
 	}
+	return out
+}
+
+// chunkWater — полоса реки поселения (Layout.HasRiver), спроецированная в мировые координаты
+// (Anchor + локальная точка — та же связь, что использует WorldPosOf) и подрезанная границей
+// чанка. Пустой массив, если ни одно речное село чанк не касается. water_level_m — высота земли
+// в середине полосы минус небольшая глубина (сервер не хранит отдельный уровень воды, честная
+// оценка от уже существующего Terrain.Height, не придуманная гидрология).
+func chunkWater(w *core.World, t *Terrain, oe, on float64) []map[string]any {
+	out := []map[string]any{}
+	w.Each("settlement", func(se *core.Entity) {
+		s := core.Settle(se)
+		if s == nil {
+			return
+		}
+		l := LayoutOf(w, se.ID)
+		if l == nil || !l.HasRiver {
+			return
+		}
+		ax, ay := Anchor(w, s)
+		midY := (l.RiverY0 + l.RiverY1) / 2
+		x0, y0 := ax-l.Half, ay+midY
+		x1, y1 := ax+l.Half, ay+midY
+		cx0, cy0, cx1, cy1, ok := clipSegmentToBox(x0, y0, x1, y1, oe, on, ChunkMeters)
+		if !ok {
+			return
+		}
+		width := math.Abs(l.RiverY1 - l.RiverY0)
+		level := t.Height(ax, ay+midY) - 0.3
+		out = append(out, map[string]any{
+			"id": "water-" + eidStr(se.ID), "kind": "river",
+			"width_m": r3(width), "water_level_m": r3(level),
+			"points": []map[string]float64{
+				{"x": r3(cx0 - oe), "z": r3(cy0 - on)},
+				{"x": r3(cx1 - oe), "z": r3(cy1 - on)},
+			},
+		})
+	})
 	return out
 }
 
