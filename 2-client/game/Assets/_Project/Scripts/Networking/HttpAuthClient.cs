@@ -130,7 +130,7 @@ namespace Pogranichye.Client.Networking
             }
         }
 
-        /// <summary>Loads the v1.19 world manifest. This is streaming metadata, not player knowledge.</summary>
+        /// <summary>Loads the additive v1 world manifest. Geography/realms/caravans are metadata, not character knowledge.</summary>
         public async Task<WorldManifestFrame> GetWorldManifestAsync()
         {
             using (var request = UnityWebRequest.Get(_baseUrl + "/api/world"))
@@ -273,8 +273,8 @@ namespace Pogranichye.Client.Networking
         }
 
         /// <summary>
-        /// Fetches optional multi-level static spaces intersecting a world chunk.
-        /// Endpoint is additive and may return 404 until the server implements the agreed descriptor.
+        /// Fetches server-authored multi-level spaces intersecting a world chunk.
+        /// A 404 remains a legacy-server fallback; the returned geometry never authorizes movement.
         /// </summary>
         public async Task<WorldSpaceChunkFrame> GetWorldSpacesAsync(long chunkX, long chunkZ,
             CancellationToken cancellationToken = default(CancellationToken))
