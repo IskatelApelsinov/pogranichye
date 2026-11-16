@@ -372,6 +372,7 @@ func WorldManifestUsing(w *core.World, t *Terrain) map[string]any {
 		"frames": []map[string]any{{"id": 0, "projection": "azimuthal-equidistant",
 			"origin_lat": p.CauldronLat, "origin_lon": p.CauldronLon, "radius_m": p.RadiusKm * 1000}},
 		"rim_radius_m": r3(t.rimR), "settlements": sets, "roads": roads,
+		"realms":   RealmsView(w),  // v1.24: державы — чьи какие сёла, столицы, кто с кем воюет
 		"movement": MovementView(), // v1.23: скорости и правило склона — клиент повторяет его в предсказании
 		"wildsites": WildSitesView(w)} // дикие места вне сёл (служебная карта, не кадр игрока)
 }

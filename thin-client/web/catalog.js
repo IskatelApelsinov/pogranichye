@@ -49,5 +49,22 @@
         here:!!s.here,going:going===s.id,acts:s.here?acts:[],about:acts.map(a=>a.label.replace(/ \(осталось.*\)$/,'')).join(' · ')};
     });
   }
-  return {name,waresAt,lists,siteRows,distText};
+  // «Чьи это земли» (v1.24): одна-две строки про державу села. null — вольная земля.
+  function realmLines(r){
+    if(!r||!r.name) return ['Вольная земля — над селом нет державы.'];
+    const out=[(r.is_capital?'Столица державы «':'Земли державы «')+r.name+'»'+(!r.is_capital&&r.capital?' · столица — '+r.capital:'')+
+      (r.size?' · сёл под рукой: '+r.size:'')+(r.tax?' · десятина '+Math.round(Number(r.tax)*100)+'%':'')];
+    if(r.war_with) out.push('⚔ Война с державой «'+r.war_with+'»');
+    const a=Array.isArray(r.allies)?r.allies:[], v=Array.isArray(r.rivals)?r.rivals:[];
+    if(a.length) out.push('🤝 Союзники: '+a.join(', '));
+    if(v.length) out.push('⚠ Во вражде: '+v.join(', '));
+    return out;
+  }
+  // Обозы неподалёку (v1.24): что везут, откуда и куда, где они сейчас.
+  function caravanRows(cs,cat){
+    return (Array.isArray(cs)?cs:[]).filter(c=>c&&c.good).map(c=>
+      '🐎 Обоз: '+(c.good_name&&c.good_name!==c.good?c.good_name:name(cat,c.good))+' ×'+Math.round(Number(c.amount)||0)+
+      ' · '+(c.from||'?')+' → '+(c.to||'?')+' · '+distText(c.dist)+' '+(c.dir||''));
+  }
+  return {name,waresAt,lists,siteRows,distText,realmLines,caravanRows};
 });

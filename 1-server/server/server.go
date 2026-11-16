@@ -234,6 +234,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) { // схема координат, якоря сёл, тракты
 		s.mu.Lock()
 		v := sim.WorldManifestUsing(s.world, s.terrain())
+		v["caravans"] = sim.CaravansView(s.world, s.terrain(), s.runner.Clock.Hour()) // v1.24: обозы в пути и где они сейчас
 		s.mu.Unlock()
 		writeJSON(w, v)
 	})
@@ -1088,6 +1089,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
 				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())), // v1.22: места без жителей вокруг (урочища, пещеры, башни)
+				"realm":          sim.PlaceRealmView(s.world, pl.Settlement),                    // v1.24: чьи это земли — держава, столица, война и союзы (null — вольная земля)
+				"caravans":       sim.NearCaravansView(s.world, terrain, e, s.runner.Clock.Hour()), // v1.24: обозы неподалёку — что везут и куда
 				"market":         sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)
 				"life":           s.placeLife(se),                                                         // агрегаты жизни общины (v1.18)
 				"rooms":          sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()),                // комнаты над корчмой: всего/вакантно/цена (v1.20)

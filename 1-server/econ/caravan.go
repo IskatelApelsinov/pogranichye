@@ -31,6 +31,9 @@ func (c *CaravanC) Kind() string { return "caravan" }
 
 func Caravan(e *core.Entity) *CaravanC { c, _ := e.Get("caravan").(*CaravanC); return c }
 
+// CaravanSpeed — дневной переход обоза (вёрст). Наружу — чтобы показ мог вести обоз плавно внутри суток.
+const CaravanSpeed = caravanSpeed
+
 const (
 	caravanSpeed   = 70.0 // вёрст в день (караван медленнее вестника)
 	caravanCap     = 6    // потолок караванов в пути разом (производительность/реализм)
