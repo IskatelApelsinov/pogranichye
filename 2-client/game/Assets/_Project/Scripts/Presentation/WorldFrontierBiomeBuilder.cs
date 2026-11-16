@@ -98,8 +98,8 @@ namespace Pogranichye.Client.Presentation
             if (parent == null || chunk == null || !chunk.IsValid || anchor == null) return;
             Remove(parent, chunk.Id);
 
-            // Older servers and fixture frames remain visually unchanged. This builder only
-            // activates when the server has supplied the new biome/seed descriptors.
+            // Frames without server-provided biome descriptors remain unchanged. This builder only
+            // activates when the live server has supplied biome/seed/cover data.
             if (!chunk.Seed.HasValue && string.IsNullOrEmpty(chunk.Biome) && chunk.Cover == null) return;
 
             string biome = NormalizeBiome(chunk.Biome);
