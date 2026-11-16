@@ -1351,7 +1351,7 @@ namespace Pogranichye.Client
         {
             local = Vector2.zero;
             if (WorldPositionProjection.TryToUnityPosition(
-                _frame?.Me?.WorldPosition, _frame?.Place?.Anchor, out var projected))
+                _frame?.Me?.WorldPosition, WorldPositionProjection.ResolveAnchor(_frame), out var projected))
             {
                 local = new Vector2(projected.x, projected.z);
                 return true;
@@ -1509,7 +1509,7 @@ namespace Pogranichye.Client
             // them through the current settlement's authoritative centre anchor before
             // projecting onto this local map; never treat global coordinates as local XY.
             var sites = _frame?.Place?.Sites;
-            var settlementAnchor = _frame?.Place?.Anchor;
+            var settlementAnchor = WorldPositionProjection.ResolveAnchor(_frame);
             if (sites != null && settlementAnchor != null)
             {
                 foreach (var site in sites)
@@ -4020,7 +4020,7 @@ namespace Pogranichye.Client
                         // Tab opens it; Esc opens the separate system menu.
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
-                        _views.Apply(frame, frame.Place != null ? frame.Place.Anchor : null);
+                        _views.Apply(frame, WorldPositionProjection.ResolveAnchor(frame));
                         if (_core != null) _core.ApplyFrame(frame, frameDocument);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me);
                         if (_cameraRig != null)
@@ -4308,7 +4308,7 @@ namespace Pogranichye.Client
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
             Vector3 authoritativePosition;
             if (!WorldPositionProjection.TryToUnityPosition(
-                character.WorldPosition, _frame?.Place?.Anchor, out authoritativePosition))
+                character.WorldPosition, WorldPositionProjection.ResolveAnchor(_frame), out authoritativePosition))
                 authoritativePosition = EntityViewRegistry.ToUnityPosition(position);
             var currentPlaceId = _frame?.Place?.Id;
             var placeChanged = !string.Equals(_movementPlaceId, currentPlaceId, StringComparison.Ordinal);
