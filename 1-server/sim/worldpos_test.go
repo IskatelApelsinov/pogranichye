@@ -345,7 +345,7 @@ func TestSeamlessLandsKeepWorldPosition(t *testing.T) {
 		ce, cn := Anchor(w, cur)
 		dx, dy := be-(ce+p.X), bn-(cn+p.Y)
 		seq++
-		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, stepSeconds, seq)
+		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, 0.25, seq)
 		prev := before
 		before, _ = WorldPosOf(w, ter, e)
 		if d, _ := WorldDist(prev, before); d > walkSpeed*0.25+0.01 {
@@ -595,7 +595,7 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 		// отрезка A—B. ApplyMove ограничивает фактическое смещение обычной скоростью ходьбы.
 		dx, dy := be-(ce+p.X), bn-(cn+p.Y)
 		seq++
-		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, 0.25, seq)
+		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, stepSeconds, seq)
 		after, valid := WorldPosOf(w, ter, e)
 		if !valid {
 			t.Fatalf("потеряна глобальная позиция на шаге %d", step)
