@@ -1708,24 +1708,63 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
             }
 
-            // A broad two-slope roof reads at village scale and is not just a small stall canopy.
-            var slopeWidth = width * 0.56f;
-            var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
-                new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofA.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
-            var roofB = Create("Roof slope east", PrimitiveType.Cube, root,
-                new Vector3(width * 0.25f, wallHeight + 0.45f, 0f),
-                new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
-            roofB.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            if (isMarket)
+            {
+                // Market is a trading shelter, not a sealed cottage: an open canopy,
+                // visible counter and supports make its function readable at a glance.
+                Create("Market canopy", PrimitiveType.Cube, root,
+                    new Vector3(0f, wallHeight + 0.18f, 0f),
+                    new Vector3(width + 0.55f, 0.24f, depth + 0.55f), _straw, false);
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Market canopy post", PrimitiveType.Cylinder, root,
+                        new Vector3(x * (width * 0.5f - 0.22f), wallHeight * 0.48f,
+                            z * (depth * 0.5f - 0.22f)),
+                        new Vector3(0.15f, wallHeight * 0.48f, 0.15f), _trunk, false);
+                Create("Market counter", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.82f, -depth * 0.18f),
+                    new Vector3(width * 0.78f, 0.22f, 0.62f), _trunk, false);
+                Create("Market counter front", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.48f, -depth * 0.18f),
+                    new Vector3(width * 0.78f, 0.48f, 0.12f), _timber, false);
+                for (var crate = -1; crate <= 1; crate++)
+                {
+                    Create("Market produce crate", PrimitiveType.Cube, root,
+                        new Vector3(crate * width * 0.23f, 1.02f, -depth * 0.18f),
+                        new Vector3(0.48f, 0.34f, 0.42f), _trunk, false);
+                    Create("Market produce", PrimitiveType.Sphere, root,
+                        new Vector3(crate * width * 0.23f, 1.25f, -depth * 0.18f),
+                        new Vector3(0.18f, 0.15f, 0.18f), _straw, false);
+                }
+                Create("Market canopy front beam", PrimitiveType.Cube, root,
+                    new Vector3(0f, wallHeight * 0.95f, -depth * 0.5f + 0.12f),
+                    new Vector3(width + 0.22f, 0.16f, 0.16f), _trunk, false);
+            }
+            else
+            {
+                // Building types share the same roof grammar but vary in pitch and eaves.
+                var roofPitch = building.Kind == "granary" ? 23f :
+                    building.Kind == "tavern" ? 16f : 19f;
+                var slopeWidth = width * 0.56f;
+                var roofA = Create("Roof slope west", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.25f, wallHeight + 0.45f, 0f),
+                    new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
+                roofA.transform.localRotation = Quaternion.Euler(0f, 0f, roofPitch);
+                var roofB = Create("Roof slope east", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.25f, wallHeight + 0.45f, 0f),
+                    new Vector3(slopeWidth, 0.42f, depth + 0.7f), roof, false);
+                roofB.transform.localRotation = Quaternion.Euler(0f, 0f, -roofPitch);
 
-            // Close the triangular roof ends so the building reads as a complete timber house.
-            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, -1f);
-            CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, 1f);
-            var ridge = Create("Roof ridge timber", PrimitiveType.Cylinder, root,
-                new Vector3(0f, wallHeight + width * 0.1335f, 0f),
-                new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
-            ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                // Close the triangular roof ends so the building reads as a complete timber house.
+                CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, -1f);
+                CreateGableEnd(root, width, depth, wallHeight, wallHeight + width * 0.1335f, 1f);
+                var ridge = Create("Roof ridge timber", PrimitiveType.Cylinder, root,
+                    new Vector3(0f, wallHeight + width * 0.1335f, 0f),
+                    new Vector3(0.13f, depth * 0.62f, 0.13f), _trunk, false);
+                ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            }
+
+            BuildBuildingTypeDetails(root, building.Kind, width, depth, wallHeight);
 
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market")
@@ -1754,6 +1793,66 @@ namespace Pogranichye.Client.Presentation
                 case "granary": return "АМБАР";
                 case "market": return "ЛАВКА";
                 default: return "ЗДАНИЕ";
+            }
+        }
+
+        private static void BuildBuildingTypeDetails(Transform root, string kind,
+            float width, float depth, float wallHeight)
+        {
+            if (kind == "granary")
+            {
+                // Raised, ventilated grain store: stout corner posts and a high loading hatch
+                // distinguish it from a dwelling without changing the server footprint.
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Granary oak support", PrimitiveType.Cube, root,
+                        new Vector3(x * (width * 0.5f - 0.34f), 0.62f, z * (depth * 0.5f - 0.34f)),
+                        new Vector3(0.26f, 0.72f, 0.26f), _trunk, false);
+                Create("Granary raised sill", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.78f, 0f), new Vector3(width - 0.18f, 0.18f, depth - 0.18f), _trunk, false);
+                Create("Granary loading hatch", PrimitiveType.Cube, root,
+                    new Vector3(0f, 2.35f, -depth * 0.5f - 0.04f),
+                    new Vector3(Mathf.Min(1.25f, width * 0.34f), 0.72f, 0.10f), _trunk, false);
+                for (var vent = -1; vent <= 1; vent++)
+                    Create("Granary ventilation slit", PrimitiveType.Cube, root,
+                        new Vector3(vent * width * 0.22f, wallHeight - 0.58f, -depth * 0.5f - 0.055f),
+                        new Vector3(0.34f, 0.07f, 0.035f), _iron, false);
+            }
+            else if (kind == "smithy")
+            {
+                // Masonry apron, dark forge mouth and a recognisable anvil silhouette.
+                Create("Smithy stonework lower course", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.55f, 0f), new Vector3(width - 0.12f, 0.72f, depth - 0.12f), _stone, false);
+                Create("Smithy forge recess", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.27f, 1.52f, depth * 0.5f - 0.19f),
+                    new Vector3(Mathf.Min(1.35f, width * 0.32f), 1.18f, 0.12f), _trunk, false);
+                Create("Smithy forge glow", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.27f, 1.20f, depth * 0.5f - 0.105f),
+                    new Vector3(0.72f, 0.22f, 0.035f), _straw, false);
+                Create("Smithy anvil base", PrimitiveType.Cylinder, root,
+                    new Vector3(-width * 0.18f, 0.62f, -depth * 0.10f),
+                    new Vector3(0.34f, 0.38f, 0.34f), _trunk, false);
+                Create("Smithy anvil body", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.18f, 1.02f, -depth * 0.10f),
+                    new Vector3(0.72f, 0.20f, 0.30f), _iron, false);
+                Create("Smithy anvil horn", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.18f + 0.42f, 1.04f, -depth * 0.10f),
+                    new Vector3(0.24f, 0.11f, 0.16f), _iron, false);
+            }
+            else if (kind == "tavern")
+            {
+                // A modest covered threshold and timber brackets identify the public house.
+                Create("Tavern entrance canopy", PrimitiveType.Cube, root,
+                    new Vector3(0f, wallHeight - 0.12f, -depth * 0.5f - 0.28f),
+                    new Vector3(Mathf.Min(width * 0.72f, 3.8f), 0.16f, 0.72f), _roof, false);
+                for (var x = -1; x <= 1; x += 2)
+                    Create("Tavern canopy bracket", PrimitiveType.Cube, root,
+                        new Vector3(x * Mathf.Min(width * 0.34f, 1.65f), wallHeight - 0.58f,
+                            -depth * 0.5f - 0.08f),
+                        new Vector3(0.13f, 0.78f, 0.13f), _trunk, false);
+                Create("Tavern hanging sign bracket", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.34f, wallHeight + 0.10f, -depth * 0.5f - 0.12f),
+                    new Vector3(0.82f, 0.10f, 0.10f), _iron, false);
             }
         }
 
