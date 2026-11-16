@@ -2256,19 +2256,37 @@ namespace Pogranichye.Client
             {
                 var go = new GameObject("Hand light");
                 go.transform.SetParent(cam.transform, false);
-                go.transform.localPosition = new Vector3(0.3f, -0.1f, 0.4f);
+                // Keep the source near the held item, just ahead of the player rather than at the feet.
+                go.transform.localPosition = new Vector3(0.28f, -0.12f, 0.38f);
                 _handLight = go.AddComponent<Light>();
                 _handLight.type = LightType.Point;
-                _handLight.range = 22f;
+                _handLight.shadows = LightShadows.None;
                 _handLight.intensity = 0f;
             }
+
             var combat = _combat;
             var weapon = combat?.Weapon ?? string.Empty;
             var weaveLight = combat != null && combat.Light > 0d;
-            var lit = weaveLight || weapon == "torch" || weapon == "lantern";
-            var night = _hour >= 20 || _hour < 6 ? 1f : _hour >= 18 || _hour < 8 ? 0.55f : 0.15f;
-            _handLight.color = weaveLight ? new Color(0.75f, 0.85f, 1f) : new Color(1f, 0.76f, 0.48f);
-            _handLight.intensity = Mathf.Lerp(_handLight.intensity, lit ? 2.2f * night : 0f, 1f - Mathf.Exp(-6f * Time.deltaTime));
+            var torch = weapon == "torch";
+            var lantern = weapon == "lantern";
+            var lit = weaveLight || torch || lantern;
+
+            // A carried flame must remain useful at every hour. The previous 0.15 daytime
+            // multiplier reduced a torch's 2.2 intensity to 0.33, making it appear to light
+            // only the ground immediately below the player.
+            _handLight.range = torch ? 18f : lantern ? 24f : 12f;
+            var daylight = _hour >= 8 && _hour < 18;
+            var dusk = (_hour >= 6 && _hour < 8) || (_hour >= 18 && _hour < 20);
+            var daylightFactor = daylight ? 0.72f : dusk ? 0.88f : 1f;
+            var targetIntensity = weaveLight ? 3.5f : torch ? 11f : lantern ? 8f : 0f;
+            if (torch || lantern) targetIntensity *= daylightFactor;
+
+            _handLight.color = weaveLight
+                ? new Color(0.75f, 0.85f, 1f)
+                : new Color(1f, 0.70f, 0.38f);
+            _handLight.intensity = Mathf.Lerp(
+                _handLight.intensity, lit ? targetIntensity : 0f,
+                1f - Mathf.Exp(-6f * Time.deltaTime));
         }
 
         // ------------------------------------------------------------------ weave (mouse-traced pattern)
