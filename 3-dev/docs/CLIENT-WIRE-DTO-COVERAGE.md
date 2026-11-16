@@ -142,3 +142,14 @@ Unity presentation correction in progress:
 - No Go server or wire contract changes are part of this client task.
 
 Runtime status: source review only; Unity Editor compile and PlayMode acceptance remain pending.
+
+
+## v1.22 world content, wilderness, item catalogue and magic — 2026-11-16
+
+- `place.sites[]` is now represented by `WildPlaceFrame` and normalized as optional presentation data. A malformed site entry is dropped individually; it cannot reject the authoritative world snapshot. Unity shows nearby places in the character/context panel, offers server `goto` with `site` to approach, and exposes only the actions present in that site's `acts[]` (`rest|drink|explore|forage`). Actual range, daily limits, remaining stock, inventory and outcomes remain server-owned.
+- The client loads `GET /api/catalog` once on connect as optional static reference data. It validates v1 shape and displays item/equipment metadata, recipes, node hints and named weave schemas in the Inventory reference foldout. The catalogue does not grant ownership or bypass `take`, `craft`, `use` or equip validation.
+- The weave canvas now exposes all ten server nodes (`knot/thread/loop/fork/barb/seal/heat/chill/veil/eye`). The preview follows the current server `ReadWeave` priority and cost/complexity formula; cast success and effects still come only from server result/feed frames. Keyboard shortcuts 1–6 remain the stable foundational-node shortcuts; all ten are selectable with the mouse.
+- `WorldTerrainChunkBuilder` now applies biome/cover tint and renders optional chunk-local road and water polylines as lightweight meshes. The existing heightfield remains the sole ground geometry and MeshCollider source. Water support is additive and becomes visible when the server sends `water[]` (currently proposed in open PR #662); it is not evidence of a continuous inter-settlement river.
+- Still not rendered from chunk descriptors: `resources[]` and `wild[]` markers. Global wild landmarks from `/api/world.wildsites` continue through `WorldWildSitePresentationBuilder`. The new `place.sites[]` panel is the actionable player-facing wilderness layer.
+
+Validation boundary: source edits only. Unity Editor compilation, IMGUI layout, URP water transparency, MeshCollider contact, live-server site actions and the complete 10-node casting flow have not been run in this environment. Do not mark the client runtime accepted until those checks are performed in Unity.
