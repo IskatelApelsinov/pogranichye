@@ -175,10 +175,12 @@ namespace Pogranichye.Client
             { "weaver", "ткачество" }, { "builder", "строительство" }
         };
 
-        private static readonly string[] Nodes = { "knot", "thread", "loop", "fork", "barb", "seal" };
-        private static readonly string[] NodeRu = { "узел", "нить", "петля", "развилка", "шип", "печать" };
+        // v1.22 server catalogue: the six foundational nodes plus heat/chill/veil/eye.
+        // Mouse weaving exposes every node; legacy 1–6 keyboard shortcuts remain stable.
+        private static readonly string[] Nodes = { "knot", "thread", "loop", "fork", "barb", "seal", "heat", "chill", "veil", "eye" };
+        private static readonly string[] NodeRu = { "узел", "нить", "петля", "развилка", "шип", "печать", "жар", "стужа", "пелена", "око" };
         // Short Cyrillic marks instead of symbol glyphs: the default IMGUI font is not guaranteed to have them.
-        private static readonly string[] NodeGlyph = { "Уз", "Нт", "Пт", "Рз", "Шп", "Пч" };
+        private static readonly string[] NodeGlyph = { "Уз", "Нт", "Пт", "Рз", "Шп", "Пч", "Жр", "Ст", "Пл", "Ок" };
 
         private Action<Dictionary<string, object>> _send;
         private bool _active;
@@ -1943,8 +1945,9 @@ namespace Pogranichye.Client
 
         private static Vector2 NodeCenter(int index)
         {
-            var angle = -Mathf.PI / 2f + index * Mathf.PI / 3f;
-            return new Vector2(Screen.width * 0.5f + Mathf.Cos(angle) * 150f, Screen.height * 0.5f + Mathf.Sin(angle) * 150f);
+            var angle = -Mathf.PI / 2f + index * (Mathf.PI * 2f / Nodes.Length);
+            const float radius = 180f;
+            return new Vector2(Screen.width * 0.5f + Mathf.Cos(angle) * radius, Screen.height * 0.5f + Mathf.Sin(angle) * radius);
         }
 
         private int MaxPattern()
@@ -2036,7 +2039,7 @@ namespace Pogranichye.Client
             var capacity = Num(weave, "capacity");
             var glyphs = string.Empty;
             foreach (var node in _pattern) glyphs += NodeGlyph[Array.IndexOf(Nodes, node)] + " ";
-            var text = _pattern.Count == 0 ? "Веди мышью по узлам (или 1–6). Начни узлом, закончи печатью." : glyphs;
+            var text = _pattern.Count == 0 ? "Веди мышью по 10 узлам (1–6 — быстрый выбор основы). Начни узлом, закончи печатью." : glyphs;
             if (_pattern.Count > 0)
             {
                 int complexity, cost;
@@ -2785,6 +2788,7 @@ namespace Pogranichye.Client
                     GUILayout.Label("Угодья поблизости: " + string.Join(" · ", have.ToArray()));
             }
             DrawSettlementPulse();
+            DrawWildSites();
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
                 if (Flag(_me, "mug"))
@@ -3128,6 +3132,90 @@ namespace Pogranichye.Client
             else if (role == "attack" && phase == "attack" && DurakTableBeaten(game.Table) &&
                 _input.JourneyChoicePressed(7))
                 Ask("Дурак: бито", "card_game", "game", "durak", "action", "done");
+        }
+
+        /// <summary>
+        /// v1.22 server-authored wilderness places. The client only offers actions listed by
+        /// place.sites and never grants proximity, stock or outcomes locally.
+        /// </summary>
+        private void DrawWildSites()
+        {
+            var sites = Arr(_place, "sites");
+            if (sites == null || sites.Count == 0) return;
+
+            GUILayout.Space(8f);
+            GUILayout.Label("ДИКИЕ МЕСТА ПОБЛИЗОСТИ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            foreach (var site in sites)
+            {
+                if (site == null || string.IsNullOrEmpty(Str(site, "id"))) continue;
+                var id = Str(site, "id");
+                var name = Str(site, "name");
+                var kind = Str(site, "kind");
+                var here = Flag(site, "here");
+                var distance = Num(site, "dist");
+                var direction = Str(site, "dir");
+                var gives = Str(site, "gives");
+                GUILayout.BeginVertical();
+                GUILayout.Label((string.IsNullOrEmpty(name) ? "Неизвестное место" : name) +
+                    " · " + WildPlaceKindName(kind));
+                if (!here)
+                {
+                    GUILayout.Label(direction + " · " + distance.ToString("0", CultureInfo.InvariantCulture) + " м");
+                    if (GUILayout.Button("Подойти к месту", GUILayout.Height(28f)))
+                        Ask("Путь к месту: " + name, "goto", "site", id);
+                }
+                else
+                {
+                    GUILayout.Label("Ты на месте" +
+                        (string.IsNullOrEmpty(gives) ? "" : " · можно найти: " + Name(gives)) +
+                        (site["left"] == null ? "" : " · осталось: " + Num(site, "left").ToString("0", CultureInfo.InvariantCulture)));
+                    var actions = Arr(site, "acts");
+                    if (actions != null)
+                    {
+                        foreach (var actionToken in actions)
+                        {
+                            var action = actionToken == null ? string.Empty : actionToken.ToString();
+                            if (string.IsNullOrEmpty(action)) continue;
+                            var label = WildPlaceActionName(action, gives);
+                            if (GUILayout.Button(label, GUILayout.Height(28f)))
+                                Ask(label, "site", "site", id, "action", action);
+                        }
+                    }
+                }
+                GUILayout.EndVertical();
+                GUILayout.Space(4f);
+            }
+            GUILayout.EndVertical();
+        }
+
+        private static string WildPlaceKindName(string kind)
+        {
+            switch (kind)
+            {
+                case "spring": return "родник";
+                case "berry": return "ягодник";
+                case "thicket": return "заросли";
+                case "clearing": return "вырубка";
+                case "pond": return "пруд";
+                case "hut": return "хижина";
+                case "mound": return "курган";
+                case "ruins": return "руины";
+                case "den": return "логово";
+                default: return "урочище";
+            }
+        }
+
+        private static string WildPlaceActionName(string action, string gives)
+        {
+            switch (action)
+            {
+                case "rest": return "Передохнуть";
+                case "drink": return "Напиться воды";
+                case "explore": return "Исследовать / обыскать";
+                case "forage": return "Собрать: " + (string.IsNullOrEmpty(gives) ? "припасы" : Name(gives));
+                default: return "Действие: " + action;
+            }
         }
 
         private void DrawCardGames()
