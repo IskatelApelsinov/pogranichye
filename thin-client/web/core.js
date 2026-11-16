@@ -12,11 +12,14 @@ const RU = {
   egg:'яйца', milk:'молоко', wool:'шерсть', cloth:'сукно', tools:'инструмент', hay:'сено',
   feather:'перо', flax:'лён', linen:'холст', remedy:'лекарство', honey:'мёд', mead:'медовуха',
 };
-const ru = k => RU[k] || k;
-const HAND = ['axe','sword','knife','bow','rod','torch','lantern'];
-const WEAR = ['cloak','boots','hat','jerkin','shield','purse'];
-const USE  = ['stew','roast','potion','bandage'];
-const EAT  = ['bread','fish','meat','cheese','veg','game','egg'];
+// v1.22: каталог мира приходит с сервера — названия, лавка, что берут в руку/надевают/едят.
+// Словарь и списки ниже — запасные, на случай старого сервера без /api/catalog.
+let CAT = null;
+fetch('/api/catalog').then(r => r.ok ? r.json() : null).then(j => { if(j && Array.isArray(j.items)){ CAT = j; if(typeof locSig!=='undefined') locSig=''; if(last) render(last); } }).catch(() => {});
+const ru = k => PogCatalog.name(CAT, RU, k);
+const LISTS0 = {hand:['axe','sword','knife','bow','rod','torch','lantern'], wear:['cloak','boots','hat','jerkin','shield','purse'],
+  use:['stew','roast','potion','bandage'], eat:['bread','fish','meat','cheese','veg','game','egg']};
+const invLists = () => PogCatalog.lists(CAT, LISTS0);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // перерисовываем карточку, только если её содержимое изменилось (иначе тап попадает в исчезнувшую кнопку)
@@ -35,7 +38,7 @@ function coreRender(s){
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
   show('craftcard', !road); show('roadcard', road); show('mapcard', !road);
-  drawRoad(s); drawFeed(s); drawFight(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
+  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
 }
 
 // ---------- лента событий ----------
@@ -147,17 +150,18 @@ function drawInv(s){
   let h = `<b class="sub">сума</b> <span class="sub">· в руке: ${ru(inv.hand)||'пусто'} · надето: ${Object.values(inv.worn||{}).map(ru).join(', ')||'ничего'}</span>`;
   h += '<div style="margin-top:6px">' + (items.length ? items.map(([k,v])=>`<span class="tag">${ru(k)} ×${v}</span>`).join('') : '<span class="sub">пусто</span>') + '</div>';
   h += '<div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
-  HAND.forEach(it => { if((inv.items||{})[it]>0 && inv.hand!==it) h += sbtn('в руку: '+ru(it), `send({op:'equip',item:'${it}'})`); });
+  const LL = invLists();
+  LL.hand.forEach(it => { if((inv.items||{})[it]>0 && inv.hand!==it) h += sbtn('в руку: '+ru(it), `send({op:'equip',item:'${it}'})`); });
   if(inv.hand) h += sbtn('убрать из руки', `send({op:'equip',item:''})`);
-  WEAR.forEach(it => {
+  LL.wear.forEach(it => {
     const worn = Object.values(inv.worn||{}).includes(it);
     if((inv.items||{})[it]>0 && !worn) h += sbtn('надеть: '+ru(it), `send({op:'wear',item:'${it}'})`);
     if(worn) h += sbtn('снять: '+ru(it), `send({op:'unwear',item:'${it}'})`);
   });
-  USE.forEach(it => { if((inv.items||{})[it]>0) h += sbtn((it==='potion'||it==='bandage'?'🩹 ':'🍲 ')+ru(it), `send({op:'use',item:'${it}'})`); });
+  LL.use.forEach(it => { if((inv.items||{})[it]>0) h += sbtn((['potion','bandage','salve','tonic'].includes(it)?'🩹 ':'🍲 ')+ru(it), `send({op:'use',item:'${it}'})`); });
   h += '</div>';
   h += '<div style="margin-top:8px"><b class="sub">закрома</b> ' + (goods.length ? goods.map(([k,v])=>`<span class="tag">${ru(k)} ×${Math.floor(v)}</span>`).join('') : '<span class="sub">пусто</span>') + '</div>';
-  const eat = EAT.filter(g => (stash[g]||0) >= 1);
+  const eat = LL.eat.filter(g => (stash[g]||0) >= 1);
   if(eat.length) h += '<div class="acts" style="grid-template-columns:1fr 1fr 1fr">' + eat.map(g => sbtn('съесть: '+ru(g), `send({op:'use',item:'${g}'})`)).join('') + '</div>';
   setHTML('invcard', h);
 }
@@ -223,8 +227,25 @@ function drawFight(s){
   setHTML('fightcard', h);
 }
 
+// ---------- окрестности: места без жителей (v1.22) ----------
+function siteGo(id){ send({op:'goto', site:id}); }
+function siteAct(id, action){ send({op:'site', site:id, action:action}); }
+function drawSites(s){
+  const rows = PogCatalog.siteRows((s.place||{}).sites, (s.me||{}).walk);
+  if(!rows.length){ show('sitescard', false); return; }
+  show('sitescard', true);
+  let h = '<b>🧭 Окрестности</b> <span class="sub">места без жителей вокруг — можно сходить</span>';
+  rows.forEach(r => {
+    h += `<div class="nb"><span>${r.icon} ${esc(r.name)} <span class="sub">· ${esc(r.where)}${r.here?'':(r.about?' · '+esc(r.about):'')}</span></span>`;
+    if(r.here) h += r.acts.map(a => sbtn(esc(a.label), `siteAct('${esc(r.id)}','${a.action}')`, a.disabled, 'primary')).join('');
+    else h += sbtn(r.going?'🚶 иду…':'идти', `siteGo('${esc(r.id)}')`, r.going);
+    h += '</div>';
+  });
+  setHTML('sitescard', h);
+}
+
 // ---------- плетения ----------
-const GLYPH = {knot:'◉', thread:'〰', loop:'∞', fork:'⑂', barb:'▲', seal:'▣'};
+const GLYPH = {knot:'◉', thread:'〰', loop:'∞', fork:'⑂', barb:'▲', seal:'▣', heat:'♨', chill:'❄', veil:'☁', eye:'◎'};
 let pattern = [];
 function wAdd(n){ if(pattern.length < 12) pattern.push(n); if(last) drawWeave(last); }
 function wDel(){ pattern.pop(); if(last) drawWeave(last); }
@@ -236,10 +257,14 @@ function weaveRead(p){
   const closed = p[0]==='knot' && p[p.length-1]==='seal' && n.seal===1;
   const cx = p.length + (n.fork||0) + (closed?0:3), cost = 4*p.length + 4*(n.knot||0);
   let what = 'свет над ладонью';
-  if(n.barb) what = `ранит${n.thread?' издали':' вблизи'}${n.fork?`, целей: ${1+n.fork}`:''}${n.loop?', потом жжёт':''}`;
-  else if(n.loop && n.thread) what = 'заживляет раны';
-  else if(n.loop) what = `щит${n.fork?' на весь отряд':''}`;
-  else if(n.thread) what = 'отбрасывает и оглушает';
+  // подсказка; исход решает сервер (sim.ReadWeave) — порядок тот же
+  if(n.barb) what = `ранит${n.thread?' издали':' вблизи'}${n.fork?`, целей: ${1+n.fork}`:''}${(n.loop||n.heat)?', потом жжёт':''}${n.chill?', сковывает':''}`;
+  else if(n.veil) what = 'отводит чужие глаза';
+  else if(n.eye) what = 'чутьё: кто и что вокруг';
+  else if(n.loop && n.thread) what = `заживляет раны${n.heat?' (теплом — быстрее)':''}`;
+  else if(n.loop) what = `щит${n.chill?' с ледяной коркой':''}${n.fork?' на весь отряд':''}`;
+  else if(n.thread) what = `отбрасывает и оглушает${n.chill?' надолго':''}`;
+  else if(n.heat) what = 'возвращает силы';
   return {closed, cx, cost, what};
 }
 function drawWeave(s){
