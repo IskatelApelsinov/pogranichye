@@ -482,6 +482,7 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
+            ReleaseLocalMapCaptureIfInactive();
             CoreGameplay.ApplyUiTheme();
             if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive || _systemMenuOpen)
             {
@@ -1276,6 +1277,24 @@ namespace Pogranichye.Client
             GUILayout.Space(10f);
             GUILayout.Label("ИЗВЕСТНЫЕ ПОСЕЛЕНИЯ");
             DrawKnownSettlements();
+        }
+
+        // A map drag owns IMGUI hotControl only while the map is actually available.
+        // OnGUI can return early for the system menu/loading screen, or the player can
+        // switch tabs/close the journal while dragging. In those cases DrawLocalMap no
+        // longer receives MouseUp, so release capture here before any early return.
+        private void ReleaseLocalMapCaptureIfInactive()
+        {
+            if (!_mapDragging) return;
+            var currentEvent = Event.current;
+            var mouseReleased = currentEvent != null && currentEvent.type == EventType.MouseUp;
+            var mapUnavailable = _hudCollapsed || _systemMenuOpen || _chatOpen ||
+                _connectionState != WorldConnectionState.Active || _frame == null || _hudTab != HudTab.Map;
+            if (!mouseReleased && !mapUnavailable) return;
+
+            _mapDragging = false;
+            GUIUtility.hotControl = 0;
+            if (mouseReleased) currentEvent.Use();
         }
 
         private void HandleLocalMapPointer(Rect mapRect, double worldHalf)
