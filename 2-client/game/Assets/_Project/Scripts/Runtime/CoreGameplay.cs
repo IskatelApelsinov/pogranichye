@@ -2192,7 +2192,7 @@ namespace Pogranichye.Client
             var capacity = Num(weave, "capacity");
             var glyphs = string.Empty;
             foreach (var node in _pattern) glyphs += NodeGlyph[Array.IndexOf(Nodes, node)] + " ";
-            var text = _pattern.Count == 0 ? "Веди мышью по 10 узлам (1–6 — быстрый выбор основы). Начни узлом, закончи печатью." : glyphs;
+            var text = _pattern.Count == 0 ? "Веди мышью по 10 узлам или выбирай 1–9, 0. Начни узлом, закончи печатью." : glyphs;
             if (_pattern.Count > 0)
             {
                 int complexity, cost;
