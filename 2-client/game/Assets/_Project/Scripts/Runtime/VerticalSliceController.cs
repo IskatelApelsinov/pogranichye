@@ -4503,7 +4503,9 @@ namespace Pogranichye.Client
                 var flat = activeLayout != null
                     ? activeLayout.ResolveMove(origin, desired, allowSeamlessExit)
                     : desired;
-                player.position = new Vector3(flat.x, 0f, flat.y);
+                // Preserve the last known elevation until a server height sample is available.
+                // Resetting Y to zero every frame made the terrain appear to sink while moving.
+                player.position = new Vector3(flat.x, player.position.y, flat.y);
 
                 if (!_firstPerson)
                 {
@@ -4517,6 +4519,7 @@ namespace Pogranichye.Client
             if (motion != null) motion.SetLocomotion(moving ? (canRun ? 1f : 0.58f) : 0f);
 
             ApplyMovementCorrection(player);
+            ApplyTerrainGrounding(player);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
             if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
@@ -4553,6 +4556,26 @@ namespace Pogranichye.Client
                     _moveSendQueue, _pendingMoveIntents, MoveIntentSequence, MoveIntentHasMovement);
             }
             StartNextMoveSend();
+        }
+
+        private void ApplyTerrainGrounding(Transform player)
+        {
+            if (player == null) return;
+            var anchor = _frame?.Place?.Anchor;
+            if (anchor == null) return;
+
+            // WorldPos U is absolute terrain elevation; Unity player Y is relative to the
+            // active settlement anchor. Use the exact server heightfield already streamed
+            // for this global chunk, and keep the previous Y when the sample is not cached.
+            var east = anchor.East + player.position.x;
+            var north = anchor.North + player.position.z;
+            if (!TrySampleTerrainHeight(east, north, anchor.Frame, out var ground)) return;
+            var y = ground - anchor.Up;
+            if (double.IsNaN(y) || double.IsInfinity(y) || y < -10000d || y > 10000d) return;
+
+            var position = player.position;
+            position.y = (float)y;
+            player.position = position;
         }
 
         private void ApplyMovementCorrection(Transform player)
