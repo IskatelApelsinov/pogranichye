@@ -4452,7 +4452,9 @@ namespace Pogranichye.Client
             }
             else
             {
-                stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+                // Match the server's current stamRegen rate for pending-intent replay only.
+                // The displayed stamina remains the last authoritative server snapshot.
+                stamina = Mathf.Min(1f, stamina + 0.10f * dt);
             }
         }
 
