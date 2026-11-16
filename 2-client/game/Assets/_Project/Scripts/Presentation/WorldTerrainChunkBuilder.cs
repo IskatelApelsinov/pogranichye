@@ -219,7 +219,9 @@ namespace Pogranichye.Client.Presentation
             if (chunk.Water != null)
                 foreach (var water in chunk.Water)
                 {
-                    if (water == null || water.Points == null || water.Points.Count < 2 || water.WidthMeters <= 0) continue;
+                    if (water == null || water.Points == null || water.Points.Count < 2 ||
+                        !IsFinite(water.WidthMeters) || water.WidthMeters <= 0 || !IsFinite(water.WaterLevelMeters) ||
+                        !AreFeaturePointsValid(water.Points)) continue;
                     // Server level is currently an estimate 0.3 m below the sampled ground. Since the
                     // heightfield has no carved river bed yet, lift only this visual ribbon back to
                     // the ground skin; it has no collider and does not alter canonical terrain.
@@ -232,7 +234,8 @@ namespace Pogranichye.Client.Presentation
             if (chunk.Roads != null)
                 foreach (var road in chunk.Roads)
                 {
-                    if (road == null || road.Points == null || road.Points.Count < 2) continue;
+                    if (road == null || road.Points == null || road.Points.Count < 2 ||
+                        !IsFinite(road.WidthMeters) || road.WidthMeters < 0 || !AreFeaturePointsValid(road.Points)) continue;
                     var width = road.WidthMeters > 0 ? (float)road.WidthMeters : 3f;
                     var mesh = BuildRibbon(road.Points, width, point =>
                     {
