@@ -46,7 +46,7 @@ namespace Pogranichye.Client.Networking
                         if (surface == null || string.IsNullOrWhiteSpace(surface.Id) ||
                             !surfaceIds.Add(surface.Id) || string.IsNullOrWhiteSpace(surface.Kind) ||
                             !HasFloor(floors, surface.FloorId) ||
-                            !ValidPoints(surface.Points, 3) ||
+                            !ValidPolygon(surface.Points) ||
                             !PointsInside(space, surface.Points))
                             return false;
                     }
@@ -91,7 +91,7 @@ namespace Pogranichye.Client.Networking
                              stair.StepCount == 0) ||
                             !HasFloor(floors, stair.FromFloor) || !HasFloor(floors, stair.ToFloor) ||
                             string.Equals(stair.FromFloor, stair.ToFloor, StringComparison.Ordinal) ||
-                            !ValidPoints(stair.Points, 2) ||
+                            !ValidPolyline(stair.Points) ||
                             !PointsInside(space, stair.Points) ||
                             !StairConnectsFloors(space, stair, floors))
                             return false;
@@ -127,6 +127,51 @@ namespace Pogranichye.Client.Networking
             foreach (var point in points)
                 if (point == null || !Finite(point.X) || !Finite(point.Y) || !Finite(point.Z))
                     return false;
+            return true;
+        }
+
+        // MeshCollider cannot represent a zero-area polygon. Check every edge as well as
+        // Newell's area vector so duplicate/collinear server vertices are rejected early.
+        private static bool ValidPolygon(List<WorldSpacePointFrame> points)
+        {
+            const double minimumSegmentLengthSquared = 1e-8d;
+            const double minimumArea = 1e-6d;
+            if (!ValidPoints(points, 3)) return false;
+
+            double nx = 0d, ny = 0d, nz = 0d;
+            for (var i = 0; i < points.Count; i++)
+            {
+                var current = points[i];
+                var next = points[(i + 1) % points.Count];
+                var dx = next.X - current.X;
+                var dy = next.Y - current.Y;
+                var dz = next.Z - current.Z;
+                if (dx * dx + dy * dy + dz * dz <= minimumSegmentLengthSquared)
+                    return false;
+
+                nx += (current.Y - next.Y) * (current.Z + next.Z);
+                ny += (current.Z - next.Z) * (current.X + next.X);
+                nz += (current.X - next.X) * (current.Y + next.Y);
+            }
+
+            var areaVectorSquared = nx * nx + ny * ny + nz * nz;
+            return areaVectorSquared > 4d * minimumArea * minimumArea;
+        }
+
+        private static bool ValidPolyline(List<WorldSpacePointFrame> points)
+        {
+            const double minimumSegmentLengthSquared = 1e-8d;
+            if (!ValidPoints(points, 2)) return false;
+            for (var i = 1; i < points.Count; i++)
+            {
+                var previous = points[i - 1];
+                var current = points[i];
+                var dx = current.X - previous.X;
+                var dy = current.Y - previous.Y;
+                var dz = current.Z - previous.Z;
+                if (dx * dx + dy * dy + dz * dz <= minimumSegmentLengthSquared)
+                    return false;
+            }
             return true;
         }
 

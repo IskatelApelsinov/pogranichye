@@ -58,6 +58,14 @@ public static class WorldSpaceDescriptorValidatorCheck
         {
             value.Spaces[0].Surfaces[1].Id = value.Spaces[0].Surfaces[0].Id;
         });
+        ExpectInvalid(fixture, "zero-area surface polygon", delegate(WorldSpaceChunkFrame value)
+        {
+            var points = value.Spaces[0].Surfaces[0].Points;
+            points.Clear();
+            points.Add(new WorldSpacePointFrame { X = 0d, Y = 0d, Z = 0d });
+            points.Add(new WorldSpacePointFrame { X = 1d, Y = 0d, Z = 0d });
+            points.Add(new WorldSpacePointFrame { X = 2d, Y = 0d, Z = 0d });
+        });
         ExpectInvalid(fixture, "surface references an unknown floor", delegate(WorldSpaceChunkFrame value)
         {
             value.Spaces[0].Surfaces[0].FloorId = "missing-floor";
@@ -93,6 +101,13 @@ public static class WorldSpaceDescriptorValidatorCheck
         ExpectInvalid(fixture, "stair with zero width", delegate(WorldSpaceChunkFrame value)
         {
             value.Spaces[0].Stairs[0].WidthMeters = 0d;
+        });
+        ExpectInvalid(fixture, "stair with a zero-length segment", delegate(WorldSpaceChunkFrame value)
+        {
+            var points = value.Spaces[0].Stairs[0].Points;
+            points[1].X = points[0].X;
+            points[1].Y = points[0].Y;
+            points[1].Z = points[0].Z;
         });
         ExpectInvalid(fixture, "ordinary stair with zero steps", delegate(WorldSpaceChunkFrame value)
         {
