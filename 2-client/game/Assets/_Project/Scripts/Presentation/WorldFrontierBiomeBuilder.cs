@@ -212,6 +212,7 @@ namespace Pogranichye.Client.Presentation
         private static void AddRenderer(Transform root, string name, MeshData data, Material material,
             List<Renderer> output, string chunkId)
         {
+            if (material == null) return;
             Mesh mesh = data.ToMesh(name + " / " + chunkId);
             if (mesh == null) return;
             var go = new GameObject(name);
