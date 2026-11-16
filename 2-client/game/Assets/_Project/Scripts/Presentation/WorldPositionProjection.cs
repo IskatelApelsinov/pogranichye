@@ -31,6 +31,24 @@ namespace Pogranichye.Client.Presentation
             return true;
         }
 
+        /// <summary>
+        /// Uses the current settlement's geographic centre when available. Outside a settlement,
+        /// the player's own global position becomes the floating origin; never substitute local pos.
+        /// </summary>
+        public static WorldAnchorFrame ResolveAnchor(WorldFrame frame)
+        {
+            if (frame?.Place?.Anchor != null) return frame.Place.Anchor;
+            var worldPosition = frame?.Me?.WorldPosition;
+            if (worldPosition == null || !worldPosition.IsValid) return null;
+            return new WorldAnchorFrame
+            {
+                Frame = worldPosition.Frame,
+                East = worldPosition.East,
+                North = worldPosition.North,
+                Up = worldPosition.Ground
+            };
+        }
+
         /// <summary>Projects canonical global E/N/U against the current server settlement anchor.</summary>
         public static bool TryToUnityPosition(WorldPositionFrame worldPosition,
             WorldAnchorFrame originAnchor, out Vector3 position)
