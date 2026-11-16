@@ -24,6 +24,12 @@ namespace Pogranichye.Client.Editor
             ClearTestStrip();
 
             var root = new GameObject(RootName);
+            // Put the disposable strip near the current Scene view pivot instead of overlapping
+            // the live settlement at world origin.
+            Vector3 previewOrigin = SceneView.lastActiveSceneView != null
+                ? SceneView.lastActiveSceneView.pivot : Vector3.zero;
+            previewOrigin.y = 0f;
+            root.transform.position = previewOrigin;
             var anchor = new WorldAnchorFrame { Frame = 0, East = 0, North = 0, Up = 0 };
             var biomes = new[]
             {
@@ -43,6 +49,9 @@ namespace Pogranichye.Client.Editor
             }
 
             Selection.activeGameObject = root;
+            if (SceneView.lastActiveSceneView != null)
+                SceneView.lastActiveSceneView.LookAt(previewOrigin + new Vector3(128, 0, 128),
+                    Quaternion.Euler(38f, 0f, 0f), 220f);
             EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log("Frontier biome test strip created. Move the Scene/Game camera along +Z; each 256 m tile is a different server biome fixture. This is local Editor-only presentation data.");
         }
