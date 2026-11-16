@@ -90,7 +90,12 @@ jobs:
       - name: Install Mono compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y mono-mcs libnewtonsoft-json-cil-dev
+          sudo apt-get install -y mono-mcs unzip
+          mkdir -p "$RUNNER_TEMP/newtonsoft"
+          curl -fsSL https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg -o "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg"
+          unzip -q "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg" -d "$RUNNER_TEMP/newtonsoft"
+          test -f "$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          echo "MONO_PATH=$RUNNER_TEMP/newtonsoft/lib/net45" >> "$GITHUB_ENV"
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
@@ -180,56 +185,56 @@ jobs:
       - name: Typed feed frame parser regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/feed-frame-parser.exe
       - name: Typed action result parser regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/action-result-parser.exe
       - name: Typed combat and foe frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/combat-foe-frame.exe Tests/CombatFoeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/combat-foe-frame.exe
       - name: Typed journey and quest frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
           mono /tmp/journey-quest-frame.exe
       - name: Typed horse, stats and carried bag frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
           mono /tmp/horse-stats-frame.exe
       - name: Typed card game frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/card-game-frame.exe Tests/CardGameFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs
           mono /tmp/card-game-frame.exe
       - name: Typed regional map frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/region-frame.exe Tests/RegionFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs
           mono /tmp/region-frame.exe
       - name: Typed tavern counter frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
           mono /tmp/tavern-counter-frame.exe
@@ -253,7 +258,7 @@ jobs:
       - name: Server-authored multi-level space descriptor regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
