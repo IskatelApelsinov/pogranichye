@@ -261,9 +261,9 @@ namespace Pogranichye.Client
         /// <summary>Stops an in-progress interactive rebind when leaving the controls page.</summary>
         public void CancelRebind()
         {
-            if (_rebindOperation == null) return;
-            _rebindOperation.Cancel();
-            _rebindOperation.Dispose();
+            // Cancel may synchronously invoke OnCancel and clear _rebindOperation.
+            _rebindOperation?.Cancel();
+            _rebindOperation?.Dispose();
             _rebindOperation = null;
         }
 
