@@ -550,9 +550,13 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 
 	ae, an := Anchor(w, core.Settle(se))
 	be, bn := Anchor(w, core.Settle(w.Get(target)))
-	if math.Abs(chosen.Len-math.Hypot(be-ae, bn-an)) > 0.01 {
-		t.Fatalf("длина ребра RoadGraph не совпадает с расстоянием между anchors: road=%.2f actual=%.2f",
-			chosen.Len, math.Hypot(be-ae, bn-an))
+	// RoadGraph.Len is expressed in settlement-map units (the same coordinates
+	// used by SettlementC.X/Y), while Anchor converts those units to global metres.
+	sourceSite, targetSite := core.Settle(se), core.Settle(w.Get(target))
+	expectedRoadUnits := math.Hypot(targetSite.X-sourceSite.X, targetSite.Y-sourceSite.Y)
+	if math.Abs(chosen.Len-expectedRoadUnits) > 0.01 {
+		t.Fatalf("длина ребра RoadGraph не совпадает с расстоянием в координатах поселений: road=%.2f actual=%.2f",
+			chosen.Len, expectedRoadUnits)
 	}
 
 	// Проверяем, что server terrain content публикует именно это ребро в чанке
