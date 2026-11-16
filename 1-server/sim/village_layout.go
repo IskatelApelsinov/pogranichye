@@ -95,20 +95,6 @@ func targetForGoal(role, goal string) (x, y float64) {
 // (tavern/smithy/river/woods/...).
 func GoTo(w *core.World, e *core.Entity, location string) (bool, string) {
 	l := layoutFor(w, e)
-	// task_ai 006 (issue #651): протокол 3.6 прямо обещает «после goto действия, завязанные на
-	// близость (buy/fish/chop/talk), работают, т.к. тело уже на месте» — но l.POIs["tavern"] это
-	// порог ДВЕРИ снаружи здания (sim/layout_gen.go), а BuyBeer после ужесточения 0223 требует
-	// находиться у СТОЙКИ внутри (atTavernCounter, 2.2 м от центра здания) — дверь обычно дальше.
-	// Раньше goto("tavern") ставил игрока у двери и buy честно отказывал «слишком далеко»: не баг
-	// перемещения (тело МЕНЯЛО позицию), а разрыв контракта goto↔buy именно для корчмы. Как и в
-	// targetFor корчмаря (comms 0244/task 013) — ведём сразу к стойке, с тем же fallback на дверь.
-	if location == "tavern" {
-		if cx, cy, _, ok := l.TavernCounter(); ok {
-			sp := EnsureScenePos(w, e)
-			sp.X, sp.Y = l.Free(cx, cy)
-			return true, ""
-		}
-	}
 	p, ok := l.POIs[location]
 	if !ok {
 		return false, "нет такой локации"

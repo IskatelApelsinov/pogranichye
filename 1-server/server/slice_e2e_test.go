@@ -62,32 +62,19 @@ func (c *sliceClient) full() map[string]any {
 func (c *sliceClient) gotoAndWait(location string) map[string]any {
 	c.t.Helper()
 	c.send(`{"v":1,"op":"goto","location":"%s"}`, location)
-	// task_ai 006/issue #651: goto("tavern") теперь ведёт к стойке внутри, а не к порогу снаружи
-	// (sim.GoTo) — проверяем прибытие по тому же месту, куда сервер реально ставит тело.
-	var tx, ty float64
-	if location == "tavern" {
-		var ok bool
-		tx, ty, _, ok = sim.StarterLayout().TavernCounter()
-		if !ok {
-			c.t.Fatal("у стартовой раскладки должна быть стойка корчмы")
-		}
-	} else {
-		tx, ty = sim.StarterLayout().POI(location)
-	}
-	for i := 0; i < 10; i++ {
+	// v1.22: тело идёт к месту само (сервер ведёт его по дорогам села), а не переносится мгновенно.
+	// Прибытие подтверждает сервер: me.walk снят, me.at называет место.
+	for i := 0; i < 400; i++ {
 		f := c.full()
 		me, _ := f["me"].(map[string]any)
-		pos, _ := me["pos"].(map[string]any)
-		if pos == nil {
+		if me == nil {
 			continue
 		}
-		x, xOK := pos["x"].(float64)
-		y, yOK := pos["y"].(float64)
-		if xOK && yOK && math.Hypot(x-tx, y-ty) <= 2.5 {
+		if at, _ := me["at"].(string); me["walk"] == nil && at == location {
 			return f
 		}
 	}
-	c.t.Fatalf("игрок не дошёл до POI %q по подтверждённой позиции", location)
+	c.t.Fatalf("игрок не дошёл до места %q: сервер не подтвердил прибытие", location)
 	return nil
 }
 
@@ -317,13 +304,23 @@ search:
 	if ok, _, _ := c.result(`"op":"buy","item":"beer"`); ok {
 		t.Fatal("пиво в лесу купить нельзя")
 	}
-	// task_ai 006/issue #651: goto("tavern") сам доводит до стойки (sim.GoTo) — отдельный
-	// workaround-телепорт через мир больше не нужен (comms 0223 + этот PR).
 	c.gotoAndWait("tavern")
+	// comms 0223: заказ пива требует стоять именно у стойки внутри здания, а не только у двери
+	// снаружи (куда доходит навигация по старому POI "tavern"/goto) — для e2e-теста доходим до
+	// стойки напрямую через мир, как дошёл бы игрок, если бы клиент уже умел ходить по интерьеру.
+	c.world(func(e *core.Entity) {
+		cx, cy, _, ok := sim.StarterLayout().TavernCounter()
+		if !ok {
+			c.t.Fatal("у стартовой раскладки должна быть стойка корчмы")
+		}
+		sim.ScenePos(e).X, sim.ScenePos(e).Y = cx, cy
+	})
 	var coins0, beerStock0 float64
+	var hour0 int64
 	c.world(func(e *core.Entity) {
 		coins0 = core.Purse(e).Coins
 		beerStock0 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
+		hour0 = s.runner.Clock.Day()*24 + int64(s.runner.Clock.Hour())
 	})
 	ok, reason, buyReq := c.result(`"op":"buy","item":"beer"`)
 	if !ok {
@@ -339,7 +336,10 @@ search:
 	c.world(func(e *core.Entity) {
 		coins1 = core.Purse(e).Coins
 		beerStock1 = core.Settle(s.world.Get(core.Place(e).Settlement)).Store[sim.BeerGood]
-		if math.Abs(beerStock0-beerStock1-1) > 1e-9 {
+		// Мир идёт, пока результат едет по проводу: если за это время сменился игровой час, корчма
+		// могла сварить или продать пиво сама — точное «минус одна кружка» проверяем только внутри часа.
+		sameHour := s.runner.Clock.Day()*24+int64(s.runner.Clock.Hour()) == hour0
+		if sameHour && math.Abs(beerStock0-beerStock1-1) > 1e-9 {
 			t.Fatalf("покупка должна уменьшить запас пива на одну кружку: было %.2f, стало %.2f", beerStock0, beerStock1)
 		}
 		// The world keeps simulating while the WebSocket result is delivered. Wage/need

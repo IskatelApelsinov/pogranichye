@@ -405,11 +405,19 @@ func chaseBeast(w *core.World, e *core.Entity, reqid string, melee bool) (bool, 
 		skill = sk.Level("hunter")
 	}
 	weapon := 0.0
-	if melee && inv.Hand == "sword" {
+	switch ws, has := weapons[inv.Hand]; {
+	case !has || inv.Hand == "":
+	case melee && !ws.ranged && ws.dmg >= 13: // меч, копьё, булава — оружие на зверя
 		weapon = 25
-	} else if !melee && inv.Hand == "bow" {
+		if inv.Hand == "spear" {
+			weapon = 30 // на копьё зверя и берут
+		}
+	case !melee && ws.ranged: // лук, самострел
 		weapon = 25
-	} else if inv.Hand == "axe" {
+		if inv.Hand == "crossbow" {
+			weapon = 32
+		}
+	case !ws.ranged && ws.dmg >= 10: // топор, кирка — что под рукой
 		weapon = 10
 	}
 	danger := map[string]float64{"hare": 2, "fox": 6, "boar": 22, "wolf": 30, "bear": 45}[target]

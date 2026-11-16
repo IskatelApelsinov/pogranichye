@@ -27,6 +27,8 @@
    border:1px solid #e4c58e;background:#30271ddd;color:#fff0cf;font:12px/1.2 Georgia,serif;white-space:nowrap;
    box-shadow:0 2px 5px #17130f99}
  .map-hotspot:active,.map-hotspot.here{background:#bd7c43;border-color:#ffe0a4;color:#fff}
+ .map-hotspot.going,.loc.going{outline:2px dashed #ffe0a4;outline-offset:1px;animation:going 1s linear infinite}
+ @keyframes going{50%{opacity:.6}}
  .map-hotspot:focus-visible{outline:3px solid #ffe0a4;outline-offset:2px}
  @media(max-width:420px){.map-hotspot{font-size:10px;padding:3px 5px}.map-hotspot .full{display:none}}
  .map-controls{display:flex;align-items:center;gap:6px;margin-top:7px}
@@ -153,6 +155,7 @@
 </div>
 
 <script src="/request-gate.js"></script>
+<script src="/walk-state.js"></script>
 <script src="/activity-minigames.js"></script>
 <script>
 let token=null, ws=null, mode='login';
@@ -250,7 +253,7 @@ function sendMinigameAction(action,buttonId,successText){
 function rid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 $('leave').onclick=()=>{ token=null; if(reconnectTimer!==null){clearTimeout(reconnectTimer);reconnectTimer=null;} if(ws)ws.close(); location.reload(); };
 
-// ---------- локации (тап-навигация, без ходьбы) ----------
+// ---------- локации (тап по месту: тело идёт само, ведёт сервер — walk-state.js) ----------
 const LOCS=[
  {key:'well',   name:'Площадь',  ico:'⛲', desc:'Сердце деревни. Можно поговорить с людьми и дать отпор зверю.'},
  {key:'tavern', name:'Корчма',   ico:'🍺', desc:'Кружка пива, знакомства, посиделки.'},
@@ -264,10 +267,36 @@ const LOCS=[
  {key:'market', name:'Лавка',    ico:'🪙', desc:'Прилавок: цены зависят от того, чего в селе мало.'},
 ];
 let curLoc='well', last=null;
+// v1.22: персонаж ИДЁТ к месту сам, а ведёт его сервер. Клиент лишь называет цель и показывает то,
+// что подтвердил сервер: me.walk — «иду», me.at — «пришёл». Экран места (и его дела) меняется только
+// по прибытии; повторный тап по той же цели в пути отменяет её, тап по другой — меняет.
 function goTo(key){
- curLoc=key; locSig=''; stopMinigames(); send({op:'goto',location:key});
- document.querySelectorAll('.map-hotspot').forEach(b=>b.classList.toggle('here',b.dataset.location===key));
- if(last) drawLoc(last); toast('');
+ const st=WalkState.onTap(walkState,key,last&&last.me);
+ walkState=st.state;
+ if(st.send!==null) send({op:'goto',location:st.send});
+ if(st.legacy){ curLoc=key; locSig=''; stopMinigames(); }
+ paintWalk(last);
+ if(last) drawLoc(last);
+}
+let walkState=WalkState.initial();
+function locName(key){ const L=LOCS.find(x=>x.key===key); return L?L.name:key; }
+function paintWalk(s){
+ const me=(s&&s.me)||{}, going=me.walk&&me.walk.to;
+ document.querySelectorAll('.map-hotspot').forEach(b=>{
+  b.classList.toggle('here',b.dataset.location===curLoc&&!going);
+  b.classList.toggle('going',b.dataset.location===going);
+ });
+ document.querySelectorAll('#locgrid .loc').forEach(b=>{
+  b.classList.toggle('here',b.dataset.k===curLoc&&!going);
+  b.classList.toggle('going',b.dataset.k===going);
+ });
+}
+function syncWalk(s){
+ const r=WalkState.onFrame(walkState,s&&s.me,curLoc);
+ walkState=r.state;
+ if(r.arrived!==null && r.arrived!==curLoc){ curLoc=r.arrived; locSig=''; stopMinigames(); }
+ if(r.message!==null) toast(r.message.replace('%s',locName(r.target)));
+ paintWalk(s);
 }
 document.querySelectorAll('.map-hotspot').forEach(button=>{
  button.addEventListener('click',()=>goTo(button.dataset.location));
@@ -304,7 +333,7 @@ $('chattext').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefaul
 
 let lastResult='';
 let journalSeen=false, journalEntries=[];
-function render(s){ last=s; coreRender(s); drawChar(s); drawTask(s); drawJournal(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
+function render(s){ last=s; syncWalk(s); coreRender(s); drawChar(s); drawTask(s); drawJournal(s); drawWorld(s); drawLoc(s); drawInv(s); drawTravel(s); drawDialog(s);
   const r=(s.me||{}).result;
   // Обновляем gate по ACK и соединению. Если кадр уже содержит наш ACK, не делаем лишний replay.
   const resolved=resultGate.accept(r,Date.now());
@@ -410,7 +439,7 @@ function drawWorld(s){
    b.innerHTML=`<span class="ico">${L.ico}</span><span>${L.name}</span>`;
    b.onclick=()=>goTo(L.key); g.appendChild(b);
  });}
- [...g.children].forEach(b=>b.classList.toggle('here',b.dataset.k===curLoc));
+ paintWalk(s);
 }
 
 function drawLocPulse(s){

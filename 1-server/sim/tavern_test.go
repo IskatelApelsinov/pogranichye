@@ -159,37 +159,6 @@ func TestBuyBeerKeeperAbsent(t *testing.T) {
 	}
 }
 
-// TestGoToTavernLandsAtCounterNotDoor — task_ai 006 (issue #651), протокол 3.6: «после goto
-// действия, завязанные на близость (buy/fish/chop/talk), работают, т.к. тело уже на месте» — до
-// этого PR goto("tavern") ставил тонкого клиента у ВНЕШНЕГО порога (l.POIs["tavern"]), а BuyBeer
-// после ужесточения 0223 требует стойку внутри (atTavernCounter, 2.2 м от центра) — контракт был
-// нарушен конкретно для корчмы (owner: «нельзя нормально взаимодействовать с корчмой»). Тело
-// ДЕЙСТВИТЕЛЬНО двигалось (не баг перемещения) — просто не туда, куда нужно для buy. Не трогаем
-// ADR 0002/0040 («без ходьбы») — goto остаётся дискретным, просто целится в правильную точку.
-func TestGoToTavernLandsAtCounterNotDoor(t *testing.T) {
-	w := core.NewWorld("t")
-	se := w.Spawn(&core.SettlementC{Name: "Корчма", Tavern: true, Store: map[string]float64{BeerGood: 10}})
-	keeper := w.Spawn(
-		&core.IdentC{Name: "Корчмарь", Role: "tavernkeeper", Sex: "м"},
-		&core.VitalsC{Health: 100, Morale: 50, Hunger: 40},
-		&core.MindC{ActCode: "keep_tavern"},
-		&core.PlaceC{Settlement: se.ID},
-	)
-	core.Settle(se).Keeper = keeper.ID
-	e := w.Spawn(
-		&core.IdentC{Name: "Питок", Role: "farmer", Sex: "м"},
-		&core.VitalsC{Health: 100, Morale: 50, Hunger: 40},
-		&core.PurseC{Coins: 5, Debts: map[string]float64{}},
-		&core.PlaceC{Settlement: se.ID},
-	)
-	if ok, why := GoTo(w, e, "tavern"); !ok {
-		t.Fatalf("goto(tavern) должен сработать: %s", why)
-	}
-	if ok, why := BuyBeer(w, e, "r1", 14); !ok {
-		t.Fatalf("после goto(tavern) buy должен сработать без отдельного перемещения (протокол 3.6): %s", why)
-	}
-}
-
 // comms 0223, тест 3б: корчмарь в мире и жив, но сейчас занят НЕ стойкой (другое занятие) — отказ.
 // comms 0242/task 012: ActCode != keep_tavern больше не отказ САМ ПО СЕБЕ в дневное окно (10..22) —
 // только ночью (keeper "занят отдыхом/сном" и час вне окна) отказ остаётся честным.

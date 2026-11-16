@@ -426,6 +426,8 @@ func TerrainChunkUsing(w *core.World, t *Terrain, cx, cz int64, step int) map[st
 // Режим включается на мир (PlanetC.Seamless) и хранится в сохранении. Пока он выключен, всё
 // работает по-старому: край земли — стена, выезд на тракт — у края (StepExits).
 
+const rimMargin = 150.0 // м за гребнем гор котла, после которых путник считается перевалившим
+
 const landHysteresis = 40.0 // м — насколько ближе должен стать сосед, чтобы сменить земли (без дребезга)
 
 // SetSeamless включает или выключает бесшовный мир.
@@ -466,6 +468,7 @@ func StepLands(w *core.World, controlled func(core.ID) bool) {
 		as = append(as, an{se.ID, e, n, isOuter(w, s)})
 	})
 	sort.Slice(as, func(i, j int) bool { return as[i].id < as[j].id })
+	rim := 0.0
 	for _, e := range walkers {
 		pl, p := core.Place(e), ScenePos(e)
 		var cur *an
@@ -479,16 +482,31 @@ func StepLands(w *core.World, controlled func(core.ID) bool) {
 		}
 		wx, wy := cur.e+p.X, cur.n+p.Y
 		dc := math.Hypot(p.X, p.Y)
+		// По какую сторону гор котла стоит путник — решает не то, откуда он вышел, а где он физически.
+		// Перевалил гребень (v1.22) — попал в земли по ту сторону: мир не кончается у гор. Перевал-переход
+		// (op:"travel", ADR 0003/0006) остаётся удобной дорогой; гребень — долгий и крутой путь ногами.
+		if rim == 0 {
+			rim = NewTerrain(w).rimR
+		}
+		side := cur.outer
+		if r := math.Hypot(wx, wy); !cur.outer && r > rim+rimMargin {
+			side = true
+		} else if cur.outer && r < rim-rimMargin {
+			side = false
+		}
 		best, bd := cur, dc
+		if side != cur.outer {
+			best, bd = nil, math.MaxFloat64 // сторону сменил — «своё» село осталось за горами
+		}
 		for i := range as {
-			if as[i].outer != cur.outer {
-				continue // через горы котла ногами не ходят — только перевалом
+			if as[i].outer != side {
+				continue
 			}
 			if d := math.Hypot(wx-as[i].e, wy-as[i].n); d < bd {
 				bd, best = d, &as[i]
 			}
 		}
-		if best == cur || bd+landHysteresis > dc {
+		if best == nil || best == cur || (side == cur.outer && bd+landHysteresis > dc) {
 			continue
 		}
 		pl.Settlement = best.id

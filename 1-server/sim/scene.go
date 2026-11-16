@@ -48,6 +48,8 @@ type ScenePosC struct {
 	// снятой комнаты. Это серверный флаг присутствия, а НЕ вторая сцена/координаты — отдельной
 	// геометрии интерьера пока нет (comms 0174/0177). X/Y остаются прежними (у двери).
 	Indoor string `json:"indoor,omitempty"`
+	// At — у какого места села тело встало, дойдя самоходом (v1.22); сбрасывается, когда отошло.
+	At string `json:"at,omitempty"`
 }
 
 func (c *ScenePosC) Kind() string { return "scenepos" }
