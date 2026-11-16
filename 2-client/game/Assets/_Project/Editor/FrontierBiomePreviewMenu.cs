@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Pogranichye.Client.Editor
