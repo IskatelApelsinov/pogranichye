@@ -1110,6 +1110,9 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
 
             GUILayout.Space(6f);
+            if (_core != null) _core.DrawQuestJournal();
+
+            GUILayout.Space(6f);
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("ЛЕТОПИСЬ");
             if (me.Journal == null)
