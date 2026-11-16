@@ -91,7 +91,7 @@ namespace Pogranichye.Client.Presentation
 
         public void Apply(WorldFrame frame)
         {
-            Apply(frame, frame != null ? frame.Place?.Anchor : null);
+            Apply(frame, WorldPositionProjection.ResolveAnchor(frame));
         }
 
         public void Apply(WorldFrame frame, WorldAnchorFrame worldAnchor)
