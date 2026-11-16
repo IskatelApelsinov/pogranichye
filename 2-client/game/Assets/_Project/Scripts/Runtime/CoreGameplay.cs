@@ -3447,8 +3447,11 @@ namespace Pogranichye.Client
                 if (horse.Here)
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button(horse.Mounted ? "Слезть" : "В седло"))
+                    if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
                         Ask("Лошадь", "horse", "action", horse.Mounted ? "dismount" : "mount");
+                    GUILayout.Label(horse.Mounted
+                        ? "Вы верхом. Команда спешивания отправится серверу."
+                        : "Лошадь в этом поселении. Нажмите «Оседлать» — сервер проверит возможность посадки.");
                     if (GUILayout.Button("Покормить")) Ask("Корм", "horse", "action", "feed");
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
