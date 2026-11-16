@@ -59,6 +59,9 @@ namespace Pogranichye.Client
         private float _ambienceVolume = 0.75f;
         private float _mouseSensitivity = 0.035f;
         private bool _invertMouseY;
+        private string _rebindingAction;
+        private int _rebindingBindingIndex = -1;
+        private string _bindingStatus = "Назначения клавиш сохраняются на этом устройстве.";
         private float _shadowDistance = 120f;
         private float _lodBias = 1f;
         private int _antiAliasing = 2;
@@ -2055,10 +2058,15 @@ namespace Pogranichye.Client
                 "Pogranichye.MasterVolume", "Pogranichye.SfxVolume", "Pogranichye.AmbienceVolume",
                 "Pogranichye.MouseSensitivity", "Pogranichye.InvertMouseY", "Pogranichye.ShadowDistance",
                 "Pogranichye.LodBias", "Pogranichye.AntiAliasing", "Pogranichye.VSync",
-                "Pogranichye.TargetFrameRate", "Pogranichye.QualityLevel", "Pogranichye.Fullscreen"
+                "Pogranichye.TargetFrameRate", "Pogranichye.QualityLevel", "Pogranichye.Fullscreen",
+                "Pogranichye.InputBindingOverrides"
             })
                 PlayerPrefs.DeleteKey(key);
 
+            _input?.ResetBindingOverrides();
+            _rebindingAction = null;
+            _rebindingBindingIndex = -1;
+            _bindingStatus = "Стандартное управление восстановлено.";
             _masterVolume = 0.85f; _sfxVolume = 0.9f; _ambienceVolume = 0.75f;
             _mouseSensitivity = 0.035f; _invertMouseY = false; _shadowDistance = 120f;
             _lodBias = 1f; _antiAliasing = 2; _vSync = true; _targetFrameRate = 60;
@@ -2170,6 +2178,115 @@ namespace Pogranichye.Client
             if (GUILayout.Button(_firstPerson ? "Камера: первое лицо" : "Камера: третье лицо", GUILayout.Height(30f)))
                 SetCameraMode(!_firstPerson);
             GUILayout.Label("WASD — движение · Alt — лёгкий бег · Shift — быстрый бег · Space — прыжок\nМышь — обзор · E — взаимодействие · F1 — интерфейс\nЛКМ — атака/выстрел · ПКМ — блок · Q — уворот · R — плетение\nZ/X/V/B/C — боевые приёмы · N — стойка · T — чат · Tab — дела и меню");
+
+            GUILayout.Space(10f);
+            GUILayout.Label("ПЕРЕНАЗНАЧЕНИЕ КЛАВИШ");
+            GUILayout.Label("Нажмите кнопку рядом с действием, затем клавишу или кнопку мыши. Esc отменяет назначение.");
+            DrawBindingSection("ПЕРЕДВИЖЕНИЕ", new[]
+            {
+                new BindingRow("Вперёд", "Move", 1),
+                new BindingRow("Назад", "Move", 2),
+                new BindingRow("Влево", "Move", 3),
+                new BindingRow("Вправо", "Move", 4),
+                new BindingRow("Прыжок", "Jump"),
+                new BindingRow("Лёгкий бег", "Jog"),
+                new BindingRow("Бег", "Sprint"),
+                new BindingRow("Автоходьба", "ToggleAutoWalk")
+            });
+            DrawBindingSection("ВЗАИМОДЕЙСТВИЕ И ИНТЕРФЕЙС", new[]
+            {
+                new BindingRow("Взаимодействие", "Interact"),
+                new BindingRow("Инвентарь", "OpenInventory"),
+                new BindingRow("Журнал / задания", "OpenJournal"),
+                new BindingRow("Карта", "OpenMap"),
+                new BindingRow("Системное меню", "Menu"),
+                new BindingRow("Скрыть / показать HUD", "ToggleHud"),
+                new BindingRow("Чат", "Chat"),
+                new BindingRow("Голосовой PTT", "VoicePushToTalk"),
+                new BindingRow("Отмена / назад", "Cancel")
+            });
+            DrawBindingSection("БОЙ И МАГИЯ", new[]
+            {
+                new BindingRow("Основная атака", "Primary"),
+                new BindingRow("Вторичное действие / блок", "Secondary"),
+                new BindingRow("Быстрая атака", "QuickAttack"),
+                new BindingRow("Уворот", "Dodge"),
+                new BindingRow("Начать плетение", "WeaveHold"),
+                new BindingRow("Убрать узел плетения", "WeaveRemove"),
+                new BindingRow("Смена стойки", "CycleStance"),
+                new BindingRow("Захват цели", "LockTarget")
+            });
+            GUILayout.Label(_bindingStatus);
+            if (GUILayout.Button("Сбросить только управление", GUILayout.Height(30f)))
+            {
+                _input?.ResetBindingOverrides();
+                _rebindingAction = null;
+                _rebindingBindingIndex = -1;
+                _bindingStatus = "Стандартная раскладка управления восстановлена.";
+            }
+        }
+
+
+        private struct BindingRow
+        {
+            public readonly string Label;
+            public readonly string Action;
+            public readonly int BindingIndex;
+
+            public BindingRow(string label, string action, int bindingIndex = 0)
+            {
+                Label = label;
+                Action = action;
+                BindingIndex = bindingIndex;
+            }
+        }
+
+        private void DrawBindingSection(string heading, BindingRow[] rows)
+        {
+            GUILayout.Space(5f);
+            GUILayout.Label(heading);
+            for (var i = 0; i < rows.Length; i++)
+                DrawBindingRow(rows[i]);
+        }
+
+        private void DrawBindingRow(BindingRow row)
+        {
+            if (_input == null) return;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(row.Label, GUILayout.MinWidth(145f));
+            var capturing = string.Equals(_rebindingAction, row.Action, StringComparison.Ordinal) &&
+                _rebindingBindingIndex == row.BindingIndex;
+            var current = capturing ? "Нажмите клавишу…" :
+                _input.GetBindingDisplayString(row.Action, row.BindingIndex);
+            if (GUILayout.Button(current, GUILayout.MinWidth(118f), GUILayout.Height(28f)))
+            {
+                _rebindingAction = row.Action;
+                _rebindingBindingIndex = row.BindingIndex;
+                _bindingStatus = "Ожидание ввода: " + row.Label + ". Esc — отмена.";
+                var started = _input.StartRebind(row.Action, row.BindingIndex,
+                    display =>
+                    {
+                        _rebindingAction = null;
+                        _rebindingBindingIndex = -1;
+                        var conflict = _input.GetBindingConflict(row.Action, row.BindingIndex);
+                        _bindingStatus = row.Label + ": " + display +
+                            (string.IsNullOrEmpty(conflict) ? " — сохранено." :
+                                " — внимание: также назначено на «" + conflict + "». Проверьте конфликт.");
+                    },
+                    () =>
+                    {
+                        _rebindingAction = null;
+                        _rebindingBindingIndex = -1;
+                        _bindingStatus = "Переназначение отменено.";
+                    });
+                if (!started)
+                {
+                    _rebindingAction = null;
+                    _rebindingBindingIndex = -1;
+                    _bindingStatus = "Не удалось начать переназначение этого действия.";
+                }
+            }
+            GUILayout.EndHorizontal();
         }
 
         private void DrawVolumeSlider(string label, ref float value, string key)
