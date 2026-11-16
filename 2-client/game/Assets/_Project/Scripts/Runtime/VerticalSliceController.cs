@@ -1338,40 +1338,226 @@ namespace Pogranichye.Client
 
         private void DrawMapTab()
         {
-            GUILayout.Label("КАРТА ПОСЕЛЕНИЯ");
-            GUILayout.Label("Схема построена по серверному Layout v2. Она показывает местные препятствия и точки интереса, а не придумывает проходимые пути.");
+            GUILayout.Label("КАРТА МИРА");
+            GUILayout.Label("Единая карта: от дорог и городов до улиц и зданий. География и положение поселений берутся из данных сервера; неизвестные персонажу места не подписываются.");
+            var place = _frame?.Place;
+            var anchor = place?.Anchor;
+            var manifest = _worldManifest;
+            var worldRadius = ResolveUnifiedMapRadius(manifest, anchor);
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Масштаб: " + _mapZoom.ToString("0.0") + "×", GUILayout.Width(112f));
-            var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 4f);
-            if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.25f);
-            if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(4f, _mapZoom + 0.25f);
-            if (GUILayout.Button("К персонажу", GUILayout.Width(104f))) _mapPan = Vector2.zero;
-            if (GUILayout.Button("Сброс", GUILayout.Width(54f)))
-            {
-                nextZoom = 1f;
-                _mapPan = Vector2.zero;
-            }
-            _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
-            if (_mapZoom <= 1.01f) _mapPan = Vector2.zero;
+            GUILayout.Label("Масштаб " + _mapZoom.ToString("0.0") + "×", GUILayout.Width(100f));
+            var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 24f);
+            if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.75f);
+            if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(24f, _mapZoom + 0.75f);
+            if (GUILayout.Button("К персонажу", GUILayout.Width(112f))) _mapPan = Vector2.zero;
+            if (GUILayout.Button("Сброс", GUILayout.Width(54f))) { nextZoom = 1f; _mapPan = Vector2.zero; }
+            _mapZoom = Mathf.Clamp(nextZoom, 1f, 24f);
             GUILayout.EndHorizontal();
-            GUILayout.Label("ЛКМ — переместить карту · колесо — масштаб · «К персонажу» — вернуть метку в центр.");
-            if (_layout == null || _layout.Version != 2)
+            GUILayout.Label("Колесо — приблизить/отдалить · ЛКМ — двигать карту · Север ↑");
+            if (manifest?.Settlements == null || place == null || anchor == null)
             {
-                GUILayout.Label("Серверная карта поселения пока недоступна.");
-            }
-            else
-            {
-                DrawLocalMap();
-                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Поселение  ◈ Урочища  • Жители  ★ Вы");
-                GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
-                GUILayout.Space(8f);
-                DrawWorldConnectionsMap();
+                GUILayout.Label("Карта мира ожидает серверный манифест и глобальное положение персонажа.");
+                return;
             }
 
-            GUILayout.Space(10f);
-            GUILayout.Label("ИЗВЕСТНЫЕ ПОСЕЛЕНИЯ");
-            DrawKnownSettlements();
+            EnsureMapStyles();
+            var mapSize = Mathf.Min(520f, Screen.width - 72f);
+            var rect = GUILayoutUtility.GetRect(mapSize, mapSize, GUILayout.Width(mapSize), GUILayout.Height(mapSize));
+            var player = _frame?.Me?.WorldPosition;
+            var hasPlayer = player != null && player.IsValid && player.Frame == anchor.Frame;
+            var playerEast = hasPlayer ? player.East : anchor.East;
+            var playerNorth = hasPlayer ? player.North : anchor.North;
+            var mapHalf = UnifiedMapHalf(worldRadius, _mapZoom);
+            HandleUnifiedMapPointer(rect, mapHalf);
+            var centerEast = playerEast + _mapPan.x;
+            var centerNorth = playerNorth + _mapPan.y;
+            DrawMapFill(rect, new Color(0.18f, 0.24f, 0.19f, 1f));
+            for (var i = 1; i < 8; i++)
+            {
+                var x = rect.x + rect.width * i / 8f;
+                var y = rect.y + rect.height * i / 8f;
+                DrawMapFill(new Rect(x, rect.y, 1f, rect.height), new Color(0.78f, 0.79f, 0.67f, 0.10f));
+                DrawMapFill(new Rect(rect.x, y, rect.width, 1f), new Color(0.78f, 0.79f, 0.67f, 0.10f));
+            }
+
+            Vector2 ProjectGlobal(double east, double north)
+            {
+                return WorldMapProjection.ToMapPoint(east - centerEast, north - centerNorth, mapHalf, rect);
+            }
+
+            // World roads are drawn only from the authoritative server road graph.
+            var settlementsById = new Dictionary<string, WorldSettlementFrame>(StringComparer.Ordinal);
+            foreach (var settlement in manifest.Settlements)
+                if (settlement != null && settlement.Frame == anchor.Frame && !string.IsNullOrWhiteSpace(settlement.Id))
+                    settlementsById[settlement.Id] = settlement;
+            if (manifest.Roads != null)
+            {
+                foreach (var road in manifest.Roads)
+                {
+                    if (road == null || !settlementsById.TryGetValue(road.From, out var from) ||
+                        !settlementsById.TryGetValue(road.To, out var to)) continue;
+                    DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
+                        mapHalf < 12000d ? 2.4f : 1.5f, new Color(0.73f, 0.58f, 0.36f, 0.9f));
+                }
+            }
+
+            var knownNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var knownPlaces = _frame.Me?.KnownPlaces;
+            if (knownPlaces != null)
+                foreach (var known in knownPlaces)
+                    if (known != null && !string.IsNullOrWhiteSpace(known.Id))
+                        knownNames[known.Id] = string.IsNullOrWhiteSpace(known.Name) ? "Неизвестное место" : known.Name;
+
+            foreach (var settlement in settlementsById.Values)
+            {
+                var current = string.Equals(settlement.Id, place.Id, StringComparison.Ordinal);
+                var known = current || knownNames.TryGetValue(settlement.Id, out _);
+                if (!known) continue;
+                var point = ProjectGlobal(settlement.East, settlement.North);
+                if (!rect.Contains(point)) continue;
+                var size = current ? 16f : settlement.Tier == "city" ? 13f : 10f;
+                var oldBackground = GUI.backgroundColor;
+                var oldContent = GUI.contentColor;
+                GUI.backgroundColor = current ? new Color(0.75f, 0.25f, 0.16f, 1f) :
+                    settlement.Tier == "city" ? new Color(0.82f, 0.68f, 0.38f, 1f) :
+                    new Color(0.68f, 0.68f, 0.49f, 1f);
+                GUI.contentColor = Color.white;
+                GUI.Box(new Rect(point.x - size * 0.5f, point.y - size * 0.5f, size, size),
+                    current ? "★" : settlement.Tier == "city" ? "◆" : "●", _mapNeighborStyle);
+                GUI.backgroundColor = oldBackground;
+                GUI.contentColor = oldContent;
+                var label = current ? place.Name : knownNames[settlement.Id];
+                GUI.Label(new Rect(point.x + size * 0.5f + 3f, point.y - 9f, 150f, 18f), label, _mapPoiLabelStyle);
+            }
+
+            // At regional/settlement scales, reveal the current settlement's actual server layout.
+            // Local offsets are projected from the same authoritative settlement-centre anchor.
+            if (_layout != null && _layout.Version == 2 && mapHalf <= 1800d)
+            {
+                if (_layout.RiverPresent)
+                {
+                    var a = ProjectGlobal(anchor.East - _layout.WorldHalf, anchor.North + _layout.River.Y0);
+                    var b = ProjectGlobal(anchor.East + _layout.WorldHalf, anchor.North + _layout.River.Y1);
+                    DrawMapFill(ClipMapRect(Rect.MinMaxRect(Mathf.Min(a.x,b.x), Mathf.Min(a.y,b.y),
+                        Mathf.Max(a.x,b.x), Mathf.Max(a.y,b.y)), rect), new Color(0.20f,0.43f,0.55f,0.85f));
+                }
+                if (_layout.Buildings != null)
+                    foreach (var building in _layout.Buildings)
+                    {
+                        if (building == null) continue;
+                        var a = ProjectGlobal(anchor.East + building.X0, anchor.North + building.Y1);
+                        var b = ProjectGlobal(anchor.East + building.X1, anchor.North + building.Y0);
+                        DrawMapFill(ClipMapRect(Rect.MinMaxRect(Mathf.Min(a.x,b.x), Mathf.Min(a.y,b.y),
+                            Mathf.Max(a.x,b.x), Mathf.Max(a.y,b.y)), rect), new Color(0.36f,0.27f,0.20f,0.98f));
+                    }
+                if (_layout.Pois != null)
+                    foreach (var poiId in MapPoiOrder)
+                    {
+                        if (!_layout.Pois.TryGetValue(poiId, out var poi) || poi == null || !ShouldShowMapPoi(poiId)) continue;
+                        var point = ProjectGlobal(anchor.East + poi.X, anchor.North + poi.Y);
+                        if (!rect.Contains(point)) continue;
+                        GUI.Box(new Rect(point.x-7f,point.y-7f,14f,14f),MapPoiGlyph(poiId),_mapPoiStyle);
+                        GUI.Label(new Rect(point.x+8f,point.y-8f,92f,16f),MapPoiDisplayName(poiId),_mapPoiLabelStyle);
+                    }
+            }
+
+            if (hasPlayer)
+            {
+                var point = ProjectGlobal(playerEast, playerNorth);
+                GUI.Box(new Rect(point.x-9f,point.y-9f,18f,18f),"★",_mapPlayerStyle);
+            }
+            var oldColor = GUI.color;
+            GUI.color = Color.white;
+            DrawMapFill(new Rect(rect.x,rect.y,rect.width,2f),new Color(0.08f,0.11f,0.08f,1f));
+            DrawMapFill(new Rect(rect.x,rect.yMax-2f,rect.width,2f),new Color(0.08f,0.11f,0.08f,1f));
+            DrawMapFill(new Rect(rect.x,rect.y,2f,rect.height),new Color(0.08f,0.11f,0.08f,1f));
+            DrawMapFill(new Rect(rect.xMax-2f,rect.y,2f,rect.height),new Color(0.08f,0.11f,0.08f,1f));
+            GUI.color = oldColor;
+            GUILayout.Label("Текущее место: " + place.Name + " · " + (place.Realm?.Name ?? "вольные земли"));
+            if (hasPlayer)
+            {
+                var distanceToCenter = Math.Sqrt(Math.Pow(playerEast-anchor.East,2d)+Math.Pow(playerNorth-anchor.North,2d));
+                GUILayout.Label("Глобальные координаты: восток " + playerEast.ToString("0",CultureInfo.InvariantCulture) +
+                    " м · север " + playerNorth.ToString("0",CultureInfo.InvariantCulture) +
+                    " м · от центра поселения " + distanceToCenter.ToString("0",CultureInfo.InvariantCulture) + " м");
+            }
+            GUILayout.Label(mapHalf > 1800d
+                ? "Масштаб мира: города, известные поселения и серверные дороги."
+                : mapHalf > 300d
+                    ? "Региональный масштаб: дороги и окрестности текущего поселения."
+                    : "Масштаб поселения: здания и места из серверной планировки.");
+            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ серверная дорога · здания и POI появляются при приближении.");
         }
+
+        private static double ResolveUnifiedMapRadius(WorldManifestFrame manifest, WorldAnchorFrame anchor)
+        {
+            var radius = 500d;
+            if (manifest?.Settlements == null || anchor == null) return radius;
+            foreach (var settlement in manifest.Settlements)
+            {
+                if (settlement == null || settlement.Frame != anchor.Frame) continue;
+                var dx = settlement.East - anchor.East;
+                var dy = settlement.North - anchor.North;
+                radius = Math.Max(radius, Math.Sqrt(dx * dx + dy * dy));
+            }
+            return Math.Max(1000d, radius * 1.08d);
+        }
+
+        private static double UnifiedMapHalf(double worldRadius, float zoom)
+        {
+            var t = Mathf.InverseLerp(1f, 24f, zoom);
+            t = t * t * (3f - 2f * t);
+            return Math.Max(150d, worldRadius * (1d - t) + 150d * t);
+        }
+
+        private void HandleUnifiedMapPointer(Rect mapRect, double mapHalf)
+        {
+            var currentEvent = Event.current;
+            if (currentEvent == null) return;
+            var controlId = GUIUtility.GetControlID(FocusType.Passive, mapRect);
+            if (currentEvent.type == EventType.ScrollWheel && mapRect.Contains(currentEvent.mousePosition))
+            {
+                _mapZoom = Mathf.Clamp(_mapZoom + (currentEvent.delta.y < 0f ? 0.75f : -0.75f), 1f, 24f);
+                currentEvent.Use();
+                return;
+            }
+            if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0 && mapRect.Contains(currentEvent.mousePosition))
+            {
+                GUIUtility.hotControl = controlId;
+                _mapDragging = true;
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+                return;
+            }
+            if (GUIUtility.hotControl != controlId || !_mapDragging) return;
+            if (currentEvent.type == EventType.MouseDrag)
+            {
+                var hasPlayer = _frame?.Me?.WorldPosition != null;
+                var delta = currentEvent.mousePosition - _mapLastPointer;
+                var metersPerPixel = mapHalf * 2d / Math.Max(1f, mapRect.width);
+                _mapPan.x -= (float)(delta.x * metersPerPixel);
+                _mapPan.y += (float)(delta.y * metersPerPixel);
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+            }
+            else if (currentEvent.type == EventType.MouseUp)
+            {
+                _mapDragging = false;
+                GUIUtility.hotControl = 0;
+                currentEvent.Use();
+            }
+        }
+
+        private static Rect ClipMapRect(Rect source, Rect viewport)
+        {
+            var left = Mathf.Max(source.xMin, viewport.xMin);
+            var top = Mathf.Max(source.yMin, viewport.yMin);
+            var right = Mathf.Min(source.xMax, viewport.xMax);
+            var bottom = Mathf.Min(source.yMax, viewport.yMax);
+            return right <= left || bottom <= top ? new Rect(0f,0f,0f,0f) : Rect.MinMaxRect(left,top,right,bottom);
+        }
+
+
 
         // A map drag owns IMGUI hotControl only while the map is actually available.
         // OnGUI can return early for the system menu/loading screen, or the player can
