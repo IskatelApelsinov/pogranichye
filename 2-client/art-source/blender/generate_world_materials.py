@@ -191,6 +191,11 @@ def main():
             "resolution": [1024, 1024],
             "source": "2-client/art-source/textures/oak_planks_source.jpg",
             "builder": "build_oak_planks_material.py"
+        },
+        "mossy_stone": {
+            "resolution": [1024, 1024],
+            "source": "2-client/art-source/textures/stone_masonry_source.jpg",
+            "builder": "build_mossy_stone_material.py"
         }
     }
     for kind in kinds:

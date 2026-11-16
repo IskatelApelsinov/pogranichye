@@ -73,3 +73,33 @@ python 2-client/art-source/textures/build_oak_planks_material.py
 `WorldLayoutPresentationBuilder` загружает `oak_planks` для общего timber-материала: деревянные поверхности сгенерированных зданий и мостика, а также других элементов, использующих `_timber`. Сначала применяется Grok starter texture как fallback, затем авторский набор с приоритетом. UV tiling остаётся 2×2. URP Lit получает smoothness из albedo alpha; нормаль и AO подключаются к штатным слотам.
 
 Если PNG-набор ещё не распакован в Resources, проект остаётся работоспособным на Grok/процедурном fallback. Для установки готового набора распакуй архив `pogranichye_oak_planks_texture_pack.zip` в корень репозитория с сохранением путей.
+
+## Авторская текстура старой каменной кладки
+
+Исходник — художественная поверхность нерегулярной кладки из полевых камней: серый сланец, тёплый известняк и песчаник, выветренные грани, минеральные прожилки, углублённый известковый раствор и сдержанные участки мха. Это не процедурная синусоидальная имитация.
+
+`build_mossy_stone_material.py` создаёт в Unity Resources:
+
+- `mossy_stone_albedo.png` — 1024×1024 RGBA; RGB — цвет, A — линейная smoothness (`1 - roughness`);
+- `mossy_stone_normal.png` — tangent-space normal, positive tangent Y;
+- `mossy_stone_roughness.png` — отдельная линейная roughness;
+- `mossy_stone_ao.png` — отдельная линейная AO;
+- `mossy_stone_material.json` — диапазоны PBR-карт и контроль швов.
+
+Все карты получаются из одного исходника и общей карты рельефа. Швы исправляются внутренними фрагментами с cosine-feather переходом; генератор отдельно проверяет четыре карты и прекращает работу при отношении перепада на шве к внутреннему перепаду выше 1.35.
+
+Пересборка требует Python 3.10+, Pillow, NumPy и OpenCV:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_mossy_stone_material.py
+```
+
+Исходник `stone_masonry_source.jpg` должен находиться рядом со скриптом. Карты записываются прямо в `2-client/game/Assets/Resources/WorldMaterials/Textures/`; `WorldMaterialTextureImporter` задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear для roughness/AO.
+
+## Подключение в мире
+
+`WorldLayoutPresentationBuilder` использует `mossy_stone` для общего материала каменной кладки поселения, включая каменные цоколи и кладку кузницы. Сохраняется существующий UV tiling 1.5×2. URP Lit читает smoothness из albedo alpha через `_SmoothnessTextureChannel = 1`; metallic = 0. Отдельная roughness-карта остаётся доступной для других шейдеров и экспорта.
+
+Если полный набор карт или `mossy_stone_material.json` отсутствует, остаётся прежний fallback. Blender master generator сохраняет полный авторский набор и не перезаписывает его процедурной версией.
+
