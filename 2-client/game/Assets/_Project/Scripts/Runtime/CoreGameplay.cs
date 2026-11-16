@@ -330,6 +330,21 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
         }
 
+        private JObject CatalogItem(string id)
+        {
+            var items = Arr(_catalog, "items");
+            if (items == null || string.IsNullOrEmpty(id)) return null;
+            foreach (var item in items)
+                if (string.Equals(Str(item, "item"), id, StringComparison.Ordinal)) return item as JObject;
+            return null;
+        }
+
+        private static string CatalogItemName(JObject definition, string fallback)
+        {
+            var name = Str(definition, "name");
+            return string.IsNullOrEmpty(name) ? Name(fallback) : name;
+        }
+
         private void DrawCatalogReference()
         {
             if (_catalog == null) return;
@@ -483,7 +498,23 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
                 Ask("Экипировка", "equip", "item", string.Empty);
 
-            foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
+            if (items != null)
+            {
+                foreach (var item in items.Properties())
+                {
+                    var quantity = (int)Num(items, item.Name);
+                    var definition = CatalogItem(item.Name);
+                    if (quantity < 1 || definition == null || !Flag(definition, "hand")) continue;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(CatalogItemName(definition, item.Name) + " ×" + quantity, GUILayout.Width(190f));
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && hand != item.Name;
+                    if (GUILayout.Button(hand == item.Name ? "В руке" : "Взять в руку"))
+                        Ask("Экипировка", "equip", "item", item.Name);
+                    GUI.enabled = previousEnabled;
+                    GUILayout.EndHorizontal();
+                }
+            })
             {
                 var quantity = Count(items, item);
                 if (quantity < 1f) continue;
@@ -508,7 +539,26 @@ namespace Pogranichye.Client
                 }
             }
             if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
-            foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield", "purse" })
+            if (items != null)
+            {
+                foreach (var item in items.Properties())
+                {
+                    var quantity = (int)Num(items, item.Name);
+                    var definition = CatalogItem(item.Name);
+                    var slotName = Str(definition, "slot");
+                    if (quantity < 1 || string.IsNullOrEmpty(slotName)) continue;
+                    var equipped = false;
+                    if (worn != null)
+                        foreach (var slot in worn.Properties())
+                            if (slot.Value.ToString() == item.Name) equipped = true;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(CatalogItemName(definition, item.Name) + " ×" + quantity +
+                        " · " + WearSlotName(slotName), GUILayout.Width(220f));
+                    if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
+                        Ask("Одежда", equipped ? "unwear" : "wear", "item", item.Name);
+                    GUILayout.EndHorizontal();
+                }
+            })
             {
                 var quantity = Count(items, item);
                 if (quantity < 1f) continue;
@@ -565,27 +615,46 @@ namespace Pogranichye.Client
             GUILayout.Label("ЕДА И ЛЕЧЕНИЕ · используй предметы из рюкзака или закромов");
             GUILayout.BeginVertical(GUI.skin.box);
             var hasConsumables = false;
-            foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
+            var usableItems = Arr(_catalog, "usables");
+            if (usableItems != null)
             {
-                var quantity = Count(items, item);
-                if (quantity < 1f) continue;
-                hasConsumables = true;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                if (GUILayout.Button(item == "potion" || item == "bandage" ? "Применить" : "Употребить"))
-                    Ask("Употребить", "use", "item", item);
-                GUILayout.EndHorizontal();
+                foreach (var usable in usableItems)
+                {
+                    var item = usable == null ? string.Empty : usable.ToString();
+                    var quantity = Count(items, item) + Count(stash, item);
+                    if (string.IsNullOrEmpty(item) || quantity < 1f) continue;
+                    hasConsumables = true;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(CatalogItemName(CatalogItem(item), item) + " ×" + (int)quantity, GUILayout.Width(190f));
+                    if (GUILayout.Button("Использовать"))
+                        Ask("Использовать", "use", "item", item);
+                    GUILayout.EndHorizontal();
+                }
             }
-            foreach (var good in new[] { "bread", "fish", "meat", "cheese", "veg", "game", "egg" })
+            else
             {
-                var quantity = Count(stash, good);
-                if (quantity < 1f) continue;
-                hasConsumables = true;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(Name(good) + " ×" + (int)quantity, GUILayout.Width(190f));
-                if (GUILayout.Button("Съесть"))
-                    Ask("Еда", "use", "item", good);
-                GUILayout.EndHorizontal();
+                foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
+                {
+                    var quantity = Count(items, item);
+                    if (quantity < 1f) continue;
+                    hasConsumables = true;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
+                    if (GUILayout.Button(item == "potion" || item == "bandage" ? "Применить" : "Употребить"))
+                        Ask("Употребить", "use", "item", item);
+                    GUILayout.EndHorizontal();
+                }
+                foreach (var good in new[] { "bread", "fish", "meat", "cheese", "veg", "game", "egg" })
+                {
+                    var quantity = Count(stash, good);
+                    if (quantity < 1f) continue;
+                    hasConsumables = true;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(good) + " ×" + (int)quantity, GUILayout.Width(190f));
+                    if (GUILayout.Button("Съесть"))
+                        Ask("Еда", "use", "item", good);
+                    GUILayout.EndHorizontal();
+                }
             }
             if (!hasConsumables) GUILayout.Label("Еды и лекарств пока нет.");
             GUILayout.EndVertical();
@@ -2923,14 +2992,35 @@ namespace Pogranichye.Client
             if (Flag(Obj(_me, "weave"), "can_study") && GUILayout.Button("Учиться у мага рядом (новый узор)")) AskActivity("Урок плетения", "study");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
-            foreach (var pair in TakeAt)
+            var catalogItemsForSale = Arr(_catalog, "items");
+                        if (catalogItemsForSale != null)
             {
-                if (!Near(pair.Value, 10f) || Count(items, pair.Key) >= 1f) continue;
-                var price = TakePrice.TryGetValue(pair.Key, out var itemPrice) ? itemPrice : int.MaxValue;
-                GUI.enabled = price != int.MaxValue && coins >= price;
-                if (GUILayout.Button("Купить: " + Name(pair.Key) + " · " + (price == int.MaxValue ? "цена не задана" : price + " мон.")))
-                    Ask("Покупка", "take", "item", pair.Key);
-                GUI.enabled = true;
+                foreach (var definition in catalogItemsForSale)
+                {
+                    var item = Str(definition, "item");
+                    var at = Str(definition, "at");
+                    var price = Num(definition, "price");
+                    if (string.IsNullOrEmpty(item) || string.IsNullOrEmpty(at) || price <= 0 ||
+                        !Near(at, 10f) || Count(items, item) >= 1f) continue;
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && coins >= price;
+                    if (GUILayout.Button("Купить: " + CatalogItemName(definition, item) + " · " +
+                        price.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                        Ask("Покупка", "take", "item", item);
+                    GUI.enabled = previousEnabled;
+                }
+            }
+            else
+            {
+                foreach (var pair in TakeAt)
+                {
+                    if (!Near(pair.Value, 10f) || Count(items, pair.Key) >= 1f) continue;
+                    var price = TakePrice.TryGetValue(pair.Key, out var itemPrice) ? itemPrice : int.MaxValue;
+                    GUI.enabled = price != int.MaxValue && coins >= price;
+                    if (GUILayout.Button("Купить: " + Name(pair.Key) + " · " + (price == int.MaxValue ? "цена не задана" : price + " мон.")))
+                        Ask("Покупка", "take", "item", pair.Key);
+                    GUI.enabled = true;
+                }
             }
 
             var recipes = Arr(_me, "recipes");
