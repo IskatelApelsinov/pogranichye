@@ -113,6 +113,7 @@ namespace Pogranichye.Client
         private double _worldMapRadius = 500d;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
         private readonly Dictionary<string, WorldSpaceChunkFrame> _spaceChunks = new Dictionary<string, WorldSpaceChunkFrame>();
+        private WorldAnchorFrame _floatingOriginAnchor;
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
         private readonly Dictionary<string, CancellationTokenSource> _terrainChunkCancellation =
             new Dictionary<string, CancellationTokenSource>();
@@ -1347,11 +1348,39 @@ namespace Pogranichye.Client
             if (mouseReleased) currentEvent.Use();
         }
 
+        private WorldAnchorFrame ResolveWorldAnchor(WorldFrame frame)
+        {
+            if (frame?.Place?.Anchor != null)
+            {
+                _floatingOriginAnchor = null;
+                return frame.Place.Anchor;
+            }
+
+            var worldPosition = frame?.Me?.WorldPosition;
+            if (worldPosition == null || !worldPosition.IsValid) return null;
+
+            const double rebaseDistanceMeters = 512d;
+            var dx = worldPosition.East - (_floatingOriginAnchor != null ? _floatingOriginAnchor.East : worldPosition.East);
+            var dn = worldPosition.North - (_floatingOriginAnchor != null ? _floatingOriginAnchor.North : worldPosition.North);
+            if (_floatingOriginAnchor == null || _floatingOriginAnchor.Frame != worldPosition.Frame ||
+                Math.Sqrt(dx * dx + dn * dn) > rebaseDistanceMeters)
+            {
+                _floatingOriginAnchor = new WorldAnchorFrame
+                {
+                    Frame = worldPosition.Frame,
+                    East = worldPosition.East,
+                    North = worldPosition.North,
+                    Up = worldPosition.Ground
+                };
+            }
+            return _floatingOriginAnchor;
+        }
+
         private bool TryGetPlayerMapLocalPosition(out Vector2 local)
         {
             local = Vector2.zero;
             if (WorldPositionProjection.TryToUnityPosition(
-                _frame?.Me?.WorldPosition, WorldPositionProjection.ResolveAnchor(_frame), out var projected))
+                _frame?.Me?.WorldPosition, ResolveWorldAnchor(_frame), out var projected))
             {
                 local = new Vector2(projected.x, projected.z);
                 return true;
@@ -1509,7 +1538,7 @@ namespace Pogranichye.Client
             // them through the current settlement's authoritative centre anchor before
             // projecting onto this local map; never treat global coordinates as local XY.
             var sites = _frame?.Place?.Sites;
-            var settlementAnchor = WorldPositionProjection.ResolveAnchor(_frame);
+            var settlementAnchor = ResolveWorldAnchor(_frame);
             if (sites != null && settlementAnchor != null)
             {
                 foreach (var site in sites)
@@ -4020,7 +4049,7 @@ namespace Pogranichye.Client
                         // Tab opens it; Esc opens the separate system menu.
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
-                        _views.Apply(frame, WorldPositionProjection.ResolveAnchor(frame));
+                        _views.Apply(frame, ResolveWorldAnchor(frame));
                         if (_core != null) _core.ApplyFrame(frame, frameDocument);
                         if (frame.Me.Position != null) ReconcileMovement(frame.Me);
                         if (_cameraRig != null)
@@ -4308,7 +4337,7 @@ namespace Pogranichye.Client
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
             Vector3 authoritativePosition;
             if (!WorldPositionProjection.TryToUnityPosition(
-                character.WorldPosition, WorldPositionProjection.ResolveAnchor(_frame), out authoritativePosition))
+                character.WorldPosition, ResolveWorldAnchor(_frame), out authoritativePosition))
                 authoritativePosition = EntityViewRegistry.ToUnityPosition(position);
             var currentPlaceId = _frame?.Place?.Id;
             var placeChanged = !string.Equals(_movementPlaceId, currentPlaceId, StringComparison.Ordinal);
