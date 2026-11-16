@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private Camera _camera;
         private PresentationCameraRig _cameraRig;
         private Pogranichye.Client.ClientInput _input;
+        private Pogranichye.Client.CoreGameplay _core;
         private WorldPoi _poi;
         private WorldNpc _npc;
         private static GUIStyle _promptStyle;
@@ -30,7 +31,11 @@ namespace Pogranichye.Client.Presentation
             _cameraRig = GetComponent<PresentationCameraRig>();
         }
 
-        public void BindInput(Pogranichye.Client.ClientInput input) { _input = input; }
+        public void BindInput(Pogranichye.Client.ClientInput input, Pogranichye.Client.CoreGameplay core)
+        {
+            _input = input;
+            _core = core;
+        }
 
         private void Update()
         {
@@ -50,7 +55,9 @@ namespace Pogranichye.Client.Presentation
                 if (_npc != null) _npc.SetFocused(true);
             }
 
-            if (_input != null && _input.InteractPressed)
+            // World focus is presentation-only. Do not let E leak through a character menu,
+            // weave wheel or modal window that currently owns gameplay input.
+            if (_input != null && _input.InteractPressed && (_core == null || !_core.CapturesInput))
             {
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();

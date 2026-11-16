@@ -252,7 +252,7 @@ namespace Pogranichye.Client
         private Light _handLight;
 
         /// <summary>True while the character menu, weave wheel, or external modal menu owns gameplay input.</summary>
-        public bool CapturesInput { get { return _menuOpen || _externalCharacterMenuOpen || _weaveOpen || _externalModalMenuOpen; } }
+        public bool CapturesInput { get { return GameplayInputCapturePolicy.Captures(_externalCharacterMenuOpen || _menuOpen, _weaveOpen, _externalModalMenuOpen, _externalUiCapture); } }
 
         public void SetExternalCharacterMenuOpen(bool open)
         {

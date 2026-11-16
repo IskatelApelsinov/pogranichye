@@ -4703,7 +4703,7 @@ namespace Pogranichye.Client
                 _createdCameraRig = true;
             }
             _cameraRig.BindInput(_input);
-            _interactionProbe.BindInput(_input);
+            _interactionProbe.BindInput(_input, _core);
             _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
             _cameraRig.SetFirstPerson(_firstPerson);
 
