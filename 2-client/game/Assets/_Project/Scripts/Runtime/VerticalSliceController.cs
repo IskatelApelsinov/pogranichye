@@ -1534,8 +1534,10 @@ namespace Pogranichye.Client
                     var siteLabel = (site.Name ?? "Неизвестное место") + " · " +
                         site.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м";
                     if (site.Here) siteLabel += " · рядом";
+                    if (!string.IsNullOrWhiteSpace(site.Note)) siteLabel += "\n" + site.Note;
+                    var siteLabelHeight = string.IsNullOrWhiteSpace(site.Note) ? 28f : 42f;
                     if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
-                        position.x, position.y, 156f, 28f, 4f, out var siteLabelPlacement))
+                        position.x, position.y, 156f, siteLabelHeight, 4f, out var siteLabelPlacement))
                     {
                         var labelRect = new Rect(siteLabelPlacement.X, siteLabelPlacement.Y,
                             siteLabelPlacement.Width, siteLabelPlacement.Height);
