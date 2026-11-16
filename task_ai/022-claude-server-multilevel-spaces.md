@@ -33,4 +33,4 @@
 - go test ./..., go vet ./..., go build ./... зелёные.
 
 ## Передача
-Подробный handoff: 3-dev/comms/0274-chatgpt-to-claude-multilevel-buildings-audio.md.
+Подробный handoff: 3-dev/comms/0274-chatgpt-to-claude-client-world-contract-integration.md.
