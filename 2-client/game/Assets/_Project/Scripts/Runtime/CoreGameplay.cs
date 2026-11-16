@@ -775,11 +775,17 @@ namespace Pogranichye.Client
 
         private void DrawEquipmentSlot(string label, string itemId, string slot, JObject items)
         {
-            GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(76f));
+            GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(86f));
             GUILayout.Label(label);
+            GUILayout.BeginHorizontal();
+            if (!string.IsNullOrEmpty(itemId))
+                DrawInventoryItemIcon(itemId, slot == "hand" ? "Оружие" : "Одежда");
+            GUILayout.BeginVertical();
             GUILayout.Label(string.IsNullOrEmpty(itemId) ? "— пусто —" : CatalogName(itemId));
             var summary = InventoryItemSummary(CatalogItem(itemId));
             if (!string.IsNullOrEmpty(summary)) GUILayout.Label(summary);
+            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
             if (slot == "hand")
             {
                 if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Убрать"))
