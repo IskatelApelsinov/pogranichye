@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Pogranichye.Client.Networking.Protocol;
 using UnityEngine.Networking;
 
@@ -256,6 +257,39 @@ namespace Pogranichye.Client.Networking
                     spaces.Chunk[0] != chunkX || spaces.Chunk[1] != chunkZ)
                     throw new InvalidOperationException("Сервер вернул некорректные пространственные дескрипторы.");
                 return spaces;
+            }
+        }
+
+        /// <summary>
+        /// Loads the static v1.22 item/recipe/weave catalogue. This is reference data only;
+        /// all purchases, crafting, equipment and spell outcomes remain server-authoritative.
+        /// </summary>
+        public async Task<JObject> GetCatalogAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            using (var request = UnityWebRequest.Get(_baseUrl + "/api/catalog"))
+            {
+                request.timeout = 15;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/catalog: " + request.error);
+                JObject catalog;
+                try { catalog = JObject.Parse(request.downloadHandler.text); }
+                catch (JsonException ex) { throw new InvalidOperationException("Каталог предметов повреждён.", ex); }
+                if (catalog["v"]?.Value<int>() != 1 ||
+                    catalog["items"]?.Type != JTokenType.Array ||
+                    catalog["recipes"]?.Type != JTokenType.Array ||
+                    catalog["names"]?.Type != JTokenType.Object ||
+                    catalog["weave_nodes"]?.Type != JTokenType.Array ||
+                    catalog["weave_schemas"]?.Type != JTokenType.Array)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую форму /api/catalog v1.");
+                return catalog;
             }
         }
 
