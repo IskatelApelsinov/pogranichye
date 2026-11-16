@@ -582,6 +582,15 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				if in.MX != 0 || in.MY != 0 {
 					sim.CancelWalk(s.world, e) // ручной шаг отменяет самоход
 				}
+				// v1.23: склон под ногами (вне ровной площадки села) замедляет шаг, круча не пускает
+				p.Terr = 0
+				if in.MX != 0 || in.MY != 0 {
+					if m := sim.TerrainMult(s.world, s.terrain(), e, in.MX, in.MY); m <= 0 {
+						p.Terr = -1
+					} else if m != 1 {
+						p.Terr = m
+					}
+				}
 				sim.ApplyMove(sim.LayoutFor(s.world, e), p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq, in.Fast)
 			}
 		}

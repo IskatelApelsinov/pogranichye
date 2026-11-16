@@ -48,6 +48,9 @@ type ScenePosC struct {
 	// снятой комнаты. Это серверный флаг присутствия, а НЕ вторая сцена/координаты — отдельной
 	// геометрии интерьера пока нет (comms 0174/0177). X/Y остаются прежними (у двери).
 	Indoor string `json:"indoor,omitempty"`
+	// Terr — множитель скорости от склона под ногами для ТЕКУЩЕГО шага (v1.23): его выставляет сервер
+	// перед ApplyMove (sim.TerrainMult). 0 — не задан (ровно), −1 — круча, шага в эту сторону нет.
+	Terr float64 `json:"-"`
 	// At — у какого места села тело встало, дойдя самоходом (v1.22); сбрасывается, когда отошло.
 	At string `json:"at,omitempty"`
 }
@@ -96,6 +99,9 @@ func ApplyMove(l *Layout, p *ScenePosC, mx, my float64, run bool, face float64, 
 	// направление движения — единичный вектор (игнорируем длину, чтобы нельзя было «разогнаться» вводом)
 	if n := math.Hypot(mx, my); n > 1e-6 {
 		mx, my = mx/n, my/n
+		if p.Terr < 0 { // круча: в эту сторону шага нет (v1.23) — но ввод принят, seq движется
+			mx, my = 0, 0
+		}
 		speed := walkSpeed
 		if p.Mult > 0 {
 			speed *= p.Mult
@@ -124,6 +130,9 @@ func ApplyMove(l *Layout, p *ScenePosC, mx, my float64, run bool, face float64, 
 		// коллизия (v1.3): пробуем шаг, но не сквозь стены/реку/край мира — скользим вдоль преград
 		if l.Blocked(p.X, p.Y) { // тело оказалось в стене (раскладка села сменилась) — выносим наружу
 			p.X, p.Y = l.Free(p.X, p.Y)
+		}
+		if p.Terr > 0 {
+			speed *= p.Terr // склон: в гору медленнее, под пологий уклон чуть быстрее
 		}
 		p.X, p.Y = l.ResolveMove(p.X, p.Y, p.X+mx*speed*dt, p.Y+my*speed*dt)
 	} else {
