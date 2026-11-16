@@ -19,7 +19,7 @@ namespace Pogranichye.Client
 
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
-        private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
+        private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel, _toggleAutoWalk;
         private InputAction _openInventory, _openJournal, _openMap;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
@@ -41,6 +41,7 @@ namespace Pogranichye.Client
         public bool ToggleHudPressed => _toggleHud.WasPressedThisFrame();
         public bool ToggleDiagnosticsPressed => _toggleDiagnostics.WasPressedThisFrame();
         public bool ToggleFullscreenPressed => _toggleFullscreen.WasPressedThisFrame();
+        public bool AutoWalkTogglePressed => _toggleAutoWalk != null && _toggleAutoWalk.WasPressedThisFrame();
         public bool MenuPressed => _menu.WasPressedThisFrame();
         public bool InventoryMenuPressed => _openInventory.WasPressedThisFrame();
         public bool JournalMenuPressed => _openJournal.WasPressedThisFrame();
@@ -95,6 +96,8 @@ namespace Pogranichye.Client
             _toggleHud = Button("ToggleHud", "<Keyboard>/f1");
             _toggleDiagnostics = Button("ToggleDiagnostics", "<Keyboard>/f3");
             _toggleFullscreen = Button("ToggleFullscreen", "<Keyboard>/f11");
+            // '=' is intentionally a dedicated travel toggle; it does not alter mouse-look or combat bindings.
+            _toggleAutoWalk = Button("ToggleAutoWalk", "<Keyboard>/equals");
             _menu = Button("Menu", "<Keyboard>/tab");
             _openInventory = Button("OpenInventory", CharacterMenuHotkeyPolicy.InventoryBinding);
             _openJournal = Button("OpenJournal", CharacterMenuHotkeyPolicy.JournalBinding);
@@ -200,6 +203,7 @@ namespace Pogranichye.Client
                 if (keyboard.mKey.isPressed) keys.Add("M (карта)");
                 if (keyboard.kKey.isPressed) keys.Add("K (рыбалка)");
                 if (keyboard.escapeKey.isPressed) keys.Add("Esc");
+                if (keyboard.equalsKey.isPressed) keys.Add("= (автоходьба)");
                 if (keyboard.rKey.isPressed) keys.Add("R");
                 if (keyboard.backspaceKey.isPressed) keys.Add("Backspace");
                 if (keyboard.qKey.isPressed) keys.Add("Q");
