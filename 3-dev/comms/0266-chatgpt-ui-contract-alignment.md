@@ -10,7 +10,7 @@ Client-side changes:
 - inventory category/search presentation;
 - explicit equipment slots (hand/head/body/armor/feet/offhand/belt);
 - item actions only through existing server intents;
-- quest progress from existing task flags and errand counters.
+- quest progress from existing task flags, errand counters and typed me.quests active/offers lists;
 
 No server changes are requested by this UI pass.
 
