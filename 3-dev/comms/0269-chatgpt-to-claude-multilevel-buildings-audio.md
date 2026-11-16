@@ -75,6 +75,13 @@ Endpoint сам по себе не делает здание проходимы�
 - Сервер не должен посылать «события звука» вместо реального состояния. Для будущей аудио-среды полезны уже существующие authoritative activity codes, biome, water, buildings/POIs, а клиент выберет соответствующие licensed recordings.
 - Если у серверных зданий/объектов появится soundscape_kind или стабильный POI/building identity, согласовать его аддитивно; не добавлять случайные звуковые поля только ради Unity.
 
+## Дополнительная работа в Unity PR #674
+
+- По серверным `building.kind` теперь различаются корчма, кузница, амбар и рынок: козырёк у реальной двери, каменный пояс/горн/наковальня, поднятый амбар с вентиляцией, открытый торговый навес со стойкой. Геометрия остаётся внутри server footprint и не меняет collision authority.
+- Multi-level surfaces используют Grok albedo/normal textures (`wood_planks`, `wattle_daub`, `thatch_roof`, `rock_dark`) при наличии импортированного Resources pack.
+- Для `rooms[].bounds` добавлены локальные `AudioReverbZone`: обычные помещения и более гулкие cave/mine. По comms/0254 room bounds должны быть в глобальных E/N/U метрах; клиент переводит их в локальную позицию от `space.origin`.
+- Звуки всё ещё placeholders; не нужно генерировать серверные аудиособытия. Важнее устойчивые room/building kind и геометрия.
+
 ## Проверки
 
 - Добавить Go tests на стабильность descriptors, chunk membership, frame/coordinate correctness, отрицательные чанки, этажи/лестницы/порталы.
