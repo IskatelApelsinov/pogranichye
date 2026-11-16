@@ -91,6 +91,11 @@ namespace Pogranichye.Client.Presentation
 
         public void Apply(WorldFrame frame)
         {
+            Apply(frame, WorldPositionProjection.ResolveAnchor(frame));
+        }
+
+        public void Apply(WorldFrame frame, WorldAnchorFrame worldAnchor)
+        {
             if (frame == null || !frame.Alive || frame.Me == null) return;
 
             var active = _activeIds;
@@ -122,10 +127,15 @@ namespace Pogranichye.Client.Presentation
                 existingPlayer != null && existingPlayer.GetComponent<WorldNpc>() == null &&
                 PlayerTransform == existingPlayer.transform;
             var player = GetOrCreate(playerId, "Player", frame.Me.Role, Vector3.zero, true, true);
-            if (!playerExisted && frame.Me.Position != null)
+            if (!playerExisted)
             {
-                player.transform.position = ToUnityPosition(frame.Me.Position);
-                player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
+                Vector3 playerPosition;
+                if (WorldPositionProjection.TryToUnityPosition(frame.Me.WorldPosition, worldAnchor, out playerPosition))
+                    player.transform.position = playerPosition;
+                else if (frame.Me.Position != null)
+                    player.transform.position = ToUnityPosition(frame.Me.Position);
+                if (frame.Me.Position != null)
+                    player.transform.rotation = Quaternion.Euler(0f, FacingToUnityYaw(frame.Me.Position.Facing), 0f);
             }
             // Mug transitions belong to one controlled body. A reconnect may bind this
             // registry to a different server entity without an explicit Clear() first.
@@ -180,7 +190,12 @@ namespace Pogranichye.Client.Presentation
                     var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
                     Vector3 position;
                     var hasGlobalPosition = WorldPositionProjection.TryToUnityPosition(
-                        neighbor.WorldPosition, frame.Me.WorldPosition, frame.Me.Position, out position);
+                        neighbor.WorldPosition, worldAnchor, out position);
+                    // Older servers may omit the place anchor; retain the previous wpos-relative
+                    // projection as a compatibility fallback, then same-settlement pos as last resort.
+                    if (!hasGlobalPosition)
+                        hasGlobalPosition = WorldPositionProjection.TryToUnityPosition(
+                            neighbor.WorldPosition, frame.Me.WorldPosition, frame.Me.Position, out position);
                     if (!hasGlobalPosition)
                         position = neighbor.Position != null
                             ? ToUnityPosition(neighbor.Position)

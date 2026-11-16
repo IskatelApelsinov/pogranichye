@@ -18,9 +18,11 @@ namespace Pogranichye.Client.Presentation
         private AudioSource _forge;
         private AudioSource _hearth;
         private AudioSource _tavern;
+        private AudioSource _nightInsects;
         private float _ambienceVolume = 0.75f;
         private float _windAtmosphereFactor = 1f;
         private float _birdDaylightFactor = 1f;
+        private float _nightInsectFactor;
         private float _nextAtmosphereMixAt;
 
         public void SetAmbienceVolume(float volume)
@@ -37,9 +39,11 @@ namespace Pogranichye.Client.Presentation
 
             var wind01 = Mathf.InverseLerp(0.68f, 1.32f, WorldAtmosphereCycle.WindStrength);
             var targetWind = Mathf.Lerp(0.78f, 1.16f, wind01);
-            var targetBirds = Mathf.Lerp(1f, 0.16f, WorldAtmosphereCycle.NightAmount);
+            var night = Mathf.Clamp01(WorldAtmosphereCycle.NightAmount);
+            var targetBirds = Mathf.Lerp(1f, 0.16f, night);
             _windAtmosphereFactor = Mathf.Lerp(_windAtmosphereFactor, targetWind, 0.42f);
             _birdDaylightFactor = Mathf.Lerp(_birdDaylightFactor, targetBirds, 0.42f);
+            _nightInsectFactor = Mathf.Lerp(_nightInsectFactor, night, 0.32f);
             ApplyVolumes();
         }
 
@@ -51,6 +55,7 @@ namespace Pogranichye.Client.Presentation
             if (_forge != null) _forge.volume = 0.18f * _ambienceVolume;
             if (_hearth != null) _hearth.volume = 0.24f * _ambienceVolume;
             if (_tavern != null) _tavern.volume = 0.12f * _ambienceVolume;
+            if (_nightInsects != null) _nightInsects.volume = 0.075f * _ambienceVolume * _nightInsectFactor;
         }
 
         public void Initialize()
@@ -87,6 +92,13 @@ namespace Pogranichye.Client.Presentation
             _tavern = CreateSource("Ambience • muffled tavern conversation", 1f, 4f, 24f);
             _tavern.clip = CreateTavernMurmurLoop();
             _tavern.volume = 0f;
+
+            // Night insects fill the quiet gaps after birds fade; one low 2D bed avoids
+            // spawning dozens of tiny emitters across the village.
+            _nightInsects = CreateSource("Ambience • night insects", 0f, 0f, 1f);
+            _nightInsects.clip = CreateNightInsectLoop();
+            _nightInsects.volume = 0f;
+            _nightInsects.Play();
         }
 
         public void SetServerAnchor(string kind, Vector3 position, bool available)
@@ -254,6 +266,31 @@ namespace Pogranichye.Client.Presentation
             return MakeLoop("Generated distant forge and hammer", samples);
         }
 
+        private static AudioClip CreateNightInsectLoop()
+        {
+            const int seconds = 10;
+            var samples = new float[SampleRate * seconds];
+            var random = new System.Random(281116);
+            for (var chirp = 0; chirp < 42; chirp++)
+            {
+                var start = random.Next(0, samples.Length - SampleRate / 2);
+                var length = random.Next(SampleRate / 12, SampleRate / 4);
+                var frequency = 2800f + (float)random.NextDouble() * 1700f;
+                var pulseRate = 18f + (float)random.NextDouble() * 12f;
+                var amplitude = 0.012f + (float)random.NextDouble() * 0.014f;
+                for (var j = 0; j < length; j++)
+                {
+                    var t = j / (float)SampleRate;
+                    var fade = Mathf.Sin(Mathf.PI * j / Mathf.Max(1f, length - 1f));
+                    var pulse = 0.18f + 0.82f * Mathf.Max(0f, Mathf.Sin(t * pulseRate * Mathf.PI * 2f));
+                    var tone = Mathf.Sin(2f * Mathf.PI * frequency * t);
+                    var index = start + j;
+                    samples[index] += tone * fade * pulse * amplitude;
+                }
+            }
+            return MakeLoop("Generated night insect chorus", samples);
+        }
+
         private static AudioClip CreateTavernMurmurLoop()
         {
             const int seconds = 12;
@@ -324,6 +361,7 @@ namespace Pogranichye.Client.Presentation
             DestroySource(_forge);
             DestroySource(_hearth);
             DestroySource(_tavern);
+            DestroySource(_nightInsects);
         }
 
         private static void DestroySource(AudioSource source)

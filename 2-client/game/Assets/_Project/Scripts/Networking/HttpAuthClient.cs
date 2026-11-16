@@ -130,7 +130,7 @@ namespace Pogranichye.Client.Networking
             }
         }
 
-        /// <summary>Loads the v1.19 world manifest. This is streaming metadata, not player knowledge.</summary>
+        /// <summary>Loads the additive v1 world manifest. Geography/realms/caravans are metadata, not character knowledge.</summary>
         public async Task<WorldManifestFrame> GetWorldManifestAsync()
         {
             using (var request = UnityWebRequest.Get(_baseUrl + "/api/world"))
@@ -175,6 +175,49 @@ namespace Pogranichye.Client.Networking
                     if (road == null || string.IsNullOrWhiteSpace(road.From) ||
                         string.IsNullOrWhiteSpace(road.To) || road.From == road.To)
                         throw new InvalidOperationException("Карта мира содержит некорректную дорогу.");
+
+                // v1.24–v1.26 are additive: validate these fields when present, but keep older
+                // v1 manifests readable. The server remains authoritative for all movement.
+                if (manifest.Realms != null)
+                {
+                    var realmIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var realm in manifest.Realms)
+                    {
+                        if (realm == null || string.IsNullOrWhiteSpace(realm.Id) ||
+                            string.IsNullOrWhiteSpace(realm.Name) || !realmIds.Add(realm.Id) ||
+                            realm.Size < 0 || realm.Territory == null)
+                            throw new InvalidOperationException("Карта мира содержит некорректную державу.");
+                    }
+                }
+                if (manifest.Caravans != null)
+                {
+                    var caravanIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var caravan in manifest.Caravans)
+                    {
+                        if (caravan == null || string.IsNullOrWhiteSpace(caravan.Id) ||
+                            !caravanIds.Add(caravan.Id) || !frameIds.Contains(caravan.Frame) ||
+                            !IsFinite(caravan.East) || !IsFinite(caravan.North) || !IsFinite(caravan.Up) ||
+                            !IsFinite(caravan.Amount) || !IsFinite(caravan.Progress) ||
+                            caravan.Progress < 0d || caravan.Progress > 1d)
+                            throw new InvalidOperationException("Карта мира содержит некорректный обоз.");
+                    }
+                }
+                if (manifest.Movement != null)
+                {
+                    var movement = manifest.Movement;
+                    var slope = movement.Slope;
+                    if (!IsFinite(movement.WalkMetersPerSecond) || movement.WalkMetersPerSecond <= 0d ||
+                        !IsFinite(movement.JogMetersPerSecond) || movement.JogMetersPerSecond <= 0d ||
+                        !IsFinite(movement.RunMetersPerSecond) || movement.RunMetersPerSecond <= 0d ||
+                        slope == null || !IsFinite(slope.ProbeMeters) || slope.ProbeMeters <= 0d ||
+                        !IsFinite(slope.UphillFactor) || slope.UphillFactor < 0d ||
+                        !IsFinite(slope.DownhillFactor) || slope.DownhillFactor < 0d ||
+                        !IsFinite(slope.EasyDownGrade) || slope.EasyDownGrade <= 0d ||
+                        !IsFinite(slope.EasyDownBoost) || slope.EasyDownBoost < 1d ||
+                        !IsFinite(slope.CliffGrade) || slope.CliffGrade <= 0d ||
+                        !IsFinite(slope.FlatRadiusMeters) || slope.FlatRadiusMeters < 0d)
+                        throw new InvalidOperationException("Карта мира содержит некорректный профиль движения.");
+                }
 
                 // Older v1.19 manifests may omit wildsites. When present, validate them strictly:
                 // invalid wilderness data must not leak NaN/Infinity or unknown landmark types into rendering.
@@ -230,8 +273,8 @@ namespace Pogranichye.Client.Networking
         }
 
         /// <summary>
-        /// Fetches optional multi-level static spaces intersecting a world chunk.
-        /// Endpoint is additive and may return 404 until the server implements the agreed descriptor.
+        /// Fetches server-authored multi-level spaces intersecting a world chunk.
+        /// A 404 remains a legacy-server fallback; the returned geometry never authorizes movement.
         /// </summary>
         public async Task<WorldSpaceChunkFrame> GetWorldSpacesAsync(long chunkX, long chunkZ,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -250,6 +293,9 @@ namespace Pogranichye.Client.Networking
                     await completion.Task;
                 }
                 cancellationToken.ThrowIfCancellationRequested();
+                // Multi-level spaces are optional until the server endpoint is deployed.
+                // A 404 is a supported legacy response; other transport errors remain visible.
+                if (request.responseCode == 404) return null;
                 if (request.result != UnityWebRequest.Result.Success)
                     throw new InvalidOperationException("Не удалось получить /api/spaces: " + request.error);
                 var spaces = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(request.downloadHandler.text);

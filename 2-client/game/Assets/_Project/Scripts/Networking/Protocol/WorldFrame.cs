@@ -244,6 +244,41 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stable")] public StableFrame Stable { get; set; }
         // v1.22 nearby wilderness places; actions and proximity are server-authored.
         [JsonProperty("sites")] public List<WildPlaceFrame> Sites { get; set; }
+        // v1.25: current settlement's sovereign realm and nearby moving caravans.
+        [JsonProperty("realm")] public PlaceRealmFrame Realm { get; set; }
+        [JsonProperty("caravans")] public List<NearbyCaravanFrame> Caravans { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRealmFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("capital")] public string Capital { get; set; }
+        [JsonProperty("is_capital")] public bool IsCapital { get; set; }
+        [JsonProperty("tax")] public double Tax { get; set; }
+        [JsonProperty("size")] public int Size { get; set; }
+        [JsonProperty("war_with")] public string WarWith { get; set; }
+        [JsonProperty("allies")] public List<string> Allies { get; set; }
+        [JsonProperty("rivals")] public List<string> Rivals { get; set; }
+    }
+
+    [Serializable]
+    public sealed class NearbyCaravanFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("good_name")] public string GoodName { get; set; }
+        [JsonProperty("amount")] public double Amount { get; set; }
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("to")] public string To { get; set; }
+        [JsonProperty("seller")] public string Seller { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        // Near-caravan distance is already metres (unlike JourneyC's 250 m map units).
+        [JsonProperty("dist")] public double DistanceMeters { get; set; }
+        [JsonProperty("dir")] public string Direction { get; set; }
     }
 
     [Serializable]
@@ -268,6 +303,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("here")] public bool Here { get; set; }
         [JsonProperty("gives")] public string Gives { get; set; }
         [JsonProperty("left")] public double Remaining { get; set; }
+        // v1.26: short server-authored description of this wilderness site.
+        [JsonProperty("note")] public string Note { get; set; }
     }
 
     [Serializable]
@@ -443,6 +480,58 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("roads")] public List<WorldRoadFrame> Roads { get; set; }
         // v1.21: deterministic wilderness landmarks outside settlement layouts.
         [JsonProperty("wildsites")] public List<WorldWildSiteFrame> WildSites { get; set; }
+        // v1.24–v1.26: server world metadata; optional for older compatible servers.
+        [JsonProperty("realms")] public List<WorldRealmFrame> Realms { get; set; }
+        [JsonProperty("caravans")] public List<WorldCaravanFrame> Caravans { get; set; }
+        [JsonProperty("movement")] public WorldMovementFrame Movement { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRealmFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("capital")] public string Capital { get; set; }
+        [JsonProperty("size")] public int Size { get; set; }
+        [JsonProperty("territory")] public List<string> Territory { get; set; }
+        [JsonProperty("war_with")] public string WarWith { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldCaravanFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("amount")] public double Amount { get; set; }
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("to")] public string To { get; set; }
+        [JsonProperty("seller")] public string Seller { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("progress")] public double Progress { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldMovementFrame
+    {
+        [JsonProperty("walk_mps")] public double WalkMetersPerSecond { get; set; }
+        [JsonProperty("jog_mps")] public double JogMetersPerSecond { get; set; }
+        [JsonProperty("run_mps")] public double RunMetersPerSecond { get; set; }
+        [JsonProperty("slope")] public WorldSlopeFrame Slope { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldSlopeFrame
+    {
+        [JsonProperty("probe_m")] public double ProbeMeters { get; set; }
+        [JsonProperty("up_k")] public double UphillFactor { get; set; }
+        [JsonProperty("down_k")] public double DownhillFactor { get; set; }
+        [JsonProperty("easy_down")] public double EasyDownGrade { get; set; }
+        [JsonProperty("easy_boost")] public double EasyDownBoost { get; set; }
+        [JsonProperty("cliff")] public double CliffGrade { get; set; }
+        [JsonProperty("flat_radius_m")] public double FlatRadiusMeters { get; set; }
     }
 
     [Serializable]

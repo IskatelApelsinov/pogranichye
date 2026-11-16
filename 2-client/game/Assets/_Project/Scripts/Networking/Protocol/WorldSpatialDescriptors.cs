@@ -66,8 +66,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("radius_m")] public double RadiusMeters { get; set; }
     }
 
-    // A space is a semantic/structural volume within the same canonical world coordinate frame.
-    // It can represent a building, floor, cave system, mine or cellar; it is NOT a Unity scene.
+    // A space is a server-authored semantic/structural volume, not a Unity scene.
+    // origin/bounds/rooms/portals use global E/N/U metres; surface/stair points are local to
+    // space.origin with x=East, y=Up, z=North. Client geometry never grants movement authority.
     [Serializable]
     public sealed class WorldSpaceChunkFrame
     {

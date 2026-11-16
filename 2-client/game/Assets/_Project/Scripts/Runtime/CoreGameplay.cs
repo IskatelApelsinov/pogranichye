@@ -3801,7 +3801,7 @@ namespace Pogranichye.Client
                 if (roads != null)
                     foreach (var road in roads)
                         if ((road.A == node.Id && road.B == hereId) || (road.B == node.Id && road.A == hereId))
-                            length = " · " + (int)road.Length + " вёрст";
+                            length = " · " + Math.Round(road.Length * 250d).ToString("0") + " м";
                 if (GUILayout.Button(title + "  (" + mark + length + ")"))
                 {
                     Ask("Дорога", "journey", "target", node.Id);

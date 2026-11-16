@@ -112,6 +112,8 @@ namespace Pogranichye.Client
         private int _worldMapCachedFrame = -1;
         private double _worldMapRadius = 500d;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
+        private readonly Dictionary<string, WorldSpaceChunkFrame> _spaceChunks = new Dictionary<string, WorldSpaceChunkFrame>();
+        private WorldAnchorFrame _floatingOriginAnchor;
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
         private readonly Dictionary<string, CancellationTokenSource> _terrainChunkCancellation =
             new Dictionary<string, CancellationTokenSource>();
@@ -849,7 +851,9 @@ namespace Pogranichye.Client
                 GUI.Label(new Rect(rect.x + 10f, rect.y + 238f, rect.width - 20f, 20f),
                     "WorldPos: " + _frame.Me.WorldPosition.East.ToString("0.0", CultureInfo.InvariantCulture) +
                     ", " + _frame.Me.WorldPosition.North.ToString("0.0", CultureInfo.InvariantCulture) +
-                    " · frame " + _frame.Me.WorldPosition.Frame);
+                    " · frame " + _frame.Me.WorldPosition.Frame +
+                    " · space " + (_frame.Me.WorldPosition.SpaceId ?? "—") +
+                    " · level " + (_frame.Me.WorldPosition.LevelId ?? "—"));
             GUI.Label(new Rect(rect.x + 10f, rect.y + 258f, rect.width - 20f, 20f),
                 "Move queue: " + _moveSendQueue.Count + "/" + MaxQueuedMoveIntents +
                 " · pending " + _pendingMoveIntents.Count + " · dropped " + _discardedMoveIntentCount);
@@ -1344,6 +1348,49 @@ namespace Pogranichye.Client
             if (mouseReleased) currentEvent.Use();
         }
 
+        private WorldAnchorFrame ResolveWorldAnchor(WorldFrame frame)
+        {
+            if (frame?.Place?.Anchor != null)
+            {
+                _floatingOriginAnchor = null;
+                return frame.Place.Anchor;
+            }
+
+            var worldPosition = frame?.Me?.WorldPosition;
+            if (worldPosition == null || !worldPosition.IsValid) return null;
+
+            const double rebaseDistanceMeters = 512d;
+            var dx = worldPosition.East - (_floatingOriginAnchor != null ? _floatingOriginAnchor.East : worldPosition.East);
+            var dn = worldPosition.North - (_floatingOriginAnchor != null ? _floatingOriginAnchor.North : worldPosition.North);
+            if (_floatingOriginAnchor == null || _floatingOriginAnchor.Frame != worldPosition.Frame ||
+                Math.Sqrt(dx * dx + dn * dn) > rebaseDistanceMeters)
+            {
+                _floatingOriginAnchor = new WorldAnchorFrame
+                {
+                    Frame = worldPosition.Frame,
+                    East = worldPosition.East,
+                    North = worldPosition.North,
+                    Up = worldPosition.Ground
+                };
+            }
+            return _floatingOriginAnchor;
+        }
+
+        private bool TryGetPlayerMapLocalPosition(out Vector2 local)
+        {
+            local = Vector2.zero;
+            if (WorldPositionProjection.TryToUnityPosition(
+                _frame?.Me?.WorldPosition, ResolveWorldAnchor(_frame), out var projected))
+            {
+                local = new Vector2(projected.x, projected.z);
+                return true;
+            }
+            var position = _frame?.Me?.Position;
+            if (position == null) return false;
+            local = new Vector2((float)position.X, (float)position.Y);
+            return true;
+        }
+
         private void HandleLocalMapPointer(Rect mapRect, double worldHalf)
         {
             var currentEvent = Event.current;
@@ -1382,17 +1429,16 @@ namespace Pogranichye.Client
                     _mapPan.y += delta.y * (2f * half / Mathf.Max(1f, mapRect.height));
 
                     // Keep the viewport within the server-authored settlement bounds.
-                    var centerX = _frame?.Me?.Position != null
-                        ? _frame.Me.Position.X + _mapPan.x : _mapPan.x;
-                    var centerY = _frame?.Me?.Position != null
-                        ? _frame.Me.Position.Y + _mapPan.y : _mapPan.y;
+                    var hasPlayerPosition = TryGetPlayerMapLocalPosition(out var playerLocal);
+                    var centerX = hasPlayerPosition ? playerLocal.x + _mapPan.x : _mapPan.x;
+                    var centerY = hasPlayerPosition ? playerLocal.y + _mapPan.y : _mapPan.y;
                     var maxCenter = Math.Max(0d, worldHalf - half);
                     centerX = Math.Max(-maxCenter, Math.Min(maxCenter, centerX));
                     centerY = Math.Max(-maxCenter, Math.Min(maxCenter, centerY));
-                    if (_frame?.Me?.Position != null)
+                    if (hasPlayerPosition)
                     {
-                        _mapPan.x = (float)(centerX - _frame.Me.Position.X);
-                        _mapPan.y = (float)(centerY - _frame.Me.Position.Y);
+                        _mapPan.x = (float)(centerX - playerLocal.x);
+                        _mapPan.y = (float)(centerY - playerLocal.y);
                     }
                     else
                     {
@@ -1433,11 +1479,11 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var playerPosition = _frame?.Me?.Position;
-            var centerX = _mapZoom > 1.01f && playerPosition != null
-                ? playerPosition.X + _mapPan.x : 0d;
-            var centerY = _mapZoom > 1.01f && playerPosition != null
-                ? playerPosition.Y + _mapPan.y : 0d;
+            var hasPlayerPosition = TryGetPlayerMapLocalPosition(out var playerMapLocal);
+            var centerX = _mapZoom > 1.01f && hasPlayerPosition
+                ? playerMapLocal.x + _mapPan.x : 0d;
+            var centerY = _mapZoom > 1.01f && hasPlayerPosition
+                ? playerMapLocal.y + _mapPan.y : 0d;
             var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
@@ -1492,7 +1538,7 @@ namespace Pogranichye.Client
             // them through the current settlement's authoritative centre anchor before
             // projecting onto this local map; never treat global coordinates as local XY.
             var sites = _frame?.Place?.Sites;
-            var settlementAnchor = _frame?.Place?.Anchor;
+            var settlementAnchor = ResolveWorldAnchor(_frame);
             if (sites != null && settlementAnchor != null)
             {
                 foreach (var site in sites)
@@ -1512,15 +1558,17 @@ namespace Pogranichye.Client
                         ? new Color(0.36f, 0.66f, 0.42f, 1f)
                         : new Color(0.43f, 0.38f, 0.62f, 1f);
                     GUI.contentColor = Color.white;
-                    GUI.Box(marker, WildSiteMapGlyph(site.Kind), _mapPoiStyle);
+                    GUI.Box(marker, new GUIContent(WildSiteMapGlyph(site.Kind), site.Note ?? string.Empty), _mapPoiStyle);
                     GUI.backgroundColor = previousBackground;
                     GUI.contentColor = previousContent;
 
                     var siteLabel = (site.Name ?? "Неизвестное место") + " · " +
                         site.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м";
                     if (site.Here) siteLabel += " · рядом";
+                    if (!string.IsNullOrWhiteSpace(site.Note)) siteLabel += "\n" + site.Note;
+                    var siteLabelHeight = string.IsNullOrWhiteSpace(site.Note) ? 28f : 42f;
                     if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
-                        position.x, position.y, 156f, 28f, 4f, out var siteLabelPlacement))
+                        position.x, position.y, 156f, siteLabelHeight, 4f, out var siteLabelPlacement))
                     {
                         var labelRect = new Rect(siteLabelPlacement.X, siteLabelPlacement.Y,
                             siteLabelPlacement.Width, siteLabelPlacement.Height);
@@ -1535,9 +1583,16 @@ namespace Pogranichye.Client
             {
                 foreach (var neighbor in neighbors)
                 {
-                    if (neighbor?.Position == null) continue;
+                    if (neighbor == null) continue;
+                    Vector3 neighborLocal;
+                    if (!WorldPositionProjection.TryToUnityPosition(
+                        neighbor.WorldPosition, settlementAnchor, out neighborLocal))
+                    {
+                        if (neighbor.Position == null) continue;
+                        neighborLocal = EntityViewRegistry.ToUnityPosition(neighbor.Position);
+                    }
                     var position = WorldMapProjection.ToMapPoint(
-                        neighbor.Position.X - centerX, neighbor.Position.Y - centerY, half, mapRect);
+                        neighborLocal.x - centerX, neighborLocal.z - centerY, half, mapRect);
                     if (!mapRect.Contains(position)) continue;
                     var marker = new Rect(position.x - 4f, position.y - 4f, 8f, 8f);
                     var previousBackground = GUI.backgroundColor;
@@ -1569,10 +1624,10 @@ namespace Pogranichye.Client
                 }
             }
 
-            if (playerPosition != null)
+            if (hasPlayerPosition)
             {
                 var position = WorldMapProjection.ToMapPoint(
-                    playerPosition.X - centerX, playerPosition.Y - centerY, half, mapRect);
+                    playerMapLocal.x - centerX, playerMapLocal.y - centerY, half, mapRect);
                 var marker = new Rect(position.x - 8f, position.y - 8f, 16f, 16f);
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
@@ -1589,10 +1644,35 @@ namespace Pogranichye.Client
             DrawMapFill(new Rect(mapRect.x, mapRect.yMax - 2f, mapRect.width, 2f), borderColor);
             DrawMapFill(new Rect(mapRect.x, mapRect.y, 2f, mapRect.height), borderColor);
             DrawMapFill(new Rect(mapRect.xMax - 2f, mapRect.y, 2f, mapRect.height), borderColor);
-            if (playerPosition != null)
-                GUILayout.Label($"Ваше положение: X {playerPosition.X:0.0} м · Y {playerPosition.Y:0.0} м");
+            if (hasPlayerPosition)
+                GUILayout.Label($"Ваше положение: восток {playerMapLocal.x:0.0} м · север {playerMapLocal.y:0.0} м (от центра поселения)");
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
+            var realm = _frame?.Place?.Realm;
+            if (realm != null)
+            {
+                var realmLine = "Земли державы: " + realm.Name + " · столица: " + realm.Capital +
+                    " · поселений: " + realm.Size;
+                if (!string.IsNullOrWhiteSpace(realm.WarWith)) realmLine += " · война с " + realm.WarWith;
+                GUILayout.Label(realmLine);
+            }
+            else
+            {
+                GUILayout.Label("Вольная земля · поселение не входит в державу.");
+            }
+            var nearbyCaravans = _frame?.Place?.Caravans;
+            if (nearbyCaravans != null && nearbyCaravans.Count > 0)
+            {
+                GUILayout.Label("Обозы поблизости");
+                foreach (var caravan in nearbyCaravans)
+                {
+                    if (caravan == null) continue;
+                    var cargo = !string.IsNullOrWhiteSpace(caravan.GoodName) ? caravan.GoodName : caravan.Good;
+                    GUILayout.Label((cargo ?? "Груз") + " ×" + caravan.Amount.ToString("0", CultureInfo.InvariantCulture) +
+                        " · " + caravan.From + " → " + caravan.To + " · " +
+                        caravan.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м · " + caravan.Direction);
+                }
+            }
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
         }
 
@@ -1797,6 +1877,12 @@ namespace Pogranichye.Client
             }
 
             EnsureWorldMapNearby(place.Id, anchor.Frame, anchor.East, anchor.North);
+            var currentRealm = place.Realm;
+            GUILayout.Label(currentRealm == null
+                ? "Вольная земля · державной власти здесь нет."
+                : "Держава: " + currentRealm.Name + " · столица: " + currentRealm.Capital +
+                    " · поселений: " + currentRealm.Size +
+                    (string.IsNullOrWhiteSpace(currentRealm.WarWith) ? string.Empty : " · война с " + currentRealm.WarWith));
             if (_worldMapNearby.Count == 0)
             {
                 GUILayout.Label("В этом географическом кадре пока нет известных дорог и поселений.");
@@ -1863,6 +1949,48 @@ namespace Pogranichye.Client
                         label, _mapPoiLabelStyle);
             }
 
+            // Global caravan positions are authoritative world E/N/U metres. Draw only
+            // those inside this map viewport; cargo/progress remain server-authored.
+            if (manifest.Caravans != null)
+            {
+                for (var i = 0; i < manifest.Caravans.Count; i++)
+                {
+                    var caravan = manifest.Caravans[i];
+                    if (caravan == null || caravan.Frame != anchor.Frame) continue;
+                    // /api/world is streaming metadata, not character knowledge. Only reveal
+                    // global caravan positions that the server also exposed in this place frame.
+                    var visibleToPlayer = false;
+                    var nearby = place.Caravans;
+                    if (nearby != null)
+                    {
+                        for (var k = 0; k < nearby.Count; k++)
+                        {
+                            if (nearby[k] != null && string.Equals(nearby[k].Id, caravan.Id, StringComparison.Ordinal))
+                            {
+                                visibleToPlayer = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!visibleToPlayer) continue;
+                    var point = new Vector2(
+                        rect.center.x + (float)((caravan.East - anchor.East) / _worldMapRadius) * rect.width * 0.5f,
+                        rect.center.y - (float)((caravan.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
+                    if (!rect.Contains(point)) continue;
+                    var marker = new Rect(point.x - 6f, point.y - 6f, 12f, 12f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = new Color(0.72f, 0.57f, 0.30f, 1f);
+                    GUI.contentColor = Color.white;
+                    var progressLabel = Mathf.RoundToInt((float)caravan.Progress * 100f);
+                    GUI.Box(marker, new GUIContent("◆",
+                        "Обоз: " + caravan.Good + " · " + progressLabel + "% пути · " +
+                        caravan.From + " → " + caravan.To), _mapNeighborStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+                }
+            }
+
             var player = _frame.Me?.WorldPosition;
             if (player != null)
             {
@@ -1871,7 +1999,7 @@ namespace Pogranichye.Client
                     rect.center.y - (float)((player.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
                 DrawMapFill(new Rect(playerPoint.x - 2f, playerPoint.y - 2f, 4f, 4f), Color.white);
             }
-            GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? ещё не названное место");
+            GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? неизвестное место · ◆ обоз");
             GUILayout.Label("Карта показывает соседние поселения и реальные связи из мирового реестра; неизвестные места остаются без имени.");
             if (!manifest.Seamless)
                 GUILayout.Label("Сервер пока не включил бесшовное перемещение: дороги показаны по мировому реестру, но переходы могут быть ограничены.");
@@ -3760,10 +3888,13 @@ namespace Pogranichye.Client
                 _terrainStreamGeneration++;
                 CancelAllTerrainChunkRequests();
                 _terrainChunks.Clear();
+                _spaceChunks.Clear();
+                _floatingOriginAnchor = null;
                 _terrainChunkRequests.Clear();
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                WorldSpacePresentationBuilder.Clear(_presentationRoot);
                 WorldFrontierBiomeBuilder.Clear(_presentationRoot);
                 CauldronRimPresentationBuilder.Clear(_presentationRoot);
                 _cameraRig?.SetWorldHorizonDistance(0f);
@@ -3919,9 +4050,9 @@ namespace Pogranichye.Client
                         // Tab opens it; Esc opens the separate system menu.
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
-                        _views.Apply(frame);
+                        _views.Apply(frame, ResolveWorldAnchor(frame));
                         if (_core != null) _core.ApplyFrame(frame, frameDocument);
-                        if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
+                        if (frame.Me.Position != null) ReconcileMovement(frame.Me);
                         if (_cameraRig != null)
                         {
                             _cameraRig.SetTarget(_views.PlayerTransform);
@@ -4200,10 +4331,15 @@ namespace Pogranichye.Client
             _movementCorrectionRemaining = Mathf.Max(0f, _movementCorrectionRemaining - Time.deltaTime);
         }
 
-        private void ReconcileMovement(ScenePositionFrame position)
+        private void ReconcileMovement(CharacterFrame character)
         {
+            var position = character != null ? character.Position : null;
             if (position == null || _views?.PlayerTransform == null) return;
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
+            Vector3 authoritativePosition;
+            if (!WorldPositionProjection.TryToUnityPosition(
+                character.WorldPosition, ResolveWorldAnchor(_frame), out authoritativePosition))
+                authoritativePosition = EntityViewRegistry.ToUnityPosition(position);
             var currentPlaceId = _frame?.Place?.Id;
             var placeChanged = !string.Equals(_movementPlaceId, currentPlaceId, StringComparison.Ordinal);
             if (!_hasMovementBaseline || placeChanged)
@@ -4219,7 +4355,7 @@ namespace Pogranichye.Client
                 _moveSendQueue.Clear();
                 _movementCorrection = Vector3.zero;
                 _movementCorrectionRemaining = 0f;
-                _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
+                _views.PlayerTransform.position = authoritativePosition;
                 _views.PlayerTransform.rotation = Quaternion.Euler(0f,
                     EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
                 return;
@@ -4233,7 +4369,7 @@ namespace Pogranichye.Client
                 if (_pendingMoveIntents[i].Sequence <= position.Sequence)
                     _pendingMoveIntents.RemoveAt(i);
 
-            var replayedPosition = EntityViewRegistry.ToUnityPosition(position);
+            var replayedPosition = authoritativePosition;
             var replayedStamina = _serverStamina;
             var replayedFacing = position.Facing;
             var activeLayout = PoiPositionPolicy.IsLayoutForSettlement(
@@ -4267,7 +4403,7 @@ namespace Pogranichye.Client
             return stamina;
         }
 
-        private static void PredictServerMove(ref Vector3 position, ref float stamina,
+        private void PredictServerMove(ref Vector3 position, ref float stamina,
             PendingMoveIntent intent, WorldLayoutFrame layout, bool allowOutsideSettlement)
         {
             var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
@@ -4277,9 +4413,38 @@ namespace Pogranichye.Client
             {
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
-                var speed = canRun ? (intent.Fast ? 6.0f : 3.2f) : 1.4f;
+                var movement = _worldManifest != null ? _worldManifest.Movement : null;
+                var walkSpeed = movement != null && movement.WalkMetersPerSecond > 0d
+                    ? (float)movement.WalkMetersPerSecond : 1.4f;
+                var jogSpeed = movement != null && movement.JogMetersPerSecond > 0d
+                    ? (float)movement.JogMetersPerSecond : 3.2f;
+                var runSpeed = movement != null && movement.RunMetersPerSecond > 0d
+                    ? (float)movement.RunMetersPerSecond : 6.0f;
+                var speed = canRun ? (intent.Fast ? runSpeed : jogSpeed) : walkSpeed;
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
+
+                var slope = movement != null ? movement.Slope : null;
+                var anchor = _frame?.Place?.Anchor;
+                if (slope != null && anchor != null &&
+                    position.x * position.x + position.z * position.z >=
+                    Math.Pow(Math.Max(0d, slope.FlatRadiusMeters - slope.ProbeMeters), 2d))
+                {
+                    var probe = Math.Max(0.01d, slope.ProbeMeters);
+                    var east = anchor.East + position.x;
+                    var north = anchor.North + position.z;
+                    var aheadEast = east + direction.x / Math.Max(0.0001f, direction.magnitude) * probe;
+                    var aheadNorth = north + direction.y / Math.Max(0.0001f, direction.magnitude) * probe;
+                    if (TrySampleTerrainHeight(east, north, anchor.Frame, out var ground) &&
+                        TrySampleTerrainHeight(aheadEast, aheadNorth, anchor.Frame, out var ahead))
+                    {
+                        var grade = (ahead - ground) / probe;
+                        speed *= (float)ServerSlopeMovementPolicy.Multiplier(grade, slope.UphillFactor, slope.DownhillFactor,
+                            slope.EasyDownGrade, slope.EasyDownBoost, slope.CliffGrade);
+                    }
+                    // If terrain samples are not cached yet, omit slope prediction rather than
+                    // inventing a client-only height. The next authoritative snapshot corrects it.
+                }
 
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;
@@ -4291,8 +4456,48 @@ namespace Pogranichye.Client
             }
             else
             {
-                stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+                // Match server stamRegen; this remains prediction for queued intents only.
+                stamina = Mathf.Min(1f, stamina + 0.10f * dt);
             }
+        }
+
+        private bool TrySampleTerrainHeight(double east, double north, int frame, out double height)
+        {
+            height = 0d;
+            foreach (var pair in _terrainChunks)
+            {
+                var chunk = pair.Value;
+                if (chunk == null || chunk.Frame != frame || chunk.Origin == null ||
+                    chunk.StepMeters <= 0 || chunk.Side < 2 || chunk.Heights == null ||
+                    chunk.Heights.Count != chunk.Side * chunk.Side)
+                    continue;
+
+                var gridX = (east - chunk.Origin.East) / chunk.StepMeters;
+                var gridZ = (north - chunk.Origin.North) / chunk.StepMeters;
+                if (gridX < -0.000001d || gridZ < -0.000001d ||
+                    gridX > chunk.Side - 1 + 0.000001d || gridZ > chunk.Side - 1 + 0.000001d)
+                    continue;
+
+                var x0 = Math.Min(chunk.Side - 2, Math.Max(0, (int)Math.Floor(gridX)));
+                var z0 = Math.Min(chunk.Side - 2, Math.Max(0, (int)Math.Floor(gridZ)));
+                var tx = Math.Max(0d, Math.Min(1d, gridX - x0));
+                var tz = Math.Max(0d, Math.Min(1d, gridZ - z0));
+                var h00 = chunk.Heights[z0 * chunk.Side + x0];
+                var h10 = chunk.Heights[z0 * chunk.Side + x0 + 1];
+                var h01 = chunk.Heights[(z0 + 1) * chunk.Side + x0];
+                var h11 = chunk.Heights[(z0 + 1) * chunk.Side + x0 + 1];
+                if (double.IsNaN(h00) || double.IsInfinity(h00) ||
+                    double.IsNaN(h10) || double.IsInfinity(h10) ||
+                    double.IsNaN(h01) || double.IsInfinity(h01) ||
+                    double.IsNaN(h11) || double.IsInfinity(h11))
+                    return false;
+
+                var lower = h00 + (h10 - h00) * tx;
+                var upper = h01 + (h11 - h01) * tx;
+                height = lower + (upper - lower) * tz;
+                return true;
+            }
+            return false;
         }
 
         private void StartNextMoveSend()
@@ -4487,6 +4692,11 @@ namespace Pogranichye.Client
                 foreach (var id in stale)
                 {
                     _terrainChunks.Remove(id);
+                    if (_spaceChunks.TryGetValue(id, out var staleSpaces))
+                    {
+                        WorldSpacePresentationBuilder.Remove(_presentationRoot, staleSpaces);
+                        _spaceChunks.Remove(id);
+                    }
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                     WorldFrontierBiomeBuilder.Remove(_presentationRoot, id);
                 }
@@ -4503,6 +4713,19 @@ namespace Pogranichye.Client
                 {
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                }
+                WorldSpacePresentationBuilder.Clear(_presentationRoot);
+                foreach (var pair in _spaceChunks)
+                {
+                    try
+                    {
+                        WorldSpacePresentationBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                    }
+                    catch (Exception spaceError)
+                    {
+                        Debug.LogWarning("Не удалось перестроить серверное пространство " + pair.Key +
+                            ": " + spaceError.Message);
+                    }
                 }
                 _terrainAppliedSettlementId = frame.Place.Id;
                 _terrainAppliedAnchorEast = anchor.East;
@@ -4574,9 +4797,23 @@ namespace Pogranichye.Client
         {
             try
             {
-                var chunk = await new HttpAuthClient(serverUrl).GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
+                var http = new HttpAuthClient(serverUrl);
+                var chunk = await http.GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
                 if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
                     throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
+                WorldSpaceChunkFrame spaces = null;
+                try
+                {
+                    spaces = await http.GetWorldSpacesAsync(chunkX, chunkZ, cancellation.Token);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception spaceError)
+                {
+                    // Terrain and ordinary settlement play remain available if optional space
+                    // streaming is temporarily unavailable; the next terrain refresh can retry.
+                    Enqueue(() => Debug.LogWarning("Многоуровневые пространства пока недоступны для чанка " +
+                        chunkId + ": " + spaceError.Message));
+                }
                 Enqueue(() =>
                 {
                     if (generation != _terrainStreamGeneration) return;
@@ -4589,6 +4826,26 @@ namespace Pogranichye.Client
                     _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    if (spaces != null)
+                    {
+                        try
+                        {
+                            _spaceChunks[chunkId] = spaces;
+                            WorldSpacePresentationBuilder.Apply(_presentationRoot, spaces, _frame.Place.Anchor);
+                        }
+                        catch (Exception spaceError)
+                        {
+                            _spaceChunks.Remove(chunkId);
+                            Debug.LogWarning("Не удалось отобразить серверные пространства чанка " +
+                                chunkId + ": " + spaceError.Message);
+                        }
+                    }
+                    else
+                    {
+                        if (_spaceChunks.TryGetValue(chunkId, out var previousSpaces))
+                            WorldSpacePresentationBuilder.Remove(_presentationRoot, previousSpaces);
+                        _spaceChunks.Remove(chunkId);
+                    }
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
                     _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
