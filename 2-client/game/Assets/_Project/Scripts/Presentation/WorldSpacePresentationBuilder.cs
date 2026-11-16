@@ -274,7 +274,7 @@ namespace Pogranichye.Client.Presentation
                 segment.transform.localPosition = (from + to) * 0.5f;
                 segment.transform.localRotation = Quaternion.LookRotation(direction / length, Vector3.up);
                 segment.transform.localScale = new Vector3(width, 0.16f, length + 0.04f);
-                segment.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
+                segment.GetComponent<MeshRenderer>().sharedMaterial = MaterialFor("cliff");
                 var collider = segment.GetComponent<Collider>();
                 if (collider != null)
                 {
