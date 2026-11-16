@@ -28,6 +28,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralVillageBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ServerSlopeMovementPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPositionProjectionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/SignFaceVisibility.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteractionProbe.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs'
@@ -72,6 +74,8 @@ on:
       - '2-client/game/Tests/RegionFrameParserCheck.cs'
       - '2-client/game/Tests/RequestGateCheck.cs'
       - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
+      - '2-client/game/Tests/ServerSlopeMovementPolicyCheck.cs'
+      - '2-client/game/Tests/WorldPositionProjectionPolicyCheck.cs'
       - '2-client/game/Tests/TavernCounterFrameParserCheck.cs'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
@@ -172,6 +176,16 @@ jobs:
           mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
           mono /tmp/map-label-layout.exe
 
+      - name: Server slope movement formula regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/server-slope-movement.exe Tests/ServerSlopeMovementPolicyCheck.cs Assets/_Project/Scripts/Presentation/ServerSlopeMovementPolicy.cs
+          mono /tmp/server-slope-movement.exe
+      - name: Canonical world position projection regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-position-projection.exe Tests/WorldPositionProjectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldPositionProjectionPolicy.cs
+          mono /tmp/world-position-projection.exe
       - name: Typed gameplay status view regression checks
         working-directory: 2-client/game
         run: |
