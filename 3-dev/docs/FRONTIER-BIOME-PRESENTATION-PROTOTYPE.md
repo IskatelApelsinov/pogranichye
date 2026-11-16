@@ -2,11 +2,11 @@
 
 Date: 2026-11-16  
 Client: Unity 6.6 / URP  
-Status: first visual test pass; requires Unity Editor and PlayMode verification.
+Status: client presentation prototype for live server-generated frontier; requires Unity Editor and PlayMode verification.
 
 ## Purpose
 
-Add enough distinct vegetation to the server-driven frontier that a developer can walk between terrain chunks and inspect biome appearance, chunk edges, LOD changes, and streaming unload/reload. This is a client presentation layer only.
+Complete the visual presentation of the actual server-driven frontier. The client must never create synthetic biomes, terrain chunks, settlements, or preview worlds. Biome selection, chunk geometry and world placement come exclusively from live server frames. This is a client presentation layer only.
 
 The builder consumes the optional `/api/terrain` descriptors already present in `TerrainChunkFrame`:
 - `seed`, `gen`, `biome`;
@@ -56,20 +56,9 @@ Height is sampled from the authoritative chunk heightfield. Vegetation is exclud
 
 The server currently supplies one biome label per chunk. A biome boundary can therefore change species/palette between chunks; the renderer does not invent a blended biome map. Test those boundaries visually and record abrupt changes separately from actual mesh/placement seams.
 
-## Editor preview strip
-
-For fast visual inspection without traveling to each region, use the Unity menu:
-- `Pogranichye → Debug → Build Frontier Biome Test Strip`
-- Five 256 m fixture chunks are placed in a row along +Z near the current Scene view pivot: forest, plain, hills, coast, steppe.
-- A simple test trail crosses each chunk so you can check that vegetation respects path corridors.
-- The Scene view frames the first chunk automatically; pan/orbit along +Z to inspect the remaining chunks.
-- Remove it with `Pogranichye → Debug → Clear Frontier Biome Test Strip`.
-
-These fixtures exist only in the local Editor scene. They are not sent to the server and do not change the live world. The preview uses the same terrain and vegetation builders as streamed chunks.
-
 ## Unity test checklist
 
-1. First build the Editor preview strip and inspect all five current server biome profiles; in live play, confirm terrain frames contain `biome`, `seed` and `cover`.
+1. Enter the actual server-generated frontier and confirm terrain frames contain `biome`, `seed` and `cover`.
 2. Walk across all four edges of a terrain chunk. Check for repeated rows, gaps, sudden density jumps, and plants crossing the road/water corridors.
 3. Walk through forest → plain → hills → coast/steppe regions where the server world provides them. Confirm species and density visibly change.
 4. Move toward and away from a tree line. Confirm all three LOD levels switch without a large pop or missing renderers.
