@@ -30,6 +30,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutSelectionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/SignFaceVisibility.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteractionProbe.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteractionRaycastMaskPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
@@ -73,6 +74,7 @@ on:
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
+      - '2-client/game/Tests/WildSiteMapProjectionPolicyCheck.cs'
 jobs:
   pure-csharp:
     runs-on: ubuntu-latest
@@ -231,6 +233,11 @@ jobs:
         run: |
           mcs -out:/tmp/world-interaction-raycast-mask.exe Tests/WorldInteractionRaycastMaskPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldInteractionRaycastMaskPolicy.cs
           mono /tmp/world-interaction-raycast-mask.exe
+      - name: Wilderness site map projection regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/wild-site-map-projection.exe Tests/WildSiteMapProjectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs
+          mono /tmp/wild-site-map-projection.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
