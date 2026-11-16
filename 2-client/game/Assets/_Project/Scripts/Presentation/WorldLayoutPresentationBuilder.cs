@@ -1778,7 +1778,7 @@ namespace Pogranichye.Client.Presentation
                 ridge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             }
 
-            BuildBuildingTypeDetails(root, building.Kind, width, depth, wallHeight);
+            BuildBuildingTypeDetails(root, building.Kind, width, depth, wallHeight, opening, doorSide, doorOffset);
 
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market")
@@ -1811,7 +1811,7 @@ namespace Pogranichye.Client.Presentation
         }
 
         private static void BuildBuildingTypeDetails(Transform root, string kind,
-            float width, float depth, float wallHeight)
+            float width, float depth, float wallHeight, float doorWidth, int doorSide, float doorOffset)
         {
             if (kind == "granary")
             {
@@ -1845,7 +1845,7 @@ namespace Pogranichye.Client.Presentation
                 Create("Smithy stone east course", PrimitiveType.Cube, root,
                     new Vector3(width * 0.5f - 0.12f, stoneHeight * 0.5f, 0f),
                     new Vector3(0.20f, stoneHeight, depth - 0.24f), _stone, false);
-                var smithyDoorGap = Mathf.Min(1.35f, width * 0.36f);
+                var smithyDoorGap = Mathf.Clamp(doorWidth, 1.2f, width - 0.8f);
                 var stoneFrontSegment = (width - smithyDoorGap) * 0.5f;
                 Create("Smithy stone front left", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.5f + stoneFrontSegment * 0.5f, stoneHeight * 0.5f, -depth * 0.5f + 0.12f),
@@ -1872,17 +1872,34 @@ namespace Pogranichye.Client.Presentation
             else if (kind == "tavern")
             {
                 // A modest covered threshold and timber brackets identify the public house.
+                var onHorizontalWall = doorSide == 0 || doorSide == 1;
+                var outward = doorSide == 0 || doorSide == 2 ? -1f : 1f;
+                var canopyCentre = onHorizontalWall
+                    ? new Vector3(doorOffset, wallHeight - 0.12f, outward * (depth * 0.5f + 0.28f))
+                    : new Vector3(outward * (width * 0.5f + 0.28f), wallHeight - 0.12f, doorOffset);
+                var canopySize = onHorizontalWall
+                    ? new Vector3(Mathf.Min(doorWidth + 1.1f, 3.8f), 0.16f, 0.72f)
+                    : new Vector3(0.72f, 0.16f, Mathf.Min(doorWidth + 1.1f, 3.8f));
                 Create("Tavern entrance canopy", PrimitiveType.Cube, root,
-                    new Vector3(0f, wallHeight - 0.12f, -depth * 0.5f - 0.28f),
-                    new Vector3(Mathf.Min(width * 0.72f, 3.8f), 0.16f, 0.72f), _roof, false);
-                for (var x = -1; x <= 1; x += 2)
+                    canopyCentre, canopySize, _roof, false);
+                for (var bracket = -1; bracket <= 1; bracket += 2)
+                {
+                    var bracketOffset = doorOffset + bracket * Mathf.Min(doorWidth * 0.5f + 0.18f, 1.65f);
+                    var bracketPosition = onHorizontalWall
+                        ? new Vector3(bracketOffset, wallHeight - 0.58f, outward * (depth * 0.5f + 0.08f))
+                        : new Vector3(outward * (width * 0.5f + 0.08f), wallHeight - 0.58f, bracketOffset);
                     Create("Tavern canopy bracket", PrimitiveType.Cube, root,
-                        new Vector3(x * Mathf.Min(width * 0.34f, 1.65f), wallHeight - 0.58f,
-                            -depth * 0.5f - 0.08f),
-                        new Vector3(0.13f, 0.78f, 0.13f), _trunk, false);
+                        bracketPosition, new Vector3(0.13f, 0.78f, 0.13f), _trunk, false);
+                }
+                var signPosition = onHorizontalWall
+                    ? new Vector3(doorOffset + doorWidth * 0.5f + 0.42f, wallHeight + 0.10f,
+                        outward * (depth * 0.5f + 0.12f))
+                    : new Vector3(outward * (width * 0.5f + 0.12f), wallHeight + 0.10f,
+                        doorOffset + doorWidth * 0.5f + 0.42f);
+                var signSize = onHorizontalWall ? new Vector3(0.82f, 0.10f, 0.10f) :
+                    new Vector3(0.10f, 0.10f, 0.82f);
                 Create("Tavern hanging sign bracket", PrimitiveType.Cube, root,
-                    new Vector3(width * 0.34f, wallHeight + 0.10f, -depth * 0.5f - 0.12f),
-                    new Vector3(0.82f, 0.10f, 0.10f), _iron, false);
+                    signPosition, signSize, _iron, false);
             }
         }
 
