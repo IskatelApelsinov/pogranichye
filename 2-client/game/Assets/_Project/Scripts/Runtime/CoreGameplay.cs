@@ -471,13 +471,19 @@ namespace Pogranichye.Client
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("ЭКИПИРОВКА");
+            GUILayout.Label("ЭКИПИРОВКА · ВНЕШНИЙ ВИД ПЕРСОНАЖА");
             GUILayout.BeginHorizontal();
             DrawEquipmentSlot("Правая рука", hand, "hand", items);
             DrawEquipmentSlot("Голова", WornItem(worn, "head"), "head", items);
-            DrawEquipmentSlot("Торс", WornItem(worn, "body") ?? WornItem(worn, "armor"), "body", items);
+            DrawEquipmentSlot("Одежда", WornItem(worn, "body"), "body", items);
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            DrawEquipmentSlot("Броня", WornItem(worn, "armor"), "armor", items);
             DrawEquipmentSlot("Ноги", WornItem(worn, "feet"), "feet", items);
             DrawEquipmentSlot("Левая рука", WornItem(worn, "offhand"), "offhand", items);
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            DrawEquipmentSlot("Пояс", WornItem(worn, "belt"), "belt", items);
             GUILayout.EndHorizontal();
 
             GUILayout.Space(5f);
@@ -653,7 +659,8 @@ namespace Pogranichye.Client
                 case "head": return "Голова";
                 case "body": return "Тело";
                 case "feet": return "Ноги";
-                case "armor": return "Торс";
+                case "armor": return "Броня";
+                case "belt": return "Пояс";
                 case "offhand": return "Левая рука";
                 case "belt": return "Пояс";
                 default: return slot;
