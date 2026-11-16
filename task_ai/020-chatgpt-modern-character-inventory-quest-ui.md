@@ -16,7 +16,7 @@ Replace the legacy text-heavy inventory and quest journal with a readable, game-
 - Text search across localized item names and stable item IDs.
 - Item cards with stack count, equipment slot and the already-supported server intent (equip, wear, unwear, use).
 - Storage section collapsed by default; stash and horse summary remain distinct from carried inventory.
-- Quest journal now presents the opening milestones as checkable steps, shows server-confirmed progress bars for the current errand, giver/location/reward, and separates persistent chronicle from this-session observations.
+- Quest journal presents the opening milestones as checkable steps, server-confirmed progress for the tutorial errand, and typed server quests (active requests, offers, turn-in/drop/accept actions, giver/location/reward and reputation). Persistent chronicle is separated from this-session observations.
 - No optimistic inventory or quest mutation. UI reads frame data and sends existing intents only.
 
 ## Existing equipment appearance pipeline
