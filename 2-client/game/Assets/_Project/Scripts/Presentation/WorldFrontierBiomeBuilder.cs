@@ -428,6 +428,8 @@ namespace Pogranichye.Client.Presentation
             if (Palettes.TryGetValue(biome, out cached)) return cached;
             Color leaves = IsMarsh(biome) ? new Color(0.31f, 0.40f, 0.22f) :
                 IsAlpine(biome) ? new Color(0.28f, 0.38f, 0.25f) :
+                biome == "coast" ? new Color(0.34f, 0.46f, 0.31f) :
+                biome == "steppe" ? new Color(0.47f, 0.45f, 0.24f) :
                 biome == "deciduous_forest" ? new Color(0.31f, 0.43f, 0.22f) :
                 biome == "coniferous_forest" ? new Color(0.20f, 0.34f, 0.22f) :
                 new Color(0.34f, 0.43f, 0.25f);
@@ -473,7 +475,8 @@ namespace Pogranichye.Client.Presentation
         {
             if (biome == "coniferous_forest" || IsAlpine(biome)) return roll < 0.82f ? 0 : 3;
             if (biome == "deciduous_forest") return roll < 0.48f ? 1 : 2;
-            if (IsMarsh(biome)) return roll < 0.72f ? 3 : 1;
+            if (IsMarsh(biome) || biome == "coast") return roll < 0.78f ? 3 : 1;
+            if (biome == "steppe") return roll < 0.65f ? 1 : 3;
             return roll < 0.38f ? 0 : roll < 0.70f ? 1 : 2;
         }
 
