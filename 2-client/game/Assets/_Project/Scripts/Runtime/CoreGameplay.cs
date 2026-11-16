@@ -339,10 +339,17 @@ namespace Pogranichye.Client
             return null;
         }
 
-        private static string CatalogItemName(JObject definition, string fallback)
+        private string CatalogName(string id)
+        {
+            var names = Obj(_catalog, "names");
+            var catalogName = Str(names, id);
+            return string.IsNullOrEmpty(catalogName) ? Name(id) : catalogName;
+        }
+
+        private string CatalogItemName(JObject definition, string fallback)
         {
             var name = Str(definition, "name");
-            return string.IsNullOrEmpty(name) ? Name(fallback) : name;
+            return string.IsNullOrEmpty(name) ? CatalogName(fallback) : name;
         }
 
         private void DrawCatalogReference()
@@ -388,10 +395,10 @@ namespace Pogranichye.Client
                     var parts = new List<string>();
                     if (needs != null)
                         foreach (var need in needs.Properties())
-                            parts.Add(Name(need.Name) + " ×" + need.Value);
+                            parts.Add(CatalogName(need.Name) + " ×" + need.Value);
                     GUILayout.Label(Str(recipe, "name") + " · " + Str(recipe, "at") +
                         (parts.Count == 0 ? "" : " · нужно: " + string.Join(", ", parts.ToArray())) +
-                        " · результат: " + Name(Str(recipe, "gives")) + " ×" + Num(recipe, "qty").ToString("0", CultureInfo.InvariantCulture));
+                        " · результат: " + CatalogName(Str(recipe, "gives")) + " ×" + Num(recipe, "qty").ToString("0", CultureInfo.InvariantCulture));
                 }
             }
 
@@ -494,7 +501,7 @@ namespace Pogranichye.Client
             GUILayout.Space(6f);
             GUILayout.Label("СНАРЯЖЕНИЕ · то, чем пользуешься прямо сейчас");
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("В руке: " + (string.IsNullOrEmpty(hand) ? "пусто" : Name(hand)));
+            GUILayout.Label("В руке: " + (string.IsNullOrEmpty(hand) ? "пусто" : CatalogName(hand)));
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
                 Ask("Экипировка", "equip", "item", string.Empty);
 
@@ -524,7 +531,7 @@ namespace Pogranichye.Client
                 {
                     if (string.IsNullOrEmpty(slot.Value.ToString())) continue;
                     hasWorn = true;
-                    GUILayout.Label("• " + WearSlotName(slot.Name) + ": " + Name(slot.Value.ToString()));
+                    GUILayout.Label("• " + WearSlotName(slot.Name) + ": " + CatalogName(slot.Value.ToString()));
                 }
             }
             if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
@@ -561,7 +568,7 @@ namespace Pogranichye.Client
                     var quantity = (int)Num(items, item.Name);
                     if (quantity < 1) continue;
                     hasItems = true;
-                    GUILayout.Label(Name(item.Name) + " ×" + quantity);
+                    GUILayout.Label(CatalogName(item.Name) + " ×" + quantity);
                 }
             }
             if (!hasItems) GUILayout.Label("Переносимых предметов пока нет.");
@@ -581,7 +588,7 @@ namespace Pogranichye.Client
                 foreach (var good in goods)
                 {
                     hasGoods = true;
-                    GUILayout.Label(Name(good) + " ×" + (int)Num(stash, good));
+                    GUILayout.Label(CatalogName(good) + " ×" + (int)Num(stash, good));
                 }
             }
             if (!hasGoods) GUILayout.Label("Закрома пока пусты.");
@@ -3324,7 +3331,7 @@ namespace Pogranichye.Client
                 else
                 {
                     GUILayout.Label("Ты на месте" +
-                        (string.IsNullOrEmpty(gives) ? "" : " · можно найти: " + Name(gives)) +
+                        (string.IsNullOrEmpty(gives) ? "" : " · можно найти: " + CatalogName(gives)) +
                         (site["left"] == null ? "" : " · осталось: " + Num(site, "left").ToString("0", CultureInfo.InvariantCulture)));
                     var actions = Arr(site, "acts");
                     if (actions != null)
