@@ -25,9 +25,16 @@ public static class WorldSpaceDescriptorValidatorCheck
         Require(WorldSpaceDescriptorValidator.IsValid(empty), "an empty chunk must remain valid");
 
         var ramp = Clone(fixture);
-        ramp.Spaces[0].Stairs[0].Kind = "ramp";
-        ramp.Spaces[0].Stairs[0].StepCount = 0;
-        Require(WorldSpaceDescriptorValidator.IsValid(ramp), "a server-authored ramp may have zero discrete steps");
+        var rampStair = ramp.Spaces[0].Stairs[0];
+        rampStair.Kind = "ramp";
+        rampStair.StepCount = 0;
+        rampStair.FromFloor = ramp.Spaces[0].Floors[1].Id; // ground
+        rampStair.ToFloor = ramp.Spaces[0].Floors[0].Id;   // cellar
+        rampStair.Points[0].Y = 0d;
+        rampStair.Points[1].Y = -2.4d;
+        rampStair.Points[2].Y = -2.4d;
+        Require(WorldSpaceDescriptorValidator.IsValid(ramp),
+            "a server-authored descending cave ramp may have zero discrete steps");
 
         ExpectInvalid(fixture, "duplicate space id", delegate(WorldSpaceChunkFrame value)
         {
