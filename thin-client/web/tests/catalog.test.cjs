@@ -66,3 +66,9 @@ test('realm and caravans are told in plain words',()=>{
   assert.deepEqual(rows,['🐎 Обоз: сукно ×20 · Каменка → Броды · 2,6 км на западе']);
   assert.deepEqual(C.caravanRows(undefined,{}),[]);
 });
+
+test('site rows carry the trace of villagers',()=>{
+  const rows=C.siteRows([{id:'w:1:2',name:'Травяной луг',kind:'herbs',acts:['forage'],gives:'herb',left:3,dist:400,dir:'на юге',note:'сегодня здесь были люди из села Починок'},{id:'w:1:3',name:'Бор',kind:'thicket',acts:['forage'],dist:900}],null);
+  assert.equal(rows[0].note,'сегодня здесь были люди из села Починок');
+  assert.equal(rows[1].note,'');
+});

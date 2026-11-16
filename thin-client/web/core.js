@@ -240,6 +240,7 @@ function drawSites(s){
     if(r.here) h += r.acts.map(a => sbtn(esc(a.label), `siteAct('${esc(r.id)}','${a.action}')`, a.disabled, 'primary')).join('');
     else h += sbtn(r.going?'🚶 иду…':'идти', `siteGo('${esc(r.id)}')`, r.going);
     h += '</div>';
+    if(r.note) h += `<div class="sub" style="margin:-2px 0 4px 22px">👣 ${esc(r.note)}</div>`;
   });
   setHTML('sitescard', h);
 }
