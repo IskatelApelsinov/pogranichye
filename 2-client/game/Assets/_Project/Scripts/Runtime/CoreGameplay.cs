@@ -381,6 +381,17 @@ namespace Pogranichye.Client
                     foreach (var effect in new[] { "armor", "carry", "pace", "rest" })
                         if (item[effect] != null && Num(item, effect) != 0)
                             details.Add(effect + " +" + Num(item, effect).ToString("0.#", CultureInfo.InvariantCulture));
+                    var weapon = Obj(item, "weapon");
+                    if (weapon != null)
+                        details.Add("урон " + Num(weapon, "dmg").ToString("0.#", CultureInfo.InvariantCulture) +
+                            " · дальность " + Num(weapon, "reach").ToString("0.#", CultureInfo.InvariantCulture) + " м");
+                    var use = Obj(item, "use");
+                    if (use != null)
+                    {
+                        if (Num(use, "health") > 0) details.Add("здоровье +" + Num(use, "health").ToString("0.#", CultureInfo.InvariantCulture));
+                        if (Num(use, "energy") > 0) details.Add("силы +" + Num(use, "energy").ToString("0.#", CultureInfo.InvariantCulture));
+                        if (Num(use, "hunger") > 0) details.Add("сытость +" + Num(use, "hunger").ToString("0.#", CultureInfo.InvariantCulture));
+                    }
                     GUILayout.Label(name + (details.Count == 0 ? "" : " · " + string.Join(" · ", details.ToArray())));
                 }
             }
