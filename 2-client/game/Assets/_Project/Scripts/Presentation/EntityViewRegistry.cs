@@ -427,12 +427,15 @@ namespace Pogranichye.Client.Presentation
             var handItem = gear != null ? gear.Hand ?? string.Empty : string.Empty;
             var worn = gear != null ? gear.Worn : null;
             var head = GetWornItem(worn, "head");
+            var shirt = GetWornItem(worn, "shirt");
             var body = GetWornItem(worn, "body");
             var feet = GetWornItem(worn, "feet");
             var armor = GetWornItem(worn, "armor");
+            var hands = GetWornItem(worn, "hands");
             var offhand = GetWornItem(worn, "offhand");
             var belt = GetWornItem(worn, "belt");
-            var signature = (gear == null ? "legacy" : "public") + "|" + handItem + "|" + head + "|" + body + "|" + feet + "|" + armor + "|" + offhand + "|" + belt;
+            var back = GetWornItem(worn, "back");
+            var signature = (gear == null ? "legacy" : "public") + "|" + handItem + "|" + head + "|" + shirt + "|" + body + "|" + feet + "|" + armor + "|" + hands + "|" + offhand + "|" + belt + "|" + back;
 
             var visualRoot = GetEntityVisualRoot(view);
             var motion = view.GetComponent<EntityMotion>();
@@ -447,13 +450,18 @@ namespace Pogranichye.Client.Presentation
             if (oldWorn != null) Object.Destroy(oldWorn.gameObject);
             var wornRoot = new GameObject("Worn equipment").transform;
             wornRoot.SetParent(visualRoot, false);
-            if (head == "hat") BuildWornHat(wornRoot);
-            if (body == "cloak") BuildWornCloak(wornRoot);
+            BuildWornHead(wornRoot, head);
+            BuildWornShirt(wornRoot, shirt);
+            BuildWornBody(wornRoot, body);
             if (feet == "boots") BuildWornBoots(wornRoot);
-            if (armor == "jerkin") BuildWornJerkin(wornRoot);
+            BuildWornArmor(wornRoot, armor);
             if (belt == "purse") BuildWornPurse(wornRoot);
+            BuildWornBack(wornRoot, back);
             var leftArm = visualRoot.Find("Left arm");
+            var rightArm = visualRoot.Find("Right arm");
             BuildWornShield(leftArm, offhand == "shield");
+            BuildWornGloves(leftArm, hands == "gloves");
+            BuildWornGloves(rightArm, hands == "gloves");
 
             var hand = visualRoot.Find("Right arm/Right hand");
             if (hand == null) return;
@@ -467,8 +475,14 @@ namespace Pogranichye.Client.Presentation
             switch (item)
             {
                 case "axe":
+                case "knife":
                 case "sword":
+                case "spear":
+                case "mace":
+                case "staff":
+                case "pickaxe":
                 case "bow":
+                case "crossbow":
                 case "rod":
                 case "torch":
                 case "lantern":
@@ -490,8 +504,8 @@ namespace Pogranichye.Client.Presentation
             var offhand = GetWornItem(worn, "offhand");
             var belt = GetWornItem(worn, "belt");
             var carriedSignature = GetCarriedItemsSignature(inventory, handItem, head, body, feet, armor, offhand);
-            var signature = player.GetEntityId() + "|" + handItem + "|" + head + "|" + body + "|" + feet +
-                "|" + armor + "|" + offhand + "|" + belt + "|" + carriedSignature + "|" + (tankardHeld ? "mug" : "free");
+            var signature = player.GetEntityId() + "|" + handItem + "|" + head + "|" + shirt + "|" + body + "|" + feet +
+                "|" + armor + "|" + hands + "|" + offhand + "|" + belt + "|" + back + "|" + carriedSignature + "|" + (tankardHeld ? "mug" : "free");
             var motion = player.GetComponent<EntityMotion>();
             if (motion != null) motion.SetEquippedHandItem(handItem, tankardHeld);
             if (signature == _lastPlayerEquipmentSignature) return;
@@ -503,13 +517,18 @@ namespace Pogranichye.Client.Presentation
             var wornRoot = new GameObject("Worn equipment").transform;
             wornRoot.SetParent(_playerVisualRoot, false);
 
-            if (head == "hat") BuildWornHat(wornRoot);
-            if (body == "cloak") BuildWornCloak(wornRoot);
+            BuildWornHead(wornRoot, head);
+            BuildWornShirt(wornRoot, shirt);
+            BuildWornBody(wornRoot, body);
             if (feet == "boots") BuildWornBoots(wornRoot);
-            if (armor == "jerkin") BuildWornJerkin(wornRoot);
+            BuildWornArmor(wornRoot, armor);
             if (belt == "purse") BuildWornPurse(wornRoot);
+            BuildWornBack(wornRoot, back);
             var leftArm = _playerVisualRoot.Find("Left arm");
+            var rightArm = _playerVisualRoot.Find("Right arm");
             BuildWornShield(leftArm, offhand == "shield");
+            BuildWornGloves(leftArm, hands == "gloves");
+            BuildWornGloves(rightArm, hands == "gloves");
 
             var oldCarried = _playerVisualRoot.Find("Carried equipment");
             if (oldCarried != null) Object.Destroy(oldCarried.gameObject);
@@ -780,6 +799,116 @@ namespace Pogranichye.Client.Presentation
             ApplyColor(rim.GetComponent<Renderer>(), new Color(0.25f, 0.27f, 0.27f));
         }
 
+        private void BuildWornHead(Transform root, string item)
+        {
+            if (item == "hat") BuildWornHat(root);
+            else if (item == "helmet") BuildWornHelmet(root);
+        }
+
+        private void BuildWornShirt(Transform root, string item)
+        {
+            if (item != "shirt") return;
+            var linen = CreatePart("Worn shirt • linen tunic", PrimitiveType.Capsule, root,
+                new Vector3(0f, 1.03f, 0.015f), new Vector3(0.48f, 0.48f, 0.33f));
+            ApplyColor(linen.GetComponent<Renderer>(), new Color(0.57f, 0.50f, 0.37f));
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var sleeve = CreatePart("Worn shirt • sleeve", PrimitiveType.Capsule, root,
+                    new Vector3(side * 0.30f, 1.18f, 0.015f), new Vector3(0.14f, 0.25f, 0.14f));
+                sleeve.transform.localRotation = Quaternion.Euler(0f, 0f, side * -18f);
+                ApplyColor(sleeve.GetComponent<Renderer>(), new Color(0.62f, 0.55f, 0.42f));
+            }
+        }
+
+        private void BuildWornBody(Transform root, string item)
+        {
+            if (item == "cloak") BuildWornCloak(root);
+            else if (item == "furcoat") BuildWornFurcoat(root);
+        }
+
+        private void BuildWornArmor(Transform root, string item)
+        {
+            if (item == "jerkin") BuildWornJerkin(root);
+            else if (item == "mail") BuildWornMail(root);
+        }
+
+        private void BuildWornBack(Transform root, string item)
+        {
+            if (item != "backpack" && item != "satchel") return;
+            var leather = new Color(0.25f, 0.15f, 0.08f);
+            var canvas = item == "backpack" ? new Color(0.34f, 0.27f, 0.17f) : new Color(0.49f, 0.42f, 0.30f);
+            var bag = CreatePart("Worn pack • body", PrimitiveType.Cube, root,
+                new Vector3(0f, 0.99f, -0.25f), item == "backpack"
+                    ? new Vector3(0.36f, 0.47f, 0.20f) : new Vector3(0.32f, 0.36f, 0.15f));
+            ApplyColor(bag.GetComponent<Renderer>(), canvas);
+            var flap = CreatePart("Worn pack • flap", PrimitiveType.Cube, root,
+                new Vector3(0f, item == "backpack" ? 1.23f : 1.17f, -0.13f),
+                new Vector3(0.37f, 0.10f, 0.035f));
+            ApplyColor(flap.GetComponent<Renderer>(), leather);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var strap = CreatePart("Worn pack • shoulder strap", PrimitiveType.Cube, root,
+                    new Vector3(side * 0.17f, 1.22f, 0.04f), new Vector3(0.055f, 0.38f, 0.035f));
+                strap.transform.localRotation = Quaternion.Euler(0f, 0f, side * 13f);
+                ApplyColor(strap.GetComponent<Renderer>(), leather);
+            }
+        }
+
+        private void BuildWornGloves(Transform arm, bool equipped)
+        {
+            if (arm == null) return;
+            var old = arm.Find("Equipped gloves");
+            if (old != null) Object.Destroy(old.gameObject);
+            if (!equipped) return;
+            var glove = new GameObject("Equipped gloves").transform;
+            glove.SetParent(arm, false);
+            glove.localPosition = new Vector3(0f, -0.48f, 0.13f);
+            glove.localRotation = Quaternion.identity;
+            var palm = CreatePart("Gloves • leather palm", PrimitiveType.Sphere, glove,
+                Vector3.zero, new Vector3(0.13f, 0.14f, 0.10f));
+            ApplyColor(palm.GetComponent<Renderer>(), new Color(0.24f, 0.15f, 0.09f));
+            var cuff = CreatePart("Gloves • cuff", PrimitiveType.Cylinder, glove,
+                new Vector3(0f, 0.08f, -0.005f), new Vector3(0.075f, 0.035f, 0.075f));
+            ApplyColor(cuff.GetComponent<Renderer>(), new Color(0.40f, 0.28f, 0.16f));
+        }
+
+        private void BuildWornHelmet(Transform root)
+        {
+            var iron = new Color(0.34f, 0.36f, 0.37f);
+            var dome = CreatePart("Worn helmet • crown", PrimitiveType.Sphere, root,
+                new Vector3(0f, 1.88f, 0f), new Vector3(0.34f, 0.25f, 0.34f));
+            ApplyColor(dome.GetComponent<Renderer>(), iron);
+            var rim = CreatePart("Worn helmet • rim", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 1.79f, 0f), new Vector3(0.30f, 0.035f, 0.30f));
+            ApplyColor(rim.GetComponent<Renderer>(), new Color(0.47f, 0.42f, 0.29f));
+            var nose = CreatePart("Worn helmet • nasal guard", PrimitiveType.Cube, root,
+                new Vector3(0f, 1.68f, 0.27f), new Vector3(0.045f, 0.22f, 0.035f));
+            ApplyColor(nose.GetComponent<Renderer>(), iron);
+        }
+
+        private void BuildWornFurcoat(Transform root)
+        {
+            var fur = CreatePart("Worn furcoat • body", PrimitiveType.Capsule, root,
+                new Vector3(0f, 1.00f, 0.015f), new Vector3(0.54f, 0.58f, 0.39f));
+            ApplyColor(fur.GetComponent<Renderer>(), new Color(0.34f, 0.25f, 0.16f));
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var trim = CreatePart("Worn furcoat • fur trim", PrimitiveType.Capsule, root,
+                    new Vector3(side * 0.25f, 1.04f, 0.18f), new Vector3(0.06f, 0.48f, 0.08f));
+                ApplyColor(trim.GetComponent<Renderer>(), new Color(0.57f, 0.48f, 0.33f));
+            }
+        }
+
+        private void BuildWornMail(Transform root)
+        {
+            var mail = CreatePart("Worn mail • hauberk", PrimitiveType.Capsule, root,
+                new Vector3(0f, 1.00f, 0.015f), new Vector3(0.53f, 0.56f, 0.37f));
+            ApplyColor(mail.GetComponent<Renderer>(), new Color(0.37f, 0.39f, 0.39f));
+            var hem = CreatePart("Worn mail • lower hem", PrimitiveType.Cylinder, root,
+                new Vector3(0f, 0.66f, 0f), new Vector3(0.28f, 0.035f, 0.28f));
+            ApplyColor(hem.GetComponent<Renderer>(), new Color(0.26f, 0.28f, 0.29f));
+        }
+
         private void BuildWornHat(Transform root)
         {
             var wool = new Color(0.25f, 0.22f, 0.18f);
@@ -906,7 +1035,9 @@ namespace Pogranichye.Client.Presentation
             var iron = new Color(0.31f, 0.34f, 0.36f);
             var gold = new Color(0.55f, 0.39f, 0.16f);
 
-            if (item == "axe" || item == "rod" || item == "torch" || item == "lantern")
+            if (item == "axe" || item == "rod" || item == "torch" || item == "lantern" ||
+                item == "spear" || item == "mace" || item == "staff" || item == "pickaxe" ||
+                item == "crossbow")
             {
                 var shaft = CreatePart("Held item • wooden shaft", PrimitiveType.Cylinder, held,
                     new Vector3(0f, 0.20f, 0f), new Vector3(0.022f, 0.22f, 0.022f));
@@ -920,6 +1051,54 @@ namespace Pogranichye.Client.Presentation
                     var blade = CreatePart("Held axe • iron blade", PrimitiveType.Cube, held,
                         new Vector3(0.13f, 0.38f, 0f), new Vector3(0.24f, 0.13f, 0.055f));
                     ApplyColor(blade.GetComponent<Renderer>(), iron);
+                    break;
+                }
+                case "knife":
+                {
+                    var blade = CreatePart("Held knife • blade", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.28f, 0f), new Vector3(0.035f, 0.17f, 0.025f));
+                    ApplyColor(blade.GetComponent<Renderer>(), iron);
+                    var grip = CreatePart("Held knife • grip", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.13f, 0f), new Vector3(0.022f, 0.07f, 0.022f));
+                    ApplyColor(grip.GetComponent<Renderer>(), wood);
+                    break;
+                }
+                case "spear":
+                case "staff":
+                {
+                    var tip = CreatePart("Held spear • iron tip", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.50f, 0f), new Vector3(0.045f, 0.09f, 0.045f));
+                    tip.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    ApplyColor(tip.GetComponent<Renderer>(), item == "staff" ? wood : iron);
+                    break;
+                }
+                case "mace":
+                {
+                    var head = CreatePart("Held mace • head", PrimitiveType.Sphere, held,
+                        new Vector3(0f, 0.43f, 0f), new Vector3(0.13f, 0.13f, 0.13f));
+                    ApplyColor(head.GetComponent<Renderer>(), iron);
+                    break;
+                }
+                case "pickaxe":
+                {
+                    var head = CreatePart("Held pickaxe • iron head", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.40f, 0f), new Vector3(0.25f, 0.055f, 0.06f));
+                    head.transform.localRotation = Quaternion.Euler(0f, 0f, -12f);
+                    ApplyColor(head.GetComponent<Renderer>(), iron);
+                    break;
+                }
+                case "crossbow":
+                {
+                    var stock = CreatePart("Held crossbow • stock", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.34f, 0f), new Vector3(0.055f, 0.32f, 0.07f));
+                    ApplyColor(stock.GetComponent<Renderer>(), wood);
+                    var limbs = CreatePart("Held crossbow • bow limbs", PrimitiveType.Cylinder, held,
+                        new Vector3(0f, 0.48f, 0f), new Vector3(0.025f, 0.23f, 0.025f));
+                    limbs.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    ApplyColor(limbs.GetComponent<Renderer>(), wood);
+                    var prod = CreatePart("Held crossbow • iron prod", PrimitiveType.Cube, held,
+                        new Vector3(0f, 0.49f, 0.02f), new Vector3(0.25f, 0.025f, 0.025f));
+                    ApplyColor(prod.GetComponent<Renderer>(), iron);
                     break;
                 }
                 case "sword":
