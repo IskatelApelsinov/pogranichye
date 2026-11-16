@@ -176,6 +176,11 @@ namespace Pogranichye.Client.Presentation
             foreach (var stair in space.Stairs)
             {
                 if (stair == null || stair.Points == null || stair.Points.Count < 2) continue;
+                if (string.Equals(stair.Kind, "ramp", StringComparison.OrdinalIgnoreCase))
+                {
+                    BuildRamp(parent, stair);
+                    continue;
+                }
                 var segments = stair.Points.Count - 1;
                 var totalSteps = Mathf.Clamp(stair.StepCount, segments, 96);
                 var remaining = totalSteps;
@@ -238,6 +243,31 @@ namespace Pogranichye.Client.Presentation
                         if (treadCollider != null) UnityEngine.Object.Destroy(treadCollider);
                     }
                 }
+            }
+        }
+
+        private static void BuildRamp(Transform parent, WorldSpaceStairFrame ramp)
+        {
+            var width = Mathf.Clamp((float)ramp.WidthMeters, 0.6f, 4f);
+            for (var i = 1; i < ramp.Points.Count; i++)
+            {
+                var a = ramp.Points[i - 1];
+                var b = ramp.Points[i];
+                var from = new Vector3((float)a.X, (float)a.Y, (float)a.Z);
+                var to = new Vector3((float)b.X, (float)b.Y, (float)b.Z);
+                var direction = to - from;
+                var length = direction.magnitude;
+                if (length < 0.05f) continue;
+
+                var segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                segment.name = "Ramp_" + SafeName(ramp.Id) + "_" + (i - 1);
+                segment.transform.SetParent(parent, false);
+                segment.transform.localPosition = (from + to) * 0.5f;
+                segment.transform.localRotation = Quaternion.LookRotation(direction / length, Vector3.up);
+                segment.transform.localScale = new Vector3(width, 0.16f, length + 0.04f);
+                segment.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
+                var collider = segment.GetComponent<Collider>();
+                if (collider != null) UnityEngine.Object.Destroy(collider);
             }
         }
 
