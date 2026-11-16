@@ -78,6 +78,13 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        public static void Remove(Transform parent, WorldSpaceChunkFrame chunk)
+        {
+            if (parent == null || chunk?.Chunk == null || chunk.Chunk.Length != 2) return;
+            var root = parent.Find(RootName(chunk.Frame, chunk.Chunk[0], chunk.Chunk[1]));
+            if (root != null) RemoveRoot(root);
+        }
+
         private static void BuildSurfaces(Transform parent, WorldSpaceFrame space)
         {
             if (space.Surfaces == null) return;
