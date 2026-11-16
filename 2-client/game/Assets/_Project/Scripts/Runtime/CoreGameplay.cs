@@ -472,7 +472,8 @@ namespace Pogranichye.Client
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("ЭКИПИРОВКА · ВНЕШНИЙ ВИД ПЕРСОНАЖА");
+            GUILayout.Label("ЭКИПИРОВКА · ОБРАЗ ПЕРСОНАЖА");
+            GUILayout.Label("Это те же серверные слоты, по которым обновляется 3D-модель персонажа в мире.");
             GUILayout.BeginHorizontal();
             DrawEquipmentSlot("Правая рука", hand, "hand", items);
             DrawEquipmentSlot("Голова", WornItem(worn, "head"), "head", items);
@@ -548,9 +549,12 @@ namespace Pogranichye.Client
                         var isWeapon = IsInventoryHandItem(definition, item.Name);
                         var isUsable = IsCatalogUsable(item.Name);
                         var equipped = hand == item.Name || IsWorn(worn, item.Name);
-                        GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(82f), GUILayout.ExpandWidth(true));
+                        GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(108f), GUILayout.ExpandWidth(true));
                         GUILayout.Label(CatalogItemName(definition, item.Name));
                         GUILayout.Label("× " + quantity + (string.IsNullOrEmpty(slot) ? "" : " · " + WearSlotName(slot)));
+                        var itemSummary = InventoryItemSummary(definition);
+                        if (!string.IsNullOrEmpty(itemSummary))
+                            GUILayout.Label(itemSummary, GUILayout.MinHeight(26f));
                         GUILayout.FlexibleSpace();
                         if (isWeapon)
                         {
@@ -671,7 +675,7 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(5f);
-            GUILayout.Label("Предметы и экипировка подтверждаются сервером. Внешний вид экипировки будет отображаться по мере подключения моделей и слотов персонажа.");
+            GUILayout.Label("Действия отправляются серверу. Слоты, характеристики и внешний вид персонажа обновляются только по подтверждённому состоянию мира.");
         }
 
         public void DrawQuestJournal()
@@ -764,9 +768,11 @@ namespace Pogranichye.Client
 
         private void DrawEquipmentSlot(string label, string itemId, string slot, JObject items)
         {
-            GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(62f));
+            GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(76f));
             GUILayout.Label(label);
             GUILayout.Label(string.IsNullOrEmpty(itemId) ? "— пусто —" : CatalogName(itemId));
+            var summary = InventoryItemSummary(CatalogItem(itemId));
+            if (!string.IsNullOrEmpty(summary)) GUILayout.Label(summary);
             if (slot == "hand")
             {
                 if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Убрать"))
@@ -775,6 +781,30 @@ namespace Pogranichye.Client
             else if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Снять"))
                 Ask("Одежда", "unwear", "item", itemId);
             GUILayout.EndVertical();
+        }
+
+        private static string InventoryItemSummary(JObject definition)
+        {
+            if (definition == null) return string.Empty;
+            var parts = new List<string>();
+            if (definition["price"] != null)
+                parts.Add("цена " + Num(definition, "price").ToString("0.#", CultureInfo.InvariantCulture));
+            if (Num(definition, "armor") > 0)
+                parts.Add("защита +" + Num(definition, "armor").ToString("0.#", CultureInfo.InvariantCulture));
+            foreach (var stat in new[] { "carry", "pace", "rest" })
+                if (Num(definition, stat) != 0)
+                    parts.Add(stat + " +" + Num(definition, stat).ToString("0.#", CultureInfo.InvariantCulture));
+            var weapon = Obj(definition, "weapon");
+            if (weapon != null)
+                parts.Add("урон " + Num(weapon, "dmg").ToString("0.#", CultureInfo.InvariantCulture) +
+                    " · " + Num(weapon, "reach").ToString("0.#", CultureInfo.InvariantCulture) + " м");
+            var use = Obj(definition, "use");
+            if (use != null)
+            {
+                if (Num(use, "health") > 0) parts.Add("здоровье +" + Num(use, "health").ToString("0.#", CultureInfo.InvariantCulture));
+                if (Num(use, "energy") > 0) parts.Add("энергия +" + Num(use, "energy").ToString("0.#", CultureInfo.InvariantCulture));
+            }
+            return string.Join(" · ", parts.ToArray());
         }
 
         private static string WornItem(JObject worn, string slot)
