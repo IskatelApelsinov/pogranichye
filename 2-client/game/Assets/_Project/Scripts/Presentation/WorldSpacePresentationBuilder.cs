@@ -215,7 +215,11 @@ namespace Pogranichye.Client.Presentation
                             go.transform.localScale = new Vector3(width, 0.09f, 0.12f);
                             go.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
                             var rungCollider = go.GetComponent<Collider>();
-                            if (rungCollider != null) UnityEngine.Object.Destroy(rungCollider);
+                            if (rungCollider != null)
+                            {
+                                rungCollider.enabled = false;
+                                UnityEngine.Object.Destroy(rungCollider);
+                            }
                         }
                         continue;
                     }
@@ -240,7 +244,11 @@ namespace Pogranichye.Client.Presentation
                         // Stair geometry is visual only until server S4 enables level transitions.
                         // Do not leave primitive colliders that could imply local stair traversal.
                         var treadCollider = tread.GetComponent<Collider>();
-                        if (treadCollider != null) UnityEngine.Object.Destroy(treadCollider);
+                        if (treadCollider != null)
+                        {
+                            treadCollider.enabled = false;
+                            UnityEngine.Object.Destroy(treadCollider);
+                        }
                     }
                 }
             }
@@ -267,7 +275,11 @@ namespace Pogranichye.Client.Presentation
                 segment.transform.localScale = new Vector3(width, 0.16f, length + 0.04f);
                 segment.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
                 var collider = segment.GetComponent<Collider>();
-                if (collider != null) UnityEngine.Object.Destroy(collider);
+                if (collider != null)
+                {
+                    collider.enabled = false;
+                    UnityEngine.Object.Destroy(collider);
+                }
             }
         }
 
