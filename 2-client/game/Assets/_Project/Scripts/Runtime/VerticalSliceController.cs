@@ -1451,8 +1451,9 @@ namespace Pogranichye.Client
                 foreach (var site in sites)
                 {
                     if (site == null) continue;
-                    var localEast = site.East - settlementAnchor.East;
-                    var localNorth = site.North - settlementAnchor.North;
+                    if (!WildSiteMapProjectionPolicy.TryToSettlementLocal(
+                        site.East, site.North, settlementAnchor.East, settlementAnchor.North,
+                        out var localEast, out var localNorth)) continue;
                     var position = WorldMapProjection.ToMapPoint(
                         localEast - centerX, localNorth - centerY, half, mapRect);
                     if (!mapRect.Contains(position)) continue;
