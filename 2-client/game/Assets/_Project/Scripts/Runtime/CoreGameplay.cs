@@ -514,17 +514,6 @@ namespace Pogranichye.Client
                     GUI.enabled = previousEnabled;
                     GUILayout.EndHorizontal();
                 }
-            })
-            {
-                var quantity = Count(items, item);
-                if (quantity < 1f) continue;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                GUI.enabled = hand != item;
-                if (GUILayout.Button(hand == item ? "В руке" : "Взять в руку"))
-                    Ask("Экипировка", "equip", "item", item);
-                GUI.enabled = true;
-                GUILayout.EndHorizontal();
             }
             GUILayout.Space(4f);
             GUILayout.Label("Надето:");
@@ -558,19 +547,6 @@ namespace Pogranichye.Client
                         Ask("Одежда", equipped ? "unwear" : "wear", "item", item.Name);
                     GUILayout.EndHorizontal();
                 }
-            })
-            {
-                var quantity = Count(items, item);
-                if (quantity < 1f) continue;
-                var equipped = false;
-                if (worn != null)
-                    foreach (var slot in worn.Properties())
-                        if (slot.Value.ToString() == item) equipped = true;
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
-                    Ask("Одежда", equipped ? "unwear" : "wear", "item", item);
-                GUILayout.EndHorizontal();
             }
             GUILayout.EndVertical();
 
@@ -2993,7 +2969,7 @@ namespace Pogranichye.Client
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
             if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
             var catalogItemsForSale = Arr(_catalog, "items");
-                        if (catalogItemsForSale != null)
+            if (catalogItemsForSale != null)
             {
                 foreach (var definition in catalogItemsForSale)
                 {
