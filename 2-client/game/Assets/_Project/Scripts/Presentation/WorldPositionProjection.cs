@@ -36,16 +36,13 @@ namespace Pogranichye.Client.Presentation
             WorldAnchorFrame originAnchor, out Vector3 position)
         {
             position = Vector3.zero;
-            if (worldPosition == null || originAnchor == null || !worldPosition.IsValid ||
-                worldPosition.Frame != originAnchor.Frame ||
-                !IsFinite(originAnchor.East) || !IsFinite(originAnchor.North) || !IsFinite(originAnchor.Up))
+            if (worldPosition == null || originAnchor == null || !worldPosition.IsValid)
                 return false;
 
-            var east = worldPosition.East - originAnchor.East;
-            var north = worldPosition.North - originAnchor.North;
-            var up = worldPosition.Up - originAnchor.Up;
-            if (!IsFinite(east) || !IsFinite(north) || !IsFinite(up) ||
-                Math.Abs(east) > 1000000d || Math.Abs(north) > 1000000d || Math.Abs(up) > 1000000d)
+            if (!WorldPositionProjectionPolicy.TryProject(
+                worldPosition.Frame, worldPosition.East, worldPosition.North, worldPosition.Up,
+                originAnchor.Frame, originAnchor.East, originAnchor.North, originAnchor.Up,
+                out var east, out var up, out var north))
                 return false;
 
             position = new Vector3((float)east, (float)up, (float)north);
