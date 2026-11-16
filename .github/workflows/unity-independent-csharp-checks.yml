@@ -83,10 +83,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Install Mono compiler
+      - name: Install Mono compiler and Newtonsoft.Json
         run: |
           sudo apt-get update
-          sudo apt-get install -y mono-mcs libnewtonsoft-json-cil-dev
+          sudo apt-get install -y mono-mcs unzip
+          mkdir -p "$RUNNER_TEMP/newtonsoft"
+          curl -fsSL https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg -o "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg"
+          unzip -q "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg" -d "$RUNNER_TEMP/newtonsoft"
+          test -f "$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
@@ -176,7 +180,7 @@ jobs:
       - name: Typed feed frame parser regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/feed-frame-parser.exe
