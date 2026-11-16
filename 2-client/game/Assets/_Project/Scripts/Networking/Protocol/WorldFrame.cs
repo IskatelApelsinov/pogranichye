@@ -242,6 +242,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("rooms")] public PlaceRoomsFrame Rooms { get; set; }
         // Public stable stock and price; purchase remains a server-authoritative horse intent.
         [JsonProperty("stable")] public StableFrame Stable { get; set; }
+        // v1.22 nearby wilderness places; actions and proximity are server-authored.
+        [JsonProperty("sites")] public List<WildPlaceFrame> Sites { get; set; }
     }
 
     [Serializable]
@@ -249,6 +251,23 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("horses")] public double Horses { get; set; }
         [JsonProperty("price")] public double Price { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WildPlaceFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("dist")] public double DistanceMeters { get; set; }
+        [JsonProperty("dir")] public string Direction { get; set; }
+        [JsonProperty("acts")] public List<string> Actions { get; set; }
+        [JsonProperty("here")] public bool Here { get; set; }
+        [JsonProperty("gives")] public string Gives { get; set; }
+        [JsonProperty("left")] public double Remaining { get; set; }
     }
 
     [Serializable]
