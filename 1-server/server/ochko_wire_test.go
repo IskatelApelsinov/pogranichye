@@ -157,3 +157,74 @@ func TestOchkoPersistsAcrossWorldSaveLoad(t *testing.T) {
 		t.Fatalf("saved hidden card leaked after reconnect: %#v", view)
 	}
 }
+
+// TestOchkoLeaveOverWireUnblocksAfterReconnect — task_ai 006/issue #651 (Б), сквозной сценарий:
+// игрок начал партию, "вылетел" (здесь — save/load, как в TestOchkoPersistsAcrossWorldSaveLoad,
+// проксирующем reconnect), партия сохранилась активной (так и должно быть — не сбрасываем из-за
+// обрыва связи), но до этого PR старт новой партии оставался заблокирован навсегда ("ты уже
+// играешь партию"), потому что доиграть могло только то же действие от игрока, которого он больше
+// не присылал. Проверяем новый "leave" op целиком через applyIntent/me.result, как клиент его бы
+// увидел, и что после него новая партия стартует.
+func TestOchkoLeaveOverWireUnblocksAfterReconnect(t *testing.T) {
+	s := NewStarter("ochko-leave-wire", "", []byte("x"), "")
+	var cid core.ID
+	s.world.Each("ident", func(e *core.Entity) {
+		if cid != 0 {
+			return
+		}
+		if v := core.Vitals(e); v != nil && v.Age >= 18 {
+			if p := core.Place(e); p != nil && p.Settlement != 0 {
+				cid = e.ID
+			}
+		}
+	})
+	if cid == 0 {
+		t.Fatal("нет тела для карточной игры")
+	}
+	e := s.world.Get(cid)
+	sim.EnsureScenePos(s.world, e)
+	sim.EnsurePlayer(s.world, e)
+	s.world.Attach(e, &core.PurseC{Coins: 100, Debts: map[string]float64{}})
+	core.Settle(s.world.Get(core.Place(e).Settlement)).Tavern = true
+	sim.GoTo(s.world, e, "tavern")
+
+	s.applyIntent(cid, `{"v":1,"op":"card_game","action":"start","reqid":"w1"}`)
+	if g := sim.Ochko(e); g == nil || g.Done {
+		t.Fatalf("после start партия должна быть активной: %#v", g)
+	}
+
+	// "вылетел" и переподключился — сервер при reconnect просто отдаёт то же состояние, тестируем
+	// это отдельно (TestOchkoPersistsAcrossWorldSaveLoad); здесь — что он реально застрял до leave.
+	if ok, _, _ := s.resultOf(cid, `{"v":1,"op":"card_game","action":"start","reqid":"w2"}`, "w2"); ok {
+		t.Fatal("до leave новая партия не должна стартовать (застрявшее состояние)")
+	}
+
+	if ok, why, _ := s.resultOf(cid, `{"v":1,"op":"card_game","action":"leave","reqid":"w3"}`, "w3"); !ok {
+		t.Fatalf("leave должен сработать: %s", why)
+	}
+	if g := sim.Ochko(e); !g.Done || g.Result != "left" {
+		t.Fatalf("после leave партия должна быть Done/left: %#v", g)
+	}
+
+	if ok, why, _ := s.resultOf(cid, `{"v":1,"op":"card_game","action":"start","reqid":"w4"}`, "w4"); !ok {
+		t.Fatalf("после leave новая партия должна стартовать: %s", why)
+	}
+}
+
+// resultOf — послать intent и вернуть его me.result (ok, reason) по reqid, как клиент бы увидел
+// через me.result в кадре.
+func (s *Server) resultOf(cid core.ID, raw, reqid string) (bool, string, map[string]any) {
+	s.applyIntent(cid, raw)
+	var frame map[string]any
+	if err := json.Unmarshal([]byte(s.stateJSON(cid)), &frame); err != nil {
+		return false, err.Error(), nil
+	}
+	me, _ := frame["me"].(map[string]any)
+	result, _ := me["result"].(map[string]any)
+	if result == nil || result["reqid"] != reqid {
+		return false, "нет коррелируемого me.result", me
+	}
+	ok, _ := result["ok"].(bool)
+	why, _ := result["reason"].(string)
+	return ok, why, me
+}

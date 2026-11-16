@@ -15,9 +15,15 @@ assert.match(html, /JSON\.stringify\(me\.card_game\|\|null\)/);
 assert.match(html, /drawCardTable\(M,me\)/);
 
 // Both games use only the public me.card_game fields and the server's action/index contract.
-for (const action of ['start', 'hit', 'stand', 'take', 'done']) {
+for (const action of ['start', 'hit', 'stand', 'take', 'done', 'leave']) {
   assert.ok(html.includes(`action:'${action}'`), `missing card-game action: ${action}`);
 }
+
+// task_ai 006/issue #651: leave must be reachable even outside your own turn (durak) — otherwise a
+// player who abandoned mid-round, stuck on the dealer's turn, has no way out at all. The durak
+// leave button must sit in a block gated only by `!game.done`, not `game.your_turn&&!game.done`.
+assert.doesNotMatch(html, /game\.your_turn&&!game\.done\)\{const controls/);
+assert.match(html, /Выйти из-за стола/);
 assert.match(html, /game\.role==='attack'\?'attack':'defend'/);
 assert.match(html, /game:'durak',action,index/);
 assert.match(html, /dealer_cards/);

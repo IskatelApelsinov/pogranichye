@@ -21,13 +21,13 @@ type OchkoCard struct {
 
 // OchkoC is the private, reconnect-safe state of one player's game against the innkeeper.
 type OchkoC struct {
-	Deck   []OchkoCard `json:"deck"`
-	Player []OchkoCard `json:"player"`
-	Dealer []OchkoCard `json:"dealer"`
-	Stake  float64     `json:"stake"`
-	Done   bool        `json:"done"`
-	Result string      `json:"result"`
-	Message string     `json:"message"`
+	Deck    []OchkoCard `json:"deck"`
+	Player  []OchkoCard `json:"player"`
+	Dealer  []OchkoCard `json:"dealer"`
+	Stake   float64     `json:"stake"`
+	Done    bool        `json:"done"`
+	Result  string      `json:"result"`
+	Message string      `json:"message"`
 }
 
 func (c *OchkoC) Kind() string { return "ochko" }
@@ -70,7 +70,7 @@ func ochkoTotal(hand []OchkoCard) int {
 
 func ochkoDeck() []OchkoCard {
 	ranks := []struct {
-		code string
+		code  string
 		value int
 	}{
 		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6}, {"7", 7},
@@ -209,6 +209,20 @@ func HitOchko(w *core.World, e *core.Entity, reqid string) (bool, string) {
 func StandOchko(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	return changeOchko(w, e, reqid, func(g *OchkoC, pu *core.PurseC) (bool, string) {
 		finishOchko(g, pu, false)
+		return true, ""
+	})
+}
+
+// LeaveOchko — task_ai 006/issue #651 (Б): явный выход из партии. Stand уже всегда доигрывает
+// раздачу до конца (ничьей/выигрыша/проигрыша), так что очко сама по себе не зависает — leave
+// добавлен для симметрии с дураком и единой кнопки «сдаться» в клиенте: засчитывает проигрыш,
+// ставка (уже списана при старте) заведению не возвращается, партия помечается Done, новую можно
+// начинать сразу же. Идемпотентен тем же reqid-механизмом, что hit/stand.
+func LeaveOchko(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	return changeOchko(w, e, reqid, func(g *OchkoC, pu *core.PurseC) (bool, string) {
+		g.Done = true
+		g.Result = "left"
+		g.Message = "Ты встал из-за стола — ставка ушла заведению."
 		return true, ""
 	})
 }

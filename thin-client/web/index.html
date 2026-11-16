@@ -579,7 +579,8 @@ function drawCardTable(M,me){
    cardRow(panel,'Твоя рука · '+(game.ptotal||0)+' очков',game.player||[]);
    if(!game.done){const controls=document.createElement('div');controls.className='acts';
      controls.append(btn('Ещё карту',()=>send({op:'card_game',game:'ochko',action:'hit'})));
-     controls.append(btn('Хватит',()=>send({op:'card_game',game:'ochko',action:'stand'})));panel.appendChild(controls);}
+     controls.append(btn('Хватит',()=>send({op:'card_game',game:'ochko',action:'stand'})));
+     controls.append(btn('Выйти из-за стола',()=>send({op:'card_game',game:'ochko',action:'leave'})));panel.appendChild(controls);}
  } else if(game.game==='durak'){
    const info=document.createElement('div');info.className='sub';info.textContent='Козырь '+(game.trump||'—')+' · нижняя карта '+(game.trump_card||'нет')+' · колода '+(game.deck||0)+' · у корчмаря '+(game.dealer_cards||0);panel.appendChild(info);
    const table=document.createElement('div');table.className='mg';const tableTitle=document.createElement('b');tableTitle.className='sub';tableTitle.textContent='На столе';table.appendChild(tableTitle);
@@ -589,10 +590,13 @@ function drawCardTable(M,me){
    const hand=document.createElement('div');hand.className='row';hand.style.gap='5px';
    (game.player||[]).forEach((card,index)=>{const action=game.role==='attack'?'attack':'defend';const allowed=game.your_turn&&((action==='attack'&&game.phase==='attack')||(action==='defend'&&game.phase==='defend'));const b=btn(card.c||'?',()=>send({op:'card_game',game:'durak',action,index}),!allowed);b.style.cssText='min-width:46px;padding:10px 7px;background:#e8dfc8;color:#28231b;border-color:#8b704b;font-weight:bold';if(/[♥♦]/.test(card.c||''))b.style.color='#a33a30';hand.appendChild(b);});
    panel.appendChild(hand);
-   if(game.your_turn&&!game.done){const controls=document.createElement('div');controls.className='acts';
-     if(game.role==='defend'&&game.phase==='defend')controls.append(btn('Взять карты',()=>send({op:'card_game',game:'durak',action:'take'})));
-     if(game.role==='attack'&&game.phase==='attack'&&(game.table||[]).length&&(game.table||[]).every(p=>p.d))controls.append(btn('Бито',()=>send({op:'card_game',game:'durak',action:'done'})));
-     if(controls.childElementCount)panel.appendChild(controls);}
+   if(!game.done){const controls=document.createElement('div');controls.className='acts';
+     if(game.your_turn&&game.role==='defend'&&game.phase==='defend')controls.append(btn('Взять карты',()=>send({op:'card_game',game:'durak',action:'take'})));
+     if(game.your_turn&&game.role==='attack'&&game.phase==='attack'&&(game.table||[]).length&&(game.table||[]).every(p=>p.d))controls.append(btn('Бито',()=>send({op:'card_game',game:'durak',action:'done'})));
+     // task_ai 006/issue #651: доступно ВСЕГДА, пока партия не done — не только в свой ход, иначе
+     // разорвавший партию не ходом игрок не сможет выйти (там же, где застрял).
+     controls.append(btn('Выйти из-за стола',()=>send({op:'card_game',game:'durak',action:'leave'})));
+     panel.appendChild(controls);}
  }
  M.appendChild(panel);
 }
