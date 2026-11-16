@@ -640,7 +640,13 @@ namespace Pogranichye.Client
                     foreach (var good in goods)
                     {
                         hasStash = true;
+                        GUILayout.BeginHorizontal();
                         GUILayout.Label(CatalogName(good) + " ×" + (int)Num(stash, good));
+                        if (IsCatalogUsable(good) && GUILayout.Button("Использовать", GUILayout.Width(112f)))
+                            Ask("Еда", "use", "item", good);
+                        if (_horse != null && _horse.Here && GUILayout.Button("В седло", GUILayout.Width(88f)))
+                            Ask("Вьюк", "horse", "action", "stow", "good", good, "qty", 1);
+                        GUILayout.EndHorizontal();
                     }
                 }
                 if (!hasStash) GUILayout.Label("Закрома пусты или недоступны.");
@@ -652,7 +658,13 @@ namespace Pogranichye.Client
                     if (_horse.Bag != null)
                         foreach (var packed in _horse.Bag)
                             if (packed.Value > 0)
+                            {
+                                GUILayout.BeginHorizontal();
                                 GUILayout.Label(CatalogName(packed.Key) + " ×" + (int)packed.Value);
+                                if (_horse.Here && GUILayout.Button("Забрать", GUILayout.Width(112f)))
+                                    Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
+                                GUILayout.EndHorizontal();
+                            }
                 }
                 else GUILayout.Label("Лошади пока нет.");
                 GUILayout.EndVertical();
