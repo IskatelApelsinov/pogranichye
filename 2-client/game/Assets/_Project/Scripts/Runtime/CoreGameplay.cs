@@ -3268,8 +3268,16 @@ namespace Pogranichye.Client
                             var action = actionToken == null ? string.Empty : actionToken.ToString();
                             if (string.IsNullOrEmpty(action)) continue;
                             var label = WildPlaceActionName(action, gives);
-                            if (GUILayout.Button(label, GUILayout.Height(28f)))
-                                Ask(label, "site", "site", id, "action", action);
+                            var previousEnabled = GUI.enabled;
+                            if (action == "forage" && Num(site, "left") < 1f) GUI.enabled = false;
+                            if (action == "forage" && gives == "fish" && Str(Obj(_me, "inv"), "hand") != "rod")
+                            {
+                                GUI.enabled = false;
+                                GUILayout.Label("Для рыбалки нужна удочка в руке.");
+                            }
+                            var clicked = GUILayout.Button(label, GUILayout.Height(28f));
+                            GUI.enabled = previousEnabled;
+                            if (clicked) Ask(label, "site", "site", id, "action", action);
                         }
                     }
                 }
@@ -3283,15 +3291,20 @@ namespace Pogranichye.Client
         {
             switch (kind)
             {
+                case "camp": return "старая стоянка";
                 case "spring": return "родник";
                 case "berry": return "ягодник";
-                case "thicket": return "заросли";
-                case "clearing": return "вырубка";
+                case "herbs": return "травяной луг";
+                case "thicket": return "бурелом / чаща";
+                case "outcrop": return "рудная осыпь";
                 case "pond": return "пруд";
                 case "hut": return "хижина";
-                case "mound": return "курган";
+                case "barrow": return "курган";
                 case "ruins": return "руины";
                 case "den": return "логово";
+                case "cave": return "пещера";
+                case "tower": return "старая башня";
+                case "grove": return "священная роща";
                 default: return "урочище";
             }
         }
