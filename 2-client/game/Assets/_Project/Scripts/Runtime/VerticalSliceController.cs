@@ -4786,6 +4786,8 @@ namespace Pogranichye.Client
                     }
                     else
                     {
+                        if (_spaceChunks.TryGetValue(chunkId, out var previousSpaces))
+                            WorldSpacePresentationBuilder.Remove(_presentationRoot, previousSpaces);
                         _spaceChunks.Remove(chunkId);
                     }
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
