@@ -62,7 +62,18 @@ func (c *sliceClient) full() map[string]any {
 func (c *sliceClient) gotoAndWait(location string) map[string]any {
 	c.t.Helper()
 	c.send(`{"v":1,"op":"goto","location":"%s"}`, location)
-	tx, ty := sim.StarterLayout().POI(location)
+	// task_ai 006/issue #651: goto("tavern") теперь ведёт к стойке внутри, а не к порогу снаружи
+	// (sim.GoTo) — проверяем прибытие по тому же месту, куда сервер реально ставит тело.
+	var tx, ty float64
+	if location == "tavern" {
+		var ok bool
+		tx, ty, _, ok = sim.StarterLayout().TavernCounter()
+		if !ok {
+			c.t.Fatal("у стартовой раскладки должна быть стойка корчмы")
+		}
+	} else {
+		tx, ty = sim.StarterLayout().POI(location)
+	}
 	for i := 0; i < 10; i++ {
 		f := c.full()
 		me, _ := f["me"].(map[string]any)
@@ -306,17 +317,9 @@ search:
 	if ok, _, _ := c.result(`"op":"buy","item":"beer"`); ok {
 		t.Fatal("пиво в лесу купить нельзя")
 	}
+	// task_ai 006/issue #651: goto("tavern") сам доводит до стойки (sim.GoTo) — отдельный
+	// workaround-телепорт через мир больше не нужен (comms 0223 + этот PR).
 	c.gotoAndWait("tavern")
-	// comms 0223: заказ пива требует стоять именно у стойки внутри здания, а не только у двери
-	// снаружи (куда доходит навигация по старому POI "tavern"/goto) — для e2e-теста доходим до
-	// стойки напрямую через мир, как дошёл бы игрок, если бы клиент уже умел ходить по интерьеру.
-	c.world(func(e *core.Entity) {
-		cx, cy, _, ok := sim.StarterLayout().TavernCounter()
-		if !ok {
-			c.t.Fatal("у стартовой раскладки должна быть стойка корчмы")
-		}
-		sim.ScenePos(e).X, sim.ScenePos(e).Y = cx, cy
-	})
 	var coins0, beerStock0 float64
 	c.world(func(e *core.Entity) {
 		coins0 = core.Purse(e).Coins

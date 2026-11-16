@@ -667,17 +667,22 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 					ok, why = sim.HitOchko(s.world, e, in.ReqID)
 				case "stand":
 					ok, why = sim.StandOchko(s.world, e, in.ReqID)
+				case "leave": // task_ai 006/issue #651: явный выход, чтобы осиротевшая партия не блокировала новую навечно
+					ok, why = sim.LeaveOchko(s.world, e, in.ReqID)
 				default:
 					why = "неизвестный ход в очко"
 				}
 			case "durak":
-				if in.Action == "start" {
+				switch {
+				case in.Action == "start":
 					shuffle := s.durakShuffle
 					if shuffle == nil {
 						shuffle = shuffleDurakDeck
 					}
 					ok, why = sim.StartDurak(s.world, e, in.ReqID, shuffle)
-				} else {
+				case in.Action == "leave": // task_ai 006/issue #651: см. комментарий у LeaveDurak
+					ok, why = sim.LeaveDurak(s.world, e, in.ReqID)
+				default:
 					ok, why = sim.ActDurak(s.world, e, in.Action, in.Index, in.ReqID)
 				}
 			default:

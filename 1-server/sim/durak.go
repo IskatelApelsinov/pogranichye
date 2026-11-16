@@ -532,7 +532,45 @@ func ActDurak(w *core.World, e *core.Entity, action string, index int, reqid str
 	return true, ""
 }
 
- // CardGameView exposes the last selected personal table, without exposing any server-only state.
+// LeaveDurak — task_ai 006/issue #651 (Б): явный выход из партии. В отличие от очко, у дурака
+// нет действия, гарантированно доигрывающего партию за один ход — если игрок вышел из игры
+// (разрыв связи, не хочет доигрывать), без этого StartDurak/StartOchko держали бы "ты уже
+// играешь партию"/"сначала закончи партию в дурака" НАВСЕГДА, потому что доиграть может только
+// тот же игрок тем же действием, которого он уже не присылает. Засчитывает проигрыш (ставка,
+// списанная при старте, заведению не возвращается — тот же исход, что default в ActDurak при
+// Loser=="player"), помечает Done+Settled, новую партию можно начинать сразу же.
+func LeaveDurak(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	if e == nil {
+		return false, "нет тела"
+	}
+	if reqid == "" {
+		return false, "нужен reqid"
+	}
+	pc := EnsurePlayer(w, e)
+	if pc.alreadyDone(reqid) {
+		return true, ""
+	}
+	g, pu := Durak(e), core.Purse(e)
+	if g == nil || g.Done {
+		return false, "партия не идёт — начни заново"
+	}
+	if !atTavern(w, e) {
+		return false, "вернись к карточному столу в корчме"
+	}
+	if !inTavernSettlement(w, e) {
+		return false, "здесь нет корчмы"
+	}
+	if pu == nil {
+		return false, "нет кошеля"
+	}
+	g.Done, g.Settled, g.Loser = true, true, "player"
+	g.Result = "left"
+	g.Message = "Ты вышел из-за стола — ставка ушла заведению."
+	pc.markDone(reqid)
+	return true, ""
+}
+
+// CardGameView exposes the last selected personal table, without exposing any server-only state.
 func CardGameView(e *core.Entity) any {
 	if pc := Player(e); pc != nil && pc.CardGame == "durak" {
 		return DurakView(e)

@@ -121,3 +121,37 @@ func TestOchkoRequiresCurrentTavernAndLivingPlayer(t *testing.T) {
 		t.Fatal("a dead character must not start a card game")
 	}
 }
+
+// TestOchkoLeaveForfeitsAndUnblocksNewStart — task_ai 006/issue #651 (Б): до leave разорванная/
+// недоигранная партия держала бы "ты уже играешь партию" навечно — проверяем явный выход:
+// ставка (уже списана при старте) не возвращается, партия помечается Done, новая стартует сразу.
+func TestOchkoLeaveForfeitsAndUnblocksNewStart(t *testing.T) {
+	w := core.NewWorld("ochko-leave")
+	e, _ := drinker(w, 100, 0)
+	shuffle := fixedOchkoDeck(map[int]OchkoCard{ // не natural 21 — партия остаётся "playing"
+		51: {Code: "5♠", Value: 5}, 50: {Code: "K♠", Value: 10},
+		49: {Code: "6♣", Value: 6}, 48: {Code: "7♦", Value: 7},
+	})
+	if ok, why := StartOchko(w, e, "s1", shuffle); !ok {
+		t.Fatalf("start: %s", why)
+	}
+	if ok, _ := StartOchko(w, e, "s2", shuffle); ok {
+		t.Fatal("вторую партию не начать, пока первая не окончена/не оставлена")
+	}
+	if ok, why := LeaveOchko(w, e, "leave-1"); !ok {
+		t.Fatalf("leave: %s", why)
+	}
+	if g := Ochko(e); !g.Done || g.Result != "left" {
+		t.Fatalf("leave должен пометить партию завершённой с результатом left: %#v", g)
+	}
+	if got := core.Purse(e).Coins; got != 90 { // 100 - OchkoStake(10), ставка не вернулась
+		t.Fatalf("ставка при leave не должна возвращаться: осталось %.2f", got)
+	}
+	// повтор того же reqid — не повторяет эффект (идемпотентность, как у hit/stand)
+	if ok, _ := LeaveOchko(w, e, "leave-1"); !ok || core.Purse(e).Coins != 90 {
+		t.Fatal("повторный leave с тем же reqid не должен менять состояние")
+	}
+	if ok, why := StartOchko(w, e, "s3", shuffle); !ok {
+		t.Fatalf("после leave новая партия должна стартовать: %s", why)
+	}
+}

@@ -17,16 +17,16 @@ func fixedDurakDeck(set map[int]DurakCard) func([]DurakCard) error {
 
 func quietDurakDeck() func([]DurakCard) error {
 	set := map[int]DurakCard{
-		0: {Rank: 6, Suit: "♥", Code: "6♥"},
-		1: {Rank: 6, Suit: "♦", Code: "6♦"},
-		2: {Rank: 7, Suit: "♥", Code: "7♥"},
-		3: {Rank: 7, Suit: "♦", Code: "7♦"},
-		4: {Rank: 8, Suit: "♣", Code: "8♣"},
-		5: {Rank: 8, Suit: "♦", Code: "8♦"},
-		6: {Rank: 9, Suit: "♣", Code: "9♣"},
-		7: {Rank: 9, Suit: "♦", Code: "9♦"},
-		8: {Rank: 10, Suit: "♣", Code: "10♣"},
-		9: {Rank: 10, Suit: "♦", Code: "10♦"},
+		0:  {Rank: 6, Suit: "♥", Code: "6♥"},
+		1:  {Rank: 6, Suit: "♦", Code: "6♦"},
+		2:  {Rank: 7, Suit: "♥", Code: "7♥"},
+		3:  {Rank: 7, Suit: "♦", Code: "7♦"},
+		4:  {Rank: 8, Suit: "♣", Code: "8♣"},
+		5:  {Rank: 8, Suit: "♦", Code: "8♦"},
+		6:  {Rank: 9, Suit: "♣", Code: "9♣"},
+		7:  {Rank: 9, Suit: "♦", Code: "9♦"},
+		8:  {Rank: 10, Suit: "♣", Code: "10♣"},
+		9:  {Rank: 10, Suit: "♦", Code: "10♦"},
 		10: {Rank: 11, Suit: "♣", Code: "В♣"},
 		11: {Rank: 11, Suit: "♦", Code: "В♦"},
 		35: {Rank: 14, Suit: "♠", Code: "Т♠"},
@@ -70,16 +70,16 @@ func TestDurakTrumpDefenseAndThrowInRankRule(t *testing.T) {
 	w := core.NewWorld("durak-rules")
 	e, _ := drinker(w, 100, 0)
 	set := map[int]DurakCard{
-		0: {Rank: 6, Suit: "♥", Code: "6♥"},
-		1: {Rank: 7, Suit: "♥", Code: "7♥"},
-		2: {Rank: 8, Suit: "♣", Code: "8♣"},
-		3: {Rank: 6, Suit: "♦", Code: "6♦"},
-		4: {Rank: 9, Suit: "♦", Code: "9♦"},
-		5: {Rank: 7, Suit: "♦", Code: "7♦"},
-		6: {Rank: 10, Suit: "♦", Code: "10♦"},
-		7: {Rank: 8, Suit: "♦", Code: "8♦"},
-		8: {Rank: 11, Suit: "♦", Code: "В♦"},
-		9: {Rank: 12, Suit: "♦", Code: "Д♦"},
+		0:  {Rank: 6, Suit: "♥", Code: "6♥"},
+		1:  {Rank: 7, Suit: "♥", Code: "7♥"},
+		2:  {Rank: 8, Suit: "♣", Code: "8♣"},
+		3:  {Rank: 6, Suit: "♦", Code: "6♦"},
+		4:  {Rank: 9, Suit: "♦", Code: "9♦"},
+		5:  {Rank: 7, Suit: "♦", Code: "7♦"},
+		6:  {Rank: 10, Suit: "♦", Code: "10♦"},
+		7:  {Rank: 8, Suit: "♦", Code: "8♦"},
+		8:  {Rank: 11, Suit: "♦", Code: "В♦"},
+		9:  {Rank: 12, Suit: "♦", Code: "Д♦"},
 		10: {Rank: 13, Suit: "♦", Code: "К♦"},
 		11: {Rank: 14, Suit: "♦", Code: "Т♦"},
 		35: {Rank: 14, Suit: "♠", Code: "Т♠"},
@@ -170,4 +170,36 @@ func TestDurakSettlementWinPushAndLoss(t *testing.T) {
 			t.Fatalf("player who remains with cards must lose stake: %#v coins=%.2f", g, core.Purse(e).Coins)
 		}
 	})
+}
+
+// TestDurakLeaveForfeitsAndUnblocksOtherGame — task_ai 006/issue #651 (Б): дурак, в отличие от
+// очко, не доигрывается одним действием игрока — разорванная/брошенная партия без leave держала
+// бы StartOchko/StartDurak «сначала закончи партию в дурака» НАВСЕГДА. Проверяем выход из дурака,
+// причём разблокирует он И ДРУГУЮ игру (очко) — именно так блокирует StartOchko (comms 0040/
+// изначальный кросс-игровой guard).
+func TestDurakLeaveForfeitsAndUnblocksOtherGame(t *testing.T) {
+	w := core.NewWorld("durak-leave")
+	e, _ := drinker(w, 100, 0)
+	if ok, why := StartDurak(w, e, "start", quietDurakDeck()); !ok {
+		t.Fatalf("start: %s", why)
+	}
+	if ok, _ := StartOchko(w, e, "blocked", fixedOchkoDeck(nil)); ok {
+		t.Fatal("очко не должно стартовать, пока дурак не окончен/не оставлен")
+	}
+	if ok, why := LeaveDurak(w, e, "leave-1"); !ok {
+		t.Fatalf("leave: %s", why)
+	}
+	g := Durak(e)
+	if !g.Done || !g.Settled || g.Loser != "player" || g.Result != "left" {
+		t.Fatalf("leave должен засчитать проигрыш и пометить Done/Settled: %#v", g)
+	}
+	if got := core.Purse(e).Coins; got != 90 { // 100 - DurakStake(10), ставка не вернулась
+		t.Fatalf("ставка при leave не должна возвращаться: осталось %.2f", got)
+	}
+	if ok, _ := LeaveDurak(w, e, "leave-1"); !ok || core.Purse(e).Coins != 90 {
+		t.Fatal("повторный leave с тем же reqid не должен менять состояние")
+	}
+	if ok, why := StartOchko(w, e, "unblocked", fixedOchkoDeck(nil)); !ok {
+		t.Fatalf("после leave из дурака должна стартовать и ДРУГАЯ игра: %s", why)
+	}
 }
