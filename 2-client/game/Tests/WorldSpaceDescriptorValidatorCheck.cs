@@ -47,6 +47,7 @@ public static class WorldSpaceDescriptorValidatorCheck
         ExpectInvalid(fixture, "surface with fewer than three vertices", delegate(WorldSpaceChunkFrame value)
         {
             value.Spaces[0].Surfaces[0].Points.RemoveAt(2);
+            value.Spaces[0].Surfaces[0].Points.RemoveAt(2);
         });
         ExpectInvalid(fixture, "duplicate surface id", delegate(WorldSpaceChunkFrame value)
         {
