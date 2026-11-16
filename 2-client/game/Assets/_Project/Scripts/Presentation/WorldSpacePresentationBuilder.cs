@@ -209,6 +209,8 @@ namespace Pogranichye.Client.Presentation
                             go.transform.localPosition = centre;
                             go.transform.localScale = new Vector3(width, 0.09f, 0.12f);
                             go.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
+                            var rungCollider = go.GetComponent<Collider>();
+                            if (rungCollider != null) UnityEngine.Object.Destroy(rungCollider);
                         }
                         continue;
                     }
@@ -229,9 +231,11 @@ namespace Pogranichye.Client.Presentation
                         tread.transform.localPosition = centre;
                         tread.transform.localRotation = rotation;
                         tread.transform.localScale = new Vector3(width, 0.14f, Mathf.Max(0.16f, run + 0.04f));
-                        // Local collider is useful for presentation physics only; server movement
-                        // validation remains authoritative and must agree with this stair corridor.
                         tread.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
+                        // Stair geometry is visual only until server S4 enables level transitions.
+                        // Do not leave primitive colliders that could imply local stair traversal.
+                        var treadCollider = tread.GetComponent<Collider>();
+                        if (treadCollider != null) UnityEngine.Object.Destroy(treadCollider);
                     }
                 }
             }
