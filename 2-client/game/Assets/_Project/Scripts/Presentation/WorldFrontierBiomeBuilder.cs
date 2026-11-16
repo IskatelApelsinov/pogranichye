@@ -276,6 +276,15 @@ namespace Pogranichye.Client.Presentation
                 AddCone(near.Leaves, p + Vector3.up * (h * 0.34f), r, h * 0.72f, 5);
                 AddCone(mid.Leaves, p + Vector3.up * (h * 0.34f), r * 0.9f, h * 0.7f, 4);
             }
+            else if (biome == "meadow" || biome == "steppe" || biome == "coast")
+            {
+                // Open biomes get visible grass/reed clumps instead of a forest-like carpet of bushes.
+                float bladeHeight = h * (biome == "steppe" ? 1.45f : 1.0f);
+                AddBlade(near.Leaves, p + Vector3.up * (bladeHeight * 0.5f), r, bladeHeight, variation * 6.28f);
+                AddBlade(near.Leaves, p + Vector3.up * (bladeHeight * 0.42f), r * 0.86f, bladeHeight * 0.84f, variation * 6.28f + 1.7f);
+                AddBlade(near.Leaves, p + Vector3.up * (bladeHeight * 0.38f), r * 0.72f, bladeHeight * 0.76f, variation * 6.28f + 3.2f);
+                AddBlade(mid.Leaves, p + Vector3.up * (bladeHeight * 0.42f), r * 0.9f, bladeHeight * 0.82f, variation * 6.28f);
+            }
             else
             {
                 AddSphere(near.Leaves, p + Vector3.up * (h * 0.46f), r, h * 0.58f, 5, 3);
@@ -442,7 +451,10 @@ namespace Pogranichye.Client.Presentation
         {
             string b = (value ?? string.Empty).Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
             if (b.Contains("marsh") || b.Contains("swamp") || b.Contains("wetland") || b.Contains("bog")) return "marsh";
-            if (b.Contains("mountain") || b.Contains("alpine") || b.Contains("highland") || b.Contains("rock")) return "alpine";
+            if (b.Contains("mountain") || b.Contains("alpine") || b.Contains("highland") || b.Contains("rock") || b == "hills") return "alpine";
+            if (b == "coast" || b.Contains("shore")) return "coast";
+            if (b == "steppe") return "steppe";
+            if (b == "plain" || b == "plains") return "meadow";
             if (b.Contains("conifer") || b.Contains("taiga") || b.Contains("pine") || b.Contains("spruce")) return "coniferous_forest";
             if (b.Contains("deciduous") || b.Contains("broadleaf") || b.Contains("oak") || b.Contains("birch")) return "deciduous_forest";
             if (b.Contains("forest") || b.Contains("wood")) return "mixed_forest";
@@ -459,10 +471,11 @@ namespace Pogranichye.Client.Presentation
         }
 
         private static float TreeDensity(string biome) => IsAlpine(biome) ? 0.28f : IsMarsh(biome) ? 0.18f :
-            biome == "meadow" ? 0.12f : 0.82f;
+            biome == "meadow" ? 0.12f : biome == "steppe" ? 0.08f : biome == "coast" ? 0.24f : 0.82f;
         private static float DefaultForest(string biome) => IsAlpine(biome) ? 0.12f : IsMarsh(biome) ? 0.18f :
-            biome == "meadow" ? 0.08f : 0.62f;
-        private static float DefaultGrass(string biome) => IsMarsh(biome) ? 0.72f : IsAlpine(biome) ? 0.22f : 0.58f;
+            biome == "meadow" ? 0.08f : biome == "steppe" ? 0.02f : biome == "coast" ? 0.15f : 0.62f;
+        private static float DefaultGrass(string biome) => IsMarsh(biome) ? 0.72f : IsAlpine(biome) ? 0.22f :
+            biome == "steppe" ? 0.85f : biome == "coast" ? 0.45f : 0.75f;
         private static float DefaultRock(string biome) => IsAlpine(biome) ? 0.72f : 0.12f;
         private static float DefaultWet(string biome) => IsMarsh(biome) ? 0.82f : 0.08f;
         private static bool IsMarsh(string biome) => biome == "marsh";
