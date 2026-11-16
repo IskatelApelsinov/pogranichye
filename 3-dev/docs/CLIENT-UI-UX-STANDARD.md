@@ -133,3 +133,14 @@ The character/journal panel has an explicit top-right close affordance in additi
 ## Progressive disclosure — first-play summary
 
 The character summary prioritizes the current opening step and tavern/social context. Optional free practice, mini-games, mana and weave controls are grouped behind an explicit “Показать дополнительные занятия” disclosure. This is a presentation hierarchy only: all values and eligibility remain server-owned, and the journal keeps the full task explanation.
+
+
+## UX sprint 2026-11-16 — owner direction and map navigation
+
+- The owner has explicitly prioritized a focused UX sprint: character menu, map navigation, mouse/UI ownership and overall interaction clarity.
+- The local settlement map now has source-level drag panning and a recenter-to-player control in the UX branch. The pan offset is view-only; it cannot alter server position or reveal undiscovered geography.
+- Next work should prioritize a dedicated map-focused layout rather than keeping the only map inside the narrow character-panel scroll view.
+- The F key is currently bound to `QuickAttack`. Do not repurpose it casually: inspect all combat consumers and propose a complete control layout before changing it. E remains the contextual world-interaction key.
+- Server remains the sole authority for spawn location, map geometry, road connections, known settlements, discoveries, action eligibility and outcomes.
+- Reference principles: Kingdom Come: Deliverance (restrained historical inventory), Red Dead Redemption 2 (map/navigation clarity), The Witcher 3 (information architecture), Valheim (exploration-first map). Do not copy their assets or UI literally.
+- Detailed implementation/review checklist: `3-dev/comms/0263-chatgpt-to-claude-ux-sprint.md`.

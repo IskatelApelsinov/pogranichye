@@ -192,6 +192,9 @@ namespace Pogranichye.Client
         private Vector2 _hudScroll;
         private Vector2 _contextActionScroll;
         private float _mapZoom = 1f;
+        private Vector2 _mapPan;
+        private bool _mapDragging;
+        private Vector2 _mapLastPointer;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
         private GUIStyle _mapPoiLabelRightStyle;
@@ -479,6 +482,7 @@ namespace Pogranichye.Client
 
         private void OnGUI()
         {
+            ReleaseLocalMapCaptureIfInactive();
             CoreGameplay.ApplyUiTheme();
             if (_connectionState != WorldConnectionState.Active || _frame == null || !_frame.Alive || _systemMenuOpen)
             {
@@ -489,24 +493,48 @@ namespace Pogranichye.Client
 
             if (!_hudCollapsed)
             {
-                var panelWidth = Mathf.Min(500f, Screen.width - 24f);
-                var panelHeight = Mathf.Min(620f, Screen.height - 24f);
-                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПЕРСОНАЖ  /  ЖУРНАЛ");
-                GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
-                _hudScroll = GUILayout.BeginScrollView(_hudScroll,
-                    GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
+                // A journal-style overlay replaces the narrow prototype strip. Keep the world
+                // visible around it and reserve a stable navigation rail beside the page content.
+                var panelWidth = Mathf.Min(1600f, Screen.width * 0.88f);
+                var panelHeight = Mathf.Min(1000f, Screen.height * 0.88f);
+                var panelRect = new Rect(
+                    (Screen.width - panelWidth) * 0.5f,
+                    (Screen.height - panelHeight) * 0.5f,
+                    panelWidth, panelHeight);
+                GUI.Box(panelRect, "ДНЕВНИК ПЕРСОНАЖА");
+                GUILayout.BeginArea(new Rect(panelRect.x + 18f, panelRect.y + 42f,
+                    panelRect.width - 36f, panelRect.height - 58f));
+
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(184f),
+                    GUILayout.ExpandHeight(true));
+                GUILayout.Label("РАЗДЕЛЫ");
+                DrawHudTabButton("Персонаж", HudTab.Character);
+                DrawHudTabButton("Вещи  [I]", HudTab.Inventory);
+                DrawHudTabButton("Журнал  [J]", HudTab.Journal);
+                DrawHudTabButton("Карта  [M]", HudTab.Map);
+                GUILayout.FlexibleSpace();
+                GUILayout.Label("Tab — закрыть");
+                GUILayout.Label("Esc — настройки");
+                GUILayout.EndVertical();
+
+                GUILayout.Space(12f);
+                GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                GUILayout.BeginHorizontal();
                 GUILayout.Label(_frame.Place != null
                     ? $"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
                     : "Мир загружается");
-
-                GUILayout.BeginHorizontal();
-                DrawHudTabButton("Сводка", HudTab.Character);
-                DrawHudTabButton("Инвентарь [I]", HudTab.Inventory);
-                DrawHudTabButton("Задания [J]", HudTab.Journal);
-                DrawHudTabButton("Карта [M]", HudTab.Map);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Закрыть  ×", GUILayout.Width(112f), GUILayout.Height(32f)))
+                {
+                    _hudCollapsed = true;
+                    _core?.SetExternalCharacterMenuOpen(false);
+                }
                 GUILayout.EndHorizontal();
-                GUILayout.Space(8f);
+                GUILayout.Space(6f);
 
+                _hudScroll = GUILayout.BeginScrollView(_hudScroll,
+                    GUILayout.ExpandWidth(true), GUILayout.Height(panelHeight - 150f));
                 switch (_hudTab)
                 {
                     case HudTab.Character:
@@ -522,12 +550,12 @@ namespace Pogranichye.Client
                         DrawMapTab();
                         break;
                 }
-
-                GUILayout.Space(8f);
-                GUILayout.Label("Tab — открыть/закрыть · I — инвентарь · J — задания · M — карта · Esc — настройки");
-                EnsureStatusTextStyle();
-                GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(56f));
                 GUILayout.EndScrollView();
+
+                EnsureStatusTextStyle();
+                GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(44f));
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
                 GUILayout.EndArea();
             }
 
@@ -1270,10 +1298,16 @@ namespace Pogranichye.Client
             var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 4f);
             if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.25f);
             if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(4f, _mapZoom + 0.25f);
-            if (GUILayout.Button("Сброс", GUILayout.Width(54f))) nextZoom = 1f;
+            if (GUILayout.Button("К персонажу", GUILayout.Width(104f))) _mapPan = Vector2.zero;
+            if (GUILayout.Button("Сброс", GUILayout.Width(54f)))
+            {
+                nextZoom = 1f;
+                _mapPan = Vector2.zero;
+            }
             _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
+            if (_mapZoom <= 1.01f) _mapPan = Vector2.zero;
             GUILayout.EndHorizontal();
-            GUILayout.Label(_mapZoom > 1.01f ? "При увеличении карта центрируется на персонаже." : "Показано всё поселение.");
+            GUILayout.Label("ЛКМ — переместить карту · колесо — масштаб · «К персонажу» — вернуть метку в центр.");
             if (_layout == null || _layout.Version != 2)
             {
                 GUILayout.Label("Серверная карта поселения пока недоступна.");
@@ -1281,7 +1315,7 @@ namespace Pogranichye.Client
             else
             {
                 DrawLocalMap();
-                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  • Жители  ★ Вы");
+                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Поселение  ◈ Урочища  • Жители  ★ Вы");
                 GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
                 GUILayout.Space(8f);
                 DrawWorldConnectionsMap();
@@ -1292,11 +1326,101 @@ namespace Pogranichye.Client
             DrawKnownSettlements();
         }
 
+        // A map drag owns IMGUI hotControl only while the map is actually available.
+        // OnGUI can return early for the system menu/loading screen, or the player can
+        // switch tabs/close the journal while dragging. In those cases DrawLocalMap no
+        // longer receives MouseUp, so release capture here before any early return.
+        private void ReleaseLocalMapCaptureIfInactive()
+        {
+            if (!_mapDragging) return;
+            var currentEvent = Event.current;
+            var mouseReleased = currentEvent != null && currentEvent.type == EventType.MouseUp;
+            var mapUnavailable = _hudCollapsed || _systemMenuOpen || _chatOpen ||
+                _connectionState != WorldConnectionState.Active || _frame == null || _hudTab != HudTab.Map;
+            if (!mouseReleased && !mapUnavailable) return;
+
+            _mapDragging = false;
+            GUIUtility.hotControl = 0;
+            if (mouseReleased) currentEvent.Use();
+        }
+
+        private void HandleLocalMapPointer(Rect mapRect, double worldHalf)
+        {
+            var currentEvent = Event.current;
+            if (currentEvent == null) return;
+
+            var controlId = GUIUtility.GetControlID(FocusType.Passive, mapRect);
+            if (currentEvent.type == EventType.ScrollWheel && mapRect.Contains(currentEvent.mousePosition))
+            {
+                var previousZoom = _mapZoom;
+                _mapZoom = Mathf.Clamp(
+                    _mapZoom + (currentEvent.delta.y < 0f ? 0.25f : -0.25f), 1f, 4f);
+                if (_mapZoom <= 1.01f) _mapPan = Vector2.zero;
+                else if (previousZoom <= 1.01f) _mapPan = Vector2.zero;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0 &&
+                mapRect.Contains(currentEvent.mousePosition))
+            {
+                GUIUtility.hotControl = controlId;
+                _mapDragging = true;
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (GUIUtility.hotControl != controlId || !_mapDragging) return;
+            if (currentEvent.type == EventType.MouseDrag)
+            {
+                if (_mapZoom > 1.01f)
+                {
+                    var delta = currentEvent.mousePosition - _mapLastPointer;
+                    var half = (float)(worldHalf / _mapZoom);
+                    _mapPan.x -= delta.x * (2f * half / Mathf.Max(1f, mapRect.width));
+                    _mapPan.y += delta.y * (2f * half / Mathf.Max(1f, mapRect.height));
+
+                    // Keep the viewport within the server-authored settlement bounds.
+                    var centerX = _frame?.Me?.Position != null
+                        ? _frame.Me.Position.X + _mapPan.x : _mapPan.x;
+                    var centerY = _frame?.Me?.Position != null
+                        ? _frame.Me.Position.Y + _mapPan.y : _mapPan.y;
+                    var maxCenter = Math.Max(0d, worldHalf - half);
+                    centerX = Math.Max(-maxCenter, Math.Min(maxCenter, centerX));
+                    centerY = Math.Max(-maxCenter, Math.Min(maxCenter, centerY));
+                    if (_frame?.Me?.Position != null)
+                    {
+                        _mapPan.x = (float)(centerX - _frame.Me.Position.X);
+                        _mapPan.y = (float)(centerY - _frame.Me.Position.Y);
+                    }
+                    else
+                    {
+                        _mapPan.x = (float)centerX;
+                        _mapPan.y = (float)centerY;
+                    }
+                }
+
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseUp)
+            {
+                _mapDragging = false;
+                GUIUtility.hotControl = 0;
+                currentEvent.Use();
+            }
+        }
+
         private void DrawLocalMap()
         {
-            const float mapSize = 320f;
+            var mapSize = Mathf.Min(400f, Screen.width - 96f);
             var mapRect = GUILayoutUtility.GetRect(mapSize, mapSize,
                 GUILayout.Width(mapSize), GUILayout.Height(mapSize));
+            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            HandleLocalMapPointer(mapRect, worldHalf);
             var previousColor = GUI.color;
             DrawMapFill(mapRect, new Color(0.23f, 0.30f, 0.20f));
 
@@ -1309,10 +1433,11 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
             var playerPosition = _frame?.Me?.Position;
-            var centerX = _mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d;
-            var centerY = _mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d;
+            var centerX = _mapZoom > 1.01f && playerPosition != null
+                ? playerPosition.X + _mapPan.x : 0d;
+            var centerY = _mapZoom > 1.01f && playerPosition != null
+                ? playerPosition.Y + _mapPan.y : 0d;
             var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
@@ -1359,6 +1484,48 @@ namespace Pogranichye.Client
                         var labelRect = new Rect(poiLabel.X, poiLabel.Y, poiLabel.Width, poiLabel.Height);
                         GUI.Label(labelRect, MapPoiDisplayName(poiId),
                             poiLabel.AlignRight ? _mapPoiLabelRightStyle : _mapPoiLabelStyle);
+                    }
+                }
+            }
+
+            // v1.22 wilderness sites are published in global E/N coordinates. Convert
+            // them through the current settlement's authoritative centre anchor before
+            // projecting onto this local map; never treat global coordinates as local XY.
+            var sites = _frame?.Place?.Sites;
+            var settlementAnchor = _frame?.Place?.Anchor;
+            if (sites != null && settlementAnchor != null)
+            {
+                foreach (var site in sites)
+                {
+                    if (site == null) continue;
+                    if (!WildSiteMapProjectionPolicy.TryToSettlementLocal(
+                        site.East, site.North, settlementAnchor.East, settlementAnchor.North,
+                        out var localEast, out var localNorth)) continue;
+                    var position = WorldMapProjection.ToMapPoint(
+                        localEast - centerX, localNorth - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
+
+                    var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = site.Here
+                        ? new Color(0.36f, 0.66f, 0.42f, 1f)
+                        : new Color(0.43f, 0.38f, 0.62f, 1f);
+                    GUI.contentColor = Color.white;
+                    GUI.Box(marker, WildSiteMapGlyph(site.Kind), _mapPoiStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+
+                    var siteLabel = (site.Name ?? "Неизвестное место") + " · " +
+                        site.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м";
+                    if (site.Here) siteLabel += " · рядом";
+                    if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
+                        position.x, position.y, 156f, 28f, 4f, out var siteLabelPlacement))
+                    {
+                        var labelRect = new Rect(siteLabelPlacement.X, siteLabelPlacement.Y,
+                            siteLabelPlacement.Width, siteLabelPlacement.Height);
+                        GUI.Label(labelRect, siteLabel,
+                            siteLabelPlacement.AlignRight ? _mapNeighborLabelRightStyle : _mapNeighborLabelStyle);
                     }
                 }
             }
@@ -1427,6 +1594,19 @@ namespace Pogranichye.Client
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private static string WildSiteMapGlyph(string kind)
+        {
+            switch (kind)
+            {
+                case "cave": return "П";
+                case "tower": return "Б";
+                case "ruins": return "Р";
+                case "grove": return "Рщ";
+                case "spring": return "И";
+                default: return "?";
+            }
         }
 
         private static Rect MapViewportRect(double x0, double y0, double x1, double y1,
