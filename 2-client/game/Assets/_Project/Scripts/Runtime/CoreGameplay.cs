@@ -486,6 +486,9 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             DrawEquipmentSlot("Пояс", WornItem(worn, "belt"), "belt", items);
+            DrawEquipmentSlot("Рубаха", WornItem(worn, "shirt"), "shirt", items);
+            DrawEquipmentSlot("Рукавицы", WornItem(worn, "hands"), "hands", items);
+            DrawEquipmentSlot("За спиной", WornItem(worn, "back"), "back", items);
             GUILayout.EndHorizontal();
 
             GUILayout.Space(5f);
@@ -937,11 +940,14 @@ namespace Pogranichye.Client
             switch (slot)
             {
                 case "head": return "Голова";
+                case "shirt": return "Рубаха";
                 case "body": return "Тело";
                 case "feet": return "Ноги";
                 case "armor": return "Броня";
+                case "hands": return "Рукавицы";
                 case "offhand": return "Левая рука";
                 case "belt": return "Пояс";
+                case "back": return "За спиной";
                 default: return slot;
             }
         }
