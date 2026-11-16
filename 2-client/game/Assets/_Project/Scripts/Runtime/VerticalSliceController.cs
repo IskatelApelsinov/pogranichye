@@ -492,24 +492,48 @@ namespace Pogranichye.Client
 
             if (!_hudCollapsed)
             {
-                var panelWidth = Mathf.Min(500f, Screen.width - 24f);
-                var panelHeight = Mathf.Min(620f, Screen.height - 24f);
-                GUI.Box(new Rect(12f, 12f, panelWidth, panelHeight), "ПЕРСОНАЖ  /  ЖУРНАЛ");
-                GUILayout.BeginArea(new Rect(24f, 42f, panelWidth - 24f, panelHeight - 44f));
-                _hudScroll = GUILayout.BeginScrollView(_hudScroll,
-                    GUILayout.Width(panelWidth - 24f), GUILayout.Height(panelHeight - 44f));
+                // A journal-style overlay replaces the narrow prototype strip. Keep the world
+                // visible around it and reserve a stable navigation rail beside the page content.
+                var panelWidth = Mathf.Min(1600f, Screen.width * 0.88f);
+                var panelHeight = Mathf.Min(1000f, Screen.height * 0.88f);
+                var panelRect = new Rect(
+                    (Screen.width - panelWidth) * 0.5f,
+                    (Screen.height - panelHeight) * 0.5f,
+                    panelWidth, panelHeight);
+                GUI.Box(panelRect, "ДНЕВНИК ПЕРСОНАЖА");
+                GUILayout.BeginArea(new Rect(panelRect.x + 18f, panelRect.y + 42f,
+                    panelRect.width - 36f, panelRect.height - 58f));
+
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(184f),
+                    GUILayout.ExpandHeight(true));
+                GUILayout.Label("РАЗДЕЛЫ");
+                DrawHudTabButton("Персонаж", HudTab.Character);
+                DrawHudTabButton("Вещи  [I]", HudTab.Inventory);
+                DrawHudTabButton("Журнал  [J]", HudTab.Journal);
+                DrawHudTabButton("Карта  [M]", HudTab.Map);
+                GUILayout.FlexibleSpace();
+                GUILayout.Label("Tab — закрыть");
+                GUILayout.Label("Esc — настройки");
+                GUILayout.EndVertical();
+
+                GUILayout.Space(12f);
+                GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                GUILayout.BeginHorizontal();
                 GUILayout.Label(_frame.Place != null
                     ? $"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
                     : "Мир загружается");
-
-                GUILayout.BeginHorizontal();
-                DrawHudTabButton("Сводка", HudTab.Character);
-                DrawHudTabButton("Инвентарь [I]", HudTab.Inventory);
-                DrawHudTabButton("Задания [J]", HudTab.Journal);
-                DrawHudTabButton("Карта [M]", HudTab.Map);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Закрыть  ×", GUILayout.Width(112f), GUILayout.Height(32f)))
+                {
+                    _hudCollapsed = true;
+                    _core?.SetExternalCharacterMenuOpen(false);
+                }
                 GUILayout.EndHorizontal();
-                GUILayout.Space(8f);
+                GUILayout.Space(6f);
 
+                _hudScroll = GUILayout.BeginScrollView(_hudScroll,
+                    GUILayout.ExpandWidth(true), GUILayout.Height(panelHeight - 150f));
                 switch (_hudTab)
                 {
                     case HudTab.Character:
@@ -525,12 +549,12 @@ namespace Pogranichye.Client
                         DrawMapTab();
                         break;
                 }
-
-                GUILayout.Space(8f);
-                GUILayout.Label("Tab — открыть/закрыть · I — инвентарь · J — задания · M — карта · Esc — настройки");
-                EnsureStatusTextStyle();
-                GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(56f));
                 GUILayout.EndScrollView();
+
+                EnsureStatusTextStyle();
+                GUILayout.Label(_status, _statusTextStyle, GUILayout.MinHeight(44f));
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
                 GUILayout.EndArea();
             }
 
