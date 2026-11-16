@@ -91,6 +91,7 @@ namespace Pogranichye.Client
         private WorldLayoutFrame _starterLayout;
         // v1.19 world-streaming foundation. The manifest is metadata; terrain is cached one chunk at a time.
         private WorldManifestFrame _worldManifest;
+        private JObject _worldCatalog;
         private float _nextWorldManifestRefreshAt;
         private float _nextSettlementPrefetchAt;
         private string _worldManifestLastPlaceId;
@@ -3499,6 +3500,20 @@ namespace Pogranichye.Client
                 // Layout v2 is required before enabling prediction: local geometry must match the server.
                 var http = new HttpAuthClient(serverUrl);
                 var layout = await http.GetLayoutAsync();
+                // v1.22 static catalogue: optional for backward-compatible world entry.
+                try
+                {
+                    var catalog = await http.GetCatalogAsync(_lifetime.Token);
+                    Enqueue(() =>
+                    {
+                        _worldCatalog = catalog;
+                        _core?.SetCatalog(catalog);
+                    });
+                }
+                catch (Exception catalogError)
+                {
+                    Enqueue(() => Debug.LogWarning("Каталог v1.22 пока недоступен; игровые кадры продолжают работать: " + catalogError.Message));
+                }
                 _layout = layout;
                 _starterLayout = SettlementLayoutSelectionPolicy.IsTutorialLayout(layout.Plan) ? layout : null;
                 // v1.19: read global map metadata before enabling the socket. Older compatible servers

@@ -26,7 +26,7 @@ namespace Pogranichye.Client
         private InputAction _chat, _voicePushToTalk;
         private InputAction _trickFeint, _trickBait, _trickSneak, _cycleStance;
         private InputAction _startWoodcut, _startFishing, _lockTarget;
-        private readonly InputAction[] _weaveNodes = new InputAction[6];
+        private readonly InputAction[] _weaveNodes = new InputAction[10];
         private readonly InputAction[] _journeyChoices = new InputAction[9];
         private readonly InputEventDebugState _inputDebugState = new InputEventDebugState();
 
@@ -122,7 +122,11 @@ namespace Pogranichye.Client
             _lockTarget.AddBinding("<Mouse>/middleButton");
 
             for (var i = 0; i < _weaveNodes.Length; i++)
-                _weaveNodes[i] = Button("WeaveNode" + (i + 1), "<Keyboard>/" + (i + 1));
+            {
+                // 1–9, then 0 for the tenth server node. Mouse tracing remains available too.
+                var key = i == 9 ? "0" : (i + 1).ToString();
+                _weaveNodes[i] = Button("WeaveNode" + (i + 1), "<Keyboard>/" + key);
+            }
             for (var i = 0; i < _journeyChoices.Length; i++)
                 _journeyChoices[i] = Button("JourneyChoice" + (i + 1), "<Keyboard>/" + (i + 1));
 

@@ -92,6 +92,7 @@ namespace Pogranichye.Client.Networking
                     ValidateWorldAnchor(place["anchor"], "place.anchor");
                     // Optional POI metadata must not reject the authoritative world snapshot.
                     NormalizeTavernCounterForClient(place);
+                    NormalizeWildSitesForClient(place);
                     TavernCounterFrameParser.Validate(place["tavern_counter"], "place.tavern_counter");
                     FoeFrameParser.Validate(place["foes"], "place.foes");
                     ValidatePlaceRooms(place["rooms"], "place.rooms");
@@ -185,6 +186,55 @@ namespace Pogranichye.Client.Networking
             return frame;
         }
 
+
+        private static void NormalizeWildSitesForClient(JToken placeToken)
+        {
+            var place = placeToken as JObject;
+            if (place == null) return;
+            var token = place["sites"];
+            // Additive v1.22 presentation data: malformed optional sites are hidden individually,
+            // never allowed to reject the authoritative character/world snapshot.
+            if (token == null || token.Type == JTokenType.Null) return;
+            if (token.Type != JTokenType.Array)
+            {
+                place["sites"] = new JArray();
+                return;
+            }
+
+            var valid = new JArray();
+            foreach (var entry in (JArray)token)
+            {
+                if (entry == null || entry.Type != JTokenType.Object) continue;
+                var id = entry["id"];
+                var name = entry["name"];
+                var kind = entry["kind"];
+                var direction = entry["dir"];
+                var here = entry["here"];
+                if (id?.Type != JTokenType.String || string.IsNullOrWhiteSpace(id.Value<string>()) ||
+                    name?.Type != JTokenType.String || string.IsNullOrWhiteSpace(name.Value<string>()) ||
+                    kind?.Type != JTokenType.String || direction?.Type != JTokenType.String ||
+                    here?.Type != JTokenType.Boolean ||
+                    !IsNumber(entry["e"]) || !IsFinite(entry["e"].Value<double>()) ||
+                    !IsNumber(entry["n"]) || !IsFinite(entry["n"].Value<double>()) ||
+                    !IsNumber(entry["u"]) || !IsFinite(entry["u"].Value<double>()) ||
+                    !IsNumber(entry["dist"]) || !IsFinite(entry["dist"].Value<double>()) ||
+                    entry["dist"].Value<double>() < 0d ||
+                    entry["acts"]?.Type != JTokenType.Array) continue;
+                var actionsValid = true;
+                foreach (var action in (JArray)entry["acts"])
+                    if (action?.Type != JTokenType.String ||
+                        (action.Value<string>() != "rest" && action.Value<string>() != "drink" &&
+                         action.Value<string>() != "explore" && action.Value<string>() != "forage"))
+                        actionsValid = false;
+                if (!actionsValid) continue;
+                if (entry["gives"] != null && entry["gives"].Type != JTokenType.String) continue;
+                if (entry["left"] != null &&
+                    (!IsNumber(entry["left"]) || !IsFinite(entry["left"].Value<double>()) || entry["left"].Value<double>() < 0d))
+                    continue;
+                valid.Add(entry);
+            }
+            place["sites"] = valid;
+        }
 
         private static void NormalizeTavernCounterForClient(JToken placeToken)
         {
