@@ -1928,6 +1928,22 @@ namespace Pogranichye.Client
                 {
                     var caravan = manifest.Caravans[i];
                     if (caravan == null || caravan.Frame != anchor.Frame) continue;
+                    // /api/world is streaming metadata, not character knowledge. Only reveal
+                    // global caravan positions that the server also exposed in this place frame.
+                    var visibleToPlayer = false;
+                    var nearby = place.Caravans;
+                    if (nearby != null)
+                    {
+                        for (var k = 0; k < nearby.Count; k++)
+                        {
+                            if (nearby[k] != null && string.Equals(nearby[k].Id, caravan.Id, StringComparison.Ordinal))
+                            {
+                                visibleToPlayer = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!visibleToPlayer) continue;
                     var point = new Vector2(
                         rect.center.x + (float)((caravan.East - anchor.East) / _worldMapRadius) * rect.width * 0.5f,
                         rect.center.y - (float)((caravan.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
