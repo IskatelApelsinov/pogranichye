@@ -228,6 +228,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/ws", s.handleWS)
 	mux.HandleFunc("/api/layout", s.handleLayout)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) { // v1.22: вещи, цены, названия, рецепты — статично
+		writeJSON(w, sim.CatalogView())
+	})
 	mux.HandleFunc("/api/world", func(w http.ResponseWriter, r *http.Request) { // схема координат, якоря сёл, тракты
 		s.mu.Lock()
 		v := sim.WorldManifestUsing(s.world, s.terrain())
@@ -304,6 +307,7 @@ func (s *Server) fastStep(dt float64) {
 	// тела под управлением игроков пропускаем (их ведёт сам игрок)
 	sim.StepNPCMovement(s.world, dt, ctl)
 	sim.StepCombatAtHour(s.world, dt, s.runner.Clock.Hour(), ctl, s.runner.Hub.Stream("combat"))
+	sim.StepAutoWalk(s.world, dt, ctl) // самоход игрока-менеджера к выбранному месту села
 	sim.StepLands(s.world, ctl) // бесшовный мир: идущий переходит в земли ближайшего села
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
@@ -527,6 +531,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		Line   string `json:"line"`   // выбранная реплика
 		// навигация менеджмент-клиента v1.6: дискретный переход в локацию
 		Location string `json:"location"`
+		Site     string `json:"site"` // v1.22: место без жителей (урочище/пещера/башня) — для goto и op:"site"
 		// расширение v1.7: инвентарь/рынок/путешествия
 		Good           string   `json:"good"`
 		Side           string   `json:"side"`
@@ -574,6 +579,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			if !sim.OnRoad(e) {
 				p := sim.EnsureScenePos(s.world, e)
+				if in.MX != 0 || in.MY != 0 {
+					sim.CancelWalk(s.world, e) // ручной шаг отменяет самоход
+				}
 				sim.ApplyMove(sim.LayoutFor(s.world, e), p, in.MX, in.MY, in.Run, in.Face, in.Dt, in.Seq, in.Fast)
 			}
 		}
@@ -733,9 +741,21 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			if in.Target != "" { // подойти к зверю (тонкий клиент): qty — дистанция в метрах
 				rok, rwhy := sim.Approach(s.world, e, parseID(in.Target), float64(in.Qty))
 				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
-			} else if !sim.OnRoad(e) {
-				sim.GoTo(s.world, e, in.Location)
+			} else if in.Site != "" { // поход к месту без жителей через поле
+				rok, rwhy := sim.WalkToSite(s.world, e, in.Site)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
+			} else {
+				// v1.22: тело ИДЁТ к месту само (сервер ведёт его по дорогам села), а не переносится мгновенно
+				rok, rwhy := sim.WalkTo(s.world, e, in.Location)
+				sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 			}
+		}
+		s.mu.Unlock()
+	case "site": // v1.22: дело в месте без жителей — rest | drink | explore | forage
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			rok, rwhy := sim.SiteAct(s.world, e, in.Site, in.Action, int(s.runner.Clock.Day()), in.ReqID, s.runner.Hub.Stream("site", eid(cid)))
+			sim.SetResult(s.world, e, in.ReqID, rok, rwhy)
 		}
 		s.mu.Unlock()
 	case "talk": // заговорить с жителем рядом (v1.4)
@@ -974,6 +994,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"stash":        meStash(e),
 			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
 			"wpos":         sim.WorldPosViewUsing(terrain, s.world, e),     // v1.19: каноническое положение в мире (метры, высота, чанк)
+			"walk":         sim.WalkView(s.world, e),                                // v1.22: самоход к месту {to,left} или null
+			"at":           sim.AtPOI(s.world, e),                          // v1.22: у какого места села стоит тело ("" — ни у одного)
 			"pos":          mePos(e),                                       // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 			"talk":         meTalk(s.world, e),                             // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
 			"invite_from":  meInvite(s.world, e),                           // кто зовёт выпить вместе (co-drink, v1.4)
@@ -1051,6 +1073,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                    // v1.19: центр села в мире; мир = anchor + pos
 				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
+				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())), // v1.22: места без жителей вокруг (урочища, пещеры, башни)
 				"market":         sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)
 				"life":           s.placeLife(se),                                                         // агрегаты жизни общины (v1.18)
 				"rooms":          sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()),                // комнаты над корчмой: всего/вакантно/цена (v1.20)

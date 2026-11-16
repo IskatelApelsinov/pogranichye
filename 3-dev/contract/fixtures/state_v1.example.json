@@ -39,6 +39,11 @@
       "bread": 4
     },
     "room": null,
+    "walk": {
+      "to": "tavern",
+      "left": 23.4
+    },
+    "at": "",
     "pos": {
       "x": 0,
       "y": 0,
@@ -260,7 +265,9 @@
     "bag": {
       "load": 5,
       "cap": 40,
-      "over": false
+      "over": false,
+      "pack": "",
+      "pack_bonus": 0
     }
   },
   "place": {
@@ -338,11 +345,31 @@
           "u": 131.4,
           "ground": 131.4,
           "z": 0,
-          "chunk": [2, -107],
+          "chunk": [
+            2,
+            -107
+          ],
           "layer": 2,
           "lat": 47.9553,
           "lon": 12.5087
         }
+      }
+    ],
+    "sites": [
+      {
+        "id": "w:3:-21",
+        "name": "Студёный ключ",
+        "kind": "spring",
+        "e": 4120.5,
+        "n": -24310.25,
+        "u": 134.2,
+        "dist": 812,
+        "dir": "на северо-востоке",
+        "acts": [
+          "drink",
+          "rest"
+        ],
+        "here": false
       }
     ],
     "market": [
