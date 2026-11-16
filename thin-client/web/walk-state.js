@@ -23,6 +23,11 @@
   function onFrame(state,me,curLoc){
     const none={state,arrived:null,message:null,target:null};
     if(!me || me.at===undefined) return none;
+    if(me.walk && !me.walk.to && me.walk.site){ // поход к месту без жителей через поле
+      const left=Math.max(0,Math.round(Number(me.walk.left)||0));
+      const how=left<950?left+' м':(left/1000).toFixed(1).replace('.',',')+' км';
+      return {state:initial(),arrived:null,message:'🚶 Иду: '+String(me.walk.name||'к месту')+' — осталось '+how,target:null};
+    }
     if(me.walk && me.walk.to){
       const left=Math.max(0,Math.round(Number(me.walk.left)||0));
       return {state:{target:me.walk.to,waited:0},arrived:null,message:'🚶 Иду: %s — осталось '+left+' м',target:me.walk.to};

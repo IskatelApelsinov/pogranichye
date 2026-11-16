@@ -35,7 +35,7 @@ assert.doesNotMatch(html, /dealerHand|dealer_hand|shuffleDeck|settleCardGame/);
 
 // Purse and removal of worn gear are exposed in the same server-backed inventory controls.
 assert.match(core, /purse:'кожаный кошель'/);
-assert.match(core, /const WEAR = \[[^\]]*'purse'/);
+assert.match(core, /wear:\[[^\]]*'purse'/); // запасной список (сам список приходит из /api/catalog)
 assert.match(core, /send\(\{op:'unwear',item:'\$\{it\}'\}\)/);
 
 console.log('card-game-ui: thin-client card table and inventory controls passed');
