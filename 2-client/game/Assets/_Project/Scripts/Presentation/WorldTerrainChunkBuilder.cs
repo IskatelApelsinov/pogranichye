@@ -248,7 +248,11 @@ namespace Pogranichye.Client.Presentation
                         return TerrainHeightSampler.TrySample(chunk, east, north, out height, out slope, out normal)
                             ? (float)(height - anchor.Up + 0.035d) : 0.035f;
                     }, "Road " + road.Id);
-                    AddFeatureMesh(root, "Road_" + SafeName(road.Id), mesh, RoadMaterial(),
+                    var pathMaterial = string.Equals(road.Kind, "trail", StringComparison.OrdinalIgnoreCase)
+                        ? TrailMaterial() : RoadMaterial();
+                    var pathPrefix = string.Equals(road.Kind, "trail", StringComparison.OrdinalIgnoreCase)
+                        ? "Trail_" : "Road_";
+                    AddFeatureMesh(root, pathPrefix + SafeName(road.Id), mesh, pathMaterial,
                         (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
         }
@@ -398,6 +402,7 @@ namespace Pogranichye.Client.Presentation
 
         private static Material _waterMaterial;
         private static Material _roadMaterial;
+        private static Material _trailMaterial;
 
         private static Material WaterMaterial()
         {
@@ -414,6 +419,22 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             _waterMaterial.renderQueue = 3000;
             return _waterMaterial;
+        }
+
+        private static Material TrailMaterial()
+        {
+            if (_trailMaterial != null) return _trailMaterial;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
+            _trailMaterial = new Material(shader)
+            {
+                name = "World path • narrow foot trail",
+                color = new Color(0.43f, 0.35f, 0.24f)
+            };
+            if (_trailMaterial.HasProperty("_BaseColor"))
+                _trailMaterial.SetColor("_BaseColor", new Color(0.43f, 0.35f, 0.24f));
+            if (_trailMaterial.HasProperty("_Smoothness")) _trailMaterial.SetFloat("_Smoothness", 0.02f);
+            return _trailMaterial;
         }
 
         private static Material RoadMaterial()

@@ -74,10 +74,22 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
         // v1.19 canonical global position; null on older servers or while outside the world.
         [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
+        // v1.27: server-confirmed overland path under the character, null in fields/settlement grounds/journeys.
+        [JsonProperty("trail")] public CharacterTrailFrame Trail { get; set; }
         // v1.20 room lease and private chest state; absent/null on older servers or non-tenants.
         [JsonProperty("room")] public RoomFrame Room { get; set; }
         // Server-authoritative tavern card game state; dealer hidden cards are never sent.
         [JsonProperty("card_game")] public CardGameFrame CardGame { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CharacterTrailFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("a")] public string FromSettlement { get; set; }
+        [JsonProperty("b")] public string ToSettlement { get; set; }
+        [JsonProperty("boost")] public double Boost { get; set; }
     }
 
     [Serializable]
@@ -520,6 +532,18 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("jog_mps")] public double JogMetersPerSecond { get; set; }
         [JsonProperty("run_mps")] public double RunMetersPerSecond { get; set; }
         [JsonProperty("slope")] public WorldSlopeFrame Slope { get; set; }
+        // v1.27: multipliers and corridor reach used by authoritative trail movement.
+        [JsonProperty("trail")] public WorldTrailMovementFrame Trail { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldTrailMovementFrame
+    {
+        [JsonProperty("trail_boost")] public double TrailBoost { get; set; }
+        [JsonProperty("road_boost")] public double RoadBoost { get; set; }
+        [JsonProperty("trail_width_m")] public double TrailWidthMeters { get; set; }
+        [JsonProperty("road_width_m")] public double RoadWidthMeters { get; set; }
+        [JsonProperty("reach_m")] public double ReachMeters { get; set; }
     }
 
     [Serializable]
@@ -602,6 +626,11 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("a")] public string From { get; set; }
         [JsonProperty("b")] public string To { get; set; }
+        // v1.27: display metadata for the same server-authored inter-settlement trail.
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("width_m")] public double WidthMeters { get; set; }
+        [JsonProperty("len_m")] public double LengthMeters { get; set; }
     }
 
     [Serializable]

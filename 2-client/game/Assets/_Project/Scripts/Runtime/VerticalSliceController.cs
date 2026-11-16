@@ -1024,6 +1024,10 @@ namespace Pogranichye.Client
             GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
             GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
             GUILayout.Label($"Выносливость: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
+            if (me.Trail != null && !string.IsNullOrWhiteSpace(me.Trail.Kind))
+                GUILayout.Label((me.Trail.Kind == "road" ? "🛤 Тракт" : "👣 Тропка") +
+                    ": " + (me.Trail.FromSettlement ?? "?") + " — " + (me.Trail.ToSettlement ?? "?") +
+                    " · шаг легче ×" + me.Trail.Boost.ToString("0.00", CultureInfo.InvariantCulture));
             GUILayout.Label("Автоходьба: кнопка внизу экрана или =. Любое ручное направление отключает её.");
 
             if (GUILayout.Button(_firstPerson ? "Переключить на вид от третьего лица" : "Переключить на вид от первого лица"))
@@ -1396,8 +1400,18 @@ namespace Pogranichye.Client
                 {
                     if (road == null || !settlementsById.TryGetValue(road.From, out var from) ||
                         !settlementsById.TryGetValue(road.To, out var to)) continue;
+                    // Manifest edges describe the connection between settlements; the actual
+                    // winding trail geometry is rendered from /api/terrain chunk polylines.
+                    var isTract = string.Equals(road.Kind, "road", StringComparison.OrdinalIgnoreCase);
+                    var pathWidth = road.WidthMeters > 0d
+                        ? Mathf.Clamp((float)(1.0d + road.WidthMeters * 0.32d), 1.2f, 3.2f)
+                        : (isTract ? 2.2f : 1.5f);
+                    var mapLineWidth = mapHalf < 12000d ? pathWidth : Math.Max(1.1f, pathWidth * 0.65f);
+                    var mapLineColor = isTract
+                        ? new Color(0.78f, 0.61f, 0.35f, 0.92f)
+                        : new Color(0.55f, 0.48f, 0.34f, 0.82f);
                     DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
-                        mapHalf < 12000d ? 2.4f : 1.5f, new Color(0.73f, 0.58f, 0.36f, 0.9f));
+                        mapLineWidth, mapLineColor);
                 }
             }
 
@@ -1490,7 +1504,7 @@ namespace Pogranichye.Client
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
-            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ серверная дорога · здания и POI появляются при приближении.");
+            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ связь поселений (тип и ширина пути от сервера); точная извилистая нитка видна на местности.");
         }
 
         private static string CompassDirection(float yaw)
@@ -4684,7 +4698,17 @@ namespace Pogranichye.Client
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
             if (moving) _audioDirector?.Footsteps(canRun);
-            var speed = canRun ? (fastRequested ? 6.0f : 3.2f) : 1.4f;
+            var movementProfile = _worldManifest != null ? _worldManifest.Movement : null;
+            var walkSpeed = movementProfile != null && movementProfile.WalkMetersPerSecond > 0d
+                ? (float)movementProfile.WalkMetersPerSecond : 1.4f;
+            var jogSpeed = movementProfile != null && movementProfile.JogMetersPerSecond > 0d
+                ? (float)movementProfile.JogMetersPerSecond : 3.2f;
+            var runSpeed = movementProfile != null && movementProfile.RunMetersPerSecond > 0d
+                ? (float)movementProfile.RunMetersPerSecond : 6.0f;
+            var speed = canRun ? (fastRequested ? runSpeed : jogSpeed) : walkSpeed;
+            if (moving)
+                speed *= ResolveMovementTerrainMultiplier(player.position,
+                    new Vector2(worldMove.x, worldMove.z), movementProfile);
 
             if (moving)
             {
@@ -4879,27 +4903,7 @@ namespace Pogranichye.Client
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
 
-                var slope = movement != null ? movement.Slope : null;
-                var anchor = _frame?.Place?.Anchor;
-                if (slope != null && anchor != null &&
-                    position.x * position.x + position.z * position.z >=
-                    Math.Pow(Math.Max(0d, slope.FlatRadiusMeters - slope.ProbeMeters), 2d))
-                {
-                    var probe = Math.Max(0.01d, slope.ProbeMeters);
-                    var east = anchor.East + position.x;
-                    var north = anchor.North + position.z;
-                    var aheadEast = east + direction.x / Math.Max(0.0001f, direction.magnitude) * probe;
-                    var aheadNorth = north + direction.y / Math.Max(0.0001f, direction.magnitude) * probe;
-                    if (TrySampleTerrainHeight(east, north, anchor.Frame, out var ground) &&
-                        TrySampleTerrainHeight(aheadEast, aheadNorth, anchor.Frame, out var ahead))
-                    {
-                        var grade = (ahead - ground) / probe;
-                        speed *= (float)ServerSlopeMovementPolicy.Multiplier(grade, slope.UphillFactor, slope.DownhillFactor,
-                            slope.EasyDownGrade, slope.EasyDownBoost, slope.CliffGrade);
-                    }
-                    // If terrain samples are not cached yet, omit slope prediction rather than
-                    // inventing a client-only height. The next authoritative snapshot corrects it.
-                }
+                speed *= ResolveMovementTerrainMultiplier(position, direction, movement);
 
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;
@@ -4915,6 +4919,102 @@ namespace Pogranichye.Client
                 stamina = Mathf.Min(1f, stamina + 0.10f * dt);
             }
         }
+
+        private float ResolveMovementTerrainMultiplier(Vector3 localPosition, Vector2 direction,
+            WorldMovementFrame movement)
+        {
+            var anchor = _frame?.Place?.Anchor;
+            if (anchor == null || direction.sqrMagnitude < 0.000001f) return 1f;
+            direction.Normalize();
+            var multiplier = 1f;
+            var slope = movement != null ? movement.Slope : null;
+            var outsideSettlementGround = true;
+            if (slope != null)
+            {
+                var flatBoundary = Math.Max(0d, slope.FlatRadiusMeters - slope.ProbeMeters);
+                outsideSettlementGround = localPosition.x * localPosition.x + localPosition.z * localPosition.z >=
+                    flatBoundary * flatBoundary;
+                if (outsideSettlementGround)
+                {
+                    var probe = Math.Max(0.01d, slope.ProbeMeters);
+                    var east = anchor.East + localPosition.x;
+                    var north = anchor.North + localPosition.z;
+                    var aheadEast = east + direction.x * probe;
+                    var aheadNorth = north + direction.y * probe;
+                    if (TrySampleTerrainHeight(east, north, anchor.Frame, out var ground) &&
+                        TrySampleTerrainHeight(aheadEast, aheadNorth, anchor.Frame, out var ahead))
+                    {
+                        var grade = (ahead - ground) / probe;
+                        multiplier *= (float)ServerSlopeMovementPolicy.Multiplier(grade,
+                            slope.UphillFactor, slope.DownhillFactor, slope.EasyDownGrade,
+                            slope.EasyDownBoost, slope.CliffGrade);
+                    }
+                    // If terrain samples are not cached yet, omit slope prediction rather than
+                    // inventing a client-only height. The next authoritative snapshot corrects it.
+                }
+            }
+
+            // v1.27: match sim.TrailAt using the server's width and reach values.
+            // Only loaded server-authored terrain polylines can grant the prediction bonus.
+            if (outsideSettlementGround && movement?.Trail != null)
+            {
+                var boost = ResolveTrailBoost(anchor.East + localPosition.x,
+                    anchor.North + localPosition.z, anchor.Frame, movement.Trail);
+                multiplier *= boost;
+            }
+            return multiplier;
+        }
+
+        private float ResolveTrailBoost(double east, double north, int frame, WorldTrailMovementFrame settings)
+        {
+            if (settings == null) return 1f;
+            var reach = Math.Max(0d, settings.ReachMeters);
+            var bestBoost = 1d;
+            foreach (var chunk in _terrainChunks.Values)
+            {
+                if (chunk == null || chunk.Frame != frame || chunk.Origin == null || chunk.Roads == null)
+                    continue;
+                foreach (var path in chunk.Roads)
+                {
+                    if (path == null || path.Points == null || path.Points.Count < 2) continue;
+                    var isRoad = string.Equals(path.Kind, "road", StringComparison.OrdinalIgnoreCase);
+                    var width = path.WidthMeters > 0d ? path.WidthMeters :
+                        (isRoad ? settings.RoadWidthMeters : settings.TrailWidthMeters);
+                    if (!IsFiniteMovementValue(width) || width <= 0d) continue;
+                    var threshold = width * 0.5d + reach;
+                    for (var i = 1; i < path.Points.Count; i++)
+                    {
+                        var a = path.Points[i - 1];
+                        var b = path.Points[i];
+                        if (a == null || b == null) continue;
+                        var ax = chunk.Origin.East + a.X;
+                        var ay = chunk.Origin.North + a.Z;
+                        var bx = chunk.Origin.East + b.X;
+                        var by = chunk.Origin.North + b.Z;
+                        if (DistanceToSegment(east, north, ax, ay, bx, by) > threshold) continue;
+                        var boost = isRoad ? settings.RoadBoost : settings.TrailBoost;
+                        if (IsFiniteMovementValue(boost) && boost > bestBoost) bestBoost = boost;
+                        break;
+                    }
+                }
+            }
+            return (float)bestBoost;
+        }
+
+        private static double DistanceToSegment(double px, double py, double ax, double ay, double bx, double by)
+        {
+            var dx = bx - ax;
+            var dy = by - ay;
+            var lengthSquared = dx * dx + dy * dy;
+            if (lengthSquared <= 0.0000001d) return Math.Sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
+            var t = Math.Max(0d, Math.Min(1d, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+            var x = ax + dx * t;
+            var y = ay + dy * t;
+            return Math.Sqrt((px - x) * (px - x) + (py - y) * (py - y));
+        }
+
+        private static bool IsFiniteMovementValue(double value) =>
+            !double.IsNaN(value) && !double.IsInfinity(value);
 
         private bool TrySampleTerrainHeight(double east, double north, int frame, out double height)
         {
