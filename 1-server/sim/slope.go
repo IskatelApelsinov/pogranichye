@@ -67,7 +67,11 @@ func TerrainMult(w *core.World, t *Terrain, e *core.Entity, mx, my float64) floa
 		return 1
 	}
 	ax, ay := Anchor(w, s)
-	return SlopeMult(t.Grade(ax+p.X, ay+p.Y, mx, my))
+	m := SlopeMult(t.Grade(ax+p.X, ay+p.Y, mx, my))
+	if m > 0 {
+		m *= trailBoost(w, ax+p.X, ay+p.Y) // v1.27: по тропке и тракту идти легче
+	}
+	return m
 }
 
 var terrCache struct {
@@ -91,5 +95,6 @@ func terrainFor(w *core.World) *Terrain {
 func MovementView() map[string]any {
 	return map[string]any{"walk_mps": walkSpeed, "jog_mps": jogSpeed, "run_mps": runSpeed,
 		"slope": map[string]any{"probe_m": slopeProbe, "up_k": SlopeUpK, "down_k": SlopeDownK,
-			"easy_down": SlopeEasyDown, "easy_boost": SlopeEasyBoost, "cliff": SlopeCliff, "flat_radius_m": siteFlatR}}
+			"easy_down": SlopeEasyDown, "easy_boost": SlopeEasyBoost, "cliff": SlopeCliff, "flat_radius_m": siteFlatR},
+		"trail": map[string]any{"trail_boost": TrailBoost, "road_boost": RoadBoost, "trail_width_m": TrailWidth, "road_width_m": RoadWidth, "reach_m": trailReachM}}
 }

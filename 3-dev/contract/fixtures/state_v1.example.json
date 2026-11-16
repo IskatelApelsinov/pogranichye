@@ -270,6 +270,13 @@
       "over": false,
       "pack": "",
       "pack_bonus": 0
+    },
+    "trail": {
+      "id": "road-2-54",
+      "kind": "trail",
+      "a": "Починок",
+      "b": "Броды",
+      "boost": 1.15
     }
   },
   "place": {

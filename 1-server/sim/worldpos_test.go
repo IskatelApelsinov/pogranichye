@@ -561,7 +561,15 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 
 	// Проверяем, что server terrain content публикует именно это ребро в чанке
 	// на середине дороги, а не только рисует его на обзорной карте.
+	// v1.27: тропка петляет — чанк берём по середине самой нитки
 	midE, midN := (ae+be)/2, (an+bn)/2
+	if trails, _ := Trails(w); len(trails) > 0 {
+		for _, tr := range trails {
+			if tr.A == chosen.A && tr.B == chosen.B {
+				midE, midN = tr.Pts[len(tr.Pts)/2][0], tr.Pts[len(tr.Pts)/2][1]
+			}
+		}
+	}
 	cx, cz := int64(math.Floor(midE/ChunkMeters)), int64(math.Floor(midN/ChunkMeters))
 	chunkE, chunkN := ChunkOrigin(cx, cz)
 	roadID := "road-" + eidStr(chosen.A) + "-" + eidStr(chosen.B)
@@ -569,8 +577,8 @@ func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
 	for _, descriptor := range chunkRoads(w, chunkE, chunkN) {
 		if descriptor["id"] == roadID {
 			points, ok := descriptor["points"].([]map[string]float64)
-			if !ok || len(points) != 2 {
-				t.Fatalf("у дорожного дескриптора %s нет двух точек: %#v", roadID, descriptor["points"])
+			if !ok || len(points) < 2 {
+				t.Fatalf("у дорожного дескриптора %s меньше двух точек: %#v", roadID, descriptor["points"])
 			}
 			foundRoad = true
 			break

@@ -248,6 +248,9 @@ function drawSites(s){
 // ---------- чьи это земли и обозы на тракте (v1.24) ----------
 function drawRealm(s){
   const pl = s.place||{};
+  const tr = (s.me||{}).trail; // v1.27: идём по тропке или тракту — шаг легче
+  setHTML('trailline', tr&&tr.kind ? esc((tr.kind==='road'?'🛤 Тракт':'👣 Тропка')+': '+(tr.a||'?')+' — '+(tr.b||'?')+' · шаг легче ×'+tr.boost) : '');
+  show('trailline', !!(tr&&tr.kind));
   if(!('realm' in pl) && !(pl.caravans||[]).length){ show('realmcard', false); return; } // старый сервер — молчим
   show('realmcard', true);
   let h = '<b>🏰 Чьи это земли</b>';

@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -75,14 +76,16 @@ func TestTerrainChunkRoadCorridorBetweenSettlements(t *testing.T) {
 	sa, sb := core.Settle(w.Get(rd.A)), core.Settle(w.Get(rd.B))
 	ax, ay := Anchor(w, sa)
 	bx, by := Anchor(w, sb)
-	midE, midN := (ax+bx)/2, (ay+by)/2
-	cx, cz := int64(midE)/ChunkMeters, int64(midN)/ChunkMeters
-	if midE < 0 {
-		cx--
+	_, _, _, _ = ax, ay, bx, by
+	// v1.27: тропка петляет — середина берётся по самой нитке, а не по прямой между сёлами
+	var mid [2]float64
+	trails, _ := Trails(w)
+	for _, tr := range trails {
+		if tr.A == rd.A && tr.B == rd.B {
+			mid = tr.Pts[len(tr.Pts)/2]
+		}
 	}
-	if midN < 0 {
-		cz--
-	}
+	cx, cz := int64(math.Floor(mid[0]/ChunkMeters)), int64(math.Floor(mid[1]/ChunkMeters))
 
 	c := TerrainChunk(w, cx, cz, 16)
 	roadsOut, _ := c["roads"].([]map[string]any)
@@ -91,8 +94,8 @@ func TestTerrainChunkRoadCorridorBetweenSettlements(t *testing.T) {
 	}
 	for _, r := range roadsOut {
 		pts, ok := r["points"].([]map[string]float64)
-		if !ok || len(pts) != 2 {
-			t.Fatalf("road должен содержать 2 точки (отрезок), получили: %v", r["points"])
+		if !ok || len(pts) < 2 {
+			t.Fatalf("road должен содержать ломаную хотя бы из 2 точек, получили: %v", r["points"])
 		}
 		for _, p := range pts {
 			if p["x"] < -1 || p["x"] > ChunkMeters+1 || p["z"] < -1 || p["z"] > ChunkMeters+1 {
