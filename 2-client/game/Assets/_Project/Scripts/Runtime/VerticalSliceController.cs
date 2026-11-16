@@ -112,6 +112,7 @@ namespace Pogranichye.Client
         private int _worldMapCachedFrame = -1;
         private double _worldMapRadius = 500d;
         private readonly Dictionary<string, TerrainChunkFrame> _terrainChunks = new Dictionary<string, TerrainChunkFrame>();
+        private readonly Dictionary<string, WorldSpaceChunkFrame> _spaceChunks = new Dictionary<string, WorldSpaceChunkFrame>();
         private readonly HashSet<string> _terrainChunkRequests = new HashSet<string>();
         private readonly Dictionary<string, CancellationTokenSource> _terrainChunkCancellation =
             new Dictionary<string, CancellationTokenSource>();
@@ -3760,6 +3761,7 @@ namespace Pogranichye.Client
                 _terrainStreamGeneration++;
                 CancelAllTerrainChunkRequests();
                 _terrainChunks.Clear();
+                _spaceChunks.Clear();
                 _terrainChunkRequests.Clear();
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
@@ -4488,6 +4490,11 @@ namespace Pogranichye.Client
                 foreach (var id in stale)
                 {
                     _terrainChunks.Remove(id);
+                    if (_spaceChunks.TryGetValue(id, out var staleSpaces))
+                    {
+                        WorldSpacePresentationBuilder.Remove(_presentationRoot, staleSpaces);
+                        _spaceChunks.Remove(id);
+                    }
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
                     WorldFrontierBiomeBuilder.Remove(_presentationRoot, id);
                 }
@@ -4505,6 +4512,9 @@ namespace Pogranichye.Client
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, pair.Value, anchor);
                 }
+                WorldSpacePresentationBuilder.Clear(_presentationRoot);
+                foreach (var pair in _spaceChunks)
+                    WorldSpacePresentationBuilder.Apply(_presentationRoot, pair.Value, anchor);
                 _terrainAppliedSettlementId = frame.Place.Id;
                 _terrainAppliedAnchorEast = anchor.East;
                 _terrainAppliedAnchorNorth = anchor.North;
@@ -4605,7 +4615,14 @@ namespace Pogranichye.Client
                     _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     if (spaces != null)
+                    {
+                        _spaceChunks[chunkId] = spaces;
                         WorldSpacePresentationBuilder.Apply(_presentationRoot, spaces, _frame.Place.Anchor);
+                    }
+                    else
+                    {
+                        _spaceChunks.Remove(chunkId);
+                    }
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
                     _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
