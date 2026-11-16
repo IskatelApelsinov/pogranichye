@@ -3889,6 +3889,7 @@ namespace Pogranichye.Client
                 CancelAllTerrainChunkRequests();
                 _terrainChunks.Clear();
                 _spaceChunks.Clear();
+                _floatingOriginAnchor = null;
                 _terrainChunkRequests.Clear();
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
