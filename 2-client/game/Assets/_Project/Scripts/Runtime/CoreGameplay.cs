@@ -47,24 +47,26 @@ namespace Pogranichye.Client
         public static void ApplyUiTheme()
         {
             if (Event.current == null || GUI.skin == null) return;
-            if (_uiPanelTexture == null) _uiPanelTexture = MakeUiTexture(new Color(0.075f, 0.083f, 0.073f, 0.97f));
-            if (_uiButtonTexture == null) _uiButtonTexture = MakeUiTexture(new Color(0.19f, 0.17f, 0.13f, 0.98f));
-            if (_uiButtonHoverTexture == null) _uiButtonHoverTexture = MakeUiTexture(new Color(0.34f, 0.27f, 0.16f, 1f));
-            if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.48f, 0.34f, 0.17f, 1f));
+            // Contemporary dark-fantasy UI: cool graphite surfaces, restrained brass accents,
+            // and clear hover/active feedback without neon colors or excessive ornament.
+            if (_uiPanelTexture == null) _uiPanelTexture = MakeUiTexture(new Color(0.045f, 0.055f, 0.062f, 0.97f));
+            if (_uiButtonTexture == null) _uiButtonTexture = MakeUiTexture(new Color(0.105f, 0.125f, 0.135f, 0.99f));
+            if (_uiButtonHoverTexture == null) _uiButtonHoverTexture = MakeUiTexture(new Color(0.18f, 0.215f, 0.22f, 1f));
+            if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.34f, 0.265f, 0.16f, 1f));
 
             var label = GUI.skin.label;
-            label.fontSize = 15;
+            label.fontSize = ClientUiTypography.HudBody;
             label.wordWrap = true;
-            label.normal.textColor = new Color(0.88f, 0.85f, 0.76f);
+            label.normal.textColor = new Color(0.88f, 0.90f, 0.88f);
             label.margin = new RectOffset(4, 4, 3, 4);
 
             var box = GUI.skin.box;
             box.normal.background = _uiPanelTexture;
-            box.normal.textColor = new Color(0.91f, 0.76f, 0.48f);
-            box.fontSize = 15;
+            box.normal.textColor = new Color(0.88f, 0.72f, 0.48f);
+            box.fontSize = ClientUiTypography.HudBody;
             box.fontStyle = FontStyle.Bold;
             box.alignment = TextAnchor.UpperLeft;
-            box.padding = new RectOffset(12, 12, 10, 10);
+            box.padding = new RectOffset(14, 14, 11, 11);
             box.margin = new RectOffset(4, 4, 5, 5);
 
             var button = GUI.skin.button;
@@ -72,20 +74,20 @@ namespace Pogranichye.Client
             button.hover.background = _uiButtonHoverTexture;
             button.active.background = _uiButtonActiveTexture;
             button.focused.background = _uiButtonHoverTexture;
-            button.normal.textColor = new Color(0.91f, 0.88f, 0.79f);
+            button.normal.textColor = new Color(0.88f, 0.90f, 0.88f);
             button.hover.textColor = Color.white;
             button.active.textColor = Color.white;
-            button.fontSize = 14;
+            button.fontSize = ClientUiTypography.HudSecondary;
             button.fontStyle = FontStyle.Bold;
-            button.padding = new RectOffset(9, 9, 6, 6);
+            button.padding = new RectOffset(11, 11, 7, 7);
             button.margin = new RectOffset(3, 3, 3, 3);
 
             var field = GUI.skin.textField;
             field.normal.background = _uiButtonTexture;
             field.focused.background = _uiButtonHoverTexture;
             field.normal.textColor = Color.white;
-            field.fontSize = 14;
-            field.padding = new RectOffset(7, 7, 5, 5);
+            field.fontSize = ClientUiTypography.HudSecondary;
+            field.padding = new RectOffset(8, 8, 6, 6);
         }
 
         private sealed class FoeRec
