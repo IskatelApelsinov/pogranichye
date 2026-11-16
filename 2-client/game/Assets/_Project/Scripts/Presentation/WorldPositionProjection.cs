@@ -31,6 +31,27 @@ namespace Pogranichye.Client.Presentation
             return true;
         }
 
+        /// <summary>Projects canonical global E/N/U against the current server settlement anchor.</summary>
+        public static bool TryToUnityPosition(WorldPositionFrame worldPosition,
+            WorldAnchorFrame originAnchor, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (worldPosition == null || originAnchor == null || !worldPosition.IsValid ||
+                worldPosition.Frame != originAnchor.Frame ||
+                !IsFinite(originAnchor.East) || !IsFinite(originAnchor.North) || !IsFinite(originAnchor.Up))
+                return false;
+
+            var east = worldPosition.East - originAnchor.East;
+            var north = worldPosition.North - originAnchor.North;
+            var up = worldPosition.Up - originAnchor.Up;
+            if (!IsFinite(east) || !IsFinite(north) || !IsFinite(up) ||
+                Math.Abs(east) > 1000000d || Math.Abs(north) > 1000000d || Math.Abs(up) > 1000000d)
+                return false;
+
+            position = new Vector3((float)east, (float)up, (float)north);
+            return true;
+        }
+
         private static bool IsFinite(double value)
         {
             return !double.IsNaN(value) && !double.IsInfinity(value);
