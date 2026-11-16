@@ -192,6 +192,10 @@ namespace Pogranichye.Client
         private Vector2 _hudScroll;
         private Vector2 _contextActionScroll;
         private float _mapZoom = 1f;
+        // Manual map pan is presentation-only; all geometry and discovered places still come from the server.
+        private Vector2 _mapPanMeters;
+        private bool _mapDragging;
+        private Vector2 _mapDragLast;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
         private GUIStyle _mapPoiLabelRightStyle;
@@ -1226,7 +1230,10 @@ namespace Pogranichye.Client
             if (GUILayout.Button("Сброс", GUILayout.Width(54f))) nextZoom = 1f;
             _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
             GUILayout.EndHorizontal();
-            GUILayout.Label(_mapZoom > 1.01f ? "При увеличении карта центрируется на персонаже." : "Показано всё поселение.");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(_mapZoom > 1.01f ? "Увеличение · перетаскивайте карту мышью" : "Обзор · перетаскивайте карту мышью");
+            if (GUILayout.Button("К персонажу", GUILayout.Width(112f))) _mapPanMeters = Vector2.zero;
+            GUILayout.EndHorizontal();
             if (_layout == null || _layout.Version != 2)
             {
                 GUILayout.Label("Серверная карта поселения пока недоступна.");
@@ -1264,9 +1271,10 @@ namespace Pogranichye.Client
 
             var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
             var playerPosition = _frame?.Me?.Position;
-            var centerX = _mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d;
-            var centerY = _mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d;
+            var centerX = (_mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d) + _mapPanMeters.x;
+            var centerY = (_mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d) + _mapPanMeters.y;
             var half = worldHalf / _mapZoom;
+            HandleMapPan(mapRect, half);
             if (_layout.RiverPresent)
             {
                 var riverRect = MapViewportRect(-half - centerX, _layout.River.Y0 - centerY,
@@ -1380,6 +1388,35 @@ namespace Pogranichye.Client
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private void HandleMapPan(Rect mapRect, double half)
+        {
+            var current = Event.current;
+            if (current == null) return;
+            var controlId = GUIUtility.GetControlID(FocusType.Passive, mapRect);
+            if (current.type == EventType.MouseDown && current.button == 0 && mapRect.Contains(current.mousePosition))
+            {
+                GUIUtility.hotControl = controlId;
+                _mapDragging = true;
+                _mapDragLast = current.mousePosition;
+                current.Use();
+            }
+            else if (current.type == EventType.MouseDrag && _mapDragging && GUIUtility.hotControl == controlId)
+            {
+                var delta = current.mousePosition - _mapDragLast;
+                _mapDragLast = current.mousePosition;
+                _mapPanMeters.x -= delta.x * (float)(2d * half / Math.Max(1f, mapRect.width));
+                _mapPanMeters.y += delta.y * (float)(2d * half / Math.Max(1f, mapRect.height));
+                current.Use();
+            }
+            else if ((current.type == EventType.MouseUp || current.type == EventType.Ignore) &&
+                     _mapDragging && GUIUtility.hotControl == controlId)
+            {
+                _mapDragging = false;
+                GUIUtility.hotControl = 0;
+                current.Use();
+            }
         }
 
         private static Rect MapViewportRect(double x0, double y0, double x1, double y1,
