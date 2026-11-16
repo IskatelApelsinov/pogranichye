@@ -192,6 +192,9 @@ namespace Pogranichye.Client
         private Vector2 _hudScroll;
         private Vector2 _contextActionScroll;
         private float _mapZoom = 1f;
+        private Vector2 _mapPan;
+        private bool _mapDragging;
+        private Vector2 _mapLastPointer;
         private GUIStyle _mapPoiStyle;
         private GUIStyle _mapPoiLabelStyle;
         private GUIStyle _mapPoiLabelRightStyle;
@@ -1223,10 +1226,16 @@ namespace Pogranichye.Client
             var nextZoom = GUILayout.HorizontalSlider(_mapZoom, 1f, 4f);
             if (GUILayout.Button("−", GUILayout.Width(28f))) nextZoom = Mathf.Max(1f, _mapZoom - 0.25f);
             if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(4f, _mapZoom + 0.25f);
-            if (GUILayout.Button("Сброс", GUILayout.Width(54f))) nextZoom = 1f;
+            if (GUILayout.Button("К персонажу", GUILayout.Width(104f))) _mapPan = Vector2.zero;
+            if (GUILayout.Button("Сброс", GUILayout.Width(54f)))
+            {
+                nextZoom = 1f;
+                _mapPan = Vector2.zero;
+            }
             _mapZoom = Mathf.Clamp(nextZoom, 1f, 4f);
+            if (_mapZoom <= 1.01f) _mapPan = Vector2.zero;
             GUILayout.EndHorizontal();
-            GUILayout.Label(_mapZoom > 1.01f ? "При увеличении карта центрируется на персонаже." : "Показано всё поселение.");
+            GUILayout.Label("ЛКМ — переместить карту · колесо — масштаб · «К персонажу» — вернуть метку в центр.");
             if (_layout == null || _layout.Version != 2)
             {
                 GUILayout.Label("Серверная карта поселения пока недоступна.");
@@ -1245,11 +1254,83 @@ namespace Pogranichye.Client
             DrawKnownSettlements();
         }
 
+        private void HandleLocalMapPointer(Rect mapRect, double worldHalf)
+        {
+            var currentEvent = Event.current;
+            if (currentEvent == null) return;
+
+            var controlId = GUIUtility.GetControlID(FocusType.Passive, mapRect);
+            if (currentEvent.type == EventType.ScrollWheel && mapRect.Contains(currentEvent.mousePosition))
+            {
+                var previousZoom = _mapZoom;
+                _mapZoom = Mathf.Clamp(
+                    _mapZoom + (currentEvent.delta.y < 0f ? 0.25f : -0.25f), 1f, 4f);
+                if (_mapZoom <= 1.01f) _mapPan = Vector2.zero;
+                else if (previousZoom <= 1.01f) _mapPan = Vector2.zero;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0 &&
+                mapRect.Contains(currentEvent.mousePosition))
+            {
+                GUIUtility.hotControl = controlId;
+                _mapDragging = true;
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (GUIUtility.hotControl != controlId || !_mapDragging) return;
+            if (currentEvent.type == EventType.MouseDrag)
+            {
+                if (_mapZoom > 1.01f)
+                {
+                    var delta = currentEvent.mousePosition - _mapLastPointer;
+                    var half = (float)(worldHalf / _mapZoom);
+                    _mapPan.x -= delta.x * (2f * half / Mathf.Max(1f, mapRect.width));
+                    _mapPan.y += delta.y * (2f * half / Mathf.Max(1f, mapRect.height));
+
+                    // Keep the viewport within the server-authored settlement bounds.
+                    var centerX = _frame?.Me?.Position != null
+                        ? _frame.Me.Position.X + _mapPan.x : _mapPan.x;
+                    var centerY = _frame?.Me?.Position != null
+                        ? _frame.Me.Position.Y + _mapPan.y : _mapPan.y;
+                    var maxCenter = Math.Max(0d, worldHalf - half);
+                    centerX = Math.Max(-maxCenter, Math.Min(maxCenter, centerX));
+                    centerY = Math.Max(-maxCenter, Math.Min(maxCenter, centerY));
+                    if (_frame?.Me?.Position != null)
+                    {
+                        _mapPan.x = (float)(centerX - _frame.Me.Position.X);
+                        _mapPan.y = (float)(centerY - _frame.Me.Position.Y);
+                    }
+                    else
+                    {
+                        _mapPan.x = (float)centerX;
+                        _mapPan.y = (float)centerY;
+                    }
+                }
+
+                _mapLastPointer = currentEvent.mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseUp)
+            {
+                _mapDragging = false;
+                GUIUtility.hotControl = 0;
+                currentEvent.Use();
+            }
+        }
+
         private void DrawLocalMap()
         {
-            const float mapSize = 320f;
+            var mapSize = Mathf.Min(400f, Screen.width - 96f);
             var mapRect = GUILayoutUtility.GetRect(mapSize, mapSize,
                 GUILayout.Width(mapSize), GUILayout.Height(mapSize));
+            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
+            HandleLocalMapPointer(mapRect, worldHalf);
             var previousColor = GUI.color;
             DrawMapFill(mapRect, new Color(0.23f, 0.30f, 0.20f));
 
@@ -1262,10 +1343,11 @@ namespace Pogranichye.Client
                 DrawMapFill(new Rect(mapRect.x, y, mapRect.width, 1f), new Color(0.75f, 0.78f, 0.64f, 0.16f));
             }
 
-            var worldHalf = _layout.WorldHalf > 0d ? _layout.WorldHalf : 150d;
             var playerPosition = _frame?.Me?.Position;
-            var centerX = _mapZoom > 1.01f && playerPosition != null ? playerPosition.X : 0d;
-            var centerY = _mapZoom > 1.01f && playerPosition != null ? playerPosition.Y : 0d;
+            var centerX = _mapZoom > 1.01f && playerPosition != null
+                ? playerPosition.X + _mapPan.x : 0d;
+            var centerY = _mapZoom > 1.01f && playerPosition != null
+                ? playerPosition.Y + _mapPan.y : 0d;
             var half = worldHalf / _mapZoom;
             if (_layout.RiverPresent)
             {
