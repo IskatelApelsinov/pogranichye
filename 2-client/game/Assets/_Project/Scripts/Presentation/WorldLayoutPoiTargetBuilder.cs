@@ -32,10 +32,28 @@ namespace Pogranichye.Client.Presentation
                         ? (float)descriptor.Radius : 0.9f, 0.35f, 3.5f);
                     hitArea.isTrigger = true;
                     var poi = target.AddComponent<WorldPoi>();
-                    poi.Initialize(
-                        string.IsNullOrWhiteSpace(descriptor.Title) ? "Взаимодействие" : descriptor.Title,
-                        null, null, Color.clear, null, descriptor.Id, descriptor.Hint,
-                        descriptor.Available, descriptor.Reason, descriptor.TargetType, descriptor.TargetId);
+                    var targetPoiId = string.IsNullOrWhiteSpace(descriptor.TargetId)
+                        ? descriptor.Id : descriptor.TargetId;
+                    var targetZoneKind = targetPoiId == "woods" ? ResolveWoodsZoneKind(layout) : null;
+                    if (WorldLayoutPoiInteractionPolicy.TryResolve(targetPoiId, targetZoneKind, out var mapped))
+                    {
+                        // Prefer the already-supported op:"act"/goal path for known village work.
+                        // The generic op:"interact" descriptor is not yet guaranteed to have a
+                        // server handler on every deployed v1 server.
+                        poi.Initialize(
+                            string.IsNullOrWhiteSpace(descriptor.Title) ? mapped.Title : descriptor.Title,
+                            mapped.Goal, null, Color.clear, mapped.ActionIntent, null, descriptor.Hint,
+                            descriptor.Available, descriptor.Reason, descriptor.TargetType, descriptor.TargetId);
+                    }
+                    else
+                    {
+                        // Unknown server descriptors retain their explicit interaction ID;
+                        // they are never translated into a guessed client-side activity.
+                        poi.Initialize(
+                            string.IsNullOrWhiteSpace(descriptor.Title) ? "Взаимодействие" : descriptor.Title,
+                            null, null, Color.clear, null, descriptor.Id, descriptor.Hint,
+                            descriptor.Available, descriptor.Reason, descriptor.TargetType, descriptor.TargetId);
+                    }
                 }
                 return;
             }
