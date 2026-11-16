@@ -26,5 +26,5 @@
 ## Проверки
 
 - Изменения сделаны в клиентской ветке; серверные файлы не изменялись.
-- PR #663 открыт: https://github.com/IskatelApelsinov/pogranichye/pull/663 (последний коммит ветки: 50a44a7fef0bdf1dfc64742a3e54b859ca9a861e).\n- Unity-independent C# workflow #472 завершился success на промежуточном коммите 4c9a0f6ac7c6f03e6489e3bcbadbb117b7066796. Workflow не компилирует все затронутые Unity MonoBehaviours и не покрывает последние два коммита; это не подтверждение полной сборки.
+- PR #663 открыт: https://github.com/IskatelApelsinov/pogranichye/pull/663 (ветка `feature/unity-v122-sites-weave-client`).\n- Unity-independent C# workflow #472 завершился success на промежуточном коммите 4c9a0f6ac7c6f03e6489e3bcbadbb117b7066796. Workflow не компилирует все затронутые Unity MonoBehaviours и не покрывает последние два коммита; это не подтверждение полной сборки.
 - Unity Editor compile, PlayMode и live-server acceptance не запускались; не объявлять runtime-ready.
