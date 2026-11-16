@@ -512,3 +512,108 @@ func TestWorldPosViewUsingMatchesPerEntityView(t *testing.T) {
 		}
 	}
 }
+
+
+// TestWalkAlongRoadGraphEdgeSeamless — проверяем не абстрактное направление к соседу,
+// а реальное ребро текущего RoadGraph: идём обычными шагами по его прямому участку
+// между settlement anchors, запрашиваем геометрию затронутого terrain chunk и проверяем handover.
+func TestWalkAlongRoadGraphEdgeSeamless(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	ctl := func(id core.ID) bool { return id == e.ID }
+	SetSeamless(w, true)
+	p := EnsureScenePos(w, e)
+	p.X, p.Y = 0, 0
+
+	var target core.ID
+	bestDistance := math.MaxFloat64
+	var chosen Road
+	for _, road := range RoadGraph(w, false) {
+		var other core.ID
+		switch {
+		case road.A == se.ID:
+			other = road.B
+		case road.B == se.ID:
+			other = road.A
+		default:
+			continue
+		}
+		oe, on := Anchor(w, core.Settle(w.Get(other)))
+		ae, an := Anchor(w, core.Settle(se))
+		d := math.Hypot(oe-ae, on-an)
+		if d < bestDistance {
+			bestDistance, target, chosen = d, other, road
+		}
+	}
+	if target == 0 {
+		t.Fatal("у стартового поселения нет ребра в RoadGraph")
+	}
+
+	ae, an := Anchor(w, core.Settle(se))
+	be, bn := Anchor(w, core.Settle(w.Get(target)))
+	if math.Abs(chosen.Len-math.Hypot(be-ae, bn-an)) > 0.01 {
+		t.Fatalf("длина ребра RoadGraph не совпадает с расстоянием между anchors: road=%.2f actual=%.2f",
+			chosen.Len, math.Hypot(be-ae, bn-an))
+	}
+
+	// Проверяем, что server terrain content публикует именно это ребро в чанке
+	// на середине дороги, а не только рисует его на обзорной карте.
+	midE, midN := (ae+be)/2, (an+bn)/2
+	cx, cz := int64(math.Floor(midE/ChunkMeters)), int64(math.Floor(midN/ChunkMeters))
+	chunkE, chunkN := ChunkOrigin(cx, cz)
+	roadID := "road-" + eidStr(chosen.A) + "-" + eidStr(chosen.B)
+	foundRoad := false
+	for _, descriptor := range chunkRoads(w, chunkE, chunkN) {
+		if descriptor["id"] == roadID {
+			points, ok := descriptor["points"].([]map[string]float64)
+			if !ok || len(points) != 2 {
+				t.Fatalf("у дорожного дескриптора %s нет двух точек: %#v", roadID, descriptor["points"])
+			}
+			foundRoad = true
+			break
+		}
+	}
+	if !foundRoad {
+		t.Fatalf("terrain chunk (%d,%d) на середине ребра не содержит дорогу %s", cx, cz, roadID)
+	}
+
+	ter := NewTerrain(w)
+	seq := int64(500)
+	before, ok := WorldPosOf(w, ter, e)
+	if !ok {
+		t.Fatal("не удалось получить начальную глобальную позицию")
+	}
+	reached := false
+	for step := 0; step < 400000 && !reached; step++ {
+		cur := core.Settle(w.Get(core.Place(e).Settlement))
+		ce, cn := Anchor(w, cur)
+		// В каждый момент задаём направление к следующему участку того же server-authored
+		// отрезка A—B. ApplyMove ограничивает фактическое смещение обычной скоростью ходьбы.
+		dx, dy := be-(ce+p.X), bn-(cn+p.Y)
+		seq++
+		ApplyMove(LayoutFor(w, e), p, dx, dy, false, 0, 0.25, seq)
+		after, valid := WorldPosOf(w, ter, e)
+		if !valid {
+			t.Fatalf("потеряна глобальная позиция на шаге %d", step)
+		}
+		if moved, _ := WorldDist(before, after); moved > walkSpeed*0.25+0.01 {
+			t.Fatalf("неожиданный скачок на шаге %d: %.3f м", step, moved)
+		}
+		before = after
+		was := core.Place(e).Settlement
+		StepLands(w, ctl)
+		StepExits(w, ctl, nil)
+		if OnRoad(e) {
+			t.Fatalf("обычная ходьба по ребру RoadGraph неожиданно включила travel на шаге %d", step)
+		}
+		if core.Place(e).Settlement != was {
+			reached = core.Place(e).Settlement == target
+			if !reached {
+				t.Fatalf("по прямому ребру к %d игрок сначала попал в неожиданное поселение %d", target, core.Place(e).Settlement)
+			}
+		}
+	}
+	if !reached {
+		t.Fatalf("не удалось пешком пройти server RoadGraph edge до соседнего поселения %d (длина %.0f м)",
+			target, bestDistance)
+	}
+}
