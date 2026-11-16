@@ -17,7 +17,7 @@
 
 ## Ограничения / следующий этап
 
-- resources[] и wild[] из /api/terrain пока не визуализируются. Глобальные landmarks из /api/world.wildsites продолжают рендериться отдельно; player actions используют place.sites[].
+- resources[] из /api/terrain отображаются лёгкими маркерами без коллайдеров. wild[] не дублируется: те же persistent landmarks уже строятся из /api/world.wildsites; player actions используют place.sites[].
 - water[] отрисовка готова, но сервер PR #662 на момент этой ветки открыт и не слит. В текущем main вода не гарантированно приходит.
 - Каталог не меняет состояние сам по себе. Покупка, экипировка и употребление уже подключены через существующие server intents; дальнейшая проверка нужна на реальном сервере, особенно для всех новых item IDs.
 - Все десять узлов доступны мышью и клавишами 1–9, 0; клавиатурные привязки добавлены без изменения первых шести.
@@ -26,5 +26,5 @@
 ## Проверки
 
 - Изменения сделаны в клиентской ветке; серверные файлы не изменялись.
-- PR #663 открыт: https://github.com/IskatelApelsinov/pogranichye/pull/663 (ветка `feature/unity-v122-sites-weave-client`).\n- Unity-independent C# workflow #472 завершился success на промежуточном коммите 4c9a0f6ac7c6f03e6489e3bcbadbb117b7066796. Workflow не компилирует все затронутые Unity MonoBehaviours и не покрывает последние два коммита; это не подтверждение полной сборки.
+- PR #663 открыт: https://github.com/IskatelApelsinov/pogranichye/pull/663 (ветка `feature/unity-v122-sites-weave-client`).\n- Unity-independent C# workflow #472 завершился success на промежуточном коммите 4c9a0f6ac7c6f03e6489e3bcbadbb117b7066796. Workflow не компилирует все затронутые Unity MonoBehaviours и не покрывает последующие изменения ветки; это не подтверждение полной сборки.
 - Unity Editor compile, PlayMode и live-server acceptance не запускались; не объявлять runtime-ready.
