@@ -1844,6 +1844,12 @@ namespace Pogranichye.Client
             }
 
             EnsureWorldMapNearby(place.Id, anchor.Frame, anchor.East, anchor.North);
+            var currentRealm = place.Realm;
+            GUILayout.Label(currentRealm == null
+                ? "Вольная земля · державной власти здесь нет."
+                : "Держава: " + currentRealm.Name + " · столица: " + currentRealm.Capital +
+                    " · поселений: " + currentRealm.Size +
+                    (string.IsNullOrWhiteSpace(currentRealm.WarWith) ? string.Empty : " · война с " + currentRealm.WarWith));
             if (_worldMapNearby.Count == 0)
             {
                 GUILayout.Label("В этом географическом кадре пока нет известных дорог и поселений.");
@@ -1910,6 +1916,32 @@ namespace Pogranichye.Client
                         label, _mapPoiLabelStyle);
             }
 
+            // Global caravan positions are authoritative world E/N/U metres. Draw only
+            // those inside this map viewport; cargo/progress remain server-authored.
+            if (manifest.Caravans != null)
+            {
+                for (var i = 0; i < manifest.Caravans.Count; i++)
+                {
+                    var caravan = manifest.Caravans[i];
+                    if (caravan == null || caravan.Frame != anchor.Frame) continue;
+                    var point = new Vector2(
+                        rect.center.x + (float)((caravan.East - anchor.East) / _worldMapRadius) * rect.width * 0.5f,
+                        rect.center.y - (float)((caravan.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
+                    if (!rect.Contains(point)) continue;
+                    var marker = new Rect(point.x - 6f, point.y - 6f, 12f, 12f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = new Color(0.72f, 0.57f, 0.30f, 1f);
+                    GUI.contentColor = Color.white;
+                    var progressLabel = Mathf.RoundToInt((float)caravan.Progress * 100f);
+                    GUI.Box(marker, new GUIContent("◆",
+                        "Обоз: " + caravan.Good + " · " + progressLabel + "% пути · " +
+                        caravan.From + " → " + caravan.To), _mapNeighborStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+                }
+            }
+
             var player = _frame.Me?.WorldPosition;
             if (player != null)
             {
@@ -1918,7 +1950,7 @@ namespace Pogranichye.Client
                     rect.center.y - (float)((player.North - anchor.North) / _worldMapRadius) * rect.height * 0.5f);
                 DrawMapFill(new Rect(playerPoint.x - 2f, playerPoint.y - 2f, 4f, 4f), Color.white);
             }
-            GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? ещё не названное место");
+            GUILayout.Label("━ Дорога · ★ Вы · ● известное поселение · ? неизвестное место · ◆ обоз");
             GUILayout.Label("Карта показывает соседние поселения и реальные связи из мирового реестра; неизвестные места остаются без имени.");
             if (!manifest.Seamless)
                 GUILayout.Label("Сервер пока не включил бесшовное перемещение: дороги показаны по мировому реестру, но переходы могут быть ограничены.");
