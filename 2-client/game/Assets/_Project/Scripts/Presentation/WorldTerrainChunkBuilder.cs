@@ -312,7 +312,7 @@ namespace Pogranichye.Client.Presentation
 
         private static string SafeName(string value)
         {
-            return (value ?? string.Empty).Replace(':', '_').Replace('/', '_').Replace('\\\\', '_');
+            return (value ?? string.Empty).Replace(':', '_').Replace('/', '_').Replace('\\', '_');
         }
 
         private static Material _waterMaterial;
