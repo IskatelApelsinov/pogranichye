@@ -1476,8 +1476,8 @@ namespace Pogranichye.Client
                     var centerX = hasPlayerPosition ? playerLocal.x + _mapPan.x : _mapPan.x;
                     var centerY = hasPlayerPosition ? playerLocal.y + _mapPan.y : _mapPan.y;
                     var maxCenter = Math.Max(0d, worldHalf - half);
-                    centerX = Math.Max(-maxCenter, Math.Min(maxCenter, centerX));
-                    centerY = Math.Max(-maxCenter, Math.Min(maxCenter, centerY));
+                    centerX = Mathf.Clamp(centerX, (float)-maxCenter, (float)maxCenter);
+                    centerY = Mathf.Clamp(centerY, (float)-maxCenter, (float)maxCenter);
                     if (hasPlayerPosition)
                     {
                         _mapPan.x = (float)(centerX - playerLocal.x);
