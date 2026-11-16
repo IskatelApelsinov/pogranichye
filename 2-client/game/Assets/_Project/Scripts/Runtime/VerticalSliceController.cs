@@ -4670,7 +4670,17 @@ namespace Pogranichye.Client
                 }
                 WorldSpacePresentationBuilder.Clear(_presentationRoot);
                 foreach (var pair in _spaceChunks)
-                    WorldSpacePresentationBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                {
+                    try
+                    {
+                        WorldSpacePresentationBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                    }
+                    catch (Exception spaceError)
+                    {
+                        Debug.LogWarning("Не удалось перестроить серверное пространство " + pair.Key +
+                            ": " + spaceError.Message);
+                    }
+                }
                 _terrainAppliedSettlementId = frame.Place.Id;
                 _terrainAppliedAnchorEast = anchor.East;
                 _terrainAppliedAnchorNorth = anchor.North;
@@ -4772,8 +4782,17 @@ namespace Pogranichye.Client
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     if (spaces != null)
                     {
-                        _spaceChunks[chunkId] = spaces;
-                        WorldSpacePresentationBuilder.Apply(_presentationRoot, spaces, _frame.Place.Anchor);
+                        try
+                        {
+                            _spaceChunks[chunkId] = spaces;
+                            WorldSpacePresentationBuilder.Apply(_presentationRoot, spaces, _frame.Place.Anchor);
+                        }
+                        catch (Exception spaceError)
+                        {
+                            _spaceChunks.Remove(chunkId);
+                            Debug.LogWarning("Не удалось отобразить серверные пространства чанка " +
+                                chunkId + ": " + spaceError.Message);
+                        }
                     }
                     else
                     {
