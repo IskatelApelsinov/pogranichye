@@ -220,7 +220,10 @@ namespace Pogranichye.Client.Presentation
                 foreach (var water in chunk.Water)
                 {
                     if (water == null || water.Points == null || water.Points.Count < 2 || water.WidthMeters <= 0) continue;
-                    var y = (float)(water.WaterLevelMeters - anchor.Up);
+                    // Server level is currently an estimate 0.3 m below the sampled ground. Since the
+                    // heightfield has no carved river bed yet, lift only this visual ribbon back to
+                    // the ground skin; it has no collider and does not alter canonical terrain.
+                    var y = (float)(water.WaterLevelMeters - anchor.Up + 0.34d);
                     var mesh = BuildRibbon(water.Points, (float)water.WidthMeters, _ => y, "Water " + water.Id);
                     AddFeatureMesh(root, "Water_" + SafeName(water.Id), mesh, WaterMaterial(),
                         (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
@@ -326,6 +329,7 @@ namespace Pogranichye.Client.Presentation
             _waterMaterial = new Material(shader) { name = "World water • river", color = new Color(0.13f, 0.39f, 0.48f, 0.82f) };
             if (_waterMaterial.HasProperty("_BaseColor")) _waterMaterial.SetColor("_BaseColor", new Color(0.13f, 0.39f, 0.48f, 0.82f));
             if (_waterMaterial.HasProperty("_Surface")) _waterMaterial.SetFloat("_Surface", 1f);
+            if (_waterMaterial.HasProperty("_Mode")) _waterMaterial.SetFloat("_Mode", 3f);
             if (_waterMaterial.HasProperty("_ZWrite")) _waterMaterial.SetFloat("_ZWrite", 0f);
             if (_waterMaterial.HasProperty("_SrcBlend")) _waterMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (_waterMaterial.HasProperty("_DstBlend")) _waterMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
