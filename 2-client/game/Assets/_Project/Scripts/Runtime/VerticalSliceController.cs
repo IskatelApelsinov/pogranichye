@@ -1400,8 +1400,18 @@ namespace Pogranichye.Client
                 {
                     if (road == null || !settlementsById.TryGetValue(road.From, out var from) ||
                         !settlementsById.TryGetValue(road.To, out var to)) continue;
+                    // Manifest edges describe the connection between settlements; the actual
+                    // winding trail geometry is rendered from /api/terrain chunk polylines.
+                    var isTract = string.Equals(road.Kind, "road", StringComparison.OrdinalIgnoreCase);
+                    var pathWidth = road.WidthMeters > 0d
+                        ? Mathf.Clamp((float)(1.0d + road.WidthMeters * 0.32d), 1.2f, 3.2f)
+                        : (isTract ? 2.2f : 1.5f);
+                    var mapLineWidth = mapHalf < 12000d ? pathWidth : Math.Max(1.1f, pathWidth * 0.65f);
+                    var mapLineColor = isTract
+                        ? new Color(0.78f, 0.61f, 0.35f, 0.92f)
+                        : new Color(0.55f, 0.48f, 0.34f, 0.82f);
                     DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
-                        mapHalf < 12000d ? 2.4f : 1.5f, new Color(0.73f, 0.58f, 0.36f, 0.9f));
+                        mapLineWidth, mapLineColor);
                 }
             }
 
@@ -1494,7 +1504,7 @@ namespace Pogranichye.Client
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
-            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ серверная дорога · здания и POI появляются при приближении.");
+            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ связь поселений (тип и ширина пути от сервера); точная извилистая нитка видна на местности.");
         }
 
         private static string CompassDirection(float yaw)
