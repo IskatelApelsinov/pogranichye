@@ -509,8 +509,8 @@ namespace Pogranichye.Client
                         name.IndexOf(_inventorySearch.Trim(), StringComparison.OrdinalIgnoreCase) < 0 &&
                         property.Name.IndexOf(_inventorySearch.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
                     var definition = CatalogItem(property.Name);
-                    var slot = Str(definition, "slot");
-                    var isWeapon = Flag(definition, "hand");
+                    var slot = InventorySlot(definition, property.Name);
+                    var isWeapon = IsInventoryHandItem(definition, property.Name);
                     var isClothing = !string.IsNullOrEmpty(slot) && !isWeapon;
                     var isUsable = IsCatalogUsable(property.Name);
                     var category = isWeapon ? "Оружие" : isClothing ? "Одежда" : isUsable ? "Расходники" : "Материалы";
@@ -543,8 +543,8 @@ namespace Pogranichye.Client
                         var item = visible[i + column];
                         var quantity = (int)Num(items, item.Name);
                         var definition = CatalogItem(item.Name);
-                        var slot = Str(definition, "slot");
-                        var isWeapon = Flag(definition, "hand");
+                        var slot = InventorySlot(definition, item.Name);
+                        var isWeapon = IsInventoryHandItem(definition, item.Name);
                         var isUsable = IsCatalogUsable(item.Name);
                         var equipped = hand == item.Name || IsWorn(worn, item.Name);
                         GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(82f), GUILayout.ExpandWidth(true));
@@ -643,13 +643,51 @@ namespace Pogranichye.Client
             return false;
         }
 
+        private static string InventorySlot(JToken definition, string itemId)
+        {
+            var slot = Str(definition, "slot");
+            if (!string.IsNullOrEmpty(slot)) return slot;
+            switch (itemId)
+            {
+                case "hat": return "head";
+                case "cloak": return "body";
+                case "boots": return "feet";
+                case "jerkin": return "armor";
+                case "shield": return "offhand";
+                case "purse": return "belt";
+                default: return string.Empty;
+            }
+        }
+
+        private static bool IsInventoryHandItem(JToken definition, string itemId)
+        {
+            if (Flag(definition, "hand")) return true;
+            switch (itemId)
+            {
+                case "axe": case "sword": case "knife": case "bow":
+                case "rod": case "torch": case "lantern": return true;
+                default: return false;
+            }
+        }
+
         private bool IsCatalogUsable(string itemId)
         {
             var usables = Arr(_catalog, "usables");
-            if (usables == null) return false;
-            foreach (var usable in usables)
-                if (usable != null && usable.ToString() == itemId) return true;
-            return false;
+            if (usables != null)
+            {
+                foreach (var usable in usables)
+                    if (usable != null && usable.ToString() == itemId) return true;
+                return false;
+            }
+
+            // Compatibility with older v1 servers that do not yet expose /api/catalog.
+            switch (itemId)
+            {
+                case "stew": case "roast": case "potion": case "bandage":
+                case "bread": case "fish": case "meat": case "cheese":
+                case "veg": case "game": case "egg": return true;
+                default: return false;
+            }
         }
 
         private static string WearSlotName(string slot)
