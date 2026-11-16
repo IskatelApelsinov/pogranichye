@@ -233,6 +233,7 @@ type wildStock struct {
 type WildUseC struct {
 	Stock map[string]wildStock `json:"stock"`
 	Seen  map[string]int       `json:"seen"` // "<место>|<тело>" → день последнего обыска
+	Foray map[string]forayMark `json:"foray,omitempty"` // место → когда и из какого села там были ходоки (v1.26)
 }
 
 func (c *WildUseC) Kind() string { return "wilduse" }
@@ -441,6 +442,9 @@ func SitesView(w *core.World, t *Terrain, e *core.Entity, day int) []map[string]
 				row["gives"] = strings.TrimPrefix(a, "forage:")
 				row["left"] = math.Floor(wildLeft(u, p.ID, day))
 			}
+		}
+		if note := forayNote(u, p.ID, day); note != "" {
+			row["note"] = note // v1.26: следы людей — сюда ходят из села
 		}
 		out = append(out, row)
 	}

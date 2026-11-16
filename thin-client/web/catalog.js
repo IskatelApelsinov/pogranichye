@@ -46,7 +46,7 @@
         disabled:a==='forage'&&s.left!==undefined&&Number(s.left)<1,
       }));
       return {id:s.id,icon:SITE_ICON[s.kind]||'📍',name:String(s.name),where:s.here?'ты здесь':distText(s.dist)+' '+(s.dir||''),
-        here:!!s.here,going:going===s.id,acts:s.here?acts:[],about:acts.map(a=>a.label.replace(/ \(осталось.*\)$/,'')).join(' · ')};
+        here:!!s.here,going:going===s.id,note:typeof s.note==='string'?s.note:'',acts:s.here?acts:[],about:acts.map(a=>a.label.replace(/ \(осталось.*\)$/,'')).join(' · ')};
     });
   }
   // «Чьи это земли» (v1.24): одна-две строки про державу села. null — вольная земля.
