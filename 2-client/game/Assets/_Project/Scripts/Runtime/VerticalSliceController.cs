@@ -3922,9 +3922,9 @@ namespace Pogranichye.Client
                         // Tab opens it; Esc opens the separate system menu.
                         if (enteringWorld) _hudCollapsed = true;
                         _connectionState = WorldConnectionState.Active;
-                        _views.Apply(frame);
+                        _views.Apply(frame, frame.Place != null ? frame.Place.Anchor : null);
                         if (_core != null) _core.ApplyFrame(frame, frameDocument);
-                        if (frame.Me.Position != null) ReconcileMovement(frame.Me.Position);
+                        if (frame.Me.Position != null) ReconcileMovement(frame.Me);
                         if (_cameraRig != null)
                         {
                             _cameraRig.SetTarget(_views.PlayerTransform);
@@ -4203,10 +4203,15 @@ namespace Pogranichye.Client
             _movementCorrectionRemaining = Mathf.Max(0f, _movementCorrectionRemaining - Time.deltaTime);
         }
 
-        private void ReconcileMovement(ScenePositionFrame position)
+        private void ReconcileMovement(CharacterFrame character)
         {
+            var position = character != null ? character.Position : null;
             if (position == null || _views?.PlayerTransform == null) return;
             _serverStamina = Mathf.Clamp01((float)position.Stamina);
+            Vector3 authoritativePosition;
+            if (!WorldPositionProjection.TryToUnityPosition(
+                character.WorldPosition, _frame?.Place?.Anchor, out authoritativePosition))
+                authoritativePosition = EntityViewRegistry.ToUnityPosition(position);
             var currentPlaceId = _frame?.Place?.Id;
             var placeChanged = !string.Equals(_movementPlaceId, currentPlaceId, StringComparison.Ordinal);
             if (!_hasMovementBaseline || placeChanged)
@@ -4222,7 +4227,7 @@ namespace Pogranichye.Client
                 _moveSendQueue.Clear();
                 _movementCorrection = Vector3.zero;
                 _movementCorrectionRemaining = 0f;
-                _views.PlayerTransform.position = EntityViewRegistry.ToUnityPosition(position);
+                _views.PlayerTransform.position = authoritativePosition;
                 _views.PlayerTransform.rotation = Quaternion.Euler(0f,
                     EntityViewRegistry.FacingToUnityYaw(position.Facing), 0f);
                 return;
@@ -4236,7 +4241,7 @@ namespace Pogranichye.Client
                 if (_pendingMoveIntents[i].Sequence <= position.Sequence)
                     _pendingMoveIntents.RemoveAt(i);
 
-            var replayedPosition = EntityViewRegistry.ToUnityPosition(position);
+            var replayedPosition = authoritativePosition;
             var replayedStamina = _serverStamina;
             var replayedFacing = position.Facing;
             var activeLayout = PoiPositionPolicy.IsLayoutForSettlement(
