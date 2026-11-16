@@ -136,6 +136,9 @@ namespace Pogranichye.Client.Presentation
                 double localZ = north - chunk.Origin.North;
                 if (localX < 1 || localZ < 1 || localX >= chunk.SizeMeters - 1 || localZ >= chunk.SizeMeters - 1)
                     continue;
+                // Frontier vegetation must not fill a settlement footprint. Settlement coordinates
+                // in TerrainChunkFrame are canonical global E/N metres.
+                if (IsSettlementClear(chunk, east, north, 112.0)) continue;
                 float ground;
                 if (!TrySampleHeight(chunk, localX, localZ, out ground)) continue;
                 if (IsFeatureClear(chunk, localX, localZ, 1.8f)) continue;
@@ -388,6 +391,19 @@ namespace Pogranichye.Client.Presentation
             height = (float)Mathf.Lerp(Mathf.Lerp((float)h00, (float)h10, tx),
                 Mathf.Lerp((float)h01, (float)h11, tx), tz);
             return !float.IsNaN(height) && !float.IsInfinity(height);
+        }
+
+        private static bool IsSettlementClear(TerrainChunkFrame chunk, double east, double north, double radius)
+        {
+            if (chunk.Settlements == null) return false;
+            foreach (var settlement in chunk.Settlements)
+            {
+                if (settlement == null) continue;
+                double dx = east - settlement.East;
+                double dz = north - settlement.North;
+                if (dx * dx + dz * dz < radius * radius) return true;
+            }
+            return false;
         }
 
         private static bool IsFeatureClear(TerrainChunkFrame chunk, double x, double z, float margin)
