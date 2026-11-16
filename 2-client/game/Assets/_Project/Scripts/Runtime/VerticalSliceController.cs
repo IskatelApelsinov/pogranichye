@@ -1480,6 +1480,10 @@ namespace Pogranichye.Client
                 GUILayout.Label("Глобальные координаты: восток " + playerEast.ToString("0",CultureInfo.InvariantCulture) +
                     " м · север " + playerNorth.ToString("0",CultureInfo.InvariantCulture) +
                     " м · от центра поселения " + distanceToCenter.ToString("0",CultureInfo.InvariantCulture) + " м");
+                var mapCamera = Camera.main;
+                if (mapCamera != null)
+                    GUILayout.Label("Направление взгляда: " + CompassDirection(mapCamera.transform.eulerAngles.y) +
+                        " · азимут " + Mathf.Repeat(mapCamera.transform.eulerAngles.y, 360f).ToString("0", CultureInfo.InvariantCulture) + "°");
             }
             GUILayout.Label(mapHalf > 1800d
                 ? "Масштаб мира: города, известные поселения и серверные дороги."
@@ -1487,6 +1491,14 @@ namespace Pogranichye.Client
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
             GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ серверная дорога · здания и POI появляются при приближении.");
+        }
+
+        private static string CompassDirection(float yaw)
+        {
+            var directions = new[] { "север", "северо-восток", "восток", "юго-восток",
+                "юг", "юго-запад", "запад", "северо-запад" };
+            var index = Mathf.RoundToInt(Mathf.Repeat(yaw, 360f) / 45f) % directions.Length;
+            return directions[index];
         }
 
         private static double ResolveUnifiedMapRadius(WorldManifestFrame manifest, WorldAnchorFrame anchor)
