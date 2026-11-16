@@ -42,6 +42,35 @@ var Recipes = []Recipe{
 	{"potion", "Сварить снадобье", "hearth", map[string]float64{"herb": 2}, "potion", 1, false, "cook"},
 	{"stew", "Сварить уху", "hearth", map[string]float64{"fish": 1, "wood": 1}, "stew", 1, false, "cook"},
 	{"roast", "Зажарить мясо", "hearth", map[string]float64{"meat": 1, "wood": 1}, "roast", 1, false, "cook"},
+	// v1.22: больше еды, припасов, одежды и оружия — из того сырья, что уже добывает мир
+	{"porridge", "Сварить кашу", "hearth", map[string]float64{"wheat": 1, "milk": 1}, "porridge", 1, false, "cook"},
+	{"pie", "Испечь пирог", "hearth", map[string]float64{"flour": 1, "meat": 1, "wood": 1}, "pie", 1, false, "cook"},
+	{"vegpie", "Испечь пирог с овощами", "hearth", map[string]float64{"flour": 1, "veg": 2, "wood": 1}, "pie", 1, false, "cook"},
+	{"honeycake", "Испечь медовый пряник", "hearth", map[string]float64{"flour": 1, "honey": 1}, "honeycake", 2, false, "cook"},
+	{"omelet", "Пожарить яичницу", "hearth", map[string]float64{"egg": 2}, "omelet", 1, false, "cook"},
+	{"ration", "Собрать дорожный паёк", "hearth", map[string]float64{"bread": 1, "meat": 1}, "ration", 2, false, "cook"},
+	{"fishration", "Навялить рыбы в дорогу", "hearth", map[string]float64{"fish": 2}, "ration", 2, false, "cook"},
+	{"tonic", "Заварить бодрящий отвар", "hearth", map[string]float64{"herb": 1, "honey": 1}, "tonic", 1, false, "cook"},
+	{"salve", "Растереть мазь от ран", "hearth", map[string]float64{"herb": 2, "honey": 1}, "salve", 1, false, "cook"},
+	{"spear", "Насадить копьё", "smithy", map[string]float64{"metal": 1, "wood": 2}, "spear", 1, false, "smith"},
+	{"mace", "Сковать булаву", "smithy", map[string]float64{"metal": 2, "wood": 1}, "mace", 1, false, "smith"},
+	{"pickaxe", "Сковать кирку", "smithy", map[string]float64{"metal": 1, "wood": 1}, "pickaxe", 1, false, "smith"},
+	{"helmet", "Выковать шлем", "smithy", map[string]float64{"metal": 2, "leather": 1}, "helmet", 1, false, "smith"},
+	{"mail", "Сплести кольчугу", "smithy", map[string]float64{"metal": 5, "leather": 1}, "mail", 1, false, "smith"},
+	{"crossbow", "Собрать самострел", "smithy", map[string]float64{"metal": 1, "wood": 3, "hide": 1}, "crossbow", 1, false, "smith"},
+	{"staff", "Выстругать посох", "granary", map[string]float64{"wood": 2}, "staff", 1, false, "crafter"},
+	{"fletch", "Оперить стрелы", "granary", map[string]float64{"wood": 1, "feather": 1}, "arrow", 8, false, "crafter"},
+	{"shirt", "Сшить холщовую рубаху", "granary", map[string]float64{"linen": 2}, "shirt", 1, false, "crafter"},
+	{"cloak", "Сшить суконный плащ", "granary", map[string]float64{"cloth": 3}, "cloak", 1, false, "crafter"},
+	{"furcoat", "Сшить тулуп", "granary", map[string]float64{"hide": 3, "wool": 2}, "furcoat", 1, false, "crafter"},
+	{"hat", "Свалять шапку", "granary", map[string]float64{"wool": 1}, "hat", 1, false, "crafter"},
+	{"gloves", "Сшить рукавицы", "granary", map[string]float64{"wool": 1, "leather": 1}, "gloves", 1, false, "crafter"},
+	{"boots", "Стачать сапоги", "granary", map[string]float64{"leather": 2}, "boots", 1, false, "crafter"},
+	{"satchel", "Сшить холщовую суму", "granary", map[string]float64{"linen": 2}, "satchel", 1, false, "crafter"},
+	{"backpack", "Сшить заплечный мешок", "granary", map[string]float64{"leather": 2, "linen": 1}, "backpack", 1, false, "crafter"},
+	{"bedroll", "Скатать постель", "granary", map[string]float64{"wool": 2, "linen": 1}, "bedroll", 1, false, "crafter"},
+	{"rope", "Свить верёвку", "granary", map[string]float64{"flax": 2}, "rope", 1, false, "crafter"},
+	{"waterskin", "Сшить бурдюк", "granary", map[string]float64{"hide": 1}, "waterskin", 1, false, "crafter"},
 }
 
 func init() { // новые вещи: что берут в руку и что носят
@@ -126,7 +155,12 @@ func poiRu(p string) string {
 
 // Mine — добыть руду на руднике (тяжёлый труд; с киркой-топором спорее).
 func Mine(w *core.World, e *core.Entity, reqid string) (bool, string) {
-	return gatherAt(w, e, reqid, "mine", econ.GoodOre, 12, "miner", "надо подойти к руднику")
+	// с киркой в руке тот же труд даётся легче (v1.22)
+	energy := 12.0
+	if inv := Inv(e); inv != nil && inv.Hand == "pickaxe" {
+		energy = 8
+	}
+	return gatherAt(w, e, reqid, "mine", econ.GoodOre, energy, "miner", "надо подойти к руднику")
 }
 
 // Gather — собрать травы у огородов/лугов.
@@ -174,41 +208,32 @@ func Use(w *core.World, e *core.Entity, item, reqid string) (bool, string) {
 	}
 	inv := ensureInv(w, e)
 	st := ensureStashOf(w, e)
-	fromInv := inv.Items[item] > 0
-	switch item {
-	case "stew", "roast", "potion", "bandage":
-		if !fromInv {
-			return false, "такого нет в суме"
-		}
-		inv.Items[item]--
-	case "bread", "fish", "meat", "cheese", "veg", "game", "egg":
+	fx, known := useEffects[item]
+	if !known {
+		return false, "это не едят и не прикладывают"
+	}
+	if fx.stash {
 		if st.Goods[item] < 1 {
 			return false, "такого нет в закромах"
 		}
 		st.Goods[item]--
-	default:
-		return false, "это не едят и не прикладывают"
+	} else {
+		if inv.Items[item] < 1 {
+			return false, "такого нет в суме"
+		}
+		inv.Items[item]--
 	}
-	switch item {
-	case "stew":
-		v.Hunger = math.Max(0, v.Hunger-60)
-		v.Energy = math.Min(100, v.Energy+10)
-	case "roast":
-		v.Hunger = math.Max(0, v.Hunger-50)
-		v.Morale = math.Min(100, v.Morale+5)
-	case "potion":
-		v.Health = math.Min(100, v.Health+25)
-		if b := battle.Body(e); b != nil {
-			b.Mend(8)
-		}
-	case "bandage":
-		if b := battle.Body(e); b != nil {
+	v.Hunger = math.Max(0, v.Hunger-fx.hunger)
+	v.Energy = math.Min(100, v.Energy+fx.energy)
+	v.Morale = math.Min(100, v.Morale+fx.morale)
+	v.Health = math.Min(100, v.Health+fx.health)
+	if b := battle.Body(e); b != nil {
+		if fx.stopBleed {
 			b.Bleeding = 0
-			b.Mend(5)
 		}
-		v.Health = math.Min(100, v.Health+8)
-	default:
-		v.Hunger = math.Max(0, v.Hunger-30)
+		if fx.mend > 0 {
+			b.Mend(fx.mend)
+		}
 	}
 	pc.markDone(reqid)
 	return true, ""

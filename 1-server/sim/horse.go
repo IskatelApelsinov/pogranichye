@@ -80,7 +80,7 @@ func stableStock(s *core.SettlementC) float64 {
 }
 
 // BagCap — вместимость сумы от силы; BagLoad — сколько в ней сейчас (товары закромов).
-func BagCap(e *core.Entity) float64 { return 20 + Stat(e, "strength")*2 }
+func BagCap(e *core.Entity) float64 { return 20 + Stat(e, "strength")*2 + carryBonus(e) }
 
 func BagLoad(e *core.Entity) float64 {
 	n := 0.0
@@ -107,6 +107,8 @@ func UpdateBurden(w *core.World, dt float64) {
 		} else if BagLoad(e) > BagCap(e) {
 			p.Mult = loadedSpeed
 			TrainStat(w, e, "strength", 0.002*dt) // тяжёлая ноша растит силу
+		} else {
+			p.Mult = 1 + paceBonus(e) // добрая обувь — шаг шире
 		}
 	})
 	w.Each("horse", func(he *core.Entity) { // отдых в стойле
@@ -247,7 +249,13 @@ func HorseView(w *core.World, e *core.Entity) any {
 
 // BagView — сума всадника: загрузка и вместимость.
 func BagView(e *core.Entity) map[string]any {
-	return map[string]any{"load": math.Round(BagLoad(e)), "cap": math.Round(BagCap(e)), "over": BagLoad(e) > BagCap(e)}
+	pack := ""
+	if inv := Inv(e); inv != nil {
+		pack = inv.Worn["back"]
+	}
+	// pack — что надето на спину (заплечный мешок, сума) и сколько оно прибавляет; "" — ничего (v1.22)
+	return map[string]any{"load": math.Round(BagLoad(e)), "cap": math.Round(BagCap(e)), "over": BagLoad(e) > BagCap(e),
+		"pack": pack, "pack_bonus": math.Round(carryBonus(e))}
 }
 
 // StableView — конюшня села для кадра (place.stable): сколько лошадей и почём.

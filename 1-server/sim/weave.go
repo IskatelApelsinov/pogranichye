@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"strconv"
 	"strings"
 
 	"pogranichye/arcane"
@@ -43,6 +44,12 @@ var WeaveNodes = []WeaveNodeInfo{
 	{"fork", "развилка", "делит на цели/отряд"},
 	{"barb", "шип", "ранит"},
 	{"seal", "печать", "замыкает узор"},
+	// v1.22 — четыре новых узла. Это не «стихии» (их придумали люди): узел лишь говорит, НА ЧТО в мире
+	// давит мана — на тепло, на холод, на внимание чужого ума, на собственное чутьё.
+	{"heat", "жар", "греет: с шипом — жжёт дольше, без шипа — возвращает силы"},
+	{"chill", "стужа", "стынет: с шипом — сковывает врага, с петлёй — крепит щит"},
+	{"veil", "пелена", "отводит глаза: зверь и лихой человек теряют тебя"},
+	{"eye", "око", "чутьё: кто и что вокруг, далеко ли"},
 }
 
 const weaveMaxLen = 12
@@ -65,6 +72,17 @@ var schemaLore = []Schema{
 	{"Цепь", []string{"knot", "fork", "barb", "barb", "seal"}},
 	{"Круг", []string{"knot", "loop", "loop", "fork", "seal"}},
 	{"Копьё", []string{"knot", "knot", "thread", "thread", "barb", "seal"}},
+	{"Тепло", []string{"knot", "heat", "seal"}},
+	{"Жар-плеть", []string{"knot", "heat", "barb", "seal"}},
+	{"Огненная цепь", []string{"knot", "fork", "heat", "barb", "barb", "seal"}},
+	{"Целебный жар", []string{"knot", "loop", "thread", "heat", "seal"}},
+	{"Ледяная игла", []string{"knot", "thread", "chill", "barb", "seal"}},
+	{"Оковы", []string{"knot", "thread", "chill", "seal"}},
+	{"Ледяной щит", []string{"knot", "loop", "chill", "seal"}},
+	{"Пелена", []string{"knot", "veil", "seal"}},
+	{"Долгая пелена", []string{"knot", "loop", "thread", "veil", "seal"}},
+	{"Чутьё", []string{"knot", "eye", "seal"}},
+	{"Дальний взор", []string{"knot", "thread", "thread", "eye", "seal"}},
 }
 
 // GrimoireC — что маг знает наизусть (знакомые схемы держатся увереннее) и итог последнего плетения.
@@ -97,7 +115,8 @@ func (c *GrimoireC) knows(nodes []string) (string, bool) {
 
 // WeaveSpec — что ДЕЛАЕТ узор (выведено из состава).
 type WeaveSpec struct {
-	Kind       string  // light|push|ward|mend|harm
+	Kind       string  // light|push|ward|mend|harm|warm|veil|sense
+	Stun       float64 // сек оцепенения врага (стужа)
 	Power      float64 // сила (урон/щит/лечение)
 	Range      float64 // м
 	Targets    int
@@ -115,7 +134,7 @@ func ReadWeave(nodes []string) (WeaveSpec, bool) {
 	n := map[string]float64{}
 	for _, x := range nodes {
 		switch x {
-		case "knot", "thread", "loop", "fork", "barb", "seal":
+		case "knot", "thread", "loop", "fork", "barb", "seal", "heat", "chill", "veil", "eye":
 			n[x]++
 		default:
 			return WeaveSpec{}, false
@@ -136,18 +155,30 @@ func ReadWeave(nodes []string) (WeaveSpec, bool) {
 		sp.Kind = "harm"
 		sp.Power = 8*k + 6*n["barb"]
 		sp.Range = 4 + 9*n["thread"]
-		sp.Linger = 2 * n["loop"]
+		sp.Linger = 2*n["loop"] + 3*n["heat"] // жар жжёт и после удара
+		sp.Stun = 1.2 * n["chill"]            // стужа сковывает
+	case n["veil"] > 0: // отвести глаза: сколько секунд и как далеко
+		sp.Kind = "veil"
+		sp.Power = 6*n["veil"] + 4*n["loop"] + 2*k
+		sp.Range = 10 + 8*n["thread"]
+	case n["eye"] > 0: // чутьё: радиус
+		sp.Kind = "sense"
+		sp.Range = 60 + 70*n["thread"] + 40*n["eye"]
+		sp.Power = n["eye"]
 	case n["loop"] > 0 && n["thread"] > 0:
 		sp.Kind = "mend"
-		sp.Power = 7*n["loop"] + 3*k
+		sp.Power = (7*n["loop"] + 3*k) * (1 + 0.3*n["heat"]) // тепло ускоряет заживление
 		sp.Range = 3 + 6*n["thread"]
 	case n["loop"] > 0:
 		sp.Kind = "ward"
-		sp.Power = 12*n["loop"] + 5*k
+		sp.Power = 12*n["loop"] + 5*k + 9*n["chill"] // ледяная корка крепит щит
 	case n["thread"] > 0:
 		sp.Kind = "push"
-		sp.Power = 1.5 * n["thread"]
+		sp.Power = 1.5*n["thread"] + 1.5*n["chill"] // оцепенение дольше
 		sp.Range = 4 + 6*n["thread"]
+	case n["heat"] > 0: // тепло в собственное тело: возвращает силы
+		sp.Kind = "warm"
+		sp.Power = 7*n["heat"] + 2*k
 	default:
 		sp.Kind = "light"
 		sp.Power = 90 * k
@@ -225,7 +256,7 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 			g.Own++
 			name = "Свой узор " + roman(g.Own)
 		}
-		if len(g.Known) < 16 {
+		if len(g.Known) < 28 {
 			g.Known = append(g.Known, Schema{Name: name, Nodes: append([]string{}, nodes...)})
 			say(w, e, "learn", "Ты запомнил плетение: "+name+".")
 		}
@@ -280,6 +311,37 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 		} else {
 			say(w, e, "weave", name+": боль отступает, раны стягиваются.")
 		}
+	case "warm":
+		if v := core.Vitals(e); v != nil {
+			v.Energy = math.Min(100, v.Energy+power)
+			v.Morale = math.Min(100, v.Morale+2)
+		}
+		say(w, e, "weave", name+": по жилам разлилось тепло, усталость отступила.")
+	case "veil":
+		lost := 0
+		if pl := core.Place(e); pl != nil {
+			w.Each("foe", func(fe *core.Entity) {
+				f := Foe(fe)
+				if f == nil || f.State == "dead" || f.Settlement != pl.Settlement || math.Hypot(f.X-p.X, f.Y-p.Y) > sp.Range {
+					return
+				}
+				if f.Target == e.ID || f.Aware {
+					lost++
+				}
+				f.Aware, f.Target = false, 0
+				f.Blind = math.Max(f.Blind, power)
+				if f.State == "chase" {
+					f.State = "roam"
+				}
+			})
+		}
+		if lost > 0 {
+			say(w, e, "weave", name+": чужие глаза соскользнули с тебя.")
+		} else {
+			say(w, e, "weave", name+": воздух вокруг тебя подёрнулся рябью — тебя труднее заметить.")
+		}
+	case "sense":
+		say(w, e, "weave", name+": "+senseReport(w, e, sp.Range))
 	case "push":
 		fe := weaveFoe(w, e, target, sp.Range)
 		if fe == nil {
@@ -317,6 +379,9 @@ func WeaveCast(w *core.World, e *core.Entity, nodes []string, target core.ID, re
 			f.Aware, f.Target = true, e.ID
 			if sp.Linger > 0 {
 				f.Bleed, f.BleedLeft = sp.Linger, 4
+			}
+			if sp.Stun > 0 {
+				f.Stun, f.Slow = math.Max(f.Stun, sp.Stun), true
 			}
 			Emit(w, e, FeedItem{Kind: "hit", Text: name + " бьёт: " + FoeName(f.Species) + ".", Foe: eidStr(he.ID), Dmg: math.Round(power)})
 			if f.HP <= 0 {
@@ -360,10 +425,10 @@ func WeaveView(w *core.World, e *core.Entity) map[string]any {
 		"capacity":  round1x(arcane.Capacity(skill)), // сколько сложности ум держит без надрыва
 		"max_len":   weaveMaxLen,
 		"known":     g.Known,
-		"gift":      gift,                   // есть ли дар (v1.12)
-		"limit":     limit,                  // до какой сложности узор доступен этому телу
-		"can_learn": canLearn,               // можно ли здесь учиться (место силы или маг рядом) — act:"meditate"
-		"can_study": canStudyHere(w, e),     // есть ли наставник-маг рядом и узор для него — act:"study"
+		"gift":      gift,               // есть ли дар (v1.12)
+		"limit":     limit,              // до какой сложности узор доступен этому телу
+		"can_learn": canLearn,           // можно ли здесь учиться (место силы или маг рядом) — act:"meditate"
+		"can_study": canStudyHere(w, e), // есть ли наставник-маг рядом и узор для него — act:"study"
 	}
 }
 
@@ -377,4 +442,49 @@ func CastingSeen(observer, caster *core.Entity) string {
 		return c.Casting
 	}
 	return "плетёт"
+}
+
+// senseReport — что чует «око»: сколько зверья и лихих людей в радиусе и где ближайшее дикое место.
+// Только то, что есть в мире на самом деле; ничего не выдумывается и никого не подсеивает.
+func senseReport(w *core.World, e *core.Entity, rng float64) string {
+	p, pl := ScenePos(e), core.Place(e)
+	if p == nil || pl == nil {
+		return "вокруг пусто."
+	}
+	near := map[string]int{}
+	total := 0
+	w.Each("foe", func(fe *core.Entity) {
+		f := Foe(fe)
+		if f != nil && f.State != "dead" && f.Settlement == pl.Settlement && math.Hypot(f.X-p.X, f.Y-p.Y) <= rng {
+			near[f.Species]++
+			total++
+		}
+	})
+	out := "зверя и лихих людей поблизости нет"
+	if total > 0 {
+		parts := []string{}
+		for _, sp := range []string{"hare", "fox", "boar", "wolf", "bear", "bandit"} {
+			if n := near[sp]; n > 0 {
+				parts = append(parts, FoeName(sp)+" ×"+strconv.Itoa(n))
+			}
+		}
+		out = "рядом — " + strings.Join(parts, ", ")
+	}
+	if name, dist, dir, ok := nearestWildSite(w, e); ok {
+		out += "; " + dir + ", в " + distRu(dist) + " — " + name
+	}
+	return out + "."
+}
+
+func distRu(m float64) string {
+	if m < 950 {
+		return strconv.Itoa(int(math.Round(m/50))*50) + " м"
+	}
+	return strconv.Itoa(int(math.Round(m/1000))) + " км"
+}
+
+// compass — сторона света по смещению на восток и север.
+func compass(de, dn float64) string {
+	a := math.Mod(math.Atan2(de, dn)*180/math.Pi+360, 360)
+	return []string{"на севере", "на северо-востоке", "на востоке", "на юго-востоке", "на юге", "на юго-западе", "на западе", "на северо-западе"}[int(math.Mod(a+22.5, 360)/45)]
 }

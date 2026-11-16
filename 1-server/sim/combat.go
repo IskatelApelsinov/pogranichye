@@ -491,9 +491,7 @@ func foeStrike(w *core.World, fe *core.Entity, f *FoeC, pe *core.Entity, s *dice
 		dmg *= 0.7
 	}
 	inv := Inv(pe)
-	if inv != nil && inv.Worn["armor"] == "jerkin" {
-		dmg *= 0.75
-	}
+	dmg *= armorMul(pe) // всё надетое гасит часть удара: куртка, кольчуга, шлем, рукавицы
 	if c.Guard { // блок работает только в лицо
 		ang := math.Abs(angDiff(facingDeg(f.X-p.X, f.Y-p.Y, p.Facing), p.Facing))
 		if ang <= 75 {
