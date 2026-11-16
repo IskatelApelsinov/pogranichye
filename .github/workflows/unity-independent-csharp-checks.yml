@@ -40,6 +40,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
@@ -58,6 +59,7 @@ on:
       - '2-client/game/Tests/FeedFrameParserCheck.cs'
       - '2-client/game/Tests/FoePresentationPolicyCheck.cs'
       - '2-client/game/Tests/GameplayStatusViewCheck.cs'
+      - '2-client/game/Tests/GameplayInputCapturePolicyCheck.cs'
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
@@ -103,6 +105,11 @@ jobs:
         run: |
           mcs -out:/tmp/character-menu-hotkeys.exe Tests/CharacterMenuHotkeyPolicyCheck.cs Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs
           mono /tmp/character-menu-hotkeys.exe
+      - name: Gameplay input capture ownership regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/gameplay-input-capture.exe Tests/GameplayInputCapturePolicyCheck.cs Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs
+          mono /tmp/gameplay-input-capture.exe
       - name: NPC activity sound mapping regression checks
         working-directory: 2-client/game
         run: |
