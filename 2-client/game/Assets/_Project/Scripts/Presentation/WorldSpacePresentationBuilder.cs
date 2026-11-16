@@ -55,6 +55,7 @@ namespace Pogranichye.Client.Presentation
                     spaceRoot.localPosition = offset;
                     BuildSurfaces(spaceRoot, space);
                     BuildStairs(spaceRoot, space);
+                    BuildAcousticZones(spaceRoot, space);
                 }
             }
             catch
@@ -121,6 +122,42 @@ namespace Pogranichye.Client.Presentation
                     var collider = go.AddComponent<MeshCollider>();
                     collider.sharedMesh = mesh;
                 }
+            }
+        }
+
+        private static void BuildAcousticZones(Transform parent, WorldSpaceFrame space)
+        {
+            if (space.Rooms == null || space.Origin == null) return;
+            foreach (var room in space.Rooms)
+            {
+                if (room == null || room.Bounds == null) continue;
+                var bounds = room.Bounds;
+                var sizeX = (float)(bounds.MaxEast - bounds.MinEast);
+                var sizeY = (float)(bounds.MaxUp - bounds.MinUp);
+                var sizeZ = (float)(bounds.MaxNorth - bounds.MinNorth);
+                if (sizeX < 1f || sizeY < 1f || sizeZ < 1f) continue;
+
+                // Room bounds are global E/N/U. Rebase into this space's local origin.
+                // Unity's reverb zone is spherical, so use a conservative inscribed radius
+                // rather than allowing a large sphere to leak through several exterior walls.
+                var radius = Mathf.Max(1.5f, Mathf.Min(sizeX, sizeY, sizeZ) * 0.48f);
+                var centre = new Vector3(
+                    (float)((bounds.MinEast + bounds.MaxEast) * 0.5d - space.Origin.East),
+                    (float)((bounds.MinUp + bounds.MaxUp) * 0.5d - space.Origin.Up),
+                    (float)((bounds.MinNorth + bounds.MaxNorth) * 0.5d - space.Origin.North));
+                var zoneObject = new GameObject("Acoustics_" + SafeName(room.Id));
+                zoneObject.layer = 2;
+                zoneObject.transform.SetParent(parent, false);
+                zoneObject.transform.localPosition = centre;
+                var zone = zoneObject.AddComponent<AudioReverbZone>();
+                var kind = room.Kind ?? string.Empty;
+                zone.reverbPreset = kind.IndexOf("cave", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    kind.IndexOf("mine", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    kind.IndexOf("stone", StringComparison.OrdinalIgnoreCase) >= 0
+                    ? AudioReverbPreset.Cave : AudioReverbPreset.Room;
+                zone.minDistance = radius * 0.45f;
+                zone.maxDistance = radius;
+                zone.enabled = true;
             }
         }
 
