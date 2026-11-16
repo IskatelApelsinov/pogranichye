@@ -34,9 +34,11 @@ namespace Pogranichye.Client.Presentation
             root.SetParent(parent, false);
             try
             {
+                var renderedSpaceIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var space in chunk.Spaces)
                 {
-                    if (space == null || space.Origin == null || space.Bounds == null) continue;
+                    if (space == null || space.Origin == null || space.Bounds == null ||
+                        string.IsNullOrWhiteSpace(space.Id) || !renderedSpaceIds.Add(space.Id)) continue;
                     // A space may be repeated in every horizontal chunk it intersects.
                     // Render it only in the chunk containing its bounds centre to avoid duplicates.
                     var centreEast = (space.Bounds.MinEast + space.Bounds.MaxEast) * 0.5d;
@@ -141,6 +143,7 @@ namespace Pogranichye.Client.Presentation
                     var steps = segment == segments - 1 ? remaining :
                         Mathf.Max(1, Mathf.RoundToInt(totalSteps * length / PolylineLength(stair.Points)));
                     steps = Mathf.Min(steps, remaining);
+                    if (steps <= 0) continue;
                     remaining -= steps;
                     var forward = direction / length;
                     var rotation = Quaternion.LookRotation(forward, Vector3.up);
