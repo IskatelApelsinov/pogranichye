@@ -2060,6 +2060,7 @@ namespace Pogranichye.Client
         private string ReadPattern(out int complexity, out int cost, out bool closed)
         {
             int knot = 0, thread = 0, loop = 0, fork = 0, barb = 0, seal = 0;
+            int heat = 0, chill = 0, veil = 0, eye = 0;
             foreach (var node in _pattern)
             {
                 switch (node)
@@ -2070,16 +2071,27 @@ namespace Pogranichye.Client
                     case "fork": fork++; break;
                     case "barb": barb++; break;
                     case "seal": seal++; break;
+                    case "heat": heat++; break;
+                    case "chill": chill++; break;
+                    case "veil": veil++; break;
+                    case "eye": eye++; break;
                 }
             }
             closed = _pattern.Count > 0 && _pattern[0] == "knot" && _pattern[_pattern.Count - 1] == "seal" && seal == 1;
             complexity = _pattern.Count + fork + (closed ? 0 : 3);
             cost = 4 * _pattern.Count + 4 * knot;
+            // Preview mirrors the server's ReadWeave priority; the server alone resolves the cast.
             if (barb > 0)
-                return "ранит" + (thread > 0 ? " издали" : " вблизи") + (fork > 0 ? ", целей: " + (1 + fork) : "") + (loop > 0 ? ", потом жжёт" : "");
-            if (loop > 0 && thread > 0) return "заживляет раны";
-            if (loop > 0) return fork > 0 ? "щит на отряд" : "щит";
-            if (thread > 0) return "отбрасывает и оглушает";
+                return "ранит" + (thread > 0 ? " издали" : " вблизи") +
+                    (fork > 0 ? ", целей: " + (1 + fork) : "") +
+                    (chill > 0 ? ", сковывает стужей" : "") +
+                    (heat > 0 ? ", оставляет жгучий след" : loop > 0 ? ", потом жжёт" : "");
+            if (veil > 0) return "отводит глаза врагам";
+            if (eye > 0) return "чует угрозы и ближайшие дикие места";
+            if (loop > 0 && thread > 0) return "заживляет раны" + (heat > 0 ? " тёплым жаром" : "");
+            if (loop > 0) return fork > 0 ? "щит на отряд" : "щит" + (chill > 0 ? " с ледяной коркой" : "");
+            if (thread > 0) return "отбрасывает и оглушает" + (chill > 0 ? " стужей" : "");
+            if (heat > 0) return "возвращает силы теплом";
             return "свет над ладонью";
         }
 
