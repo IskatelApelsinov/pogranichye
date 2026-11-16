@@ -24,6 +24,11 @@ public static class WorldSpaceDescriptorValidatorCheck
         empty.Spaces.Clear();
         Require(WorldSpaceDescriptorValidator.IsValid(empty), "an empty chunk must remain valid");
 
+        var ramp = Clone(fixture);
+        ramp.Spaces[0].Stairs[0].Kind = "ramp";
+        ramp.Spaces[0].Stairs[0].StepCount = 0;
+        Require(WorldSpaceDescriptorValidator.IsValid(ramp), "a server-authored ramp may have zero discrete steps");
+
         ExpectInvalid(fixture, "duplicate space id", delegate(WorldSpaceChunkFrame value)
         {
             value.Spaces.Add(Clone(value).Spaces[0]);
@@ -60,6 +65,10 @@ public static class WorldSpaceDescriptorValidatorCheck
         ExpectInvalid(fixture, "surface vertex outside global bounds", delegate(WorldSpaceChunkFrame value)
         {
             value.Spaces[0].Surfaces[0].Points[0].X = 1000d;
+        });
+        ExpectInvalid(fixture, "non-finite surface coordinate", delegate(WorldSpaceChunkFrame value)
+        {
+            value.Spaces[0].Surfaces[0].Points[0].X = double.NaN;
         });
         ExpectInvalid(fixture, "room references an unknown floor", delegate(WorldSpaceChunkFrame value)
         {
