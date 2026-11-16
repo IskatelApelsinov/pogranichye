@@ -159,6 +159,8 @@ namespace Pogranichye.Client.Presentation
                 var zone = zoneObject.AddComponent<AudioReverbZone>();
                 var kind = room.Kind ?? string.Empty;
                 zone.reverbPreset = kind.IndexOf("cave", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    kind.IndexOf("tunnel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    kind.IndexOf("cellar", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     kind.IndexOf("mine", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     kind.IndexOf("stone", StringComparison.OrdinalIgnoreCase) >= 0
                     ? AudioReverbPreset.Cave : AudioReverbPreset.Room;
