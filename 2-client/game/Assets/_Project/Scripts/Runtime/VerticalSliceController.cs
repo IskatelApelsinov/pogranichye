@@ -1268,7 +1268,7 @@ namespace Pogranichye.Client
             else
             {
                 DrawLocalMap();
-                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Места  • Жители  ★ Вы");
+                GUILayout.Label("■ Здания  ≋ Река  ═ Мост  ● Поселение  ◈ Урочища  • Жители  ★ Вы");
                 GUILayout.Label("Север ↑ · координаты в метрах · граница карты соответствует серверной сцене 300 × 300 м");
                 GUILayout.Space(8f);
                 DrawWorldConnectionsMap();
@@ -1441,6 +1441,47 @@ namespace Pogranichye.Client
                 }
             }
 
+            // v1.22 wilderness sites are published in global E/N coordinates. Convert
+            // them through the current settlement's authoritative centre anchor before
+            // projecting onto this local map; never treat global coordinates as local XY.
+            var sites = _frame?.Place?.Sites;
+            var settlementAnchor = _frame?.Place?.Anchor;
+            if (sites != null && settlementAnchor != null)
+            {
+                foreach (var site in sites)
+                {
+                    if (site == null) continue;
+                    var localEast = site.East - settlementAnchor.East;
+                    var localNorth = site.North - settlementAnchor.North;
+                    var position = WorldMapProjection.ToMapPoint(
+                        localEast - centerX, localNorth - centerY, half, mapRect);
+                    if (!mapRect.Contains(position)) continue;
+
+                    var marker = new Rect(position.x - 9f, position.y - 9f, 18f, 18f);
+                    var previousBackground = GUI.backgroundColor;
+                    var previousContent = GUI.contentColor;
+                    GUI.backgroundColor = site.Here
+                        ? new Color(0.36f, 0.66f, 0.42f, 1f)
+                        : new Color(0.43f, 0.38f, 0.62f, 1f);
+                    GUI.contentColor = Color.white;
+                    GUI.Box(marker, WildSiteMapGlyph(site.Kind), _mapPoiStyle);
+                    GUI.backgroundColor = previousBackground;
+                    GUI.contentColor = previousContent;
+
+                    var siteLabel = (site.Name ?? "Неизвестное место") + " · " +
+                        site.DistanceMeters.ToString("0", CultureInfo.InvariantCulture) + " м";
+                    if (site.Here) siteLabel += " · рядом";
+                    if (MapLabelLayoutPolicy.TryPlace(mapRect.x, mapRect.y, mapRect.width, mapRect.height,
+                        position.x, position.y, 156f, 28f, 4f, out var siteLabelPlacement))
+                    {
+                        var labelRect = new Rect(siteLabelPlacement.X, siteLabelPlacement.Y,
+                            siteLabelPlacement.Width, siteLabelPlacement.Height);
+                        GUI.Label(labelRect, siteLabel,
+                            siteLabelPlacement.AlignRight ? _mapNeighborLabelRightStyle : _mapNeighborLabelStyle);
+                    }
+                }
+            }
+
             var neighbors = _frame?.Place?.Neighbors;
             if (neighbors != null)
             {
@@ -1505,6 +1546,19 @@ namespace Pogranichye.Client
             else
                 GUILayout.Label("Положение персонажа пока не передано сервером.");
             GUILayout.Label("Места: К — корчма · Кз — кузница · Кн — конюшня и амбар · Р — рынок · Кл — колодец · С — очаг · О — огород · Рк — река · Л — лес · Ш — рудник");
+        }
+
+        private static string WildSiteMapGlyph(string kind)
+        {
+            switch (kind)
+            {
+                case "cave": return "П";
+                case "tower": return "Б";
+                case "ruins": return "Р";
+                case "grove": return "Рщ";
+                case "spring": return "И";
+                default: return "?";
+            }
         }
 
         private static Rect MapViewportRect(double x0, double y0, double x1, double y1,
