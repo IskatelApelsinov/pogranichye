@@ -322,7 +322,7 @@ namespace Pogranichye.Client.Presentation
                 float a1 = (i + 1) * Mathf.PI * 2f / sides;
                 Vector3 v0 = p + new Vector3(Mathf.Cos(a0) * radius, 0, Mathf.Sin(a0) * radius);
                 Vector3 v1 = p + new Vector3(Mathf.Cos(a1) * radius, 0, Mathf.Sin(a1) * radius);
-                mesh.Triangle(v0, v1, tip);
+                mesh.Triangle(v0, tip, v1);
             }
         }
 
@@ -337,7 +337,7 @@ namespace Pogranichye.Client.Presentation
                 Vector3 v1 = p + new Vector3(Mathf.Cos(a1) * radius, 0, Mathf.Sin(a1) * radius);
                 Vector3 t0 = top + new Vector3(Mathf.Cos(a0) * radius * 0.55f, 0, Mathf.Sin(a0) * radius * 0.55f);
                 Vector3 t1 = top + new Vector3(Mathf.Cos(a1) * radius * 0.55f, 0, Mathf.Sin(a1) * radius * 0.55f);
-                mesh.Quad(v0, v1, t1, t0);
+                mesh.Quad(v0, t0, t1, v1);
             }
         }
 
@@ -359,7 +359,7 @@ namespace Pogranichye.Client.Presentation
                     Vector3 b = p + new Vector3(Mathf.Cos(a1) * r0, y0, Mathf.Sin(a1) * r0);
                     Vector3 c = p + new Vector3(Mathf.Cos(a1) * r1, y1, Mathf.Sin(a1) * r1);
                     Vector3 d = p + new Vector3(Mathf.Cos(a0) * r1, y1, Mathf.Sin(a0) * r1);
-                    mesh.Quad(a, b, c, d);
+                    mesh.Quad(a, d, c, b);
                 }
             }
         }
@@ -453,6 +453,8 @@ namespace Pogranichye.Client.Presentation
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", smoothness);
             if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+            // Grass/reed blades are single planes; keep both sides visible in URP.
+            if (material.HasProperty("_Cull")) material.SetInt("_Cull", 0);
             return material;
         }
 
