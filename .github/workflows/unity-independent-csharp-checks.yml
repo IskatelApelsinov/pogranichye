@@ -207,49 +207,49 @@ jobs:
       - name: Typed action result parser regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/action-result-parser.exe
       - name: Typed combat and foe frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/combat-foe-frame.exe Tests/CombatFoeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/combat-foe-frame.exe
       - name: Typed journey and quest frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
           mono /tmp/journey-quest-frame.exe
       - name: Typed horse, stats and carried bag frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
           mono /tmp/horse-stats-frame.exe
       - name: Typed card game frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/card-game-frame.exe Tests/CardGameFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs
           mono /tmp/card-game-frame.exe
       - name: Typed regional map frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/region-frame.exe Tests/RegionFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs
           mono /tmp/region-frame.exe
       - name: Typed tavern counter frame regression checks
         working-directory: 2-client/game
         run: |
-          NEWTONSOFT="$(find /usr/lib -name 'Newtonsoft.Json.dll' -print -quit)"
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
           mono /tmp/tavern-counter-frame.exe
