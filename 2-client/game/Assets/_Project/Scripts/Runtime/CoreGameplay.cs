@@ -352,7 +352,7 @@ namespace Pogranichye.Client
             return string.IsNullOrEmpty(catalogName) ? Name(id) : catalogName;
         }
 
-        private string CatalogItemName(JObject definition, string fallback)
+        private string CatalogItemName(JToken definition, string fallback)
         {
             var name = Str(definition, "name");
             return string.IsNullOrEmpty(name) ? CatalogName(fallback) : name;

@@ -322,7 +322,7 @@ namespace Pogranichye.Client.Presentation
 
         private static Material GetStairMaterial()
         {
-            return _stair ?? (_stair = MakeMaterial("Server space • stair timber", new Color(0.32f, 0.23f, 0.15f)));
+            return _stair ?? (_stair = MakeMaterial("Server space • stair timber", new Color(0.32f, 0.23f, 0.15f), "wood_planks"));
         }
 
         private static Material MakeMaterial(string name, Color color, string textureKey)
