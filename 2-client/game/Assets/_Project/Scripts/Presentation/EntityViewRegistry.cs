@@ -498,11 +498,14 @@ namespace Pogranichye.Client.Presentation
             var handItem = inventory != null ? inventory.Hand ?? string.Empty : string.Empty;
             var worn = inventory != null ? inventory.Worn : null;
             var head = GetWornItem(worn, "head");
+            var shirt = GetWornItem(worn, "shirt");
             var body = GetWornItem(worn, "body");
             var feet = GetWornItem(worn, "feet");
             var armor = GetWornItem(worn, "armor");
+            var hands = GetWornItem(worn, "hands");
             var offhand = GetWornItem(worn, "offhand");
             var belt = GetWornItem(worn, "belt");
+            var back = GetWornItem(worn, "back");
             var carriedSignature = GetCarriedItemsSignature(inventory, handItem, head, body, feet, armor, offhand);
             var signature = player.GetEntityId() + "|" + handItem + "|" + head + "|" + shirt + "|" + body + "|" + feet +
                 "|" + armor + "|" + hands + "|" + offhand + "|" + belt + "|" + back + "|" + carriedSignature + "|" + (tankardHeld ? "mug" : "free");
