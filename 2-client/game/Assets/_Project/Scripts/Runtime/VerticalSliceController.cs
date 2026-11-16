@@ -2240,6 +2240,18 @@ namespace Pogranichye.Client
                     new BindingRow("Голосовой PTT", "VoicePushToTalk"),
                     new BindingRow("Отмена / назад", "Cancel")
                 });
+                DrawBindingSection("ДИАЛОГИ И ВЫБОРЫ", new[]
+                {
+                    new BindingRow("Вариант диалога 1", "JourneyChoice1"),
+                    new BindingRow("Вариант диалога 2", "JourneyChoice2"),
+                    new BindingRow("Вариант диалога 3", "JourneyChoice3"),
+                    new BindingRow("Вариант диалога 4", "JourneyChoice4"),
+                    new BindingRow("Вариант диалога 5", "JourneyChoice5"),
+                    new BindingRow("Вариант диалога 6", "JourneyChoice6"),
+                    new BindingRow("Вариант диалога 7", "JourneyChoice7"),
+                    new BindingRow("Вариант диалога 8", "JourneyChoice8"),
+                    new BindingRow("Вариант диалога 9", "JourneyChoice9")
+                });
                 DrawBindingSection("МАГИЯ — ВЫБОР УЗЛОВ", new[]
                 {
                     new BindingRow("Узел 1", "WeaveNode1"),
