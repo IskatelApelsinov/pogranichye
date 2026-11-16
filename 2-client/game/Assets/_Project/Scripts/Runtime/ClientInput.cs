@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -19,7 +20,7 @@ namespace Pogranichye.Client
 
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
-        private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel;
+        private InputAction _toggleHud, _toggleDiagnostics, _toggleFullscreen, _menu, _cancel, _toggleAutoWalk;
         private InputAction _openInventory, _openJournal, _openMap;
         private InputAction _weaveHold, _weaveRemove, _primary, _secondary;
         private InputAction _toggleHints, _dodge, _quickAttack, _trickSand, _trickShove;
@@ -29,6 +30,8 @@ namespace Pogranichye.Client
         private readonly InputAction[] _weaveNodes = new InputAction[10];
         private readonly InputAction[] _journeyChoices = new InputAction[9];
         private readonly InputEventDebugState _inputDebugState = new InputEventDebugState();
+        private InputActionRebindingExtensions.RebindingOperation _rebindOperation;
+        private const string BindingOverridesPrefsKey = "Pogranichye.InputBindingOverrides";
 
         public Vector2 Move => _move.ReadValue<Vector2>();
         public Vector2 LookDelta => _look.ReadValue<Vector2>();
@@ -41,6 +44,7 @@ namespace Pogranichye.Client
         public bool ToggleHudPressed => _toggleHud.WasPressedThisFrame();
         public bool ToggleDiagnosticsPressed => _toggleDiagnostics.WasPressedThisFrame();
         public bool ToggleFullscreenPressed => _toggleFullscreen.WasPressedThisFrame();
+        public bool AutoWalkTogglePressed => _toggleAutoWalk != null && _toggleAutoWalk.WasPressedThisFrame();
         public bool MenuPressed => _menu.WasPressedThisFrame();
         public bool InventoryMenuPressed => _openInventory.WasPressedThisFrame();
         public bool JournalMenuPressed => _openJournal.WasPressedThisFrame();
@@ -95,6 +99,8 @@ namespace Pogranichye.Client
             _toggleHud = Button("ToggleHud", "<Keyboard>/f1");
             _toggleDiagnostics = Button("ToggleDiagnostics", "<Keyboard>/f3");
             _toggleFullscreen = Button("ToggleFullscreen", "<Keyboard>/f11");
+            // '=' is intentionally a dedicated travel toggle; it does not alter mouse-look or combat bindings.
+            _toggleAutoWalk = Button("ToggleAutoWalk", "<Keyboard>/equals");
             _menu = Button("Menu", "<Keyboard>/tab");
             _openInventory = Button("OpenInventory", CharacterMenuHotkeyPolicy.InventoryBinding);
             _openJournal = Button("OpenJournal", CharacterMenuHotkeyPolicy.JournalBinding);
@@ -131,6 +137,16 @@ namespace Pogranichye.Client
                 _journeyChoices[i] = Button("JourneyChoice" + (i + 1), "<Keyboard>/" + (i + 1));
 
             _actions.actionTriggered += OnActionTriggered;
+            var savedOverrides = PlayerPrefs.GetString(BindingOverridesPrefsKey, string.Empty);
+            if (!string.IsNullOrEmpty(savedOverrides))
+            {
+                try { _actions.LoadBindingOverridesFromJson(savedOverrides); }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning("Не удалось загрузить переназначение клавиш; используются стандартные: " + exception.Message);
+                    PlayerPrefs.DeleteKey(BindingOverridesPrefsKey);
+                }
+            }
             _actions.Enable();
         }
 
@@ -174,6 +190,102 @@ namespace Pogranichye.Client
             return index >= 0 && index < _journeyChoices.Length && _journeyChoices[index].WasPressedThisFrame();
         }
 
+        /// <summary>Returns the number of bindings for a semantic gameplay action.</summary>
+        public int GetBindingCount(string actionName)
+        {
+            var action = _actions != null ? _actions.FindAction(actionName, false) : null;
+            return action != null ? action.bindings.Count : 0;
+        }
+
+        public string GetBindingDisplayString(string actionName, int bindingIndex = 0)
+        {
+            var action = _actions != null ? _actions.FindAction(actionName, false) : null;
+            if (action == null || bindingIndex < 0 || bindingIndex >= action.bindings.Count)
+                return "—";
+            return action.GetBindingDisplayString(bindingIndex);
+        }
+
+        /// <summary>
+        /// Starts an interactive rebind for one exact binding. Overrides are stored locally and
+        /// survive relaunches; gameplay/network code continues consuming semantic actions.
+        /// </summary>
+        public bool StartRebind(string actionName, int bindingIndex, Action<string> completed, Action cancelled)
+        {
+            var action = _actions != null ? _actions.FindAction(actionName, false) : null;
+            if (action == null || bindingIndex < 0 || bindingIndex >= action.bindings.Count)
+                return false;
+
+            _rebindOperation?.Cancel();
+            _rebindOperation?.Dispose();
+            _rebindOperation = action.PerformInteractiveRebinding(bindingIndex)
+                .WithCancelingThrough("<Keyboard>/escape")
+                .OnComplete(operation =>
+                {
+                    operation.Dispose();
+                    _rebindOperation = null;
+                    SaveBindingOverrides();
+                    completed?.Invoke(GetBindingDisplayString(actionName, bindingIndex));
+                })
+                .OnCancel(operation =>
+                {
+                    operation.Dispose();
+                    _rebindOperation = null;
+                    cancelled?.Invoke();
+                });
+            _rebindOperation.Start();
+            return true;
+        }
+
+        public string GetBindingConflict(string actionName, int bindingIndex)
+        {
+            var action = _actions != null ? _actions.FindAction(actionName, false) : null;
+            if (action == null || bindingIndex < 0 || bindingIndex >= action.bindings.Count)
+                return null;
+
+            var path = action.bindings[bindingIndex].effectivePath;
+            if (string.IsNullOrEmpty(path)) return null;
+            foreach (var other in _actions.actions)
+            {
+                if (other == action) continue; // Same action may intentionally have alternate bindings.
+                for (var i = 0; i < other.bindings.Count; i++)
+                {
+                    var otherPath = other.bindings[i].effectivePath;
+                    if (!string.IsNullOrEmpty(otherPath) &&
+                        string.Equals(path, otherPath, StringComparison.OrdinalIgnoreCase))
+                        return other.name;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Stops an in-progress interactive rebind when leaving the controls page.</summary>
+        public void CancelRebind()
+        {
+            // Cancel may synchronously invoke OnCancel and clear _rebindOperation.
+            _rebindOperation?.Cancel();
+            _rebindOperation?.Dispose();
+            _rebindOperation = null;
+        }
+
+        public void ResetBindingOverrides()
+        {
+            _rebindOperation?.Cancel();
+            _rebindOperation?.Dispose();
+            _rebindOperation = null;
+            if (_actions == null) return;
+            foreach (var action in _actions.actions)
+                action.RemoveAllBindingOverrides();
+            PlayerPrefs.DeleteKey(BindingOverridesPrefsKey);
+            PlayerPrefs.Save();
+        }
+
+        private void SaveBindingOverrides()
+        {
+            if (_actions == null) return;
+            PlayerPrefs.SetString(BindingOverridesPrefsKey, _actions.SaveBindingOverridesAsJson());
+            PlayerPrefs.Save();
+        }
+
         public string BuildPressedKeysDebug()
         {
             var keys = new List<string>();
@@ -200,6 +312,7 @@ namespace Pogranichye.Client
                 if (keyboard.mKey.isPressed) keys.Add("M (карта)");
                 if (keyboard.kKey.isPressed) keys.Add("K (рыбалка)");
                 if (keyboard.escapeKey.isPressed) keys.Add("Esc");
+                if (keyboard.equalsKey.isPressed) keys.Add("= (автоходьба)");
                 if (keyboard.rKey.isPressed) keys.Add("R");
                 if (keyboard.backspaceKey.isPressed) keys.Add("Backspace");
                 if (keyboard.qKey.isPressed) keys.Add("Q");
@@ -230,6 +343,9 @@ namespace Pogranichye.Client
 
         private void OnDestroy()
         {
+            _rebindOperation?.Cancel();
+            _rebindOperation?.Dispose();
+            _rebindOperation = null;
             if (_actions != null)
             {
                 _actions.actionTriggered -= OnActionTriggered;
