@@ -1641,6 +1641,19 @@ namespace Pogranichye.Client.Presentation
             {
                 BuildTavernDoorFacade(root, width, depth, wallHeight, doorSide, doorOffset, opening, wall);
             }
+            else if (isMarket)
+            {
+                // An open trading shelter has posts and a low rear windbreak, not house walls.
+                Create("Market rear windbreak", PrimitiveType.Cube, root,
+                    new Vector3(0f, 0.76f, depth * 0.5f - 0.12f),
+                    new Vector3(width - 0.3f, 1.45f, 0.22f), wall, false);
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Market timber support", PrimitiveType.Cube, root,
+                        new Vector3(x * (width * 0.5f - 0.18f), wallHeight * 0.5f,
+                            z * (depth * 0.5f - 0.18f)),
+                        new Vector3(0.22f, wallHeight, 0.22f), _trunk, false);
+            }
             else
             {
                 // Generic buildings retain the open south display facade used by the village shell.
@@ -1679,7 +1692,7 @@ namespace Pogranichye.Client.Presentation
 
             // A dark recessed door and small framed windows give each footprint a readable facade.
             var doorWidth = Mathf.Min(1.25f, opening * 0.82f);
-            if (!hasDoor)
+            if (!hasDoor && !isMarket)
             {
                 Create("Shadowed doorway", PrimitiveType.Cube, root,
                     new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
@@ -1689,13 +1702,14 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
             }
             // The server door is an open passage for now; its jambs and lintel are built on its actual wall.
-            if (!hasDoor)
+            if (!hasDoor && !isMarket)
                 Create("Door iron latch", PrimitiveType.Sphere, root,
                     new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
                     new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
 
             for (var side = -1; side <= 1; side += 2)
             {
+                if (isMarket) break;
                 var windowX = side * width * 0.31f;
                 var window = Create("Window dark recess", PrimitiveType.Cube, root,
                     new Vector3(windowX, 1.95f, -depth * 0.5f - 0.015f),
@@ -1821,8 +1835,24 @@ namespace Pogranichye.Client.Presentation
             else if (kind == "smithy")
             {
                 // Masonry apron, dark forge mouth and a recognisable anvil silhouette.
-                Create("Smithy stonework lower course", PrimitiveType.Cube, root,
-                    new Vector3(0f, 0.55f, 0f), new Vector3(width - 0.12f, 0.72f, depth - 0.12f), _stone, false);
+                var stoneHeight = 0.62f;
+                Create("Smithy stone rear course", PrimitiveType.Cube, root,
+                    new Vector3(0f, stoneHeight * 0.5f, depth * 0.5f - 0.12f),
+                    new Vector3(width - 0.24f, stoneHeight, 0.20f), _stone, false);
+                Create("Smithy stone west course", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.5f + 0.12f, stoneHeight * 0.5f, 0f),
+                    new Vector3(0.20f, stoneHeight, depth - 0.24f), _stone, false);
+                Create("Smithy stone east course", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.5f - 0.12f, stoneHeight * 0.5f, 0f),
+                    new Vector3(0.20f, stoneHeight, depth - 0.24f), _stone, false);
+                var smithyDoorGap = Mathf.Min(1.35f, width * 0.36f);
+                var stoneFrontSegment = (width - smithyDoorGap) * 0.5f;
+                Create("Smithy stone front left", PrimitiveType.Cube, root,
+                    new Vector3(-width * 0.5f + stoneFrontSegment * 0.5f, stoneHeight * 0.5f, -depth * 0.5f + 0.12f),
+                    new Vector3(stoneFrontSegment, stoneHeight, 0.20f), _stone, false);
+                Create("Smithy stone front right", PrimitiveType.Cube, root,
+                    new Vector3(width * 0.5f - stoneFrontSegment * 0.5f, stoneHeight * 0.5f, -depth * 0.5f + 0.12f),
+                    new Vector3(stoneFrontSegment, stoneHeight, 0.20f), _stone, false);
                 Create("Smithy forge recess", PrimitiveType.Cube, root,
                     new Vector3(width * 0.27f, 1.52f, depth * 0.5f - 0.19f),
                     new Vector3(Mathf.Min(1.35f, width * 0.32f), 1.18f, 0.12f), _trunk, false);
