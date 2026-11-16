@@ -182,6 +182,11 @@ namespace Pogranichye.Client.Presentation
             lodRenderers[0] = CreateLodObjects(rootGo.transform, "LOD0 • near detail", lod0, palette, chunk.Id);
             lodRenderers[1] = CreateLodObjects(rootGo.transform, "LOD1 • mid detail", lod1, palette, chunk.Id);
             lodRenderers[2] = CreateLodObjects(rootGo.transform, "LOD2 • distant silhouettes", lod2, palette, chunk.Id);
+            if (lodRenderers[0].Length + lodRenderers[1].Length + lodRenderers[2].Length == 0)
+            {
+                UnityEngine.Object.Destroy(rootGo);
+                return;
+            }
 
             var group = rootGo.AddComponent<LODGroup>();
             group.fadeMode = LODFadeMode.CrossFade;
@@ -438,7 +443,8 @@ namespace Pogranichye.Client.Presentation
         private static Material MakeMaterial(string name, Color color, float smoothness)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
+            if (shader == null) return null;
             var material = new Material(shader) { name = name, color = color };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
