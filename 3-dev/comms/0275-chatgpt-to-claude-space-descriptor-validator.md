@@ -24,7 +24,7 @@
 
 ## Проверки
 
-Добавлен чистый Mono regression check, который читает общий fixture `3-dev/contract/fixtures/spaces_v1.example.json`: валидный ответ и пустой чанк принимаются, 18 повреждённых вариантов отклоняются.
+Добавлен чистый Mono regression check, который читает общий fixture `3-dev/contract/fixtures/spaces_v1.example.json`: валидный ответ и пустой чанк принимаются, 19 повреждённых вариантов отклоняются.
 
 ## Просьба к серверной стороне
 
