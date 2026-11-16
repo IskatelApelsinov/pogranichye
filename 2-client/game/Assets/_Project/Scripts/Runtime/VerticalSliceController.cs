@@ -2201,6 +2201,9 @@ namespace Pogranichye.Client
                 new BindingRow("Карта", "OpenMap"),
                 new BindingRow("Системное меню", "Menu"),
                 new BindingRow("Скрыть / показать HUD", "ToggleHud"),
+                new BindingRow("Полный экран", "ToggleFullscreen"),
+                new BindingRow("Подсказки", "ToggleHints"),
+                new BindingRow("Техническая диагностика", "ToggleDiagnostics"),
                 new BindingRow("Чат", "Chat"),
                 new BindingRow("Голосовой PTT", "VoicePushToTalk"),
                 new BindingRow("Отмена / назад", "Cancel")
@@ -2214,7 +2217,17 @@ namespace Pogranichye.Client
                 new BindingRow("Начать плетение", "WeaveHold"),
                 new BindingRow("Убрать узел плетения", "WeaveRemove"),
                 new BindingRow("Смена стойки", "CycleStance"),
+                new BindingRow("Песчаный приём", "TrickSand"),
+                new BindingRow("Толчок", "TrickShove"),
+                new BindingRow("Обманный выпад", "TrickFeint"),
+                new BindingRow("Приманка", "TrickBait"),
+                new BindingRow("Скрытный приём", "TrickSneak"),
                 new BindingRow("Захват цели", "LockTarget")
+            });
+            DrawBindingSection("РЕМЁСЛА И ЗАНЯТИЯ", new[]
+            {
+                new BindingRow("Начать рубку", "StartWoodcut"),
+                new BindingRow("Начать рыбалку", "StartFishing")
             });
             GUILayout.Label(_bindingStatus);
             if (GUILayout.Button("Сбросить только управление", GUILayout.Height(30f)))
