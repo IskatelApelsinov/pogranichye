@@ -516,7 +516,7 @@ namespace Pogranichye.Client
             if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
                 Ask("Экипировка", "equip", "item", string.Empty);
 
-            if (items != null)
+            if (_catalog != null && items != null)
             {
                 foreach (var item in items.Properties())
                 {
@@ -529,6 +529,22 @@ namespace Pogranichye.Client
                     GUI.enabled = previousEnabled && hand != item.Name;
                     if (GUILayout.Button(hand == item.Name ? "В руке" : "Взять в руку"))
                         Ask("Экипировка", "equip", "item", item.Name);
+                    GUI.enabled = previousEnabled;
+                    GUILayout.EndHorizontal();
+                }
+            }
+            else if (items != null)
+            {
+                foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
+                {
+                    var quantity = Count(items, item);
+                    if (quantity < 1f) continue;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && hand != item;
+                    if (GUILayout.Button(hand == item ? "В руке" : "Взять в руку"))
+                        Ask("Экипировка", "equip", "item", item);
                     GUI.enabled = previousEnabled;
                     GUILayout.EndHorizontal();
                 }
@@ -546,7 +562,7 @@ namespace Pogranichye.Client
                 }
             }
             if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
-            if (items != null)
+            if (_catalog != null && items != null)
             {
                 foreach (var item in items.Properties())
                 {
@@ -563,6 +579,23 @@ namespace Pogranichye.Client
                         " · " + WearSlotName(slotName), GUILayout.Width(220f));
                     if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
                         Ask("Одежда", equipped ? "unwear" : "wear", "item", item.Name);
+                    GUILayout.EndHorizontal();
+                }
+            }
+            else if (items != null)
+            {
+                foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield", "purse" })
+                {
+                    var quantity = Count(items, item);
+                    if (quantity < 1f) continue;
+                    var equipped = false;
+                    if (worn != null)
+                        foreach (var slot in worn.Properties())
+                            if (slot.Value.ToString() == item) equipped = true;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
+                    if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
+                        Ask("Одежда", equipped ? "unwear" : "wear", "item", item);
                     GUILayout.EndHorizontal();
                 }
             }
