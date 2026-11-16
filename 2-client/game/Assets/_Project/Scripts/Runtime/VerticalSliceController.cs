@@ -1043,93 +1043,140 @@ namespace Pogranichye.Client
         {
             if (_frame?.Me == null) return;
             var me = _frame.Me;
-            GUILayout.Label("ЖУРНАЛ ПЕРСОНАЖА");
-            GUILayout.Label($"День {_frame.Day}, год {_frame.Year}, {_frame.Season}");
-            GUILayout.Space(5f);
-            GUILayout.Label("ВВОДНЫЙ МАРШРУТ И ЛИЧНОЕ ПОРУЧЕНИЕ");
-            GUILayout.Label(TutorialHint(), GUILayout.MinHeight(42f));
-            if (me.Task != null)
-            {
-                GUILayout.Label($"Знакомство: {(me.Task.Met ? "есть" : "нет")}  Навык работы: {(me.Task.Worked ? "есть" : "нет")}  Пиво: {(me.Task.Drank ? "выпито" : "не выпито")}");
-                if (me.Task.Issued != null)
-                {
-                    var errand = me.Task.Issued;
-                    var giver = string.IsNullOrWhiteSpace(errand.GiverName) ? "житель" : errand.GiverName;
-                    var good = OpeningErrandGoodLabel(errand.Good);
-                    GUILayout.BeginVertical(GUI.skin.box);
-                    GUILayout.Label("ПРИНЯТОЕ ЛИЧНОЕ ПОРУЧЕНИЕ · " + giver);
-                    GUILayout.Label($"Принести: {good} — {Mathf.Max(0, errand.Have)}/{Mathf.Max(0, errand.Quantity)}");
-                    if (!string.IsNullOrWhiteSpace(errand.SettlementName))
-                        GUILayout.Label("Взято в: " + errand.SettlementName);
-                    else if (!string.IsNullOrWhiteSpace(errand.SettlementId))
-                        GUILayout.Label("Взято в поселении: " + errand.SettlementId);
-                    else
-                        GUILayout.Label("Место выдачи пока не передаётся сервером.");
-                    GUILayout.Label(errand.Ready ? "Можно отнести поручение и получить плату." : "Поручение принято. Продолжай собирать нужное.");
-                    GUILayout.Label($"Обещанная плата: {errand.Coins:0.##} монет");
-                    GUILayout.EndVertical();
-                }
-                else if (me.Task.ErrandDone)
-                {
-                    GUILayout.Label("Личное поручение жителя сдано и сохранено сервером.");
-                }
-                else if (me.Task.Met)
-                {
-                    GUILayout.Label("Личное поручение ещё не принято. Свободные занятия развивают навыки, но не заменяют сдачу поручения.");
-                }
-                else
-                {
-                    GUILayout.Label("Личное поручение откроется после знакомства с жителем.");
-                }
+            var task = me.Task;
 
-                if (me.Task.Done && me.Task.ErrandDone)
-                    GUILayout.Label("Вводный маршрут завершён; личное поручение сдано сервером.");
-                else if (me.Task.Done)
-                    GUILayout.Label("Базовые вехи маршрута выполнены, но личное поручение жителя ещё не сдавалось.");
-                else
-                    GUILayout.Label("Вводный маршрут продолжается.");
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical();
+            GUILayout.Label("ДНЕВНИК ПЕРСОНАЖА");
+            GUILayout.Label($"День {_frame.Day} · {_frame.Season} · год {_frame.Year}");
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(task != null && task.Done && task.ErrandDone ? "Путь продолжается" : "Текущие дела");
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6f);
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("АКТИВНЫЕ ЗАДАНИЯ");
+            if (task == null)
+            {
+                GUILayout.Label("Сервер пока не передал задания. Старые версии мира остаются совместимыми.");
             }
             else
             {
-                GUILayout.Label("Сервер пока не передал состояние вводного маршрута.");
-            }
+                var completed = (task.Met ? 1 : 0) + (task.Worked ? 1 : 0) + (task.Drank ? 1 : 0);
+                const int milestones = 3;
+                GUILayout.Label("Первые шаги в поселении");
+                DrawQuestProgress(completed / (float)milestones,
+                    completed + " из " + milestones + " важных вех");
+                DrawQuestStep("Познакомиться с жителем", task.Met);
+                DrawQuestStep("Попробовать себя в труде", task.Worked);
+                DrawQuestStep("Разделить кружку в корчме", task.Drank);
 
-            GUILayout.Space(8f);
-            GUILayout.Label("ЛЕТОПИСЬ ПЕРСОНАЖА");
+                if (task.Issued != null)
+                {
+                    var errand = task.Issued;
+                    var giver = string.IsNullOrWhiteSpace(errand.GiverName) ? "Житель поселения" : errand.GiverName;
+                    var good = OpeningErrandGoodLabel(errand.Good);
+                    GUILayout.Space(8f);
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label("ПОРУЧЕНИЕ · " + giver);
+                    GUILayout.Label("Собрать и принести: " + good);
+                    var quantity = Mathf.Max(1, errand.Quantity);
+                    var have = Mathf.Clamp(errand.Have, 0, quantity);
+                    DrawQuestProgress(have / (float)quantity, have + " / " + quantity);
+                    if (!string.IsNullOrWhiteSpace(errand.SettlementName))
+                        GUILayout.Label("Место: " + errand.SettlementName);
+                    else if (!string.IsNullOrWhiteSpace(errand.SettlementId))
+                        GUILayout.Label("Поселение: " + errand.SettlementId);
+                    GUILayout.Label(errand.Ready
+                        ? "Всё собрано. Вернись к тому, кто поручил работу."
+                        : "Поручение активно. Прогресс обновляется по данным мира.");
+                    GUILayout.Label("Награда: " + errand.Coins.ToString("0.##") + " монет");
+                    GUILayout.EndVertical();
+                }
+                else if (task.ErrandDone)
+                {
+                    GUILayout.Label("✓ Личное поручение выполнено и сохранено миром.");
+                }
+                else if (task.Met)
+                {
+                    GUILayout.Label("Поговори со знакомым жителем, чтобы узнать о доступной работе.");
+                }
+                else
+                {
+                    GUILayout.Label("Задания и поручения появляются из общения с жителями, а не из меню.");
+                }
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(6f);
+            if (_core != null) _core.DrawQuestJournal();
+
+            GUILayout.Space(6f);
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ЛЕТОПИСЬ");
             if (me.Journal == null)
-            {
-                GUILayout.Label("Сервер пока не передаёт сохранённые вехи. Старые кадры v1 остаются совместимыми.", GUILayout.MinHeight(36f));
-            }
+                GUILayout.Label("Сохранённая летопись пока недоступна.");
             else if (me.Journal.Count == 0)
-            {
-                GUILayout.Label("Пока нет сохранённых вех. Они появятся после знакомства, первого труда и кружки в корчме.", GUILayout.MinHeight(42f));
-            }
+                GUILayout.Label("Здесь будут оставаться важные события жизни персонажа.");
             else
             {
                 foreach (var entry in me.Journal)
                 {
                     if (entry == null) continue;
-                    GUILayout.BeginVertical(GUI.skin.box);
-                    GUILayout.Label($"День {entry.Day} · {JournalKindLabel(entry.Kind)}");
-                    GUILayout.Label(entry.Text, GUILayout.MinHeight(24f));
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Д" + entry.Day, GUILayout.Width(42f));
+                    GUILayout.BeginVertical();
+                    GUILayout.Label(JournalKindLabel(entry.Kind));
+                    GUILayout.Label(entry.Text);
                     GUILayout.EndVertical();
+                    GUILayout.EndHorizontal();
+                    GUILayout.Space(3f);
                 }
             }
+            GUILayout.EndVertical();
 
-            GUILayout.Space(8f);
-            GUILayout.Label("ТЕКУЩЕЕ СОСТОЯНИЕ");
-            GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Последнее действие пока не сообщено." : me.Last, GUILayout.MinHeight(24f));
+            GUILayout.Space(6f);
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ПОСЛЕДНЕЕ СОБЫТИЕ");
+            GUILayout.Label(string.IsNullOrEmpty(me.Last) ? "Пока нет новых событий." : me.Last);
             if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
-                GUILayout.Label((me.Result.Ok ? "Подтверждено сервером: " : "Отказ сервера: ") + (me.Result.Reason ?? me.Result.RequestId), GUILayout.MinHeight(32f));
+                GUILayout.Label((me.Result.Ok ? "Подтверждено миром · " : "Отказ · ") +
+                    (me.Result.Reason ?? me.Result.RequestId));
+            GUILayout.EndVertical();
 
-            GUILayout.Space(8f);
-            GUILayout.Label("НАБЛЮДЕНИЯ ЭТОГО ПОДКЛЮЧЕНИЯ");
-            if (_sessionJournal.Count == 0)
-                GUILayout.Label("Пока нет новых наблюдаемых событий.");
-            else
+            if (_sessionJournal.Count > 0)
+            {
+                GUILayout.Space(6f);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("СЕГОДНЯ В ЭТОМ СЕАНСЕ");
                 foreach (var entry in _sessionJournal)
-                    GUILayout.Label("• " + entry, GUILayout.MinHeight(24f));
-            GUILayout.Label("Наблюдения собираются клиентом с момента входа и не заменяют сохранённую серверную летопись.", GUILayout.MinHeight(36f));
+                    GUILayout.Label("• " + entry);
+                GUILayout.Label("Это заметки текущего подключения, не сохранённые сервером записи.");
+                GUILayout.EndVertical();
+            }
+        }
+
+        private static void DrawQuestStep(string label, bool done)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(done ? "✓" : "○", GUILayout.Width(22f));
+            GUILayout.Label(label);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(done ? "Готово" : "Ожидает", GUILayout.Width(76f));
+            GUILayout.EndHorizontal();
+        }
+
+        private static void DrawQuestProgress(float value, string caption)
+        {
+            GUILayout.Label(caption);
+            var rect = GUILayoutUtility.GetRect(1f, 9f, GUILayout.ExpandWidth(true));
+            var old = GUI.color;
+            GUI.color = new Color(0.12f, 0.13f, 0.11f, 1f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = new Color(0.66f, 0.53f, 0.33f, 1f);
+            GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width * Mathf.Clamp01(value), rect.height), Texture2D.whiteTexture);
+            GUI.color = old;
         }
 
         private static string OpeningErrandGoodLabel(string good)
