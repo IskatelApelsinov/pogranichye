@@ -3382,14 +3382,14 @@ namespace Pogranichye.Client
             }
         }
 
-        private static string WildPlaceActionName(string action, string gives)
+        private string WildPlaceActionName(string action, string gives)
         {
             switch (action)
             {
                 case "rest": return "Передохнуть";
                 case "drink": return "Напиться воды";
                 case "explore": return "Исследовать / обыскать";
-                case "forage": return "Собрать: " + (string.IsNullOrEmpty(gives) ? "припасы" : Name(gives));
+                case "forage": return "Собрать: " + (string.IsNullOrEmpty(gives) ? "припасы" : CatalogName(gives));
                 default: return "Действие: " + action;
             }
         }
