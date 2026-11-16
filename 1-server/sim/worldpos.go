@@ -367,13 +367,23 @@ func WorldManifestUsing(w *core.World, t *Terrain) map[string]any {
 			roads = append(roads, map[string]any{"a": eidStr(r.A), "b": eidStr(r.B)})
 		}
 	}
+	trails, _ := Trails(w) // v1.27: у каждого перегона — вид (тропка/тракт) и длина настоящей нитки
+	kinds := map[string]*Trail{}
+	for i := range trails {
+		kinds[eidStr(trails[i].A)+"|"+eidStr(trails[i].B)] = &trails[i]
+	}
+	for _, r := range roads {
+		if tr := kinds[r["a"].(string)+"|"+r["b"].(string)]; tr != nil {
+			r["id"], r["kind"], r["width_m"], r["len_m"] = tr.ID, tr.Kind, tr.Width, math.Round(tr.LenM)
+		}
+	}
 	return map[string]any{"scheme": WorldScheme, "v": WorldSchemeVersion, "units": "m",
 		"chunk_m": ChunkMeters, "layer_m": LayerMeters, "seamless": p.Seamless,
 		"frames": []map[string]any{{"id": 0, "projection": "azimuthal-equidistant",
 			"origin_lat": p.CauldronLat, "origin_lon": p.CauldronLon, "radius_m": p.RadiusKm * 1000}},
 		"rim_radius_m": r3(t.rimR), "settlements": sets, "roads": roads,
-		"realms":   RealmsView(w),  // v1.24: державы — чьи какие сёла, столицы, кто с кем воюет
-		"movement": MovementView(), // v1.23: скорости и правило склона — клиент повторяет его в предсказании
+		"realms":    RealmsView(w),    // v1.24: державы — чьи какие сёла, столицы, кто с кем воюет
+		"movement":  MovementView(),   // v1.23: скорости и правило склона — клиент повторяет его в предсказании
 		"wildsites": WildSitesView(w)} // дикие места вне сёл (служебная карта, не кадр игрока)
 }
 

@@ -127,29 +127,15 @@ func chunkWild(w *core.World, oe, on float64) []map[string]any {
 // (clipSegmentToBox) границей чанка; пустой массив, если ни один тракт чанк не касается (0235).
 func chunkRoads(w *core.World, oe, on float64) []map[string]any {
 	out := []map[string]any{}
-	for _, outer := range [2]bool{false, true} {
-		for _, rd := range RoadGraph(w, outer) {
-			ea, eb := w.Get(rd.A), w.Get(rd.B)
-			if ea == nil || eb == nil {
-				continue
+	list, grid := Trails(w)
+	for _, idx := range grid[[2]int64{int64(math.Floor(oe / ChunkMeters)), int64(math.Floor(on / ChunkMeters))}] {
+		tr := &list[idx]
+		for k, run := range chunkTrailRuns(tr, oe, on) {
+			id := tr.ID
+			if k > 0 { // нитка петляет и может зайти в чанк не один раз
+				id += "#" + strconv.Itoa(k+1)
 			}
-			sa, sb := core.Settle(ea), core.Settle(eb)
-			if sa == nil || sb == nil {
-				continue
-			}
-			ax, ay := Anchor(w, sa)
-			bx, by := Anchor(w, sb)
-			cx0, cy0, cx1, cy1, ok := clipSegmentToBox(ax, ay, bx, by, oe, on, ChunkMeters)
-			if !ok {
-				continue
-			}
-			out = append(out, map[string]any{
-				"id": "road-" + eidStr(rd.A) + "-" + eidStr(rd.B), "kind": "road",
-				"points": []map[string]float64{
-					{"x": r3(cx0 - oe), "z": r3(cy0 - on)},
-					{"x": r3(cx1 - oe), "z": r3(cy1 - on)},
-				},
-			})
+			out = append(out, map[string]any{"id": id, "kind": tr.Kind, "width_m": tr.Width, "points": run})
 		}
 	}
 	return out

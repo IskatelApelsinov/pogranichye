@@ -322,7 +322,7 @@ func (s *Server) fastStep(dt float64) {
 	sim.StepNPCMovement(s.world, dt, ctl)
 	sim.StepCombatAtHour(s.world, dt, s.runner.Clock.Hour(), ctl, s.runner.Hub.Stream("combat"))
 	sim.StepAutoWalk(s.world, dt, ctl) // самоход игрока-менеджера к выбранному месту села
-	sim.StepLands(s.world, ctl) // бесшовный мир: идущий переходит в земли ближайшего села
+	sim.StepLands(s.world, ctl)        // бесшовный мир: идущий переходит в земли ближайшего села
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
@@ -1022,7 +1022,8 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"stash":        meStash(e),
 			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
 			"wpos":         sim.MeWorldPosView(terrain, s.world, e),        // v1.19: каноническое положение в мире (метры, высота, чанк)
-			"walk":         sim.WalkView(s.world, e),                                // v1.22: самоход к месту {to,left} или null
+			"walk":         sim.WalkView(s.world, e),                       // v1.22: самоход к месту {to,left} или null
+			"trail":        sim.TrailView(s.world, e),                      // v1.27: на какой тропке/тракте стоит тело (null — в поле или в селе)
 			"at":           sim.AtPOI(s.world, e),                          // v1.22: у какого места села стоит тело ("" — ни у одного)
 			"pos":          mePos(e),                                       // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
 			"talk":         meTalk(s.world, e),                             // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
@@ -1101,9 +1102,9 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                    // v1.19: центр села в мире; мир = anchor + pos
 				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
-				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())), // v1.22: места без жителей вокруг (урочища, пещеры, башни)
-				"realm":          sim.PlaceRealmView(s.world, pl.Settlement),                    // v1.24: чьи это земли — держава, столица, война и союзы (null — вольная земля)
-				"caravans":       sim.NearCaravansView(s.world, terrain, e, s.runner.Clock.Hour()), // v1.24: обозы неподалёку — что везут и куда
+				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())),           // v1.22: места без жителей вокруг (урочища, пещеры, башни)
+				"realm":          sim.PlaceRealmView(s.world, pl.Settlement),                              // v1.24: чьи это земли — держава, столица, война и союзы (null — вольная земля)
+				"caravans":       sim.NearCaravansView(s.world, terrain, e, s.runner.Clock.Hour()),        // v1.24: обозы неподалёку — что везут и куда
 				"market":         sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)
 				"life":           s.placeLife(se),                                                         // агрегаты жизни общины (v1.18)
 				"rooms":          sim.PlaceRoomsView(s.world, se.ID, s.runner.Clock.Day()),                // комнаты над корчмой: всего/вакантно/цена (v1.20)
