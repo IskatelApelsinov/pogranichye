@@ -3522,6 +3522,7 @@ namespace Pogranichye.Client
                 _terrainChunkRetryAfter.Clear();
                 _hasTerrainCenter = false;
                 WorldTerrainChunkBuilder.Clear(_presentationRoot);
+                WorldFrontierBiomeBuilder.Clear(_presentationRoot);
                 CauldronRimPresentationBuilder.Clear(_presentationRoot);
                 _cameraRig?.SetWorldHorizonDistance(0f);
                 _terrainAppliedSettlementId = null;
@@ -4245,6 +4246,7 @@ namespace Pogranichye.Client
                 {
                     _terrainChunks.Remove(id);
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
+                    WorldFrontierBiomeBuilder.Remove(_presentationRoot, id);
                 }
                 CancelTerrainChunkRequestsOutsideRetention(position.Frame, centerX, centerZ);
             }
@@ -4256,7 +4258,10 @@ namespace Pogranichye.Client
             if (changedAnchor)
             {
                 foreach (var pair in _terrainChunks)
+                {
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                    WorldFrontierBiomeBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                }
                 _terrainAppliedSettlementId = frame.Place.Id;
                 _terrainAppliedAnchorEast = anchor.East;
                 _terrainAppliedAnchorNorth = anchor.North;
@@ -4342,6 +4347,7 @@ namespace Pogranichye.Client
                     _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
                     WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    WorldFrontierBiomeBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
                     _terrainAppliedSettlementId = _frame.Place.Id;
                     _terrainAppliedAnchorEast = _frame.Place.Anchor.East;
                     _terrainAppliedAnchorNorth = _frame.Place.Anchor.North;
