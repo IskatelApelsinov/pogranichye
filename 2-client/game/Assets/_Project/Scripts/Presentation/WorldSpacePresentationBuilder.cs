@@ -160,8 +160,8 @@ namespace Pogranichye.Client.Presentation
                             Mathf.Clamp((float)stair.WidthMeters, 0.6f, 4f),
                             Mathf.Max(0.08f, Mathf.Abs(direction.y) / steps + 0.08f),
                             Mathf.Max(0.12f, run));
-                        var collider = tread.GetComponent<Collider>();
-                        if (collider != null) UnityEngine.Object.Destroy(collider);
+                        // Local collider is useful for presentation physics only; server movement
+                        // validation remains authoritative and must agree with this stair corridor.
                         tread.GetComponent<MeshRenderer>().sharedMaterial = GetStairMaterial();
                     }
                 }
@@ -227,7 +227,8 @@ namespace Pogranichye.Client.Presentation
             if (root == null) return;
             var meshes = root.GetComponentsInChildren<MeshFilter>(true);
             for (var i = 0; i < meshes.Length; i++)
-                if (meshes[i] != null && meshes[i].sharedMesh != null)
+                if (meshes[i] != null && meshes[i].gameObject.name.StartsWith("Surface_", StringComparison.Ordinal) &&
+                    meshes[i].sharedMesh != null)
                     UnityEngine.Object.Destroy(meshes[i].sharedMesh);
             UnityEngine.Object.Destroy(root.gameObject);
         }
