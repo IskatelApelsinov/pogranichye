@@ -196,6 +196,7 @@ namespace Pogranichye.Client
         private string _inventoryCategory = "Все";
         private string _inventorySearch = string.Empty;
         private bool _inventoryStorageExpanded;
+        private bool _inventoryDetailsExpanded;
         private GameplayStatusView _status;
         private ActionResultFrame _result;
         private CombatFrame _combat;
@@ -576,6 +577,53 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(6f);
+            _inventoryDetailsExpanded = GUILayout.Toggle(_inventoryDetailsExpanded,
+                _inventoryDetailsExpanded ? "▼ Состояние, характеристики и знания" : "▶ Состояние, характеристики и знания", GUI.skin.button);
+            if (_inventoryDetailsExpanded)
+            {
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("СОСТОЯНИЕ");
+                DrawCondition(_me, "health", "Здоровье", new Color(0.55f, 0.66f, 0.42f));
+                DrawCondition(_me, "hunger", "Голод", new Color(0.82f, 0.58f, 0.32f));
+                DrawCondition(_me, "energy", "Силы", new Color(0.45f, 0.68f, 0.82f));
+                DrawCondition(_me, "morale", "Настрой", new Color(0.68f, 0.55f, 0.78f));
+                if (_stats != null)
+                {
+                    GUILayout.Space(4f);
+                    GUILayout.Label("ХАРАКТЕРИСТИКИ");
+                    DrawAttribute(_stats, "strength", "Сила");
+                    DrawAttribute(_stats, "agility", "Ловкость");
+                    DrawAttribute(_stats, "endurance", "Выносливость");
+                    DrawAttribute(_stats, "intellect", "Ум");
+                    DrawAttribute(_stats, "perception", "Восприятие");
+                    DrawAttribute(_stats, "will", "Воля");
+                }
+                var skills = Obj(_me, "skills");
+                if (skills != null && skills.HasValues)
+                {
+                    GUILayout.Space(4f);
+                    GUILayout.Label("НАВЫКИ");
+                    var rows = new List<JProperty>(skills.Properties());
+                    rows.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
+                    foreach (var skill in rows)
+                    {
+                        double value;
+                        if (skill.Value == null || !double.TryParse(skill.Value.ToString(),
+                            NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                            double.IsNaN(value) || double.IsInfinity(value)) continue;
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(Name(skill.Name));
+                        GUILayout.FlexibleSpace();
+                        GUILayout.Label(value.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(52f));
+                        GUILayout.EndHorizontal();
+                    }
+                }
+                GUILayout.Space(4f);
+                DrawCatalogReference();
+                GUILayout.EndVertical();
+            }
+
+            GUILayout.Space(6f);
             _inventoryStorageExpanded = GUILayout.Toggle(_inventoryStorageExpanded,
                 _inventoryStorageExpanded ? "▼ Хранилища и поклажа" : "▶ Хранилища и поклажа", GUI.skin.button);
             if (_inventoryStorageExpanded)
@@ -698,7 +746,6 @@ namespace Pogranichye.Client
                 case "body": return "Тело";
                 case "feet": return "Ноги";
                 case "armor": return "Броня";
-                case "belt": return "Пояс";
                 case "offhand": return "Левая рука";
                 case "belt": return "Пояс";
                 default: return slot;
