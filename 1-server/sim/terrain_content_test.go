@@ -20,7 +20,7 @@ func TestTerrainContentDeterministicAndOrderIndependent(t *testing.T) {
 	_ = TerrainChunk(w, 5, -4, 16) // другой чанк между повторами — не должен задевать кэш/состояние
 	aSecond := TerrainChunk(w, -1, 2, 16)
 
-	for _, key := range []string{"seed", "gen", "biome", "cover", "resources", "wild", "roads"} {
+	for _, key := range []string{"seed", "gen", "biome", "cover", "resources", "wild", "roads", "water"} {
 		if !reflect.DeepEqual(aFirst[key], aSecond[key]) {
 			t.Fatalf("content.%s не детерминирован между вызовами: %v != %v", key, aFirst[key], aSecond[key])
 		}
@@ -55,7 +55,7 @@ func TestTerrainContentAdditiveFieldsShapeAndHeightsPreserved(t *testing.T) {
 			t.Fatalf("cover.%s вне [0,1] или отсутствует: %v", k, cover)
 		}
 	}
-	for _, key := range []string{"resources", "wild", "roads"} {
+	for _, key := range []string{"resources", "wild", "roads", "water"} {
 		if _, ok := c[key].([]map[string]any); !ok {
 			t.Fatalf("%s должен быть массивом (даже пустым), не null: %T", key, c[key])
 		}

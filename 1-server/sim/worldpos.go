@@ -410,6 +410,7 @@ func TerrainChunkUsing(w *core.World, t *Terrain, cx, cz int64, step int) map[st
 		"seed": int64(t.seed), "gen": terrainContentGen, "biome": biome,
 		"cover": chunkCover(t, biome, oe, on), "roads": chunkRoads(w, oe, on),
 		"resources": chunkResources(t, biome, cx, cz), "wild": chunkWild(w, oe, on),
+		"water": chunkWater(w, t, oe, on),
 	}
 	return out
 }
