@@ -536,7 +536,7 @@ namespace Pogranichye.Client
             }
             else
             {
-                const int columns = 3;
+                var columns = Screen.width < 900 ? 2 : 3;
                 for (var i = 0; i < visible.Count; i += columns)
                 {
                     GUILayout.BeginHorizontal();
@@ -548,10 +548,17 @@ namespace Pogranichye.Client
                         var slot = InventorySlot(definition, item.Name);
                         var isWeapon = IsInventoryHandItem(definition, item.Name);
                         var isUsable = IsCatalogUsable(item.Name);
+                        var isClothing = !string.IsNullOrEmpty(slot) && !isWeapon;
+                        var category = isWeapon ? "Оружие" : isClothing ? "Одежда" : isUsable ? "Расходники" : "Материалы";
                         var equipped = hand == item.Name || IsWorn(worn, item.Name);
-                        GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(108f), GUILayout.ExpandWidth(true));
+                        GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(126f), GUILayout.ExpandWidth(true));
+                        GUILayout.BeginHorizontal();
+                        DrawInventoryItemIcon(item.Name, category);
+                        GUILayout.BeginVertical();
                         GUILayout.Label(CatalogItemName(definition, item.Name));
-                        GUILayout.Label("× " + quantity + (string.IsNullOrEmpty(slot) ? "" : " · " + WearSlotName(slot)));
+                        GUILayout.Label(category + " · × " + quantity);
+                        GUILayout.EndVertical();
+                        GUILayout.EndHorizontal();
                         var itemSummary = InventoryItemSummary(definition);
                         if (!string.IsNullOrEmpty(itemSummary))
                             GUILayout.Label(itemSummary, GUILayout.MinHeight(26f));
@@ -781,6 +788,57 @@ namespace Pogranichye.Client
             else if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Снять"))
                 Ask("Одежда", "unwear", "item", itemId);
             GUILayout.EndVertical();
+        }
+
+        private static void DrawInventoryItemIcon(string itemId, string category)
+        {
+            var previousBackground = GUI.backgroundColor;
+            var previousContent = GUI.contentColor;
+            switch (category)
+            {
+                case "Оружие": GUI.backgroundColor = new Color(0.48f, 0.34f, 0.20f, 1f); break;
+                case "Одежда": GUI.backgroundColor = new Color(0.25f, 0.39f, 0.31f, 1f); break;
+                case "Расходники": GUI.backgroundColor = new Color(0.48f, 0.43f, 0.23f, 1f); break;
+                default: GUI.backgroundColor = new Color(0.32f, 0.35f, 0.34f, 1f); break;
+            }
+            GUI.contentColor = new Color(0.97f, 0.91f, 0.76f, 1f);
+            GUILayout.Box(InventoryItemGlyph(itemId), GUILayout.Width(42f), GUILayout.Height(42f));
+            GUI.backgroundColor = previousBackground;
+            GUI.contentColor = previousContent;
+        }
+
+        private static string InventoryItemGlyph(string itemId)
+        {
+            switch (itemId)
+            {
+                case "axe": return "Т";
+                case "sword": return "М";
+                case "knife": return "Н";
+                case "bow": return "Л";
+                case "rod": return "У";
+                case "torch": return "Ф";
+                case "lantern": return "Фн";
+                case "shield": return "Щ";
+                case "hat": return "Ш";
+                case "cloak": return "П";
+                case "boots": return "С";
+                case "jerkin": return "К";
+                case "bread": return "Х";
+                case "fish": return "Р";
+                case "stew": return "У";
+                case "roast": return "Ж";
+                case "bandage": return "Б";
+                case "potion": return "З";
+                case "wood": return "Д";
+                case "ore": return "Рд";
+                case "metal": return "Жл";
+                case "leather": return "Кж";
+                case "herb": return "Тр";
+                case "wheat": return "Зр";
+                case "meat": return "М";
+                case "hide": return "Шк";
+                default: return "·";
+            }
         }
 
         private static string InventoryItemSummary(JObject definition)
