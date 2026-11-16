@@ -52,7 +52,7 @@ Current LOD screen-relative thresholds are 0.22 / 0.075 / 0.018 and cross-fade i
 
 Placement uses the server seed (or a stable chunk-coordinate fallback) plus global integer placement cells. It does not use Unity's runtime random state. A plant's candidate location is therefore stable after reconnect and reload, and its grid phase is shared across neighboring chunks, including negative world coordinates.
 
-Height is sampled from the authoritative chunk heightfield. Vegetation is excluded around server-provided road and water polylines. Mesh vertices are expressed relative to the same settlement anchor as the terrain chunk.
+Height is sampled from the authoritative chunk heightfield. Vegetation is excluded around server-provided road and water polylines and within a 112 m visual clearance radius of settlement centers listed in the chunk. Mesh vertices are expressed relative to the same settlement anchor as the terrain chunk.
 
 The server currently supplies one biome label per chunk. A biome boundary can therefore change species/palette between chunks; the renderer does not invent a blended biome map. Test those boundaries visually and record abrupt changes separately from actual mesh/placement seams.
 
@@ -69,7 +69,7 @@ These fixtures exist only in the local Editor scene. They are not sent to the se
 
 ## Unity test checklist
 
-1. First build the Editor preview strip and inspect all five current server biome profiles. and confirm descriptors are present in the received terrain frames (`biome`, `seed`, `cover`).
+1. First build the Editor preview strip and inspect all five current server biome profiles; in live play, confirm terrain frames contain `biome`, `seed` and `cover`.
 2. Walk across all four edges of a terrain chunk. Check for repeated rows, gaps, sudden density jumps, and plants crossing the road/water corridors.
 3. Walk through forest → plain → hills → coast/steppe regions where the server world provides them. Confirm species and density visibly change.
 4. Move toward and away from a tree line. Confirm all three LOD levels switch without a large pop or missing renderers.
