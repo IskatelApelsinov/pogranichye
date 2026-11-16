@@ -850,7 +850,9 @@ namespace Pogranichye.Client
                 GUI.Label(new Rect(rect.x + 10f, rect.y + 238f, rect.width - 20f, 20f),
                     "WorldPos: " + _frame.Me.WorldPosition.East.ToString("0.0", CultureInfo.InvariantCulture) +
                     ", " + _frame.Me.WorldPosition.North.ToString("0.0", CultureInfo.InvariantCulture) +
-                    " · frame " + _frame.Me.WorldPosition.Frame);
+                    " · frame " + _frame.Me.WorldPosition.Frame +
+                    " · space " + (_frame.Me.WorldPosition.SpaceId ?? "—") +
+                    " · level " + (_frame.Me.WorldPosition.LevelId ?? "—"));
             GUI.Label(new Rect(rect.x + 10f, rect.y + 258f, rect.width - 20f, 20f),
                 "Move queue: " + _moveSendQueue.Count + "/" + MaxQueuedMoveIntents +
                 " · pending " + _pendingMoveIntents.Count + " · dropped " + _discardedMoveIntentCount);
