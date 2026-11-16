@@ -4275,7 +4275,7 @@ namespace Pogranichye.Client
             return stamina;
         }
 
-        private static void PredictServerMove(ref Vector3 position, ref float stamina,
+        private void PredictServerMove(ref Vector3 position, ref float stamina,
             PendingMoveIntent intent, WorldLayoutFrame layout, bool allowOutsideSettlement)
         {
             var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
@@ -4285,9 +4285,37 @@ namespace Pogranichye.Client
             {
                 direction /= length;
                 var canRun = intent.Run && stamina > 0f;
-                var speed = canRun ? (intent.Fast ? 6.0f : 3.2f) : 1.4f;
+                var movement = _worldManifest != null ? _worldManifest.Movement : null;
+                var walkSpeed = movement != null && movement.WalkMetersPerSecond > 0d
+                    ? (float)movement.WalkMetersPerSecond : 1.4f;
+                var jogSpeed = movement != null && movement.JogMetersPerSecond > 0d
+                    ? (float)movement.JogMetersPerSecond : 3.2f;
+                var runSpeed = movement != null && movement.RunMetersPerSecond > 0d
+                    ? (float)movement.RunMetersPerSecond : 6.0f;
+                var speed = canRun ? (intent.Fast ? runSpeed : jogSpeed) : walkSpeed;
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
+
+                var slope = movement != null ? movement.Slope : null;
+                var anchor = _frame?.Place?.Anchor;
+                if (slope != null && anchor != null &&
+                    position.x * position.x + position.z * position.z >=
+                    Math.Pow(Math.Max(0d, slope.FlatRadiusMeters - slope.ProbeMeters), 2d))
+                {
+                    var probe = Math.Max(0.01d, slope.ProbeMeters);
+                    var east = anchor.East + position.x;
+                    var north = anchor.North + position.z;
+                    var aheadEast = east + direction.x / Math.Max(0.0001f, direction.magnitude) * probe;
+                    var aheadNorth = north + direction.y / Math.Max(0.0001f, direction.magnitude) * probe;
+                    if (TrySampleTerrainHeight(east, north, anchor.Frame, out var ground) &&
+                        TrySampleTerrainHeight(aheadEast, aheadNorth, anchor.Frame, out var ahead))
+                    {
+                        var grade = (ahead - ground) / probe;
+                        speed *= (float)ServerSlopeMultiplier(grade, slope);
+                    }
+                    // If terrain samples are not cached yet, omit slope prediction rather than
+                    // inventing a client-only height. The next authoritative snapshot corrects it.
+                }
 
                 var origin = new Vector2(position.x, position.z);
                 var desired = origin + direction * speed * dt;
@@ -4299,8 +4327,62 @@ namespace Pogranichye.Client
             }
             else
             {
-                stamina = Mathf.Min(1f, stamina + 0.08f * dt);
+                // Match server stamRegen; this remains prediction for queued intents only.
+                stamina = Mathf.Min(1f, stamina + 0.10f * dt);
             }
+        }
+
+        private bool TrySampleTerrainHeight(double east, double north, int frame, out double height)
+        {
+            height = 0d;
+            foreach (var pair in _terrainChunks)
+            {
+                var chunk = pair.Value;
+                if (chunk == null || chunk.Frame != frame || chunk.Origin == null ||
+                    chunk.StepMeters <= 0 || chunk.Side < 2 || chunk.Heights == null ||
+                    chunk.Heights.Count != chunk.Side * chunk.Side)
+                    continue;
+
+                var gridX = (east - chunk.Origin.East) / chunk.StepMeters;
+                var gridZ = (north - chunk.Origin.North) / chunk.StepMeters;
+                if (gridX < -0.000001d || gridZ < -0.000001d ||
+                    gridX > chunk.Side - 1 + 0.000001d || gridZ > chunk.Side - 1 + 0.000001d)
+                    continue;
+
+                var x0 = Math.Min(chunk.Side - 2, Math.Max(0, (int)Math.Floor(gridX)));
+                var z0 = Math.Min(chunk.Side - 2, Math.Max(0, (int)Math.Floor(gridZ)));
+                var tx = Math.Max(0d, Math.Min(1d, gridX - x0));
+                var tz = Math.Max(0d, Math.Min(1d, gridZ - z0));
+                var h00 = chunk.Heights[z0 * chunk.Side + x0];
+                var h10 = chunk.Heights[z0 * chunk.Side + x0 + 1];
+                var h01 = chunk.Heights[(z0 + 1) * chunk.Side + x0];
+                var h11 = chunk.Heights[(z0 + 1) * chunk.Side + x0 + 1];
+                if (double.IsNaN(h00) || double.IsInfinity(h00) ||
+                    double.IsNaN(h10) || double.IsInfinity(h10) ||
+                    double.IsNaN(h01) || double.IsInfinity(h01) ||
+                    double.IsNaN(h11) || double.IsInfinity(h11))
+                    return false;
+
+                var lower = h00 + (h10 - h00) * tx;
+                var upper = h01 + (h11 - h01) * tx;
+                height = lower + (upper - lower) * tz;
+                return true;
+            }
+            return false;
+        }
+
+        private static double ServerSlopeMultiplier(double grade, WorldSlopeFrame slope)
+        {
+            if (slope == null) return 1d;
+            if (grade > slope.CliffGrade) return 0d;
+            if (grade > 0d) return 1d / (1d + slope.UphillFactor * grade);
+            if (grade > -slope.EasyDownGrade)
+            {
+                if (slope.EasyDownGrade <= 0d) return 1d;
+                return 1d + (slope.EasyDownBoost - 1d) * (-grade / slope.EasyDownGrade);
+            }
+            return slope.EasyDownBoost /
+                (1d + slope.DownhillFactor * (-grade - slope.EasyDownGrade));
         }
 
         private void StartNextMoveSend()
