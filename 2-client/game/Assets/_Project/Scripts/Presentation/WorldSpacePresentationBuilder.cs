@@ -265,7 +265,8 @@ namespace Pogranichye.Client.Presentation
                 var to = new Vector3((float)b.X, (float)b.Y, (float)b.Z);
                 var direction = to - from;
                 var length = direction.magnitude;
-                if (length < 0.05f) continue;
+                var horizontal = new Vector3(direction.x, 0f, direction.z);
+                if (length < 0.05f || horizontal.sqrMagnitude < 0.0025f) continue;
 
                 var segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 segment.name = "Ramp_" + SafeName(ramp.Id) + "_" + (i - 1);
