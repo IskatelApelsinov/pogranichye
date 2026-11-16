@@ -4393,7 +4393,8 @@ namespace Pogranichye.Client
                         TrySampleTerrainHeight(aheadEast, aheadNorth, anchor.Frame, out var ahead))
                     {
                         var grade = (ahead - ground) / probe;
-                        speed *= (float)ServerSlopeMultiplier(grade, slope);
+                        speed *= (float)ServerSlopeMovementPolicy.Multiplier(grade, slope.UphillFactor, slope.DownhillFactor,
+                            slope.EasyDownGrade, slope.EasyDownBoost, slope.CliffGrade);
                     }
                     // If terrain samples are not cached yet, omit slope prediction rather than
                     // inventing a client-only height. The next authoritative snapshot corrects it.
@@ -4451,20 +4452,6 @@ namespace Pogranichye.Client
                 return true;
             }
             return false;
-        }
-
-        private static double ServerSlopeMultiplier(double grade, WorldSlopeFrame slope)
-        {
-            if (slope == null) return 1d;
-            if (grade > slope.CliffGrade) return 0d;
-            if (grade > 0d) return 1d / (1d + slope.UphillFactor * grade);
-            if (grade > -slope.EasyDownGrade)
-            {
-                if (slope.EasyDownGrade <= 0d) return 1d;
-                return 1d + (slope.EasyDownBoost - 1d) * (-grade / slope.EasyDownGrade);
-            }
-            return slope.EasyDownBoost /
-                (1d + slope.DownhillFactor * (-grade - slope.EasyDownGrade));
         }
 
         private void StartNextMoveSend()
