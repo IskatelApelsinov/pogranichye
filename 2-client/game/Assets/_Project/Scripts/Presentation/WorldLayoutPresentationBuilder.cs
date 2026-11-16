@@ -73,7 +73,7 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
             ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
-            ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f);
+            ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f, true);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
