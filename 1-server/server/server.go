@@ -238,6 +238,19 @@ func (s *Server) Handler() http.Handler {
 		s.mu.Unlock()
 		writeJSON(w, v)
 	})
+	mux.HandleFunc("/api/spaces", func(w http.ResponseWriter, r *http.Request) { // v1.25: здания с этажами, подвалы, башни, пещеры чанка
+		q := r.URL.Query()
+		cx, err1 := strconv.ParseInt(q.Get("cx"), 10, 64)
+		cz, err2 := strconv.ParseInt(q.Get("cz"), 10, 64)
+		if err1 != nil || err2 != nil || cx < -1<<30 || cx > 1<<30 || cz < -1<<30 || cz > 1<<30 {
+			http.Error(w, "нужны целые cx и cz", http.StatusBadRequest)
+			return
+		}
+		s.mu.Lock()
+		v := sim.SpacesChunk(s.world, s.terrain(), cx, cz)
+		s.mu.Unlock()
+		writeJSON(w, v)
+	})
 	mux.HandleFunc("/api/terrain", func(w http.ResponseWriter, r *http.Request) { // высоты земли одного чанка
 		q := r.URL.Query()
 		cx, err1 := strconv.ParseInt(q.Get("cx"), 10, 64)
@@ -1008,7 +1021,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
 			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
-			"wpos":         sim.WorldPosViewUsing(terrain, s.world, e),     // v1.19: каноническое положение в мире (метры, высота, чанк)
+			"wpos":         sim.MeWorldPosView(terrain, s.world, e),        // v1.19: каноническое положение в мире (метры, высота, чанк)
 			"walk":         sim.WalkView(s.world, e),                                // v1.22: самоход к месту {to,left} или null
 			"at":           sim.AtPOI(s.world, e),                          // v1.22: у какого места села стоит тело ("" — ни у одного)
 			"pos":          mePos(e),                                       // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
