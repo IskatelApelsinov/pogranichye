@@ -193,6 +193,9 @@ namespace Pogranichye.Client
         private JObject _place;
         private JObject _catalog;
         private bool _catalogExpanded;
+        private string _inventoryCategory = "Все";
+        private string _inventorySearch = string.Empty;
+        private bool _inventoryStorageExpanded;
         private GameplayStatusView _status;
         private ActionResultFrame _result;
         private CombatFrame _combat;
@@ -443,301 +446,204 @@ namespace Pogranichye.Client
             var worn = Obj(inv, "worn");
             var hand = Str(inv, "hand");
             var stash = Obj(_me, "stash");
-            var bag = _bag;
-            var horse = _horse;
 
-            // Coins are already server-authoritative in me.coins (core.PurseC.Coins).
-            // Show that existing ledger here; do not invent a second balance for a future
-            // wearable purse item or infer money from inventory contents.
-            GUILayout.Label("МОНЕТЫ");
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("При себе: " + Num(_me, "coins").ToString("0.#", CultureInfo.InvariantCulture));
+            // Header: currency and carrying capacity are authoritative frame values.
+            GUILayout.BeginHorizontal(GUI.skin.box);
+            GUILayout.BeginVertical();
+            GUILayout.Label("СНАРЯЖЕНИЕ И ВЕЩИ");
+            GUILayout.Label("Монеты · " + Num(_me, "coins").ToString("0.#", CultureInfo.InvariantCulture));
             GUILayout.EndVertical();
-
-            // Vitals are server-owned; hunger is a rising need (0 = full), not a satiety score.
-            GUILayout.Space(6f);
-            DrawCatalogReference();
-
-            GUILayout.Label("СОСТОЯНИЕ");
-            GUILayout.BeginVertical(GUI.skin.box);
-            DrawCondition(_me, "health", "Здоровье", new Color(0.55f, 0.66f, 0.42f));
-            DrawCondition(_me, "hunger", "Голод", new Color(0.82f, 0.58f, 0.32f));
-            DrawCondition(_me, "energy", "Силы", new Color(0.45f, 0.68f, 0.82f));
-            DrawCondition(_me, "morale", "Настрой", new Color(0.68f, 0.55f, 0.78f));
-            GUILayout.EndVertical();
-
-            // Character attributes are read directly from the server frame. They grow
-            // through authoritative activities; the client only presents the current values.
-            var stats = _stats;
-            if (stats != null)
+            GUILayout.FlexibleSpace();
+            if (_bag != null)
             {
-                GUILayout.Space(6f);
-                GUILayout.Label("ХАРАКТЕРИСТИКИ");
-                GUILayout.BeginVertical(GUI.skin.box);
-                DrawAttribute(stats, "strength", "Сила");
-                DrawAttribute(stats, "agility", "Ловкость");
-                DrawAttribute(stats, "endurance", "Выносливость");
-                DrawAttribute(stats, "intellect", "Ум");
-                DrawAttribute(stats, "perception", "Восприятие");
-                DrawAttribute(stats, "will", "Воля");
+                GUILayout.BeginVertical();
+                GUILayout.Label("Нагрузка");
+                var load = (float)_bag.Load;
+                var cap = Mathf.Max(1f, (float)_bag.Capacity);
+                var old = GUI.color;
+                GUI.color = _bag.Overloaded ? new Color(0.82f, 0.39f, 0.28f) : new Color(0.62f, 0.69f, 0.48f);
+                var bar = GUILayoutUtility.GetRect(130f, 9f, GUILayout.Width(130f));
+                GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width, bar.height), Texture2D.blackTexture);
+                GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(load / cap), bar.height), Texture2D.whiteTexture);
+                GUI.color = old;
+                GUILayout.Label(load.ToString("0.#") + " / " + cap.ToString("0.#"));
                 GUILayout.EndVertical();
             }
+            GUILayout.EndHorizontal();
 
-            // The six core attributes above are not the complete progression sheet.
-            // me.skills is an open-ended server dictionary: render every key received,
-            // rather than maintaining a client-side allow-list that silently hides new skills.
-            var skills = Obj(_me, "skills");
-            if (skills != null && skills.HasValues)
-            {
-                var skillRows = new List<JProperty>(skills.Properties());
-                skillRows.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
-                GUILayout.Space(6f);
-                GUILayout.Label("НАВЫКИ · развитие от занятий");
-                GUILayout.BeginVertical(GUI.skin.box);
-                foreach (var skill in skillRows)
-                {
-                    double value;
-                    if (skill.Value == null || !double.TryParse(skill.Value.ToString(),
-                        NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                        double.IsNaN(value) || double.IsInfinity(value)) continue;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(Name(skill.Name));
-                    GUILayout.FlexibleSpace();
-                    GUILayout.Label(value.ToString("0.#", CultureInfo.InvariantCulture), GUILayout.Width(52f));
-                    GUILayout.EndHorizontal();
-                }
-                GUILayout.EndVertical();
-            }
+            GUILayout.Label("ЭКИПИРОВКА");
+            GUILayout.BeginHorizontal();
+            DrawEquipmentSlot("Правая рука", hand, "hand", items);
+            DrawEquipmentSlot("Голова", WornItem(worn, "head"), "head", items);
+            DrawEquipmentSlot("Торс", WornItem(worn, "body") ?? WornItem(worn, "armor"), "body", items);
+            DrawEquipmentSlot("Ноги", WornItem(worn, "feet"), "feet", items);
+            DrawEquipmentSlot("Левая рука", WornItem(worn, "offhand"), "offhand", items);
+            GUILayout.EndHorizontal();
 
-            GUILayout.Space(6f);
-            GUILayout.Label("СНАРЯЖЕНИЕ · то, чем пользуешься прямо сейчас");
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("В руке: " + (string.IsNullOrEmpty(hand) ? "пусто" : CatalogName(hand)));
-            if (!string.IsNullOrEmpty(hand) && GUILayout.Button("Убрать из руки"))
-                Ask("Экипировка", "equip", "item", string.Empty);
+            GUILayout.Space(5f);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("СУМКА", GUILayout.Width(62f));
+            _inventorySearch = GUILayout.TextField(_inventorySearch ?? string.Empty, GUILayout.MinWidth(100f), GUILayout.MaxWidth(220f));
+            GUILayout.FlexibleSpace();
+            string[] categories = { "Все", "Оружие", "Одежда", "Расходники", "Материалы" };
+            var selected = Array.IndexOf(categories, _inventoryCategory);
+            if (selected < 0) selected = 0;
+            selected = GUILayout.Toolbar(selected, categories, GUILayout.MinWidth(280f), GUILayout.Height(28f));
+            _inventoryCategory = categories[selected];
+            GUILayout.EndHorizontal();
 
-            if (_catalog != null && items != null)
-            {
-                foreach (var item in items.Properties())
-                {
-                    var quantity = (int)Num(items, item.Name);
-                    var definition = CatalogItem(item.Name);
-                    if (quantity < 1 || definition == null || !Flag(definition, "hand")) continue;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(CatalogItemName(definition, item.Name) + " ×" + quantity, GUILayout.Width(190f));
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = previousEnabled && hand != item.Name;
-                    if (GUILayout.Button(hand == item.Name ? "В руке" : "Взять в руку"))
-                        Ask("Экипировка", "equip", "item", item.Name);
-                    GUI.enabled = previousEnabled;
-                    GUILayout.EndHorizontal();
-                }
-            }
-            else if (items != null)
-            {
-                foreach (var item in new[] { "axe", "sword", "knife", "bow", "rod", "torch", "lantern" })
-                {
-                    var quantity = Count(items, item);
-                    if (quantity < 1f) continue;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = previousEnabled && hand != item;
-                    if (GUILayout.Button(hand == item ? "В руке" : "Взять в руку"))
-                        Ask("Экипировка", "equip", "item", item);
-                    GUI.enabled = previousEnabled;
-                    GUILayout.EndHorizontal();
-                }
-            }
-            GUILayout.Space(4f);
-            GUILayout.Label("Надето:");
-            var hasWorn = false;
-            if (worn != null)
-            {
-                foreach (var slot in worn.Properties())
-                {
-                    if (string.IsNullOrEmpty(slot.Value.ToString())) continue;
-                    hasWorn = true;
-                    GUILayout.Label("• " + WearSlotName(slot.Name) + ": " + CatalogName(slot.Value.ToString()));
-                }
-            }
-            if (!hasWorn) GUILayout.Label("Пока ничего не надето.");
-            if (_catalog != null && items != null)
-            {
-                foreach (var item in items.Properties())
-                {
-                    var quantity = (int)Num(items, item.Name);
-                    var definition = CatalogItem(item.Name);
-                    var slotName = Str(definition, "slot");
-                    if (quantity < 1 || string.IsNullOrEmpty(slotName)) continue;
-                    var equipped = false;
-                    if (worn != null)
-                        foreach (var slot in worn.Properties())
-                            if (slot.Value.ToString() == item.Name) equipped = true;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(CatalogItemName(definition, item.Name) + " ×" + quantity +
-                        " · " + WearSlotName(slotName), GUILayout.Width(220f));
-                    if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
-                        Ask("Одежда", equipped ? "unwear" : "wear", "item", item.Name);
-                    GUILayout.EndHorizontal();
-                }
-            }
-            else if (items != null)
-            {
-                foreach (var item in new[] { "cloak", "boots", "hat", "jerkin", "shield", "purse" })
-                {
-                    var quantity = Count(items, item);
-                    if (quantity < 1f) continue;
-                    var equipped = false;
-                    if (worn != null)
-                        foreach (var slot in worn.Properties())
-                            if (slot.Value.ToString() == item) equipped = true;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                    if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
-                        Ask("Одежда", equipped ? "unwear" : "wear", "item", item);
-                    GUILayout.EndHorizontal();
-                }
-            }
-            GUILayout.EndVertical();
-
-            GUILayout.Space(6f);
-            GUILayout.Label("ВЕЩИ В РЮКЗАКЕ · инструменты и переносимые предметы");
-            GUILayout.BeginVertical(GUI.skin.box);
-            var hasItems = false;
+            var visible = new List<JProperty>();
             if (items != null)
             {
-                foreach (var item in items.Properties())
+                foreach (var property in items.Properties())
                 {
-                    var quantity = (int)Num(items, item.Name);
-                    if (quantity < 1) continue;
-                    hasItems = true;
-                    GUILayout.Label(CatalogName(item.Name) + " ×" + quantity);
+                    if (Num(items, property.Name) < 1) continue;
+                    var name = CatalogItemName(CatalogItem(property.Name), property.Name);
+                    if (!string.IsNullOrWhiteSpace(_inventorySearch) &&
+                        name.IndexOf(_inventorySearch.Trim(), StringComparison.OrdinalIgnoreCase) < 0 &&
+                        property.Name.IndexOf(_inventorySearch.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    var definition = CatalogItem(property.Name);
+                    var slot = Str(definition, "slot");
+                    var isWeapon = Flag(definition, "hand");
+                    var isClothing = !string.IsNullOrEmpty(slot) && !isWeapon;
+                    var isUsable = IsCatalogUsable(property.Name);
+                    var category = isWeapon ? "Оружие" : isClothing ? "Одежда" : isUsable ? "Расходники" : "Материалы";
+                    if (_inventoryCategory != "Все" && _inventoryCategory != category) continue;
+                    visible.Add(property);
                 }
             }
-            if (!hasItems) GUILayout.Label("Переносимых предметов пока нет.");
-            GUILayout.EndVertical();
+            visible.Sort((x, y) => string.Compare(
+                CatalogItemName(CatalogItem(x.Name), x.Name),
+                CatalogItemName(CatalogItem(y.Name), y.Name), StringComparison.Ordinal));
 
-            GUILayout.Space(6f);
-            GUILayout.Label("ЗАКРОМА · товары и материалы для обмена");
-            GUILayout.Label("Это не экипировка: здесь лежат древесина, еда, сырьё и покупки с рынка.");
-            GUILayout.BeginVertical(GUI.skin.box);
-            var hasGoods = false;
-            if (stash != null)
+            if (visible.Count == 0)
             {
-                var goods = new List<string>();
-                foreach (var good in stash.Properties())
-                    if (Num(stash, good.Name) >= 1f) goods.Add(good.Name);
-                goods.Sort(StringComparer.Ordinal);
-                foreach (var good in goods)
-                {
-                    hasGoods = true;
-                    GUILayout.Label(CatalogName(good) + " ×" + (int)Num(stash, good));
-                }
-            }
-            if (!hasGoods) GUILayout.Label("Закрома пока пусты.");
-            GUILayout.EndVertical();
-
-            GUILayout.Space(6f);
-            GUILayout.Label("ЕДА И ЛЕЧЕНИЕ · используй предметы из рюкзака или закромов");
-            GUILayout.BeginVertical(GUI.skin.box);
-            var hasConsumables = false;
-            var usableItems = Arr(_catalog, "usables");
-            if (usableItems != null)
-            {
-                foreach (var usable in usableItems)
-                {
-                    var item = usable == null ? string.Empty : usable.ToString();
-                    var quantity = Count(items, item) + Count(stash, item);
-                    if (string.IsNullOrEmpty(item) || quantity < 1f) continue;
-                    hasConsumables = true;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(CatalogItemName(CatalogItem(item), item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                    if (GUILayout.Button("Использовать"))
-                        Ask("Использовать", "use", "item", item);
-                    GUILayout.EndHorizontal();
-                }
+                GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinHeight(90f));
+                GUILayout.FlexibleSpace();
+                GUILayout.Label(string.IsNullOrWhiteSpace(_inventorySearch)
+                    ? "В этой сумке пока ничего нет."
+                    : "По этому запросу ничего не найдено.", GUI.skin.label);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndVertical();
             }
             else
             {
-                foreach (var item in new[] { "stew", "roast", "potion", "bandage" })
+                const int columns = 3;
+                for (var i = 0; i < visible.Count; i += columns)
                 {
-                    var quantity = Count(items, item);
-                    if (quantity < 1f) continue;
-                    hasConsumables = true;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label(Name(item) + " ×" + (int)quantity, GUILayout.Width(190f));
-                    if (GUILayout.Button(item == "potion" || item == "bandage" ? "Применить" : "Употребить"))
-                        Ask("Употребить", "use", "item", item);
+                    for (var column = 0; column < columns && i + column < visible.Count; column++)
+                    {
+                        var item = visible[i + column];
+                        var quantity = (int)Num(items, item.Name);
+                        var definition = CatalogItem(item.Name);
+                        var slot = Str(definition, "slot");
+                        var isWeapon = Flag(definition, "hand");
+                        var isUsable = IsCatalogUsable(item.Name);
+                        var equipped = hand == item.Name || IsWorn(worn, item.Name);
+                        GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(100f), GUILayout.MinHeight(82f), GUILayout.ExpandWidth(true));
+                        GUILayout.Label(CatalogItemName(definition, item.Name));
+                        GUILayout.Label("× " + quantity + (string.IsNullOrEmpty(slot) ? "" : " · " + WearSlotName(slot)));
+                        GUILayout.FlexibleSpace();
+                        if (isWeapon)
+                        {
+                            if (GUILayout.Button(hand == item.Name ? "В руке" : "Взять"))
+                                Ask("Экипировка", "equip", "item", item.Name);
+                        }
+                        else if (!string.IsNullOrEmpty(slot))
+                        {
+                            if (GUILayout.Button(equipped ? "Снять" : "Надеть"))
+                                Ask("Одежда", equipped ? "unwear" : "wear", "item", item.Name);
+                        }
+                        else if (isUsable)
+                        {
+                            if (GUILayout.Button("Использовать"))
+                                Ask("Использовать", "use", "item", item.Name);
+                        }
+                        else GUILayout.Label("Предмет");
+                        GUILayout.EndVertical();
+                    }
+                    for (var empty = visible.Count - (i + columns); empty > 0 && empty < columns; empty--)
+                        GUILayout.Space(1f);
                     GUILayout.EndHorizontal();
                 }
-                foreach (var good in new[] { "bread", "fish", "meat", "cheese", "veg", "game", "egg" })
-                {
-                    var quantity = Count(stash, good);
-                    if (quantity < 1f) continue;
-                    hasConsumables = true;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(Name(good) + " ×" + (int)quantity, GUILayout.Width(190f));
-                    if (GUILayout.Button("Съесть"))
-                        Ask("Еда", "use", "item", good);
-                    GUILayout.EndHorizontal();
-                }
             }
-            if (!hasConsumables) GUILayout.Label("Еды и лекарств пока нет.");
-            GUILayout.EndVertical();
 
             GUILayout.Space(6f);
-            GUILayout.Label("ГРУЗ · твоя сума и отдельная сумка лошади");
-            GUILayout.BeginVertical(GUI.skin.box);
-            if (bag != null)
+            _inventoryStorageExpanded = GUILayout.Toggle(_inventoryStorageExpanded,
+                _inventoryStorageExpanded ? "▼ Хранилища и поклажа" : "▶ Хранилища и поклажа", GUI.skin.button);
+            if (_inventoryStorageExpanded)
             {
-                var load = (float)bag.Load;
-                var capacity = (float)bag.Capacity;
-                GUILayout.Label("Нагрузка товаров: " + load.ToString("0.#", CultureInfo.InvariantCulture) + " / "
-                    + capacity.ToString("0.#", CultureInfo.InvariantCulture)
-                    + (bag.Overloaded ? " — перегруз, движение замедлено" : ""));
-            }
-            else GUILayout.Label("Сведения о вместимости сумы пока недоступны.");
-
-            var horseBag = horse?.Bag;
-            var horseHere = horse != null && horse.Here;
-            if (horse != null)
-            {
-                GUILayout.Label("Лошадь: " + horse.Name + (horseHere ? "" : " · в другом поселении"));
-                GUILayout.Label("Седло: " + (int)horse.BagLoad + " / " + (int)horse.BagCapacity);
-                if (horseHere)
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("ЗАКРОМА ПОСЕЛЕНИЯ");
+                var hasStash = false;
+                if (stash != null)
                 {
-                    if (stash != null)
+                    var goods = new List<string>();
+                    foreach (var good in stash.Properties())
+                        if (Num(stash, good.Name) >= 1f) goods.Add(good.Name);
+                    goods.Sort(StringComparer.Ordinal);
+                    foreach (var good in goods)
                     {
-                        foreach (var packed in stash.Properties())
-                        {
-                            if (Num(stash, packed.Name) < 1f) continue;
-                            GUILayout.BeginHorizontal();
-                            GUILayout.Label(Name(packed.Name) + " ×" + (int)Num(stash, packed.Name), GUILayout.Width(190f));
-                            if (GUILayout.Button("Уложить в седло"))
-                                Ask("Вьюк", "horse", "action", "stow", "good", packed.Name, "qty", 1);
-                            GUILayout.EndHorizontal();
-                        }
-                    }
-                    if (horseBag != null)
-                    {
-                        foreach (var packed in horseBag)
-                        {
-                            if (packed.Value < 1d) continue;
-                            GUILayout.BeginHorizontal();
-                            GUILayout.Label(Name(packed.Key) + " ×" + (int)packed.Value, GUILayout.Width(190f));
-                            if (GUILayout.Button("Забрать"))
-                                Ask("Вьюк", "horse", "action", "unstow", "good", packed.Key, "qty", 1);
-                            GUILayout.EndHorizontal();
-                        }
+                        hasStash = true;
+                        GUILayout.Label(CatalogName(good) + " ×" + (int)Num(stash, good));
                     }
                 }
+                if (!hasStash) GUILayout.Label("Закрома пусты или недоступны.");
+                if (_horse != null)
+                {
+                    GUILayout.Space(5f);
+                    GUILayout.Label("ЛОШАДЬ · " + _horse.Name + (_horse.Here ? "" : " · в другом поселении"));
+                    GUILayout.Label("Седло: " + (int)_horse.BagLoad + " / " + (int)_horse.BagCapacity);
+                    if (_horse.Bag != null)
+                        foreach (var packed in _horse.Bag)
+                            if (packed.Value > 0)
+                                GUILayout.Label(CatalogName(packed.Key) + " ×" + (int)packed.Value);
+                }
+                else GUILayout.Label("Лошади пока нет.");
+                GUILayout.EndVertical();
             }
-            else GUILayout.Label("Седельной поклажи нет.");
-            GUILayout.EndVertical();
 
-            GUILayout.Space(6f);
-            GUILayout.Label("Изменения подтверждаются сервером. Разделение стопок и выбрасывание предметов пока не поддерживаются серверными действиями.");
+            GUILayout.Space(5f);
+            GUILayout.Label("Предметы и экипировка подтверждаются сервером. Внешний вид экипировки будет отображаться по мере подключения моделей и слотов персонажа.");
+        }
+
+        private void DrawEquipmentSlot(string label, string itemId, string slot, JObject items)
+        {
+            GUILayout.BeginVertical(GUI.skin.box, GUILayout.MinWidth(70f), GUILayout.ExpandWidth(true), GUILayout.MinHeight(62f));
+            GUILayout.Label(label);
+            GUILayout.Label(string.IsNullOrEmpty(itemId) ? "— пусто —" : CatalogName(itemId));
+            if (slot == "hand")
+            {
+                if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Убрать"))
+                    Ask("Экипировка", "equip", "item", string.Empty);
+            }
+            else if (!string.IsNullOrEmpty(itemId) && GUILayout.Button("Снять"))
+                Ask("Одежда", "unwear", "item", itemId);
+            GUILayout.EndVertical();
+        }
+
+        private static string WornItem(JObject worn, string slot)
+        {
+            var value = Tok(worn, slot);
+            return value == null ? null : value.ToString();
+        }
+
+        private static bool IsWorn(JObject worn, string itemId)
+        {
+            if (worn == null || string.IsNullOrEmpty(itemId)) return false;
+            foreach (var property in worn.Properties())
+                if (property.Value != null && property.Value.ToString() == itemId) return true;
+            return false;
+        }
+
+        private bool IsCatalogUsable(string itemId)
+        {
+            var usables = Arr(_catalog, "usables");
+            if (usables == null) return false;
+            foreach (var usable in usables)
+                if (usable != null && usable.ToString() == itemId) return true;
+            return false;
         }
 
         private static string WearSlotName(string slot)
