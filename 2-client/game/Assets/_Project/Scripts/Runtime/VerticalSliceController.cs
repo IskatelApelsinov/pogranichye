@@ -3336,13 +3336,6 @@ namespace Pogranichye.Client
             string poiId, Action<Vector3> apply)
         {
             if (apply == null) return;
-            // Some generated settlements deliberately have no river. The protocol keeps a
-            // placeholder river POI for compatibility, but that must not create audible water.
-            if (poiId == "river" && (_layout == null || !_layout.RiverPresent))
-            {
-                _villageSoundscape?.SetServerAnchor("water", Vector3.zero, false);
-                return;
-            }
             if (_layout?.Pois == null || !_layout.Pois.TryGetValue(poiId, out var poi) || poi == null)
             {
                 _villageSoundscape?.SetServerAnchor(
