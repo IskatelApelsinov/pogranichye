@@ -372,6 +372,35 @@
         "here": false
       }
     ],
+    "realm": {
+      "id": "e12",
+      "name": "Верхний Удел",
+      "capital": "Каменка",
+      "is_capital": false,
+      "tax": 0.1,
+      "size": 5,
+      "war_with": "",
+      "allies": [
+        "Поморье"
+      ],
+      "rivals": []
+    },
+    "caravans": [
+      {
+        "id": "e9041",
+        "good": "cloth",
+        "good_name": "сукно",
+        "amount": 20,
+        "from": "Каменка",
+        "to": "Броды",
+        "seller": "Верхний Удел",
+        "e": 5210.0,
+        "n": -22140.5,
+        "u": 128.4,
+        "dist": 2600,
+        "dir": "на западе"
+      }
+    ],
     "market": [
       {
         "good": "bread",

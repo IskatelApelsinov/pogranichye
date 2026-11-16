@@ -38,7 +38,7 @@ function coreRender(s){
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
   show('craftcard', !road); show('roadcard', road); show('mapcard', !road);
-  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
+  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawRealm(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
 }
 
 // ---------- лента событий ----------
@@ -242,6 +242,17 @@ function drawSites(s){
     h += '</div>';
   });
   setHTML('sitescard', h);
+}
+
+// ---------- чьи это земли и обозы на тракте (v1.24) ----------
+function drawRealm(s){
+  const pl = s.place||{};
+  if(!('realm' in pl) && !(pl.caravans||[]).length){ show('realmcard', false); return; } // старый сервер — молчим
+  show('realmcard', true);
+  let h = '<b>🏰 Чьи это земли</b>';
+  PogCatalog.realmLines(pl.realm).forEach(t => { h += `<div class="sub" style="margin-top:4px">${esc(t)}</div>`; });
+  PogCatalog.caravanRows(pl.caravans, CAT).forEach(t => { h += `<div class="sub" style="margin-top:4px">${esc(t)}</div>`; });
+  setHTML('realmcard', h);
 }
 
 // ---------- плетения ----------

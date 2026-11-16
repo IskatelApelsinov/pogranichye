@@ -53,3 +53,16 @@ test('page uses the catalogue instead of hard-coded shop lists',()=>{
   assert.match(core,/fetch\('\/api\/catalog'\)/);
   assert.match(core,/PogCatalog\.siteRows\(/);
 });
+
+test('realm and caravans are told in plain words',()=>{
+  assert.deepEqual(C.realmLines(null),['Вольная земля — над селом нет державы.']);
+  const l=C.realmLines({name:'Верхний Удел',capital:'Каменка',is_capital:false,size:5,tax:0.1,war_with:'Заречье',allies:['Поморье'],rivals:[]});
+  assert.equal(l[0],'Земли державы «Верхний Удел» · столица — Каменка · сёл под рукой: 5 · десятина 10%');
+  assert.equal(l[1],'⚔ Война с державой «Заречье»');
+  assert.equal(l[2],'🤝 Союзники: Поморье');
+  assert.equal(l.length,3);
+  assert.match(C.realmLines({name:'Удел',is_capital:true})[0],/^Столица державы «Удел»/);
+  const rows=C.caravanRows([{good:'cloth',good_name:'сукно',amount:19.6,from:'Каменка',to:'Броды',dist:2600,dir:'на западе'},{nope:1}],{});
+  assert.deepEqual(rows,['🐎 Обоз: сукно ×20 · Каменка → Броды · 2,6 км на западе']);
+  assert.deepEqual(C.caravanRows(undefined,{}),[]);
+});
