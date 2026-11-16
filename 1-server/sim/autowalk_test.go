@@ -95,7 +95,7 @@ func TestWalkToRetargetCancelAndRefusals(t *testing.T) {
 	if k := w.Get(core.Settle(settlementEnt(w, e)).Keeper); k != nil && core.Mind(k) != nil {
 		core.Mind(k).ActCode = "keep_tavern" // корчмарь за стойкой (днём так и есть)
 	}
-	if ok, why := BuyBeer(w, e, "b1"); !ok {
+	if ok, why := BuyBeer(w, e, "b1", 12); !ok {
 		t.Fatalf("дошёл до корчмы — пиво должно продаваться: %s", why)
 	}
 	// отмена
