@@ -184,6 +184,7 @@ namespace Pogranichye.Client
         private bool _activityPanelOpen;
         private string _activityTargetId;
         private string _activityTargetTitle;
+        private string _activityPrimaryAction;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
@@ -3256,6 +3257,20 @@ namespace Pogranichye.Client
             {
                 DrawRecipeActions("hearth");
             }
+            else if (_activityTargetId == "woods")
+            {
+                if (!string.IsNullOrEmpty(_activityPrimaryAction))
+                {
+                    var primaryLabel = _activityPrimaryAction == "gather_brushwood"
+                        ? "Собрать хворост" : "Рубить дерево";
+                    if (GUILayout.Button("🌲 " + primaryLabel))
+                        QueueWorldAction(_activityPrimaryAction);
+                }
+                if (GUILayout.Button("🏹 Поохотиться на дичь"))
+                    QueueWorldAction("hunt");
+                if (GUILayout.Button("⚔ Отогнать хищника"))
+                    QueueWorldAction("fight");
+            }
         }
 
         private void DrawRecipeActions(string station)
@@ -4223,13 +4238,14 @@ namespace Pogranichye.Client
             }
 
             var poiId = (poi.TargetId ?? string.Empty).ToLowerInvariant();
-            if (poiId == "smithy" || poiId == "garden" || poiId == "hearth")
+            if (poiId == "smithy" || poiId == "garden" || poiId == "hearth" || poiId == "woods")
             {
                 _marketPanelOpen = false;
                 _stablePanelOpen = false;
                 _tavernPanelOpen = false;
                 _activityTargetId = poiId;
                 _activityTargetTitle = poi.Title;
+                _activityPrimaryAction = poi.ActionIntent;
                 _activityPanelOpen = true;
                 CollapseHudForContextWindow();
                 _status = "Открыты действия: " + poi.Title + ". Результат каждого действия подтвердит сервер.";
