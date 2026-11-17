@@ -14,8 +14,8 @@ namespace Pogranichye.Client.Presentation
     public static class WorldFrontierBiomeBuilder
     {
         private const string RootPrefix = "FrontierBiome_";
-        private const int MaxTrees = 420;
-        private const int MaxUnderstory = 700;
+        private const int MaxTrees = 900;
+        private const int MaxUnderstory = 1400;
         private const int MaxRocks = 260;
         private static readonly Dictionary<string, Palette> Palettes = new Dictionary<string, Palette>();
 
@@ -116,9 +116,9 @@ namespace Pogranichye.Client.Presentation
 
             // Grid coordinates are global, not chunk-local. This prevents visible density/phase
             // changes at chunk edges, including negative chunk coordinates.
-            long minCellX = FloorDiv((long)Math.Floor(chunk.Origin.East), 9);
-            long minCellZ = FloorDiv((long)Math.Floor(chunk.Origin.North), 9);
-            int sideCells = Mathf.CeilToInt(chunk.SizeMeters / 9f) + 1;
+            long minCellX = FloorDiv((long)Math.Floor(chunk.Origin.East), 6);
+            long minCellZ = FloorDiv((long)Math.Floor(chunk.Origin.North), 6);
+            int sideCells = Mathf.CeilToInt(chunk.SizeMeters / 6f) + 1;
             int treeCount = 0;
             int understoryCount = 0;
             int rockCount = 0;
@@ -128,10 +128,10 @@ namespace Pogranichye.Client.Presentation
             {
                 long cellX = minCellX + gx;
                 long cellZ = minCellZ + gz;
-                float jx = Hash01(seed, cellX, cellZ, 1) * 5.5f + 1.0f;
-                float jz = Hash01(seed, cellX, cellZ, 2) * 5.5f + 1.0f;
-                double east = cellX * 9.0 + jx;
-                double north = cellZ * 9.0 + jz;
+                float jx = Hash01(seed, cellX, cellZ, 1) * 4.0f + 1.0f;
+                float jz = Hash01(seed, cellX, cellZ, 2) * 4.0f + 1.0f;
+                double east = cellX * 6.0 + jx;
+                double north = cellZ * 6.0 + jz;
                 double localX = east - chunk.Origin.East;
                 double localZ = north - chunk.Origin.North;
                 if (localX < 1 || localZ < 1 || localX >= chunk.SizeMeters - 1 || localZ >= chunk.SizeMeters - 1)
@@ -141,10 +141,10 @@ namespace Pogranichye.Client.Presentation
                 if (IsSettlementClear(chunk, east, north, 112.0)) continue;
                 float ground;
                 if (!TrySampleHeight(chunk, localX, localZ, out ground)) continue;
-                if (IsFeatureClear(chunk, localX, localZ, 1.8f)) continue;
+                if (IsFeatureClear(chunk, localX, localZ, 1.8f) || IsServerObjectClear(chunk, localX, localZ)) continue;
 
                 float treeRoll = Hash01(seed, cellX, cellZ, 3);
-                float treeChance = forest * TreeDensity(biome);
+                float treeChance = Mathf.Clamp01(forest * TreeDensity(biome) * (biome == "forest" ? 1.35f : 1.0f));
                 if (treeCount < MaxTrees && treeRoll < treeChance)
                 {
                     float scale = Mathf.Lerp(0.72f, 1.35f, Hash01(seed, cellX, cellZ, 4));
@@ -155,7 +155,7 @@ namespace Pogranichye.Client.Presentation
                     treeCount++;
                 }
 
-                float underChance = Mathf.Clamp01(grass * 0.42f + forest * 0.24f + wet * 0.12f);
+                float underChance = Mathf.Clamp01(grass * 0.38f + forest * 0.48f + wet * 0.12f);
                 if (understoryCount < MaxUnderstory &&
                     Hash01(seed, cellX, cellZ, 6) < underChance &&
                     !IsFeatureClear(chunk, localX, localZ, 2.8f))
@@ -414,6 +414,28 @@ namespace Pogranichye.Client.Presentation
             if (chunk.Water != null)
                 foreach (var water in chunk.Water)
                     if (NearPolyline(water.Points, x, z, Math.Max(margin, water.WidthMeters * 0.5 + 2.0))) return true;
+            return false;
+        }
+
+        private static bool IsServerObjectClear(TerrainChunkFrame chunk, double x, double z)
+        {
+            // Do not scatter decorative vegetation on top of server-described resource nodes or wild landmarks.
+            // These hints are sparse today; exact flora descriptors will replace local scatter when the server contract lands.
+            if (chunk.Resources != null)
+                foreach (var resource in chunk.Resources)
+                {
+                    if (resource == null) continue;
+                    double dx = x - resource.X, dz = z - resource.Z;
+                    if (dx * dx + dz * dz < 25.0) return true;
+                }
+            if (chunk.Wild != null)
+                foreach (var wild in chunk.Wild)
+                {
+                    if (wild == null) continue;
+                    double dx = x - wild.X, dz = z - wild.Z;
+                    double radius = Math.Max(8.0, wild.RadiusMeters + 3.0);
+                    if (dx * dx + dz * dz < radius * radius) return true;
+                }
             return false;
         }
 
