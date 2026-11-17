@@ -1,4 +1,5 @@
 using System;
+using Pogranichye.Client;
 
 internal static class GatherNodePresentationPolicyCheck
 {
