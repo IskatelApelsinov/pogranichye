@@ -333,7 +333,8 @@ namespace Pogranichye.Client
             {
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
-                _core.SetTavernPanelInputState(_tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
+                _core.SetTavernPanelInputState(_connectionState == WorldConnectionState.Active && _frame != null &&
+                    _tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
                     _activityMiniGame == ActivityMiniGame.None, _tavernScreen);
             }
             var currentPlace = _frame != null ? _frame.Place : null;
@@ -818,6 +819,9 @@ namespace Pogranichye.Client
                 }
             }
             _core?.SetExternalModalMenuOpen(open);
+            _core?.SetTavernPanelInputState(!open && _connectionState == WorldConnectionState.Active &&
+                _frame != null && _tavernPanelOpen && !_chatOpen &&
+                _activityMiniGame == ActivityMiniGame.None, _tavernScreen);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
@@ -827,6 +831,9 @@ namespace Pogranichye.Client
             if (_chatOpen == open) return;
             _chatOpen = open;
             _chatFocusPending = open;
+            _core?.SetTavernPanelInputState(_connectionState == WorldConnectionState.Active && _frame != null &&
+                _tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
+                _activityMiniGame == ActivityMiniGame.None, _tavernScreen);
             if (_cameraRig != null)
                 _cameraRig.SetMouseGestureCapture(open || _connectionState != WorldConnectionState.Active);
             Cursor.lockState = CursorLockMode.None;
@@ -4403,7 +4410,8 @@ namespace Pogranichye.Client
             _tavernScreen = screen;
             _contextActionScroll = Vector2.zero;
             _selectedCardIndex = -1;
-            _core?.SetTavernPanelInputState(_tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
+            _core?.SetTavernPanelInputState(_connectionState == WorldConnectionState.Active && _frame != null &&
+                _tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
                 _activityMiniGame == ActivityMiniGame.None, screen);
         }
 
