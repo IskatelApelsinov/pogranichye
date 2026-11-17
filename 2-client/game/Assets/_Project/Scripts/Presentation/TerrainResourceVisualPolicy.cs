@@ -23,7 +23,6 @@ namespace Pogranichye.Client.Presentation
                 case "wood":
                     return TerrainResourceVisualKind.LogPile;
                 case "berries":
-                case "veg":
                     return TerrainResourceVisualKind.BerryBush;
                 case "stone":
                 case "ore":
