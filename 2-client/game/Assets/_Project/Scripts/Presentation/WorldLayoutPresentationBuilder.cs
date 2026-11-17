@@ -76,6 +76,9 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
             ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
             ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f, true);
+            // Grok starter plaster remains the visual fallback until the authored lime_plaster PBR pack is committed/imported.
+            ApplyGrokWorldMaps(_plaster, "plaster_wall", 1.5f, 1.5f);
+            // Optional authored PBR maps override the Grok fallback when available.
             ApplyGeneratedWorldMaps(_plaster, "lime_plaster", 1.5f, 1.5f, true);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
