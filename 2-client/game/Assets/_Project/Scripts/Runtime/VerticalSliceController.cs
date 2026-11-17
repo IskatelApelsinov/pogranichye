@@ -1119,6 +1119,7 @@ namespace Pogranichye.Client
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
             GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
             _core?.DrawPartyActions();
+            _core?.DrawNearbyGatherables();
 
             if (_showAdvancedCharacterActions)
             {
