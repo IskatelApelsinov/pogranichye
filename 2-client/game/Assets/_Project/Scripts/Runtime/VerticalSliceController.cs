@@ -2469,6 +2469,14 @@ namespace Pogranichye.Client
                 case "herd_barn": return "ухаживает за скотом";
                 case "keep_tavern": return "за стойкой";
                 case "study_mana": return "изучает плетения";
+                case "trade_stall": return "торгует в рядах";
+                case "guard_patrol": return "в дозоре";
+                case "carpentry": return "плотничает";
+                case "tanning": return "выделывает кожи";
+                case "pottery": return "лепит горшки";
+                case "bake_bread": return "печёт хлеб";
+                case "scribe_desk": return "пишет грамоты";
+                case "jewel_work": return "гранит камни";
                 case "fisher_mend": return "чинит сети";
                 case "farm_mend": return "чинит снасти";
                 case "farm_nosow":
