@@ -1100,6 +1100,10 @@ namespace Pogranichye.Client.Presentation
         public void SetServerHour(int hour)
         {
             _serverHour = ((hour % 24) + 24) % 24;
+            // The first authoritative sample initializes the visual phase immediately.
+            // Smoothing is only for subsequent hour boundaries; otherwise a late join at
+            // night could spend many seconds watching an incorrect dawn transition.
+            if (!_hasServerHour) _phase = _serverHour / 24f;
             _hasServerHour = true;
         }
 
