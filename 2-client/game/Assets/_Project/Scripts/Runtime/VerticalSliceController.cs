@@ -1458,7 +1458,8 @@ namespace Pogranichye.Client
             var drawDetailedPaths = mapHalf <= 1800d;
             if (drawDetailedPaths)
             {
-                // Waterways are server-authored terrain geometry. Draw them before roads
+                // Waterways are server-authored terrain geometry. Never synthesize missing lines on the client.
+                // Draw them before roads
                 // so bridges and crossings remain legible above the water.
                 foreach (var chunk in _terrainChunks.Values)
                 {
