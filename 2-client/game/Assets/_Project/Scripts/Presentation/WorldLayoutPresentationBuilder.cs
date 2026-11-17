@@ -104,11 +104,13 @@ namespace Pogranichye.Client.Presentation
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
                         collision.transform.SetParent(world, false);
+                        var obstructionHeight = b.HeightMeters > 0d ? Mathf.Clamp((float)b.HeightMeters, 3.8f, 22f) :
+                            (b.Storeys > 1 ? Mathf.Clamp(b.Storeys * 3.2f, 3.8f, 22f) : 4.7f);
                         collision.transform.localPosition = new Vector3(
-                            (float)((b.X0 + b.X1) * 0.5), 2.35f, (float)((b.Y0 + b.Y1) * 0.5));
+                            (float)((b.X0 + b.X1) * 0.5), obstructionHeight * 0.5f, (float)((b.Y0 + b.Y1) * 0.5));
                         collision.layer = 2;
                         var collider = collision.AddComponent<BoxCollider>();
-                        collider.size = new Vector3(width, 4.7f, depth);
+                        collider.size = new Vector3(width, obstructionHeight, depth);
                     }
 
                     // Match visible mass to the authoritative obstruction footprint.
