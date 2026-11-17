@@ -5536,7 +5536,7 @@ namespace Pogranichye.Client
                 _terrainCenterZ = centerZ;
                 // A moved window gets a fresh retry budget; old chunk failures must not accumulate.
                 _terrainChunkRetryAfter.Clear();
-                var stale = new List<string>();
+                var stale = new List<KeyValuePair<string, TerrainChunkFrame>>();
                 foreach (var pair in _terrainChunks)
                 {
                     var candidate = new WorldChunkCoordinate(pair.Value.Frame,
@@ -5544,10 +5544,12 @@ namespace Pogranichye.Client
                     if (!WorldChunkStreamingPolicy.IsWithinRetention(
                         new WorldChunkCoordinate(position.Frame, centerX, centerZ),
                         candidate, TerrainChunkRetentionRadius))
-                        stale.Add(pair.Key);
+                        stale.Add(pair);
                 }
-                foreach (var id in stale)
+                foreach (var stalePair in stale)
                 {
+                    var id = stalePair.Key;
+                    var staleChunk = stalePair.Value;
                     _terrainChunks.Remove(id);
                     if (_spaceChunks.TryGetValue(id, out var staleSpaces))
                     {
@@ -5555,6 +5557,7 @@ namespace Pogranichye.Client
                         _spaceChunks.Remove(id);
                     }
                     WorldTerrainChunkBuilder.Remove(_presentationRoot, id);
+                    RebuildTerrainChunkAndNeighbors(staleChunk, anchor);
                     WorldFrontierBiomeBuilder.Remove(_presentationRoot, id);
                 }
                 CancelTerrainChunkRequestsOutsideRetention(position.Frame, centerX, centerZ);
@@ -5568,7 +5571,7 @@ namespace Pogranichye.Client
             {
                 foreach (var pair in _terrainChunks)
                 {
-                    WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor);
+                    WorldTerrainChunkBuilder.Apply(_presentationRoot, pair.Value, anchor, _terrainChunks.Values);
                     WorldFrontierBiomeBuilder.Apply(_presentationRoot, pair.Value, anchor);
                 }
                 WorldSpacePresentationBuilder.Clear(_presentationRoot);
@@ -5599,6 +5602,22 @@ namespace Pogranichye.Client
             {
                 var chunk = requestPlan[i];
                 TryRequestTerrainChunk(chunk.X, chunk.Z, chunk.Frame);
+            }
+        }
+
+        private void RebuildTerrainChunkAndNeighbors(TerrainChunkFrame changed, WorldAnchorFrame anchor)
+        {
+            if (changed == null || changed.Chunk == null || changed.Chunk.Length != 2 ||
+                anchor == null || _presentationRoot == null) return;
+
+            foreach (var candidate in _terrainChunks.Values)
+            {
+                if (candidate == null || candidate.Chunk == null || candidate.Chunk.Length != 2 ||
+                    candidate.Frame != changed.Frame) continue;
+                var dx = Math.Abs(candidate.Chunk[0] - changed.Chunk[0]);
+                var dz = Math.Abs(candidate.Chunk[1] - changed.Chunk[1]);
+                if (dx + dz > 1) continue;
+                WorldTerrainChunkBuilder.Apply(_presentationRoot, candidate, anchor, _terrainChunks.Values);
             }
         }
 
@@ -5682,7 +5701,7 @@ namespace Pogranichye.Client
                         return;
                     _terrainChunkRetryAfter.Remove(chunkId);
                     _terrainChunks[chunkId] = chunk;
-                    WorldTerrainChunkBuilder.Apply(_presentationRoot, chunk, _frame.Place.Anchor);
+                    RebuildTerrainChunkAndNeighbors(chunk, _frame.Place.Anchor);
                     if (spaces != null)
                     {
                         try
