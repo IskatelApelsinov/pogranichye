@@ -2561,12 +2561,13 @@ namespace Pogranichye.Client
                 var size = current ? 16f : 10f;
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
-                GUI.backgroundColor = current
-                    ? new Color(0.68f, 0.22f, 0.16f, 1f)
+                GUI.backgroundColor = settlement.BanditLair
+                    ? new Color(0.78f, 0.18f, 0.12f, 1f)
+                    : current ? new Color(0.68f, 0.22f, 0.16f, 1f)
                     : hasName ? new Color(0.72f, 0.67f, 0.43f, 1f) : new Color(0.42f, 0.48f, 0.40f, 1f);
                 GUI.contentColor = Color.white;
                 GUI.Box(new Rect(point.x - size * 0.5f, point.y - size * 0.5f, size, size),
-                    current ? "★" : hasName ? "●" : "?", _mapNeighborStyle);
+                    settlement.BanditLair ? "!" : current ? "★" : hasName ? "●" : "?", _mapNeighborStyle);
                 GUI.backgroundColor = previousBackground;
                 GUI.contentColor = previousContent;
                 if (current || hasName)
