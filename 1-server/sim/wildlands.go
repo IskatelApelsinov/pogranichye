@@ -231,9 +231,11 @@ type wildStock struct {
 
 // WildUseC — память мира об урочищах: остатки запасов и кто когда обыскал место.
 type WildUseC struct {
-	Stock map[string]wildStock `json:"stock"`
-	Seen  map[string]int       `json:"seen"` // "<место>|<тело>" → день последнего обыска
-	Foray map[string]forayMark `json:"foray,omitempty"` // место → когда и из какого села там были ходоки (v1.26)
+	Stock   map[string]wildStock `json:"stock"`
+	Seen    map[string]int       `json:"seen"` // "<место>|<тело>" → день последнего обыска
+	Foray   map[string]forayMark `json:"foray,omitempty"`
+	Cleared map[string]int       `json:"cleared,omitempty"` // v1.30: место → день, когда фронтир-зверьё в нём перебили
+	Today   int                  `json:"today,omitempty"`   // текущий день мира (ставит ForaySystem каждый час) // место → когда и из какого села там были ходоки (v1.26)
 }
 
 func (c *WildUseC) Kind() string { return "wilduse" }
