@@ -1,7 +1,7 @@
 # Unity client: coverage of wire v1 DTOs and gameplay consumers
 
 - Audit date: 2026-11-17 (incremental reconciliation)
-- Baseline audit: `a62c0e72c768a07802f7b85483124f15842a4b37`; current client sources rechecked on branch `feat/client-contextual-activities-horse-20261117`
+- Baseline audit: `a62c0e72c768a07802f7b85483124f15842a4b37`; current incremental consumer update checked against main `9801dd4e53f320d56ab1bb67c5d020234a723117` and branch `chatgpt/unity-gather-node-ui-20261117`
 - Sources: `1-server/server/server.go` (`stateJSON`, `fastJSON`), `2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs`, `WorldFrameParser.cs`, `FastFrameParser.cs`, `Runtime/CoreGameplay.cs`, and `3-dev/contract/fixtures/state_v1.example.json`.
 - Contract authority: `3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md`. This is an implementation inventory, not a wire-contract proposal.
 
