@@ -232,9 +232,10 @@ namespace Pogranichye.Client.Presentation
                         new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
                         new Vector3(x1 - x0, thickness, z1 - z0), material, false);
 
-                    if (zone.Kind != "forest") continue;
+                    if (zone.Kind != "forest" && zone.Kind != "copse") continue;
 
                     // A real woodland is dense in its core and gradually thins at its perimeter.
+                    // A copse is a distinct, lighter server zone and must not be silently skipped.
                     // Keep each zone in its own mesh batch so Unity can cull separate forest patches.
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
