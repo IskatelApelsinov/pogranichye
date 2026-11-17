@@ -34,8 +34,10 @@ namespace Pogranichye.Client.Presentation
         {
             if (root == null || root.Find("WorldEnvironment") != null) return;
 
+            CaptureRenderSettings(camera);
             var environment = new GameObject("WorldEnvironment").transform;
             environment.SetParent(root, false);
+            EnsureSun(environment);
             BuildSky(environment, camera);
             // Do not invent a client-only mountain ring. The distant cauldron rim must be
             // rendered exclusively from the server-authored world.rim profile.
@@ -897,17 +899,120 @@ namespace Pogranichye.Client.Presentation
 
         private static Light FindSun()
         {
+            if (RenderSettings.sun != null && RenderSettings.sun.enabled &&
+                RenderSettings.sun.type == LightType.Directional)
+                return RenderSettings.sun;
             var lights = UnityEngine.Object.FindObjectsByType<Light>();
             foreach (var light in lights)
-                if (light.type == LightType.Directional) return light;
+                if (light != null && light.enabled && light.type == LightType.Directional) return light;
             return null;
+        }
+
+        private static void EnsureSun(Transform root)
+        {
+            var sun = FindSun();
+            if (sun == null)
+            {
+                var sunObject = new GameObject("Pogranichye Sun • directional");
+                sunObject.transform.SetParent(root, false);
+                sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
+            }
+            // One coherent directional source owns outdoor sunlight and the primary shadow map.
+            // Local lantern/hearth lights remain unshadowed to keep the generated village affordable.
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = 0.72f;
+            sun.shadowBias = 0.05f;
+            sun.shadowNormalBias = 0.35f;
+            sun.renderMode = LightRenderMode.Auto;
+            RenderSettings.sun = sun;
+        }
+
+        private static bool _hasRenderSettingsSnapshot;
+        private static UnityEngine.Rendering.AmbientMode _previousAmbientMode;
+        private static Color _previousAmbientLight, _previousAmbientSky, _previousAmbientEquator, _previousAmbientGround;
+        private static bool _previousFog;
+        private static FogMode _previousFogMode;
+        private static Color _previousFogColor;
+        private static float _previousFogDensity, _previousFogStart, _previousFogEnd;
+        private static Material _previousSkybox;
+        private static Light _previousSun;
+        private static bool _previousSunEnabled;
+        private static Quaternion _previousSunRotation;
+        private static Color _previousSunColor;
+        private static float _previousSunIntensity, _previousSunShadowStrength, _previousSunShadowBias, _previousSunShadowNormalBias;
+        private static LightShadows _previousSunShadows;
+        private static LightRenderMode _previousSunRenderMode;
+        private static Camera _previousCamera;
+        private static CameraClearFlags _previousCameraClearFlags;
+
+        private static void CaptureRenderSettings(Camera camera)
+        {
+            if (_hasRenderSettingsSnapshot) return;
+            _previousAmbientMode = RenderSettings.ambientMode;
+            _previousAmbientLight = RenderSettings.ambientLight;
+            _previousAmbientSky = RenderSettings.ambientSkyColor;
+            _previousAmbientEquator = RenderSettings.ambientEquatorColor;
+            _previousAmbientGround = RenderSettings.ambientGroundColor;
+            _previousFog = RenderSettings.fog;
+            _previousFogMode = RenderSettings.fogMode;
+            _previousFogColor = RenderSettings.fogColor;
+            _previousFogDensity = RenderSettings.fogDensity;
+            _previousFogStart = RenderSettings.fogStartDistance;
+            _previousFogEnd = RenderSettings.fogEndDistance;
+            _previousSkybox = RenderSettings.skybox;
+            _previousSun = RenderSettings.sun;
+            _previousCamera = camera;
+            if (_previousCamera != null) _previousCameraClearFlags = _previousCamera.clearFlags;
+            if (_previousSun != null)
+            {
+                _previousSunEnabled = _previousSun.enabled;
+                _previousSunRotation = _previousSun.transform.rotation;
+                _previousSunColor = _previousSun.color;
+                _previousSunIntensity = _previousSun.intensity;
+                _previousSunShadows = _previousSun.shadows;
+                _previousSunShadowStrength = _previousSun.shadowStrength;
+                _previousSunShadowBias = _previousSun.shadowBias;
+                _previousSunShadowNormalBias = _previousSun.shadowNormalBias;
+                _previousSunRenderMode = _previousSun.renderMode;
+            }
+            _hasRenderSettingsSnapshot = true;
         }
 
         public static void Cleanup()
         {
-            if (RenderSettings.skybox == _skyMaterial) RenderSettings.skybox = null;
-            if (RenderSettings.sun != null && RenderSettings.sun.type == LightType.Directional)
-                RenderSettings.sun = null;
+            if (_hasRenderSettingsSnapshot)
+            {
+                RenderSettings.ambientMode = _previousAmbientMode;
+                RenderSettings.ambientLight = _previousAmbientLight;
+                RenderSettings.ambientSkyColor = _previousAmbientSky;
+                RenderSettings.ambientEquatorColor = _previousAmbientEquator;
+                RenderSettings.ambientGroundColor = _previousAmbientGround;
+                RenderSettings.fog = _previousFog;
+                RenderSettings.fogMode = _previousFogMode;
+                RenderSettings.fogColor = _previousFogColor;
+                RenderSettings.fogDensity = _previousFogDensity;
+                RenderSettings.fogStartDistance = _previousFogStart;
+                RenderSettings.fogEndDistance = _previousFogEnd;
+                RenderSettings.skybox = _previousSkybox;
+                if (_previousSun != null)
+                {
+                    _previousSun.enabled = _previousSunEnabled;
+                    _previousSun.transform.rotation = _previousSunRotation;
+                    _previousSun.color = _previousSunColor;
+                    _previousSun.intensity = _previousSunIntensity;
+                    _previousSun.shadows = _previousSunShadows;
+                    _previousSun.shadowStrength = _previousSunShadowStrength;
+                    _previousSun.shadowBias = _previousSunShadowBias;
+                    _previousSun.shadowNormalBias = _previousSunShadowNormalBias;
+                    _previousSun.renderMode = _previousSunRenderMode;
+                }
+                RenderSettings.sun = _previousSun;
+                if (_previousCamera != null) _previousCamera.clearFlags = _previousCameraClearFlags;
+                _previousCamera = null;
+                _hasRenderSettingsSnapshot = false;
+            }
             DestroyAsset(_postProcessingProfile);
             _postProcessingProfile = null;
             DestroyAsset(_skyMaterial);
@@ -985,7 +1090,9 @@ namespace Pogranichye.Client.Presentation
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogDensity = 0.0042f;
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            // Trilight avoids a flat fill on every face; runtime-generated layouts have no baked GI.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            ApplyAmbientPalette(0.42f, 0f);
         }
 
         /// <summary>Uses server time when available; local cycle remains a preview fallback before first state frame.</summary>
@@ -993,6 +1100,15 @@ namespace Pogranichye.Client.Presentation
         {
             _serverHour = ((hour % 24) + 24) % 24;
             _hasServerHour = true;
+        }
+
+        private static void ApplyAmbientPalette(float daylight, float dusk)
+        {
+            var palette = WorldAmbientPalette.Evaluate(daylight, dusk);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(palette.Sky.R, palette.Sky.G, palette.Sky.B, 1f);
+            RenderSettings.ambientEquatorColor = new Color(palette.Horizon.R, palette.Horizon.G, palette.Horizon.B, 1f);
+            RenderSettings.ambientGroundColor = new Color(palette.Ground.R, palette.Ground.G, palette.Ground.B, 1f);
         }
 
         private void Update()
@@ -1043,7 +1159,7 @@ namespace Pogranichye.Client.Presentation
                 _sun.intensity = Mathf.Lerp(0.06f, 0.82f, daylight);
                 _sun.color = Color.Lerp(new Color(0.48f, 0.55f, 0.82f), new Color(1f, 0.91f, 0.76f), daylight);
             }
-            RenderSettings.ambientLight = Color.Lerp(new Color(0.07f, 0.09f, 0.15f), new Color(0.34f, 0.38f, 0.40f), daylight);
+            ApplyAmbientPalette(daylight, dusk);
             RenderSettings.fogColor = Color.Lerp(new Color(0.10f, 0.14f, 0.23f), new Color(0.61f, 0.70f, 0.73f), daylight);
             // Stronger atmospheric perspective at night and dawn; daylight remains clearer near the player.
             RenderSettings.fogDensity = Mathf.Lerp(0.0052f, 0.0032f, daylight) + dusk * 0.0012f;

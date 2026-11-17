@@ -5877,26 +5877,9 @@ namespace Pogranichye.Client
             _cameraRig.SetDefaultFieldOfView(camera.fieldOfView);
             _cameraRig.SetFirstPerson(_firstPerson);
 
-            if (FindAnyObjectByType<Light>() == null)
-            {
-                var lightObject = new GameObject("Directional Light");
-                lightObject.transform.SetParent(transform, false);
-                var light = lightObject.AddComponent<Light>();
-                light.type = LightType.Directional;
-                light.intensity = 1.25f;
-                light.color = new Color(1f, 0.91f, 0.76f);
-                light.transform.rotation = Quaternion.Euler(48, -32, 0);
-            }
+            // WorldEnvironmentBuilder exclusively owns sun, ambient, sky and fog.
+            // Keeping scene lighting in one owner makes its RenderSettings snapshot reversible.
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.55f, 0.58f, 0.62f);
-            RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
-            RenderSettings.fogMode = FogMode.Linear;
-            // Keep the village readable while allowing the distant ridgeline (255–305 m)
-            // to remain visible beyond the 300×300 m settlement layout.
-            RenderSettings.fogStartDistance = 165f;
-            RenderSettings.fogEndDistance = 430f;
         }
 
         private void OnDestroy()
