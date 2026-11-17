@@ -1296,6 +1296,10 @@ namespace Pogranichye.Client
                 GUILayout.Label("Силы: " + vigor.Energy.ToString("0", CultureInfo.InvariantCulture) +
                     " / 100 · " + rate + vigor.PerHour.ToString("0.0", CultureInfo.InvariantCulture) + " в час");
                 if (!string.IsNullOrWhiteSpace(vigor.Why)) GUILayout.Label(vigor.Why);
+                if (vigor.FullInHours.HasValue)
+                    GUILayout.Label("До полного восстановления: " + vigor.FullInHours.Value.ToString("0.#", CultureInfo.InvariantCulture) + " игровых ч.");
+                if (vigor.EmptyInHours.HasValue)
+                    GUILayout.Label("До истощения: " + vigor.EmptyInHours.Value.ToString("0.#", CultureInfo.InvariantCulture) + " игровых ч.");
                 if (!string.IsNullOrWhiteSpace(vigor.Warning)) GUILayout.Label("Внимание: " + vigor.Warning);
                 if (vigor.Tips != null)
                     foreach (var tip in vigor.Tips)
@@ -1313,6 +1317,8 @@ namespace Pogranichye.Client
             {
                 GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected) ? "не задано" : mode.Selected) +
                     (mode.Deviates ? " · сейчас разумно отступает от приоритета" : string.Empty));
+                if (!string.IsNullOrWhiteSpace(mode.Goal) && mode.Goal != mode.Selected)
+                    GUILayout.Label("Цель: " + mode.Goal);
                 if (!string.IsNullOrWhiteSpace(mode.Activity)) GUILayout.Label("Сейчас: " + mode.Activity);
                 if (mode.Options == null || mode.Options.Count == 0)
                     GUILayout.Label("Сервер не перечислил варианты режима.");
