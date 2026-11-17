@@ -22,6 +22,20 @@ const (
 	TrailBoost  = 1.15  // множитель шага на тропке
 	RoadBoost   = 1.25  // множитель шага на тракте
 	trailReachM = 1.5   // допуск: столько метров от края нитки ещё считается «на ней»
+
+	// v1.28 (comms 0278/0279): первый шаг прокладки по уклону. Нитка — не геодезист, но на каждом
+	// звене пробует отступить вбок, если прямой наезд на подъём хуже найденного рядом прохода.
+	// Это ПОДСКАЗКА рельефу, а не настоящий поиск пути в обход горы: решает только локально, в
+	// пределах доли собственного меандра звена, и может не найти проход там, где его нет совсем.
+	// Порог калиброван по реальному рельефу между сёлами (замер: прямые перегоны почти везде ≤0.09
+	// на 2 м и ещё мягче при усреднении по звену в 60 м) — настоящих гор/крутых склонов на прямой
+	// между соседними сёлами сейчас не бывает (их выращивают иначе — рубеж «котла», хребты у края
+	// карты), так что порог взят НИЗКИМ, чтобы звено хоть немного реагировало на обычную мягкую
+	// холмистость, а не оставался мёртвым кодом до отдельного слоя настоящих гор.
+	slopeAvoidGrade = 0.05 // уклон (подъём/м), с которого звено начинает искать более пологий проход
+	slopeAvoidFrac  = 0.3  // доля амплитуды меандра звена, на которую можно отступить ради уклона
+	slopeAvoidCapM  = 20.0 // …но не больше стольких метров
+	slopeAvoidStepM = 4.0  // шаг перебора вбок при поиске
 )
 
 // Trail — нитка перегона между двумя сёлами в мировых метрах.
@@ -47,18 +61,53 @@ func trailPoints(t *Terrain, a, b core.ID, ax, ay, bx, by float64) ([][2]float64
 	salt := float64(a%9973)*811.0 + float64(b%9973)*37.0
 	pts := make([][2]float64, 0, n+1)
 	length := 0.0
+	prevX, prevY := ax, ay
 	for i := 0; i <= n; i++ {
 		f := float64(i) / float64(n)
 		env := math.Sin(math.Pi * f) // у сёл нитка сходится в центр
 		d := f * L
 		off := ((noise(t.seed+97, salt+d, salt*0.5, 700)-0.5)*2*amp + (noise(t.seed+131, salt+d, salt*0.5+50, 170)-0.5)*0.5*amp) * env
 		x, y := ax+(bx-ax)*f+px*off, ay+(by-ay)*f+py*off
+		if i > 0 && i < n {
+			x, y = avoidSteep(t, prevX, prevY, x, y, px, py, amp)
+		}
 		if i > 0 {
-			length += math.Hypot(x-pts[i-1][0], y-pts[i-1][1])
+			length += math.Hypot(x-prevX, y-prevY)
 		}
 		pts = append(pts, [2]float64{x, y})
+		prevX, prevY = x, y
 	}
 	return pts, length
+}
+
+// segGrade — средний уклон (подъём на метр) напрямик от (fx,fy) до (x,y) по уже построенному рельефу.
+func segGrade(t *Terrain, fx, fy, x, y float64) float64 {
+	d := math.Hypot(x-fx, y-fy)
+	if d < 1e-6 {
+		return 0
+	}
+	return math.Abs(t.Height(x, y)-t.Height(fx, fy)) / d
+}
+
+// avoidSteep — если прямой шаг от (fx,fy) к (tx,ty) идёт по круче slopeAvoidGrade, звено пробует
+// отступить вбок вдоль (px,py) в пределах доли своего меандра (amp) и взять самый пологий проход
+// из найденных; не хуже исходной точки — если ничего ровнее нет, остаётся на месте.
+func avoidSteep(t *Terrain, fx, fy, tx, ty, px, py, amp float64) (float64, float64) {
+	bestX, bestY, bestG := tx, ty, segGrade(t, fx, fy, tx, ty)
+	if bestG <= slopeAvoidGrade {
+		return tx, ty
+	}
+	reach := math.Min(slopeAvoidCapM, amp*slopeAvoidFrac)
+	for s := -reach; s <= reach+1e-9; s += slopeAvoidStepM {
+		if s == 0 {
+			continue
+		}
+		cx, cy := tx+px*s, ty+py*s
+		if g := segGrade(t, fx, fy, cx, cy); g < bestG {
+			bestX, bestY, bestG = cx, cy, g
+		}
+	}
+	return bestX, bestY
 }
 
 var trailCache struct {
