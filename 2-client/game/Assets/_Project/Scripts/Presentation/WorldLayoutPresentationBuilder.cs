@@ -1685,7 +1685,7 @@ namespace Pogranichye.Client.Presentation
             }
 
             // Exposed floor bands make each server-authored storey readable from a distance.
-            var floorCount = Mathf.Max(1, Mathf.RoundToInt(wallHeight / 3.2f));
+            var floorCount = WorldBuildingPresentationPolicy.ResolveStoreyCount(wallHeight);
             for (var floor = 0; floor < floorCount; floor++)
             {
                 var beamY = Mathf.Min(wallHeight - 0.12f, 0.72f + floor * 3.2f);
@@ -1815,14 +1815,8 @@ namespace Pogranichye.Client.Presentation
         private static float ResolveBuildingWallHeight(WorldRectFrame building)
         {
             if (building == null) return 3.8f;
-            if (building.Kind == "market" && building.Storeys <= 1 && building.HeightMeters <= 0d)
-                return 2.8f;
-            if (building.HeightMeters > 0d && !double.IsNaN(building.HeightMeters) &&
-                !double.IsInfinity(building.HeightMeters))
-                return Mathf.Clamp((float)building.HeightMeters, 2.8f, 22f);
-            if (building.Storeys > 0)
-                return Mathf.Clamp(building.Storeys * 3.2f, 2.8f, 22f);
-            return building.Kind == "market" ? 2.8f : 3.8f;
+            return (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                building.HeightMeters, building.Storeys, building.Kind == "market");
         }
 
         private static string BuildingDisplayName(WorldRectFrame building)
