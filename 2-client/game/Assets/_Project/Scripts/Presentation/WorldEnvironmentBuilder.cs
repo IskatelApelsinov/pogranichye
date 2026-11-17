@@ -1284,27 +1284,37 @@ namespace Pogranichye.Client.Presentation
         private const float WrapHalfExtent = 115f;
         private const float WrapDiameter = WrapHalfExtent * 2f;
         private float _speed;
+        private float _heightAboveCamera = 26f;
         private Transform _camera;
 
         public void Initialize(float speed, Transform camera)
         {
             _speed = speed;
             _camera = camera;
+            if (_camera != null)
+                _heightAboveCamera = Mathf.Max(18f, transform.position.y - _camera.position.y);
         }
 
         private void LateUpdate()
         {
-            if (_camera == null && Camera.main != null) _camera = Camera.main.transform;
+            if (_camera == null && Camera.main != null)
+            {
+                _camera = Camera.main.transform;
+                _heightAboveCamera = Mathf.Max(18f, transform.position.y - _camera.position.y);
+            }
+
             var direction = WorldAtmosphereCycle.WindDirection;
             var drift = new Vector3(direction.x, 0f, direction.y);
             transform.position += drift * (_speed * WorldAtmosphereCycle.WindStrength * Time.deltaTime);
 
-            // Recenter the repeating cloud tile around the active camera. This keeps the
-            // atmosphere overhead during long-distance travel, not just around the starter village.
+            // Keep the cloud layer at a stable altitude ABOVE the player/camera, not at
+            // a fixed world-space Y. Long journeys cross terrain with very different
+            // elevations; a fixed Y makes clouds sink into hills or hover far overhead.
             var center = _camera != null ? _camera.position : Vector3.zero;
             var position = transform.position;
             position.x = center.x + Mathf.Repeat(position.x - center.x + WrapHalfExtent, WrapDiameter) - WrapHalfExtent;
             position.z = center.z + Mathf.Repeat(position.z - center.z + WrapHalfExtent, WrapDiameter) - WrapHalfExtent;
+            position.y = center.y + _heightAboveCamera;
             transform.position = position;
         }
     }
