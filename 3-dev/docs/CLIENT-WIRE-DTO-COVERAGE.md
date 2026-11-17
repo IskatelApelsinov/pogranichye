@@ -52,6 +52,7 @@
 | `place.market[]` | Missing `MarketItemFrame` | `CoreGameplay.DrawMarketContextActions` reads validated raw JSON | **Gap**; functionally consumed, not typed |
 | `place.stable` | `StableFrame` | `VerticalSliceController.DrawStableActions` | **Typed**; server stock/price drive purchase affordance |
 | `place.sites[]` | `WildPlaceFrame` | wilderness context panel and `goto`/`site` actions | **Typed**; server-provided actions only |
+| `place.gather[]` | Raw JSON in `CoreGameplay.DrawNearbyGatherables` + `GatherNodePresentationPolicy` | nearby frontier find list; `goto`/`pick` requests | Functional raw-JSON consumer; server-provided ID/range/stock, request-gated result; no new wire fields |
 | `place.tavern_counter` | `TavernCounterFrame` + `TavernCounterFrameParser` | beer purchase affordance and keeper status | Typed; additive nullable v1 view, client-only hint, server revalidates |
 
 ## Fast frame: exact current server shape
