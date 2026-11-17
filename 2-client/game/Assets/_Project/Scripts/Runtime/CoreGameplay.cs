@@ -502,7 +502,7 @@ namespace Pogranichye.Client
                     if (!Flag(neighbor, "player")) continue;
                     var id = Str(neighbor, "id");
                     if (string.IsNullOrEmpty(id) || memberIds.Contains(id)) continue;
-                    var who = Str(neighbor, "known") == "true" ? Str(neighbor, "name") : Str(neighbor, "desc");
+                    var who = Flag(neighbor, "known") ? Str(neighbor, "name") : Str(neighbor, "desc");
                     if (string.IsNullOrEmpty(who)) who = Str(neighbor, "name");
                     if (string.IsNullOrEmpty(who)) who = "Игрок";
                     candidates++;
