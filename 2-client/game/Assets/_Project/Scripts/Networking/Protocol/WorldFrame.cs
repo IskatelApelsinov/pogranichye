@@ -86,6 +86,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("movement")] public CharacterMovementFrame Movement { get; set; }
         // Developer capability is server-authored and omitted entirely for ordinary accounts.
         [JsonProperty("dev")] public DeveloperModeFrame Dev { get; set; }
+        // v1.29: server-selected long-term life priority and explanatory vigor state.
+        [JsonProperty("mode")] public CharacterModeFrame Mode { get; set; }
+        [JsonProperty("vigor")] public CharacterVigorFrame Vigor { get; set; }
     }
 
     [Serializable]
