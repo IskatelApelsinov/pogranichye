@@ -156,7 +156,13 @@ namespace Pogranichye.Client.Presentation
                 _material = new Material(shader) { name = "World terrain • meadow PBR" };
                 // Generated maps are optional: the client remains playable before the
                 // Blender asset-generation step has been run on a developer machine.
+                // Prefer the project's authored terrain PBR map, then the imported Grok
+                // meadow starter map. The latter is synchronized into Resources/Grok by the
+                // editor importer; without this lookup the streamed frontier kept using only
+                // the synthetic 64px fallback even after the texture pack was imported.
                 _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
+                if (_groundTexture == null)
+                    _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow");
                 if (_groundTexture == null) _groundTexture = CreateSeamlessGroundTexture();
                 _groundTexture.wrapMode = TextureWrapMode.Repeat;
                 _material.mainTexture = _groundTexture;
@@ -166,6 +172,8 @@ namespace Pogranichye.Client.Presentation
                 else if (_material.HasProperty("_Color")) _material.color = Color.white;
 
                 var normal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
+                if (normal == null)
+                    normal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
                 if (normal != null && _material.HasProperty("_BumpMap"))
                 {
                     _material.SetTexture("_BumpMap", normal);
