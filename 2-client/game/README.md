@@ -224,3 +224,12 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 ## v1.30 frontier gather-node UI
 
 The character journal shows up to six server-authored `place.gather[]` nodes. `goto` approaches a node and `pick` is offered only when the server reports `here=true`, with non-empty stock and the 3 m presentation gate. Requests use the existing request gate; only server results confirm outcomes. No local placement, stock or item rewards are generated. 3D chunk props remain separate.
+
+
+## Wilderness mini-locations and altitude-following clouds — 2026-11-18
+
+- The thick client now renders nearby server-authored `place.sites[]` as visible local landmarks (campfire ring/logs, hut, berry bushes, herb patch, thicket/copse, outcrop, pond/spring, barrow, ruins and den). These are presentation-only meshes; IDs, locations, proximity, stock and outcomes remain server-owned.
+- Each nearby mini-location shows a 25 m ground activation boundary matching the current server `op:site` interaction range. The ring is a visual aid only; the client does not locally authorize actions.
+- Nearby sites are projected from global E/N/U against the authoritative player WPOS and are culled outside the local presentation radius. This is separate from the global manifest landmark renderer.
+- Cloud banks now preserve their initial height above the active camera and follow the camera's changing altitude while drifting/recentering in X/Z. This avoids a fixed world-space cloud Y becoming ground-level when the player crosses high or low terrain.
+- Source-level implementation only. Unity Editor 6000.6.7f1 compilation, visual scale/material review, server action range verification and long-distance altitude travel test remain required.
