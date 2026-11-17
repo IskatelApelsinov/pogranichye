@@ -89,7 +89,6 @@ namespace Pogranichye.Client
         private Vector2 _chatScroll;
         private VoiceChatController _voiceChat;
         private string _token;
-        private string _priorityToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
         // The no-id /api/layout response is retained for the tutorial place across settlement switches.
@@ -471,8 +470,7 @@ namespace Pogranichye.Client
             if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_priorityToSend))
             {
                 var goal = _priorityToSend;
-                _priorityToSend = null;
-                _ = SendCharacterPriorityAsync(goal);
+                    _ = SendCharacterPriorityAsync(goal);
             }
         }
 
@@ -4869,12 +4867,6 @@ namespace Pogranichye.Client
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
-        private void RequestOfflinePriority(string goal)
-        {
-            // Goals are long-lived character priorities, not one-shot activities or tutorial progress.
-            _priorityToSend = goal;
-        }
-
         private async Task RegisterAsync()
         {
             if (!ValidateCredentials()) return;
@@ -5855,30 +5847,6 @@ namespace Pogranichye.Client
                 _moveSendInFlight = false;
                 StartNextMoveSend();
             });
-        }
-
-        private async Task SendCharacterPriorityAsync(string goal)
-        {
-            var socket = _socket;
-            try
-            {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendGoalAsync(goal, _lifetime.Token);
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Запрос долгосрочного приоритета отправлен: " + goal + ". Серверный протокол v1 пока не возвращает отдельное подтверждение для op:goal.";
-                });
-            }
-            catch (Exception ex)
-            {
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Не удалось отправить намерение: " + ex.Message;
-                });
-            }
         }
 
         private void DisconnectWorld(string status)
