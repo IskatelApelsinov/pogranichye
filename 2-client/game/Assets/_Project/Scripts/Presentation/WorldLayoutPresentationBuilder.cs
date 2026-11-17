@@ -338,7 +338,7 @@ namespace Pogranichye.Client.Presentation
 
         /// <summary>
         /// Adds deterministic meadow and field undergrowth to real generated settlements.
-        /// Geometry is batched into two meshes per layout and never creates colliders or per-plant GameObjects.
+        /// Geometry is batched into shared grass, flower, furrow and pond-bank meshes; no per-plant GameObjects or colliders are created.
         /// </summary>
         private static void BuildGeneratedGroundCover(Transform world, WorldLayoutFrame layout)
         {
