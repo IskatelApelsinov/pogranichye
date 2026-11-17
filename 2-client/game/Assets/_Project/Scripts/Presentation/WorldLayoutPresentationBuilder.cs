@@ -1701,7 +1701,7 @@ namespace Pogranichye.Client.Presentation
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
 
-            var hasDoor = building.Kind == "tavern" && building.Door != null;
+            var hasDoor = building.Door != null;
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
                 (isMarket ? width * 0.28f : building.Storeys > 1 ? width * 0.42f : width * 0.34f);
             var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
