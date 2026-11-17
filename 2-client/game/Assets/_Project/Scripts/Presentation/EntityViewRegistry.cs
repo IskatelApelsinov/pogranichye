@@ -1322,6 +1322,7 @@ namespace Pogranichye.Client.Presentation
                 _leftPlayerArm.localScale = new Vector3(0.12f, 0.29f, 0.12f);
                 _rightPlayerArm.localScale = new Vector3(0.12f, 0.29f, 0.12f);
                 _firstPersonArmsAttached = true;
+                PlayerTransform.GetComponent<EntityMotion>()?.SetFirstPersonViewModel(true);
             }
             else if (!enabled && _firstPersonArmsAttached)
             {
@@ -1334,6 +1335,7 @@ namespace Pogranichye.Client.Presentation
                 _leftPlayerArm.localScale = _leftArmHomeScale;
                 _rightPlayerArm.localScale = _rightArmHomeScale;
                 _firstPersonArmsAttached = false;
+                PlayerTransform.GetComponent<EntityMotion>()?.SetFirstPersonViewModel(false);
             }
 
             var renderers = PlayerTransform.GetComponentsInChildren<Renderer>(true);
