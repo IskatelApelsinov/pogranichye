@@ -12,6 +12,8 @@ namespace Pogranichye.Client.Presentation
         public readonly string Title;
         public readonly string Goal;
         public readonly string ActionIntent;
+        public readonly string TargetType;
+        public readonly string TargetId;
 
         public WorldLayoutPoiInteraction(string id, string title, string goal, string actionIntent)
         {
@@ -19,6 +21,8 @@ namespace Pogranichye.Client.Presentation
             Title = title;
             Goal = goal;
             ActionIntent = actionIntent;
+            TargetType = "poi";
+            TargetId = id;
         }
     }
 
@@ -26,7 +30,7 @@ namespace Pogranichye.Client.Presentation
     {
         public static readonly string[] SupportedIds =
         {
-            "tavern", "smithy", "market", "garden", "woods", "river", "mine"
+            "tavern", "smithy", "market", "granary", "hearth", "garden", "woods", "river", "mine"
         };
 
         public static bool TryResolve(string id, out WorldLayoutPoiInteraction interaction)
@@ -46,6 +50,12 @@ namespace Pogranichye.Client.Presentation
                     return true;
                 case "market":
                     interaction = new WorldLayoutPoiInteraction(id, "Рынок", "eat", null);
+                    return true;
+                case "granary":
+                    interaction = new WorldLayoutPoiInteraction(id, "Амбар · конюшня и мастерская", null, null);
+                    return true;
+                case "hearth":
+                    interaction = new WorldLayoutPoiInteraction(id, "Очаг · ремесло и готовка", null, null);
                     return true;
                 case "garden":
                     interaction = new WorldLayoutPoiInteraction(id, "Огород · собрать урожай и травы", null, "gather");
