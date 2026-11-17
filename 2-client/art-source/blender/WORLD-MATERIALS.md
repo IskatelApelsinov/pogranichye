@@ -17,8 +17,7 @@ materials for the Unity 6 client:
 The library contains ten material keys. The procedural fallback is 512×512; each key has Albedo, tangent-space Normal, Roughness and AO PNG maps. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
 The procedural fallback generator is deterministic and uses periodic functions
 so opposite edges match; it needs no downloaded textures or Blender add-ons.
-Four keys now have authored 1024×1024 overrides: `packed_road` (damp compacted earth),
-`oak_planks` (weathered boards), `mossy_stone` (weathered fieldstone masonry), and `lime_plaster` (aged limewash). Their separate source-art builders create all four PBR maps and are preserved by this Blender generator when the complete map sets are present. The procedural versions remain safe fallbacks.
+Four source-art builder scripts describe 1024×1024 overrides for `packed_road`, `oak_planks`, `mossy_stone` and `lime_plaster`, but the current repository does not contain their required source JPGs or generated PNG map sets. The manifests present for `packed_road` and `lime_plaster` do not make those textures available at runtime. Treat these authored overrides as pending until source artwork and all PBR maps are committed and verified from a clean checkout. The runtime uses imported Grok starter textures where wired; otherwise it falls back to its small procedural presentation textures.
 
 ## Generate
 
