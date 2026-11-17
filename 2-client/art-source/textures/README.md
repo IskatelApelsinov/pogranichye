@@ -126,6 +126,6 @@ python -m pip install pillow numpy opencv-python
 python 2-client/art-source/textures/build_lime_plaster_material.py
 ```
 
-Исходник `lime_plaster_source.jpg` и готовые PNG-карты входят в комплект `pogranichye_lime_plaster_pbr_pack.zip`; распаковать его нужно в корень репозитория с сохранением путей.
+На текущем `main` исходник `lime_plaster_source.jpg`, готовые PNG-карты и заявленный архив `pogranichye_lime_plaster_pbr_pack.zip` ещё не закоммичены. Генератор требует исходный JPG и завершится `FileNotFoundError`, пока файл не появится. Этот gap отслеживается в [issue #722](https://github.com/IskatelApelsinov/pogranichye/issues/722).
 
-В `WorldLayoutPresentationBuilder` штукатурка применяется к стеновым плоскостям сгенерированных домов и таверны. Деревянный каркас, двери, стойки, крыши и открытый рыночный навес остаются на отдельных timber/thatch материалах. UV tiling — 1.5×1.5; если авторские карты отсутствуют, остаётся безопасный процедурный fallback.
+В `WorldLayoutPresentationBuilder` штукатурка применяется к стеновым плоскостям сгенерированных домов и таверны. Деревянный каркас, двери, стойки, крыши и открытый рыночный навес остаются на отдельных timber/thatch материалах. UV tiling — 1.5×1.5. Сначала используется Grok `plaster_wall` albedo/normal как fallback; полный authored `lime_plaster` PBR-набор, когда он будет добавлен, должен переопределять его. Если Grok pack не импортирован, остаётся 64 px procedural fallback. До появления исходника и карт не считать authored штукатурку интегрированной.
