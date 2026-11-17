@@ -181,6 +181,7 @@ namespace Pogranichye.Client
         private bool _marketPanelOpen;
         private bool _stablePanelOpen;
         private bool _tavernPanelOpen;
+        private TavernPanelScreen _tavernScreen = TavernPanelScreen.Home;
         private bool _activityPanelOpen;
         private string _activityTargetId;
         private string _activityTargetTitle;
@@ -329,8 +330,12 @@ namespace Pogranichye.Client
             if (_movementDebugVisible && _input != null)
                 _pressedKeysDebug = _input.BuildPressedKeysDebug();
             if (_core != null)
+            {
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
+                _core.SetTavernPanelInputState(_tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
+                    _activityMiniGame == ActivityMiniGame.None, _tavernScreen);
+            }
             var currentPlace = _frame != null ? _frame.Place : null;
             var currentPlaceId = currentPlace != null ? currentPlace.Id : null;
             var layoutMatchesCurrentPlace = PoiPositionPolicy.IsLayoutForSettlement(
@@ -389,7 +394,7 @@ namespace Pogranichye.Client
                 else if (_activityPanelOpen) _activityPanelOpen = false;
                 else if (_marketPanelOpen) _marketPanelOpen = false;
                 else if (_stablePanelOpen) _stablePanelOpen = false;
-                else if (_tavernPanelOpen) _tavernPanelOpen = false;
+                else if (_tavernPanelOpen) NavigateBackFromTavern();
                 else if (!_hudCollapsed)
                 {
                     _hudCollapsed = true;
@@ -3265,17 +3270,24 @@ namespace Pogranichye.Client
             if (atActivity) height += 380f;
             if (atTavern)
             {
-                var rooms = _frame.Place.Rooms?.Items;
-                var roomCount = rooms != null ? rooms.Count : 0;
-                height += 34f + 112f + roomCount * 32f;
-                height += 250f;
-                var owned = _frame.Me.Room;
-                if (owned != null && owned.Indoor)
+                height += 34f;
+                if (_tavernScreen == TavernPanelScreen.Home)
                 {
-                    var inventoryCount = _frame.Me.Inventory?.Items?.Count ?? 0;
-                    var chestCount = owned.ChestItems != null ? owned.ChestItems.Count : 0;
-                    height += 68f + (inventoryCount + chestCount) * 30f;
+                    var rooms = _frame.Place.Rooms?.Items;
+                    var roomCount = rooms != null ? rooms.Count : 0;
+                    height += 112f + roomCount * 32f + 250f;
+                    var owned = _frame.Me.Room;
+                    if (owned != null && owned.Indoor)
+                    {
+                        var inventoryCount = _frame.Me.Inventory?.Items?.Count ?? 0;
+                        var chestCount = owned.ChestItems != null ? owned.ChestItems.Count : 0;
+                        height += 68f + (inventoryCount + chestCount) * 30f;
+                    }
                 }
+                else if (_tavernScreen == TavernPanelScreen.CardGames)
+                    height += 190f;
+                else
+                    height += 330f;
             }
             // The panel grows to fit normal use, then becomes a real scroll view on short screens
             // or when a room chest contains many items. Never let the content fall outside its area.
@@ -3348,51 +3360,27 @@ namespace Pogranichye.Client
             if (atTavern)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("КОРЧМА", GUILayout.ExpandWidth(true));
-                var goBack = GUILayout.Button("← Назад", GUILayout.Width(88f));
+                var tavernTitle = _tavernScreen == TavernPanelScreen.Home ? "КОРЧМА" :
+                    _tavernScreen == TavernPanelScreen.CardGames ? "КАРТОЧНЫЙ СТОЛ" : "ПАРТИЯ";
+                GUILayout.Label(tavernTitle, GUILayout.ExpandWidth(true));
+                var goBack = TavernPanelNavigationPolicy.HasBackButton(_tavernScreen) &&
+                    GUILayout.Button("← Назад", GUILayout.Width(88f));
                 var closeWindow = GUILayout.Button("× Закрыть", GUILayout.Width(96f));
-                if (goBack || closeWindow)
+                if (goBack) NavigateBackFromTavern();
+                if (closeWindow) CloseTavernPanel();
+                GUILayout.EndHorizontal();
+                if (!_tavernPanelOpen)
                 {
-                    _tavernPanelOpen = false;
-                    GUILayout.EndHorizontal(); GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
+                    GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
                     GUIUtility.ExitGUI();
                 }
-                GUILayout.EndHorizontal();
-                if (_frame.Me.Mug)
-                {
-                    if (GUILayout.Button("🍺 Выпить пиво")) QueueContextItemAction("consume", "beer", "Выпить пиво");
-                }
+
+                if (_tavernScreen == TavernPanelScreen.Home)
+                    DrawTavernHomePanel();
+                else if (_tavernScreen == TavernPanelScreen.CardGames)
+                    DrawCardGameSelectionPanel();
                 else
-                {
-                    var counter = _frame.Place.TavernCounter;
-                    if (counter == null)
-                    {
-                        GUILayout.Label("Стойка корчмы пока не описана сервером.");
-                    }
-                    else if (!IsAtTavernCounter())
-                    {
-                        GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
-                    }
-                    else if (!counter.BartenderPresent)
-                    {
-                        GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
-                    }
-                    else if (_frame.Place.Beer <= 0d)
-                    {
-                        GUILayout.Label("Пиво закончилось.");
-                    }
-                    else if (_frame.Me.Coins < _frame.Place.BeerPrice)
-                    {
-                        GUILayout.Label("Не хватает монет на кружку.");
-                    }
-                    else if (GUILayout.Button("🍺 Заказать кружку · " +
-                        _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
-                    {
-                        QueueContextItemAction("buy", "beer", "Заказать пиво");
-                    }
-                }
-                DrawCardGamePanel();
-                DrawTavernRoomPanel();
+                    DrawCardGamePanel();
             }
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
@@ -3547,24 +3535,84 @@ namespace Pogranichye.Client
             _status = "Ожидаю подтверждения сервера: " + label.ToLowerInvariant() + "…";
         }
 
-        private void DrawCardGamePanel()
+        private void DrawTavernHomePanel()
+        {
+            if (_frame.Me.Mug)
+            {
+                if (GUILayout.Button("🍺 Выпить пиво"))
+                    QueueContextItemAction("consume", "beer", "Выпить пиво");
+            }
+            else
+            {
+                var counter = _frame.Place.TavernCounter;
+                if (counter == null)
+                    GUILayout.Label("Стойка корчмы пока не описана сервером.");
+                else if (!IsAtTavernCounter())
+                    GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
+                else if (!counter.BartenderPresent)
+                    GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
+                else if (_frame.Place.Beer <= 0d)
+                    GUILayout.Label("Пиво закончилось.");
+                else if (_frame.Me.Coins < _frame.Place.BeerPrice)
+                    GUILayout.Label("Не хватает монет на кружку.");
+                else if (GUILayout.Button("🍺 Заказать кружку · " +
+                    _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                    QueueContextItemAction("buy", "beer", "Заказать пиво");
+            }
+
+            var game = _frame.Me.CardGame;
+            var gameInProgress = game != null && !string.IsNullOrEmpty(game.Game) && !game.Done;
+            if (GUILayout.Button(gameInProgress ? "♠ Продолжить карточную партию" : "♠ Карточный стол"))
+                SetTavernScreen(gameInProgress ? TavernPanelScreen.ActiveGame : TavernPanelScreen.CardGames);
+            DrawTavernRoomPanel();
+        }
+
+        private void DrawCardGameSelectionPanel()
         {
             var game = _frame?.Me?.CardGame;
+            var gameInProgress = game != null && !string.IsNullOrEmpty(game.Game) && !game.Done;
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
-            if (game == null || string.IsNullOrEmpty(game.Game))
+            GUILayout.Label("ВЫБЕРИТЕ ИГРУ");
+            if (gameInProgress)
             {
-                GUILayout.Label("Карточные игры доступны в корчме. Место, ставку и возможность начать проверит сервер.");
+                GUILayout.Label("Партия уже идёт. Она остаётся на сервере, пока вы смотрите другие экраны.");
+                if (GUILayout.Button("Продолжить: " +
+                    (game.Game == "durak" ? "подкидной дурак" : "очко")))
+                    SetTavernScreen(TavernPanelScreen.ActiveGame);
+            }
+            else
+            {
+                if (game != null && !string.IsNullOrEmpty(game.Game) && game.Done)
+                {
+                    GUILayout.Label("Последняя партия завершена.");
+                    if (!string.IsNullOrEmpty(game.Message))
+                        GUILayout.Label(game.Message, GUI.skin.box);
+                }
+                GUILayout.Label("Ставка — 10 монет. Результат и списание подтверждает сервер.");
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = previousEnabled && _frame.Me.Coins >= 10d;
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Начать «Очко»"))
                     QueueCardGameAction("ochko", "start");
                 if (GUILayout.Button("Начать «Дурак»"))
                     QueueCardGameAction("durak", "start");
                 GUILayout.EndHorizontal();
+                GUI.enabled = previousEnabled;
+            }
+            GUILayout.EndVertical();
+        }
+
+        private void DrawCardGamePanel()
+        {
+            var game = _frame?.Me?.CardGame;
+            GUILayout.BeginVertical(GUI.skin.box);
+            if (game == null || string.IsNullOrEmpty(game.Game))
+            {
+                GUILayout.Label("Ожидаем подтверждения начала партии от сервера…");
             }
             else
             {
-                GUILayout.Label(game.Game == "durak" ? "Подкидной дурак" : "Очко");
+                GUILayout.Label(game.Game == "durak" ? "ПОДКИДНОЙ ДУРАК" : "ОЧКО");
                 if (!string.IsNullOrEmpty(game.Message))
                     GUILayout.Label(game.Message, GUI.skin.box);
                 GUILayout.Label("Ставка: " + game.Stake.ToString("0.#", CultureInfo.InvariantCulture) + " монет");
@@ -3572,15 +3620,8 @@ namespace Pogranichye.Client
                     DrawOchkoGame(game);
                 else if (game.Game == "durak")
                     DrawDurakGame(game);
-
                 if (game.Done)
-                {
-                    if (GUILayout.Button("Начать новую партию"))
-                    {
-                        var nextGame = game.Game;
-                        QueueCardGameAction(nextGame, "start");
-                    }
-                }
+                    GUILayout.Label("Партия завершена. Вернитесь к выбору игр, чтобы начать следующую.");
             }
             GUILayout.EndVertical();
         }
@@ -3717,6 +3758,7 @@ namespace Pogranichye.Client
                 return;
             }
             _selectedCardIndex = -1;
+            if (action == "start") SetTavernScreen(TavernPanelScreen.ActiveGame);
             _status = "Ожидаю подтверждения сервера: " + action + "…";
         }
 
@@ -4356,6 +4398,30 @@ namespace Pogranichye.Client
                 : "Третье лицо: мышь вращает камеру; ПКМ — контекстный альтернативный режим.";
         }
 
+        private void SetTavernScreen(TavernPanelScreen screen)
+        {
+            _tavernScreen = screen;
+            _contextActionScroll = Vector2.zero;
+            _selectedCardIndex = -1;
+            _core?.SetTavernPanelInputState(_tavernPanelOpen && !_systemMenuOpen && !_chatOpen &&
+                _activityMiniGame == ActivityMiniGame.None, screen);
+        }
+
+        private void NavigateBackFromTavern()
+        {
+            if (!_tavernPanelOpen) return;
+            bool closePanel;
+            var next = TavernPanelNavigationPolicy.Back(_tavernScreen, out closePanel);
+            if (closePanel) CloseTavernPanel();
+            else SetTavernScreen(next);
+        }
+
+        private void CloseTavernPanel()
+        {
+            _tavernPanelOpen = false;
+            SetTavernScreen(TavernPanelScreen.Home);
+        }
+
         private void OnPoiSelected(WorldPoi poi)
         {
             if (poi == null) return;
@@ -4365,8 +4431,16 @@ namespace Pogranichye.Client
                 _marketPanelOpen = false;
                 _stablePanelOpen = false;
                 _activityPanelOpen = false;
-                _tavernPanelOpen = open;
-                if (_tavernPanelOpen) CollapseHudForContextWindow();
+                if (open)
+                {
+                    _tavernPanelOpen = true;
+                    SetTavernScreen(TavernPanelScreen.Home);
+                    CollapseHudForContextWindow();
+                }
+                else
+                {
+                    CloseTavernPanel();
+                }
                 _status = _tavernPanelOpen ? "Корчма открыта." : "Окно корчмы закрыто.";
                 return;
             }
@@ -4374,7 +4448,7 @@ namespace Pogranichye.Client
             {
                 var open = !_marketPanelOpen;
                 _stablePanelOpen = false;
-                _tavernPanelOpen = false;
+                CloseTavernPanel();
                 _activityPanelOpen = false;
                 _marketPanelOpen = open;
                 if (_marketPanelOpen) CollapseHudForContextWindow();
@@ -4387,7 +4461,7 @@ namespace Pogranichye.Client
             {
                 var open = !_stablePanelOpen;
                 _marketPanelOpen = false;
-                _tavernPanelOpen = false;
+                CloseTavernPanel();
                 _activityPanelOpen = false;
                 _stablePanelOpen = open;
                 if (_stablePanelOpen) CollapseHudForContextWindow();
@@ -4407,7 +4481,7 @@ namespace Pogranichye.Client
             {
                 _marketPanelOpen = false;
                 _stablePanelOpen = false;
-                _tavernPanelOpen = false;
+                CloseTavernPanel();
                 _activityTargetId = poiId;
                 _activityTargetTitle = poi.Title;
                 _activityPrimaryAction = poi.ActionIntent;
