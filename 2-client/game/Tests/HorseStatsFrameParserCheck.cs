@@ -52,7 +52,7 @@ internal static class HorseStatsFrameParserCheck
         HorseFrameParser.Validate(JValue.CreateNull(), "me.horse");
         Check("null horse represents no owned horse", true);
 
-        const string herdHorseJson = "{\\"id\\":\\"horse-88\\",\\"name\\":\\"Гнедой\\",\\"stam\\":73,\\"mounted\\":false,\\"active\\":true,\\"here\\":false,\\"bag\\":{},\\"bag_load\\":0,\\"bag_cap\\":40,\\"settlement_id\\":\\"settlement-9\\",\\"settlement_name\\":\\"Великоград\\",\\"realm_name\\":\\"Великоградское княжество\\"}";
+        const string herdHorseJson = "{\"id\":\"horse-88\",\"name\":\"Гнедой\",\"stam\":73,\"mounted\":false,\"active\":true,\"here\":false,\"bag\":{},\"bag_load\":0,\"bag_cap\":40,\"settlement_id\":\"settlement-9\",\"settlement_name\":\"Великоград\",\"realm_name\":\"Великоградское княжество\"}";
         var herdHorseToken = JToken.Parse(herdHorseJson);
         HorseFrameParser.Validate(herdHorseToken, "me.horses[0]");
         var herdHorse = herdHorseToken.ToObject<HorseFrame>();
@@ -61,9 +61,9 @@ internal static class HorseStatsFrameParserCheck
             herdHorse.SettlementId == "settlement-9" && herdHorse.SettlementName == "Великоград" &&
             herdHorse.RealmName == "Великоградское княжество");
         ExpectFormat("non-boolean active horse flag rejected", () =>
-            HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\\"active\\":true", "\\"active\\":1")), "me.horses[0]"));
+            HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\"active\":true", "\"active\":1")), "me.horses[0]"));
         ExpectFormat("non-string horse settlement rejected", () =>
-            HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\\"settlement_name\\":\\"Великоград\\"", "\\"settlement_name\\":7")), "me.horses[0]"));
+            HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\"settlement_name\":\"Великоград\"", "\"settlement_name\":7")), "me.horses[0]"));
 
         ExpectFormat("missing stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\"will\":10", "")), "me.stats"));
