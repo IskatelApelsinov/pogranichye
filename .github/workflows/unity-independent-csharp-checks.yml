@@ -47,7 +47,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainSeamHeightSampler.cs'
       - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
+      - '2-client/game/Tests/TerrainSeamHeightSamplerCheck.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
@@ -291,6 +293,12 @@ jobs:
         run: |
           mcs -out:/tmp/terrain-texture-source.exe Tests/TerrainTextureSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs
           mono /tmp/terrain-texture-source.exe
+
+      - name: Terrain seam neighbor height sampling regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-seam-height.exe Tests/TerrainSeamHeightSamplerCheck.cs Assets/_Project/Scripts/Presentation/TerrainSeamHeightSampler.cs
+          mono /tmp/terrain-seam-height.exe
 
       - name: World ambient lighting palette regression checks
         working-directory: 2-client/game
