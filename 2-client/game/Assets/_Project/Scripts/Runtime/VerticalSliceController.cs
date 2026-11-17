@@ -1308,6 +1308,19 @@ namespace Pogranichye.Client
                 return;
             }
             _core.DrawInventoryTab();
+
+            // A server-confirmed mug is a usable inventory item, not a tavern-menu-only action.
+            // Keep the mug state authoritative: only show the consume action while me.mug is true.
+            if (_frame.Me.Mug)
+            {
+                GUILayout.Space(8f);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("ПРЕДМЕТ · ПИВО");
+                GUILayout.Label("Кружка находится у тебя. Выпить её можно в любом месте.");
+                if (GUILayout.Button("🍺 Выпить пиво"))
+                    QueueContextItemAction("consume", "beer", "Выпить пиво");
+                GUILayout.EndVertical();
+            }
         }
 
         private void DrawJournalTab()
@@ -3696,17 +3709,23 @@ namespace Pogranichye.Client
                 var counter = _frame.Place.TavernCounter;
                 if (counter == null)
                     GUILayout.Label("Стойка корчмы пока не описана сервером.");
-                else if (!IsAtTavernCounter())
-                    GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
                 else if (!counter.BartenderPresent)
                     GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
                 else if (_frame.Place.Beer <= 0d)
                     GUILayout.Label("Пиво закончилось.");
                 else if (_frame.Me.Coins < _frame.Place.BeerPrice)
                     GUILayout.Label("Не хватает монет на кружку.");
-                else if (GUILayout.Button("🍺 Заказать кружку · " +
-                    _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
-                    QueueContextItemAction("buy", "beer", "Заказать пиво");
+                else
+                {
+                    // Do not make the client-side position projection a hard purchase gate.
+                    // Unity's local player/counter projections can differ slightly; the server
+                    // remains the sole authority and returns the exact refusal reason if too far.
+                    if (!IsAtTavernCounter())
+                        GUILayout.Label("Ты не у стойки. Можно отправить заказ, но сервер подтвердит его только в пределах стойки.");
+                    if (GUILayout.Button("🍺 Заказать кружку · " +
+                        _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                        QueueContextItemAction("buy", "beer", "Заказать пиво");
+                }
             }
 
             var game = _frame.Me.CardGame;
