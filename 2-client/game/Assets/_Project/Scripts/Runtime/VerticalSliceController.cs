@@ -1051,8 +1051,8 @@ namespace Pogranichye.Client
                 ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы»."
                 : "Следующий шаг вводного маршрута отмечен в журнале. Дополнительные занятия необязательны.");
             if (GUILayout.Button(_showAdvancedCharacterActions
-                ? "Скрыть дополнительные занятия"
-                : "Показать дополнительные занятия"))
+                ? "Скрыть приоритеты и дополнительные занятия"
+                : "Показать приоритеты и дополнительные занятия"))
                 _showAdvancedCharacterActions = !_showAdvancedCharacterActions;
 
             if (_showAdvancedCharacterActions)
