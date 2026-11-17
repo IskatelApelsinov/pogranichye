@@ -52,6 +52,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
       - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
       - '2-client/art-source/textures/**'
@@ -116,6 +117,7 @@ on:
       - '2-client/game/Tests/SettlementLayoutSelectionPolicyCheck.cs'
       - '2-client/game/Tests/ServerSlopeMovementPolicyCheck.cs'
       - '2-client/game/Tests/WorldPositionProjectionPolicyCheck.cs'
+      - '2-client/game/Tests/WorldBuildingPresentationPolicyCheck.cs'
       - '2-client/game/Tests/TavernCounterFrameParserCheck.cs'
       - '2-client/game/Tests/GatherNodeFrameParserCheck.cs'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
@@ -214,6 +216,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-map-line-clipper.exe Tests/WorldMapLineClipperCheck.cs Assets/_Project/Scripts/World/WorldMapLineClipper.cs
           mono /tmp/world-map-line-clipper.exe
+
+      - name: Server-authored city building height regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-building-height.exe Tests/WorldBuildingPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs
+          mono /tmp/world-building-height.exe
 
       - name: Foe presentation policy regression checks
         working-directory: 2-client/game
