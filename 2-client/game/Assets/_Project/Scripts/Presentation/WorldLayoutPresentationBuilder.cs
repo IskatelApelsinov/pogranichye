@@ -2006,6 +2006,27 @@ namespace Pogranichye.Client.Presentation
                 Create("Tavern hanging sign bracket", PrimitiveType.Cube, root,
                     signPosition, signSize, _iron, false);
             }
+            else if (kind == "hall")
+            {
+                // Civic portico distinguishes the server town hall from ordinary housing.
+                for (var post = -1; post <= 1; post += 2)
+                    Create("Town hall portico column", PrimitiveType.Cube, root,
+                        new Vector3(post * width * 0.24f, 1.65f, -depth * 0.5f - 0.16f),
+                        new Vector3(0.34f, 3.3f, 0.34f), _stone, false);
+                Create("Town hall portico lintel", PrimitiveType.Cube, root,
+                    new Vector3(0f, 3.28f, -depth * 0.5f - 0.16f),
+                    new Vector3(width * 0.58f, 0.30f, 0.42f), _trunk, false);
+            }
+            else if (kind == "guard")
+            {
+                // Low stone corner piers make the guardhouse distinct without inventing a tower.
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Guardhouse corner pier", PrimitiveType.Cube, root,
+                        new Vector3(x * (width * 0.5f - 0.38f), wallHeight + 0.18f,
+                            z * (depth * 0.5f - 0.38f)),
+                        new Vector3(0.52f, 0.42f, 0.52f), _stone, false);
+            }
         }
 
         private static void CreateFootprintSign(Transform parent, string title,
