@@ -58,3 +58,11 @@ Additional action audit: `act:build`, `act:hunt` and `act:fight` were accepted b
 - `op:"goal"` is a long-lived character priority configured from the character UI (work/eat/rest/socialize), intended to guide the character while the player is offline. It is not a one-shot action and must not be triggered by E at a POI.
 - E at tavern/market opens the corresponding panel only; E at workstations/woods/river/mine opens or sends the immediate server-supported action.
 - The current server handler stores the goal with a long `GoalUntil` and has no correlated acknowledgement. Client status must say “request sent”, not “saved/confirmed”. Confirm with Claude whether the exact offline semantics are fully implemented and whether the goal also affects the embodied character while connected.
+
+
+## Party controls follow-up
+
+- Added a thick-client party section to the character panel using `me.party` and server-published `place.neighbors[].player/known/name/desc`.
+- Exposes invite nearby player, accept/decline invitation, and leave party through `op:"party"` with the shared `reqid`/`me.result` request gate.
+- Member names and nearby-player visibility remain server-authored; no client-side membership mutation. `me.party` remains a typed-DTO gap but is now functionally consumed from the validated raw frame.
+- Runtime acceptance: test with two actual player sessions in the same settlement, invitation/acceptance, member display, leave, and road travel with party.
