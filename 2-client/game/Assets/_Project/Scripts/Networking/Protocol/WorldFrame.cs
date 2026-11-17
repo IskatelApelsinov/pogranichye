@@ -867,14 +867,6 @@ namespace Pogranichye.Client.Networking.Protocol
     }
 
     [Serializable]
-    public sealed class WorldLandFrame
-    {
-        [JsonProperty("water")] public string Water { get; set; }
-        [JsonProperty("fields")] public string Fields { get; set; }
-        [JsonProperty("forest")] public string Forest { get; set; }
-    }
-
-    [Serializable]
     public sealed class WorldZoneFrame
     {
         /// <summary>forest | copse | field | meadow | rock | pond</summary>
