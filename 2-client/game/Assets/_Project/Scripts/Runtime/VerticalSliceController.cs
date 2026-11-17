@@ -3060,6 +3060,12 @@ namespace Pogranichye.Client
                 _frame.Me.Inventory.Items.TryGetValue(item, out var quantity) && quantity > 0;
         }
 
+        private bool HasStashGood(string good)
+        {
+            return _frame?.Me?.Stash != null &&
+                _frame.Me.Stash.TryGetValue(good, out var quantity) && quantity >= 1d;
+        }
+
         private void QueueQuickItemRequest(string op, string item, string label)
         {
             if (_core == null || !_core.QueueRequest(InventoryRequestLabelPrefix + " " + label,
@@ -3301,7 +3307,7 @@ namespace Pogranichye.Client
                     if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
                         QueueHorseAction(horse.Mounted ? "dismount" : "mount",
                             horse.Mounted ? "Спешиться" : "Оседлать лошадь");
-                    var hasFeed = HasInventoryItem("hay") || HasInventoryItem("wheat") || HasInventoryItem("veg");
+                    var hasFeed = HasStashGood("hay") || HasStashGood("wheat") || HasStashGood("veg");
                     var previousEnabled = GUI.enabled;
                     GUI.enabled = hasFeed && horse.Stamina < 100d;
                     if (GUILayout.Button("Покормить лошадь"))
@@ -3316,13 +3322,13 @@ namespace Pogranichye.Client
                 GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
                     horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
                     horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
-                var inventory = _frame.Me.Inventory?.Items;
+                var stash = _frame.Me.Stash;
                 var shownStow = 0;
-                if (inventory != null)
+                if (stash != null)
                 {
-                    foreach (var item in inventory)
+                    foreach (var item in stash)
                     {
-                        if (item.Value <= 0 || shownStow >= 5) continue;
+                        if (item.Value < 1d || shownStow >= 5) continue;
                         shownStow++;
                         if (GUILayout.Button("Положить на лошадь: " + item.Key + " ×1"))
                             QueueHorseAction("stow", "Положить в седельную сумку", item.Key, 1);
