@@ -634,6 +634,7 @@ namespace Pogranichye.Client
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
         // layout and first world snapshot are being fetched. It is drawn before the login panel.
+        private void DrawTitleLoadingBackdrop()
         {
             var previousColor = GUI.color;
             var previousEnabled = GUI.enabled;
