@@ -1,6 +1,7 @@
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>Defines the deterministic fallback order for streamed-world terrain textures.</summary>
+    // Presentation policy; deliberately independent from Unity runtime APIs.
     public static class TerrainTextureSourcePolicy
     {
         public enum Source
