@@ -242,6 +242,7 @@ namespace Pogranichye.Client.Presentation
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
                     var isCopse = zone.Kind == "copse";
+                    var isDeadwoodEdge = isCopse && layout.Land != null && layout.Land.Forest == "none";
                     var edgeFade = isCopse
                         ? Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.16f, 3f, 7f)
                         : Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
@@ -255,9 +256,11 @@ namespace Pogranichye.Client.Presentation
 
                     // Full forest gets a continuous canopy; a copse stays open and is not
                     // visually misrepresented as the server's harvestable timber woodland.
-                    var treeTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 85f), 5, 36)
-                        : Mathf.Clamp((int)(area / 18f), 24, 1800);
+                    var treeTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 200f), 1, 6)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 85f), 5, 36)
+                            : Mathf.Clamp((int)(area / 18f), 24, 1800);
                     var treeAdded = 0;
                     for (var attempt = 0; attempt < treeTarget * 12 && treeAdded < treeTarget; attempt++)
                     {
@@ -286,9 +289,11 @@ namespace Pogranichye.Client.Presentation
                     }
 
                     // Full forests get dense undergrowth; copses remain open enough to read as small groves.
-                    var bushTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 22f), 8, 60)
-                        : Mathf.Clamp((int)(area / 7f), 36, 2600);
+                    var bushTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 60f), 2, 12)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 22f), 8, 60)
+                            : Mathf.Clamp((int)(area / 7f), 36, 2600);
                     var bushAdded = 0;
                     for (var attempt = 0; attempt < bushTarget * 10 && bushAdded < bushTarget; attempt++)
                     {
@@ -343,6 +348,10 @@ namespace Pogranichye.Client.Presentation
             var grassTriangles = new System.Collections.Generic.List<int>(36000);
             var flowerVertices = new System.Collections.Generic.List<Vector3>(6000);
             var flowerTriangles = new System.Collections.Generic.List<int>(9000);
+            var furrowVertices = new System.Collections.Generic.List<Vector3>(2400);
+            var furrowTriangles = new System.Collections.Generic.List<int>(3600);
+            var pondBankVertices = new System.Collections.Generic.List<Vector3>(1200);
+            var pondBankTriangles = new System.Collections.Generic.List<int>(1800);
 
             for (var zoneIndex = 0; zoneIndex < layout.Zones.Count; zoneIndex++)
             {
@@ -359,6 +368,11 @@ namespace Pogranichye.Client.Presentation
                 // keeps its dressing across reconnects, while other settlements differ.
                 var random = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex));
                 var area = (x1 - x0) * (z1 - z0);
+
+                if (zone.Kind == "field" && layout.Land != null)
+                    AddFieldFurrows(furrowVertices, furrowTriangles, x0, z0, x1, z1, layout.Land.Fields);
+                if (zone.Kind == "pond")
+                    AddPondBanks(pondBankVertices, pondBankTriangles, x0, z0, x1, z1);
                 var target = Mathf.Clamp(Mathf.RoundToInt(area / 3.2f), 24, 1400);
                 var added = 0;
                 for (var attempt = 0; attempt < target * 5 && added < target; attempt++)
@@ -389,6 +403,68 @@ namespace Pogranichye.Client.Presentation
                 grassVertices, grassTriangles, _grass, false);
             CreateCombinedMesh(world, "Generated meadows • scattered wildflowers",
                 flowerVertices, flowerTriangles, _flowers, false);
+            CreateCombinedMesh(world, "Cultivated field furrows • server land style",
+                furrowVertices, furrowTriangles, _trunk, false);
+            CreateCombinedMesh(world, "Pond banks • server water zones",
+                pondBankVertices, pondBankTriangles, _stone, false);
+
+            // Reeds around actual pond zones are merged into one decoration mesh.
+            // The loop above is intentionally reused so pond reeds stay deterministic with the zone seed.
+        }
+
+        private static void AddFieldFurrows(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1, string fieldStyle)
+        {
+            if (fieldStyle != "strip" && fieldStyle != "yards") return;
+            var width = x1 - x0;
+            var depth = z1 - z0;
+            var alongX = width >= depth;
+            var shortSpan = Mathf.Min(width, depth);
+            var longSpan = Mathf.Max(width, depth);
+            var rowCount = fieldStyle == "yards"
+                ? Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.45f), 2, 5)
+                : Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.7f), 5, 16);
+            var rowWidth = Mathf.Clamp(shortSpan / (rowCount * 1.8f), 0.12f, 0.34f);
+            for (var row = 0; row < rowCount; row++)
+            {
+                var offset = -shortSpan * 0.5f + (row + 0.5f) * shortSpan / rowCount;
+                if (alongX)
+                    AddFlatRect(vertices, triangles, x0 + longSpan * 0.04f, z0 + depth * 0.5f + offset - rowWidth * 0.5f,
+                        x1 - longSpan * 0.04f, z0 + depth * 0.5f + offset + rowWidth * 0.5f, 0.086f);
+                else
+                    AddFlatRect(vertices, triangles, x0 + width * 0.5f + offset - rowWidth * 0.5f, z0 + longSpan * 0.04f,
+                        x0 + width * 0.5f + offset + rowWidth * 0.5f, z1 - longSpan * 0.04f, 0.086f);
+            }
+        }
+
+        private static void AddPondBanks(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1)
+        {
+            const float bank = 0.48f;
+            if (x1 - x0 < bank * 2f || z1 - z0 < bank * 2f) return;
+            AddFlatRect(vertices, triangles, x0, z0, x1, z0 + bank, 0.082f);
+            AddFlatRect(vertices, triangles, x0, z1 - bank, x1, z1, 0.082f);
+            AddFlatRect(vertices, triangles, x0, z0 + bank, x0 + bank, z1 - bank, 0.082f);
+            AddFlatRect(vertices, triangles, x1 - bank, z0 + bank, x1, z1 - bank, 0.082f);
+        }
+
+        private static void AddFlatRect(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1, float y)
+        {
+            if (x1 <= x0 || z1 <= z0) return;
+            var first = vertices.Count;
+            vertices.Add(new Vector3(x0, y, z0));
+            vertices.Add(new Vector3(x1, y, z0));
+            vertices.Add(new Vector3(x1, y, z1));
+            vertices.Add(new Vector3(x0, y, z1));
+            triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 1);
+            triangles.Add(first); triangles.Add(first + 3); triangles.Add(first + 2);
         }
 
         private static int StableDecorationSeed(string settlement, int zoneIndex)
