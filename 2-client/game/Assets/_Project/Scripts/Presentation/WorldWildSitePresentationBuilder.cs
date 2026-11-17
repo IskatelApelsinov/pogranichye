@@ -24,6 +24,7 @@ namespace Pogranichye.Client.Presentation
             public double Mana;
             public double Danger;
             public Transform Root;
+            public LineRenderer ActivationRing;
         }
 
         private static readonly Dictionary<string, SiteView> Views =
@@ -131,10 +132,18 @@ namespace Pogranichye.Client.Presentation
                         view = new SiteView { Id = site.Id, Type = site.Kind };
                         view.Root = new GameObject("NearbyWildPlace_" + site.Id).transform;
                         view.Root.SetParent(_root, false);
-                        BuildNearbyPlace(view.Root, site.Kind);
+                        view.ActivationRing = BuildNearbyPlace(view.Root, site.Kind);
                         NearbyViews.Add(site.Id, view);
                     }
                     view.Root.gameObject.SetActive(true);
+                    if (view.ActivationRing != null)
+                    {
+                        var activationColor = site.Here
+                            ? new Color(0.28f, 0.82f, 0.42f, 0.95f)
+                            : new Color(0.95f, 0.68f, 0.22f, 0.78f);
+                        view.ActivationRing.startColor = activationColor;
+                        view.ActivationRing.endColor = activationColor;
+                    }
                     var up = site.Up - origin.Up;
                     view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
                 }
@@ -145,7 +154,7 @@ namespace Pogranichye.Client.Presentation
                     pair.Value.Root.gameObject.SetActive(false);
         }
 
-        private static void BuildNearbyPlace(Transform root, string kind)
+        private static LineRenderer BuildNearbyPlace(Transform root, string kind)
         {
             var wood = MaterialFor("site_wood", new Color(0.29f, 0.19f, 0.11f));
             var stone = MaterialFor("site_stone", new Color(0.39f, 0.37f, 0.33f));
@@ -255,12 +264,15 @@ namespace Pogranichye.Client.Presentation
             line.positionCount = 65;
             line.widthMultiplier = 0.16f;
             line.sharedMaterial = ActivationMaterial();
+            line.startColor = new Color(0.95f, 0.68f, 0.22f, 0.78f);
+            line.endColor = line.startColor;
             for (var i = 0; i < 65; i++)
             {
                 var angle = i * Mathf.PI * 2f / 64f;
                 line.SetPosition(i, new Vector3(Mathf.Cos(angle) * SiteActivationRadius, 0.12f,
                     Mathf.Sin(angle) * SiteActivationRadius));
             }
+            return line;
         }
 
         private static Material ActivationMaterial()
@@ -269,7 +281,7 @@ namespace Pogranichye.Client.Presentation
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color") ??
                 Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             if (shader == null) return null;
-            _activationMaterial = new Material(shader) { color = new Color(0.92f, 0.70f, 0.28f, 0.82f) };
+            _activationMaterial = new Material(shader) { color = Color.white };
             return _activationMaterial;
         }
 
