@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/unity-independent-csharp-checks.yml'
       - '2-client/game/Assets/_Project/Editor/ProtocolFixtureValidator.cs'
+      - '2-client/game/Assets/_Project/Editor/GrokTexturePackSync.cs'
+      - '2-client/game/Assets/_Project/Editor/WorldMaterialTextureImporter.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/HttpAuthClient.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
