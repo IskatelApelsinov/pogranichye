@@ -181,6 +181,8 @@ namespace Pogranichye.Client
         private bool _marketPanelOpen;
         private bool _stablePanelOpen;
         private bool _tavernPanelOpen;
+        // Hides an active card table without leaving the tavern, so beer and other tavern actions remain reachable.
+        private bool _tavernCardGameHidden;
         private bool _activityPanelOpen;
         private string _activityTargetId;
         private string _activityTargetTitle;
@@ -512,6 +514,9 @@ namespace Pogranichye.Client
                 return;
             }
 
+            // Server-authoritative calendar/clock remains visible while the player is in the world.
+            DrawWorldClockOverlay();
+
             if (_mapExpanded)
             {
                 DrawExpandedMapOverlay();
@@ -549,7 +554,7 @@ namespace Pogranichye.Client
                 GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(_frame.Place != null
-                    ? $"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
+                    ? $"ДЕНЬ {_frame.Day}  ·  {(_frame.Hour.HasValue ? _frame.Hour.Value.ToString("00", CultureInfo.InvariantCulture) + ":00" : "--:--")}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
                     : "Мир загружается");
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Закрыть  ×", GUILayout.Width(112f), GUILayout.Height(32f)))
@@ -614,9 +619,21 @@ namespace Pogranichye.Client
             }
         }
 
+        private void DrawWorldClockOverlay()
+        {
+            if (_frame == null) return;
+            var time = _frame.Hour.HasValue
+                ? _frame.Hour.Value.ToString("00", CultureInfo.InvariantCulture) + ":00"
+                : "--:--";
+            var calendar = "ДЕНЬ " + _frame.Day.ToString(CultureInfo.InvariantCulture) +
+                "  ·  " + time + "  ·  " + (_frame.Season ?? "") +
+                "  ·  ГОД " + _frame.Year.ToString(CultureInfo.InvariantCulture);
+            var rect = new Rect(12f, 12f, Mathf.Min(430f, Screen.width - 148f), 34f);
+            GUI.Box(rect, calendar);
+        }
+
         // Opaque title/loading screen hides the local fallback village while the authoritative
         // layout and first world snapshot are being fetched. It is drawn before the login panel.
-        private void DrawTitleLoadingBackdrop()
         {
             var previousColor = GUI.color;
             var previousEnabled = GUI.enabled;
@@ -3551,7 +3568,32 @@ namespace Pogranichye.Client
         {
             var game = _frame?.Me?.CardGame;
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
+            if (game != null && !string.IsNullOrEmpty(game.Game) && _tavernCardGameHidden)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("КАРТОЧНАЯ ПАРТИЯ ИДЁТ", GUILayout.ExpandWidth(true));
+                if (GUILayout.Button("Вернуться к партии", GUILayout.Width(150f)))
+                    _tavernCardGameHidden = false;
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+                return;
+            }
+
+            if (game != null && !string.IsNullOrEmpty(game.Game))
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("КАРТОЧНЫЙ СТОЛ", GUILayout.ExpandWidth(true));
+                if (GUILayout.Button("← Назад к корчме", GUILayout.Width(150f)))
+                {
+                    _tavernCardGameHidden = true;
+                    GUILayout.EndHorizontal();
+                    GUILayout.EndVertical();
+                    return;
+                }
+                GUILayout.EndHorizontal();
+            }
+            else GUILayout.Label("КАРТОЧНЫЙ СТОЛ");
+
             if (game == null || string.IsNullOrEmpty(game.Game))
             {
                 GUILayout.Label("Карточные игры доступны в корчме. Место, ставку и возможность начать проверит сервер.");
@@ -3717,6 +3759,7 @@ namespace Pogranichye.Client
                 return;
             }
             _selectedCardIndex = -1;
+            if (action == "start") _tavernCardGameHidden = false;
             _status = "Ожидаю подтверждения сервера: " + action + "…";
         }
 
