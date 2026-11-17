@@ -800,7 +800,8 @@ namespace Pogranichye.Client
                     if (!string.IsNullOrWhiteSpace(quest.GiverName))
                         GUILayout.Label("Кто попросил: " + quest.GiverName);
                     if (!string.IsNullOrWhiteSpace(quest.SettlementName))
-                        GUILayout.Label("Место: " + quest.SettlementName);
+                        GUILayout.Label("Место: " + quest.SettlementName +
+                            (string.IsNullOrWhiteSpace(quest.RealmName) ? string.Empty : " · " + quest.RealmName));
                     var have = Mathf.Max(0, quest.Have ?? 0);
                     var quantity = Mathf.Max(1, quest.Quantity);
                     GUILayout.Label(have + " / " + quantity);
@@ -848,6 +849,9 @@ namespace Pogranichye.Client
                     var who = via == "board" ? "Доска объявлений" :
                         !string.IsNullOrWhiteSpace(offer.GiverName) ? offer.GiverName : "Житель";
                     GUILayout.Label(who + (offer.Coins > 0d ? " · награда " + offer.Coins.ToString("0.##", CultureInfo.InvariantCulture) + " монет" : string.Empty));
+                    if (!string.IsNullOrWhiteSpace(offer.SettlementName))
+                        GUILayout.Label("Поселение: " + offer.SettlementName +
+                            (string.IsNullOrWhiteSpace(offer.RealmName) ? string.Empty : " · " + offer.RealmName));
                     if (via != "npc" || isCurrentNpc)
                     {
                         if (GUILayout.Button("Принять поручение"))
