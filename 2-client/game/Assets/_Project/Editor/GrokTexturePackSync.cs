@@ -10,22 +10,39 @@ namespace Pogranichye.Client.Editor
     /// Synchronizes the canonical repository-level Grok PNG pack into Unity Resources.
     /// The source remains in /grok/textures/grok; generated copies are disposable imports.
     /// </summary>
+    [InitializeOnLoad]
     public static class GrokTexturePackSync
     {
         private const string SourceRelativePath = "grok/textures/grok";
         private const string DestinationAssetPath = "Assets/Resources/WorldMaterials/Textures/Grok";
 
+        static GrokTexturePackSync()
+        {
+            // The runtime Resources folder is generated from the canonical repository pack.
+            // Sync automatically after Unity loads so a fresh checkout does not silently run
+            // with the low-resolution procedural fallback until someone finds the menu item.
+            EditorApplication.delayCall += () =>
+            {
+                if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                    ImportPack(false);
+            };
+        }
+
         [MenuItem("Tools/Pogranichye/Art/Import Grok Texture Pack")]
         public static void ImportPack()
+        {
+            ImportPack(true);
+        }
+
+        private static void ImportPack(bool showDialog)
         {
             var repositoryRoot = FindRepositoryRoot();
             if (repositoryRoot == null)
             {
-                EditorUtility.DisplayDialog(
-                    "Grok texture pack not found",
+                Report("Grok texture pack not found",
                     "Could not find the repository-level folder 'grok/textures/grok'. " +
                     "Keep the canonical PNG pack in that folder and run this command from the Unity project.",
-                    "OK");
+                    showDialog, true);
                 return;
             }
 
@@ -33,7 +50,7 @@ namespace Pogranichye.Client.Editor
             var files = Directory.GetFiles(source, "*.png", SearchOption.TopDirectoryOnly);
             if (files.Length == 0)
             {
-                EditorUtility.DisplayDialog("Grok texture pack is empty", "No PNG files were found in:\n" + source, "OK");
+                Report("Grok texture pack is empty", "No PNG files were found in:\n" + source, showDialog, true);
                 return;
             }
 
@@ -124,8 +141,7 @@ namespace Pogranichye.Client.Editor
                 if (!sourceNames.Contains(stem + "_n.png")) missingNormals++;
             }
 
-            EditorUtility.DisplayDialog(
-                "Grok texture pack imported",
+            Report("Grok texture pack imported",
                 "Source: " + SourceRelativePath + "\n" +
                 "PNG files: " + files.Length + " (" + baseMaps + " albedo, " + normalMaps + " normal)\n" +
                 "Copied/updated: " + copied + "\n" +
@@ -133,7 +149,17 @@ namespace Pogranichye.Client.Editor
                 "Import settings changed: " + reimported + "\n" +
                 "Albedo without matching normal: " + missingNormals + "\n\n" +
                 "Runtime Resources path: " + DestinationAssetPath,
-                "OK");
+                showDialog, false);
+        }
+
+        private static void Report(string title, string message, bool showDialog, bool warning)
+        {
+            if (showDialog)
+                EditorUtility.DisplayDialog(title, message, "OK");
+            else if (warning)
+                Debug.LogWarning("[Pogranichye] " + title + ": " + message);
+            else
+                Debug.Log("[Pogranichye] " + title + ": " + message);
         }
 
         private static DirectoryInfo FindRepositoryRoot()
