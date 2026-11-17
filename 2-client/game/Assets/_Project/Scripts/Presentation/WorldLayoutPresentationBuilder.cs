@@ -1695,7 +1695,6 @@ namespace Pogranichye.Client.Presentation
 
             var isMarket = building.Kind == "market";
             var wallHeight = ResolveBuildingWallHeight(building);
-            var isCityBuilding = building.Storeys > 1 || building.HeightMeters > 5f;
             var wall = isMarket || building.Kind == "workshop" ? _timber :
                 building.Kind == "hall" || building.Kind == "guard" ? _stone : _plaster;
             var roof = _roof;
@@ -1704,7 +1703,7 @@ namespace Pogranichye.Client.Presentation
 
             var hasDoor = building.Kind == "tavern" && building.Door != null;
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
-                (isMarket ? width * 0.28f : width * 0.34f);
+                (isMarket ? width * 0.28f : building.Storeys > 1 ? width * 0.42f : width * 0.34f);
             var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
@@ -1865,6 +1864,28 @@ namespace Pogranichye.Client.Presentation
 
             BuildBuildingTypeDetails(root, building.Kind, width, depth, wallHeight, opening, doorSide, doorOffset);
 
+            if (building.Kind == "hall")
+            {
+                // A civic portico distinguishes the stone town hall from ordinary residential blocks.
+                for (var post = -1; post <= 1; post += 2)
+                    Create("Town hall portico column", PrimitiveType.Cube, root,
+                        new Vector3(post * width * 0.24f, 1.65f, -depth * 0.5f - 0.16f),
+                        new Vector3(0.34f, 3.3f, 0.34f), _stone, false);
+                Create("Town hall portico lintel", PrimitiveType.Cube, root,
+                    new Vector3(0f, 3.28f, -depth * 0.5f - 0.16f),
+                    new Vector3(width * 0.58f, 0.30f, 0.42f), _trunk, false);
+            }
+            else if (building.Kind == "guard")
+            {
+                // Low stone corner turrets make the server guardhouse readable without inventing a tower POI.
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Guardhouse corner pier", PrimitiveType.Cube, root,
+                        new Vector3(x * (width * 0.5f - 0.38f), wallHeight + 0.18f,
+                            z * (depth * 0.5f - 0.38f)),
+                        new Vector3(0.52f, 0.42f, 0.52f), _stone, false);
+            }
+
             if (building.Kind == "tavern" || building.Kind == "smithy" ||
                 building.Kind == "granary" || building.Kind == "market" ||
                 building.Kind == "hall" || building.Kind == "workshop" ||
@@ -1873,7 +1894,7 @@ namespace Pogranichye.Client.Presentation
             if (building.Kind == "tavern" && building.Door != null)
                 BuildTavernInterior(root, width, depth, wallHeight);
 
-            if (building.Kind == "tavern" || building.Kind == "smithy")
+            if (building.Kind == "tavern" || building.Kind == "smithy" || building.Kind == "workshop")
             {
                 Create("Stone chimney stack", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.28f, wallHeight + 0.92f, depth * 0.18f),
