@@ -233,6 +233,13 @@ namespace Pogranichye.Client.Presentation
                         new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
                         new Vector3(x1 - x0, thickness, z1 - z0), material, false);
 
+                    // Server land style distinguishes broad field strips from gardens behind houses.
+                    // These furrows are non-interactive surface dressing; crop/harvest state stays server-owned.
+                    if (zone.Kind == "field")
+                        BuildFieldRows(world, x0, z0, x1, z1, layout.Land != null ? layout.Land.Fields : null, index);
+                    if (zone.Kind == "pond")
+                        BuildPondShore(world, x0, z0, x1, z1, index);
+
                     if (zone.Kind != "forest" && zone.Kind != "copse") continue;
 
                     // A real woodland is dense in its core and gradually thins at its perimeter.
@@ -241,6 +248,7 @@ namespace Pogranichye.Client.Presentation
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
                     var isCopse = zone.Kind == "copse";
+                    var isDeadwoodEdge = isCopse && layout.Land != null && layout.Land.Forest == "none";
                     var edgeFade = isCopse
                         ? Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.16f, 3f, 7f)
                         : Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
@@ -254,9 +262,11 @@ namespace Pogranichye.Client.Presentation
 
                     // Full forest gets a continuous canopy; a copse stays open and is not
                     // visually misrepresented as the server's harvestable timber woodland.
-                    var treeTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 85f), 5, 36)
-                        : Mathf.Clamp((int)(area / 18f), 24, 1800);
+                    var treeTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 200f), 1, 6)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 85f), 5, 36)
+                            : Mathf.Clamp((int)(area / 18f), 24, 1800);
                     var treeAdded = 0;
                     for (var attempt = 0; attempt < treeTarget * 12 && treeAdded < treeTarget; attempt++)
                     {
@@ -285,9 +295,11 @@ namespace Pogranichye.Client.Presentation
                     }
 
                     // Full forests get dense undergrowth; copses remain open enough to read as small groves.
-                    var bushTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 22f), 8, 60)
-                        : Mathf.Clamp((int)(area / 7f), 36, 2600);
+                    var bushTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 60f), 2, 12)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 22f), 8, 60)
+                            : Mathf.Clamp((int)(area / 7f), 36, 2600);
                     var bushAdded = 0;
                     for (var attempt = 0; attempt < bushTarget * 10 && bushAdded < bushTarget; attempt++)
                     {
@@ -327,6 +339,66 @@ namespace Pogranichye.Client.Presentation
                 // It is one combined presentation mesh: no colliders, no per-clump GameObjects,
                 // and deterministic from the server-provided road graph.
                 BuildRoadsideGroundCover(world, layout);
+            }
+        }
+
+        private static void BuildFieldRows(Transform world, float x0, float z0, float x1, float z1,
+            string fieldStyle, int zoneIndex)
+        {
+            if (fieldStyle != "strip" && fieldStyle != "yards") return;
+            var width = x1 - x0;
+            var depth = z1 - z0;
+            var alongX = width >= depth;
+            var shortSpan = Mathf.Min(width, depth);
+            var longSpan = Mathf.Max(width, depth);
+            var rowCount = fieldStyle == "yards"
+                ? Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.45f), 2, 5)
+                : Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.7f), 5, 16);
+            var rowWidth = Mathf.Clamp(shortSpan / (rowCount * 1.8f), 0.22f, 0.58f);
+            for (var row = 0; row < rowCount; row++)
+            {
+                var offset = -shortSpan * 0.5f + (row + 0.5f) * shortSpan / rowCount;
+                var position = alongX
+                    ? new Vector3((x0 + x1) * 0.5f, 0.095f, (z0 + z1) * 0.5f + offset)
+                    : new Vector3((x0 + x1) * 0.5f + offset, 0.095f, (z0 + z1) * 0.5f);
+                var size = alongX
+                    ? new Vector3(longSpan * 0.92f, 0.08f, rowWidth)
+                    : new Vector3(rowWidth, 0.08f, longSpan * 0.92f);
+                Create("Cultivated furrow • " + fieldStyle + " " + zoneIndex + "/" + row,
+                    PrimitiveType.Cube, world, position, size, _trunk, false);
+            }
+        }
+
+        private static void BuildPondShore(Transform world, float x0, float z0, float x1, float z1, int index)
+        {
+            // The pond footprint comes from a server zone; the narrow banks/reeds are visual dressing only.
+            const float bank = 0.55f;
+            var cx = (x0 + x1) * 0.5f;
+            var cz = (z0 + z1) * 0.5f;
+            Create("Pond north bank " + index, PrimitiveType.Cube, world,
+                new Vector3(cx, 0.075f, z1 - bank * 0.5f),
+                new Vector3(x1 - x0, 0.10f, bank), _stone, false);
+            Create("Pond south bank " + index, PrimitiveType.Cube, world,
+                new Vector3(cx, 0.075f, z0 + bank * 0.5f),
+                new Vector3(x1 - x0, 0.10f, bank), _stone, false);
+            Create("Pond east bank " + index, PrimitiveType.Cube, world,
+                new Vector3(x1 - bank * 0.5f, 0.075f, cz),
+                new Vector3(bank, 0.10f, z1 - z0), _stone, false);
+            Create("Pond west bank " + index, PrimitiveType.Cube, world,
+                new Vector3(x0 + bank * 0.5f, 0.075f, cz),
+                new Vector3(bank, 0.10f, z1 - z0), _stone, false);
+
+            var random = new System.Random(733 + index * 97);
+            for (var reed = 0; reed < 10; reed++)
+            {
+                var edge = reed % 4;
+                var t = (float)random.NextDouble();
+                var x = edge < 2 ? x0 + t * (x1 - x0) : (edge == 2 ? x0 + bank : x1 - bank);
+                var z = edge < 2 ? (edge == 0 ? z0 + bank : z1 - bank) : z0 + t * (z1 - z0);
+                var height = 0.55f + (float)random.NextDouble() * 0.45f;
+                Create("Pond reed " + index + "/" + reed, PrimitiveType.Cylinder, world,
+                    new Vector3(x, height * 0.5f + 0.06f, z),
+                    new Vector3(0.045f, height, 0.045f), _forest, false);
             }
         }
 
