@@ -1792,15 +1792,26 @@ namespace Pogranichye.Client.Presentation
                     {
                         var windowX = side * width * 0.31f;
                         var windowWidth = Mathf.Min(0.82f, width * 0.22f);
-                        Create("Storey window recess", PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
-                            new Vector3(windowWidth, 0.92f, 0.07f), _trunk, false);
-                        Create("Storey window shutter", PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
-                            new Vector3(windowWidth * 0.8f, 0.76f, 0.05f), _roof, false);
-                        Create("Storey window crossbar", PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
-                            new Vector3(windowWidth * 0.88f, 0.07f, 0.04f), _trunk, false);
+                        if (building.Storeys > 1 || building.HeightMeters > 5d)
+                        {
+                            // City windows stay deliberately lightweight: one shutter mesh per opening
+                            // keeps a 70-building grid from exploding into thousands of tiny GameObjects.
+                            Create("City storey window", PrimitiveType.Cube, root,
+                                new Vector3(windowX, windowY, -depth * 0.5f - 0.045f),
+                                new Vector3(windowWidth, 0.88f, 0.08f), _roof, false);
+                        }
+                        else
+                        {
+                            Create("Storey window recess", PrimitiveType.Cube, root,
+                                new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
+                                new Vector3(windowWidth, 0.92f, 0.07f), _trunk, false);
+                            Create("Storey window shutter", PrimitiveType.Cube, root,
+                                new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
+                                new Vector3(windowWidth * 0.8f, 0.76f, 0.05f), _roof, false);
+                            Create("Storey window crossbar", PrimitiveType.Cube, root,
+                                new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
+                                new Vector3(windowWidth * 0.88f, 0.07f, 0.04f), _trunk, false);
+                        }
                     }
                 }
             }
