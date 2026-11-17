@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -467,5 +468,17 @@ func QuestsView(w *core.World, e *core.Entity, day int64) map[string]any {
 	if pl := core.Place(e); pl != nil {
 		rep = qc.Rep[pl.Settlement]
 	}
-	return map[string]any{"offers": offers, "active": active, "done": qc.Count, "rep": rep}
+	// v1.32: и у предложенных просьб — где их дают (село и держава), как у принятых
+	offerRows := []map[string]any{}
+	for _, q := range offers {
+		raw, _ := json.Marshal(q)
+		row := map[string]any{}
+		_ = json.Unmarshal(raw, &row)
+		row["settlement_id"], row["settlement_name"], row["realm_name"] = "", "", ""
+		if q.Settlement != 0 {
+			row["settlement_id"], row["settlement_name"], row["realm_name"] = eidStr(q.Settlement), settleName(w, q.Settlement), realmNameOf(w, q.Settlement)
+		}
+		offerRows = append(offerRows, row)
+	}
+	return map[string]any{"offers": offerRows, "active": active, "done": qc.Count, "rep": rep}
 }

@@ -22,8 +22,12 @@ func TestHorseLoop(t *testing.T) {
 	if core.Purse(e).Coins != 60 || core.Settle(se).Store[horseGood] != stock-1 {
 		t.Fatal("лошадь куплена один раз: 40 монет и минус одна в конюшне")
 	}
-	if ok, _ := Horse(w, e, "buy", "", 0, "h2"); ok {
-		t.Fatal("вторую лошадь не продают")
+	first := riderOf(e).Horse
+	if ok, why := Horse(w, e, "buy", "", 0, "h2"); !ok || len(ownedHorses(w, e)) != 2 { // v1.32: табун
+		t.Fatalf("вторую лошадь теперь можно купить: %q", why)
+	}
+	if riderOf(e).Horse != first {
+		t.Fatal("ведомой должна остаться первая лошадь")
 	}
 	// седельная сумка отдельна от сумы всадника
 	addStash(w, e, econ.GoodWood, 10)

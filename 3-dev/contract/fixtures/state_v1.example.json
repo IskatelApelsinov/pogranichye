@@ -320,7 +320,23 @@
       "mult": 1,
       "dev_mult": 1,
       "can_run": true
-    }
+    },
+    "horses": [
+      {
+        "id": "e5120",
+        "name": "Сивка",
+        "stam": 80,
+        "mounted": false,
+        "active": true,
+        "here": false,
+        "bag": {},
+        "bag_load": 0,
+        "bag_cap": 40,
+        "settlement_id": "e2",
+        "settlement_name": "Берёзовка",
+        "realm_name": "Залесская земля"
+      }
+    ]
   },
   "place": {
     "id": "2",
