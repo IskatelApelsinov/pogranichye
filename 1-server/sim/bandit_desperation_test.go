@@ -55,7 +55,7 @@ func TestHomelessDebtorBecomesBandit(t *testing.T) {
 	for day := int64(1); day <= 250 && !converted; day++ {
 		clock := core.Clock{TotalHours: day * core.HoursPerDay}
 		LifeSystem{}.Hour(w, clock, hub)
-		if w.Get(id) == nil {
+		if IsBanditPerson(w.Get(id)) { // v1.31: тот же человек, а не исчезнувший житель
 			converted = true
 		}
 	}
@@ -63,18 +63,18 @@ func TestHomelessDebtorBecomesBandit(t *testing.T) {
 		t.Fatal("бездомный должник не стал бандитом за 250 дней — путь не сработал")
 	}
 
-	found := false
-	w.Each("foe", func(fe *core.Entity) {
-		f := Foe(fe)
-		if f.Species == "bandit" && f.Settlement == se.ID {
-			found = true
-			if f.HP <= 0 || f.Max <= 0 || f.State == "" {
-				t.Fatalf("новый бандит без валидного hp/max/state: %+v", f)
-			}
+	b := w.Get(id)
+	f := Foe(b)
+	if f == nil || f.Species != "bandit" || f.Settlement != se.ID || f.HP <= 0 || f.Max <= 0 || f.State == "" {
+		t.Fatalf("бандит без валидного hp/max/state или не у своего села: %+v", f)
+	}
+	if core.Ident(b).Role != "bandit" || f.Name == "" || core.Place(b) != nil {
+		t.Fatalf("разбойник должен остаться тем же человеком с именем, но уже не жителем: role=%q name=%q", core.Ident(b).Role, f.Name)
+	}
+	for _, r := range residentsOf(w, se.ID) {
+		if r.ID == id {
+			t.Fatal("разбойник всё ещё числится жителем села")
 		}
-	})
-	if !found {
-		t.Fatal("житель пропал из мира, но настоящего foe-бандита в сцене не появилось")
 	}
 
 	// живой потолок: бандитов в сцене не больше foeStats["bandit"].cap даже после конверсии

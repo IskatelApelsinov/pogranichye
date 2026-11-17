@@ -1139,6 +1139,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
 				"gather":         sim.GatherView(s.world, terrain, e),                                     // v1.30: находки под ногами (до 45 м)
 				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())),           // v1.22: места без жителей вокруг (урочища, пещеры, башни)
+				"lair":           sim.LairView(s.world, pl.Settlement),                                    // v1.31: село заняли разбойники (null — нет)
 				"realm":          sim.PlaceRealmView(s.world, pl.Settlement),                              // v1.24: чьи это земли — держава, столица, война и союзы (null — вольная земля)
 				"caravans":       sim.NearCaravansView(s.world, terrain, e, s.runner.Clock.Hour()),        // v1.24: обозы неподалёку — что везут и куда
 				"market":         sim.MarketView(se, e),                                                   // прилавок: запас и цены (v1.10)

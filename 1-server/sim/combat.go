@@ -70,6 +70,7 @@ type FoeC struct {
 	// v1.30: зверь/разбойник фронтира — из какого дикого места (id урочища) и как далеко бродит
 	Wild      string  `json:"wild,omitempty"`
 	Roam      float64 `json:"roam,omitempty"`
+	Name      string  `json:"name,omitempty"` // v1.31: имя человека, если это разбойник-житель
 	Target    core.ID `json:"target"`
 	Aware     bool    `json:"aware"`
 	HomeX     float64 `json:"hx"`
@@ -96,7 +97,8 @@ func Foe(e *core.Entity) *FoeC { c, _ := e.Get("foe").(*FoeC); return c }
 // FoeCampC — состояние «дикой стороны» поселения: таймер подсева и разбойничий стан за рекой.
 type FoeCampC struct {
 	Timer   float64 `json:"timer"`
-	Bandits float64 `json:"bandits"` // сколько лихих людей в стане (отрастает со временем)
+	Joined  int     `json:"joined,omitempty"` // v1.31: сколько пришлых уже пришло (для их имён)
+	Bandits float64 `json:"bandits"`          // сколько лихих людей в стане (отрастает со временем)
 	Init    bool    `json:"init"`
 }
 
@@ -118,6 +120,14 @@ var foeStats = map[string]foeStat{
 }
 
 var foeOrder = []string{"hare", "fox", "boar", "wolf", "bear", "bandit"}
+
+// foeDisplayName — как подписать врага: зверя по виду, разбойника-человека — по имени.
+func foeDisplayName(f *FoeC) string {
+	if f.Name != "" {
+		return FoeName(f.Species) + " " + f.Name
+	}
+	return FoeName(f.Species)
+}
 
 // FoeName — человеческое имя вида.
 func FoeName(species string) string {
@@ -195,6 +205,12 @@ func populateFoes(w *core.World, se *core.Entity, dt float64) {
 		}
 		for n := alive[sp]; n < want && total < 12; n++ {
 			x, y := foeSpot(LayoutOf(w, se.ID), sp, se.ID, n+int(camp.Bandits*10)+total)
+			if sp == "bandit" { // v1.31: стан пополняют пришлые — живые люди с именами, не безликие
+				camp.Joined++
+				spawnBanditNewcomer(w, se.ID, x, y, uint64(camp.Joined))
+				total++
+				continue
+			}
 			w.Spawn(&FoeC{Species: sp, Settlement: se.ID, X: x, Y: y, HomeX: x, HomeY: y,
 				HP: st.hp, Max: st.hp, State: "roam", WX: x, WY: y})
 			total++
@@ -206,7 +222,7 @@ func populateFoes(w *core.World, se *core.Entity, dt float64) {
 func dropFoes(w *core.World, settlement core.ID) {
 	var ids []core.ID
 	w.Each("foe", func(fe *core.Entity) {
-		if Foe(fe).Settlement == settlement {
+		if Foe(fe).Settlement == settlement && !IsBanditPerson(fe) {
 			ids = append(ids, fe.ID)
 		}
 	})
@@ -281,7 +297,9 @@ func StepCombatAtHour(w *core.World, dt float64, hour int, controlled func(core.
 		f := Foe(fe)
 		ps := players[f.Settlement]
 		if len(ps) == 0 {
-			stale = append(stale, fe.ID)
+			if !IsBanditPerson(fe) { // человек-разбойник живёт и без игрока рядом — исчезают только звери
+				stale = append(stale, fe.ID)
+			}
 			return
 		}
 		if f.State == "dead" {
@@ -1060,7 +1078,7 @@ func FoeWorldPosView(w *core.World, t *Terrain, f *FoeC) any {
 
 func foeEntryBase(fe *core.Entity, f *FoeC, x, y float64) map[string]any {
 	return map[string]any{
-		"id": eidStr(fe.ID), "kind": f.Species, "name": FoeName(f.Species),
+		"id": eidStr(fe.ID), "kind": f.Species, "name": foeDisplayName(f),
 		"x": round1x(x), "y": round1x(y), "facing": math.Round(f.Facing),
 		"hp": math.Round(math.Max(0, f.HP)), "max": f.Max, "state": f.State, "aware": f.Aware,
 		"slow": f.Slow, "weak": f.Weak, "blind": f.Blind > 0, "stun": f.Stun > 0,
