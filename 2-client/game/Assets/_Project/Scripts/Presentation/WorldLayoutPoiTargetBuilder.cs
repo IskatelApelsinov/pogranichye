@@ -1,3 +1,4 @@
+using Pogranichye.Client.Networking;
 using Pogranichye.Client.Networking.Protocol;
 using UnityEngine;
 
@@ -25,6 +26,7 @@ namespace Pogranichye.Client.Presentation
                     if (descriptor == null || string.IsNullOrWhiteSpace(descriptor.Id) ||
                         !IsFinite(descriptor.X) || !IsFinite(descriptor.Y) ||
                         string.IsNullOrWhiteSpace(descriptor.TargetId) ||
+                        (descriptor.TargetId == "river" && !HasFishableWater(layout)) ||
                         !WorldLayoutPoiInteractionPolicy.TryResolve(descriptor.TargetId, out var interaction))
                         continue;
 
@@ -55,7 +57,8 @@ namespace Pogranichye.Client.Presentation
             for (var i = 0; i < ids.Length; i++)
             {
                 var id = ids[i];
-                if (!layout.Pois.TryGetValue(id, out var point) || point == null ||
+                if ((id == "river" && !HasFishableWater(layout)) ||
+                    !layout.Pois.TryGetValue(id, out var point) || point == null ||
                     !IsFinite(point.X) || !IsFinite(point.Y) || layout.IsBlocked(point.X, point.Y))
                     continue;
 
@@ -77,6 +80,16 @@ namespace Pogranichye.Client.Presentation
                 poi.Initialize(interaction.Title, interaction.Goal, null, Color.clear, interaction.ActionIntent,
                     null, null, true, null, "poi", interaction.Id);
             }
+        }
+
+        private static bool HasFishableWater(WorldLayoutFrame layout)
+        {
+            if (layout == null) return false;
+            var hasPondZone = false;
+            if (layout.Zones != null)
+                foreach (var zone in layout.Zones)
+                    if (zone != null && zone.Kind == "pond") { hasPondZone = true; break; }
+            return WorldLandFrameParser.HasFishableWater(layout.Land, layout.RiverPresent, hasPondZone);
         }
 
         private static string ResolveWoodsZoneKind(WorldLayoutFrame layout)

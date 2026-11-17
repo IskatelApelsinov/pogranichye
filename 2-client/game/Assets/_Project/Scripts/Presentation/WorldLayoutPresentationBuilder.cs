@@ -98,14 +98,14 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    if (b.Door != null && (b.Kind == "tavern" || b.Kind == "inn"))
-                        BuildTavernWallColliders(world, b, width, depth);
+                    var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                        b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
+                    if (b.Door != null)
+                        BuildTavernWallColliders(world, b, width, depth, obstructionHeight);
                     else
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
                         collision.transform.SetParent(world, false);
-                        var obstructionHeight = b.HeightMeters > 0d ? Mathf.Clamp((float)b.HeightMeters, 3.8f, 22f) :
-                            (b.Storeys > 1 ? Mathf.Clamp(b.Storeys * 3.2f, 3.8f, 22f) : 4.7f);
                         collision.transform.localPosition = new Vector3(
                             (float)((b.X0 + b.X1) * 0.5), obstructionHeight * 0.5f, (float)((b.Y0 + b.Y1) * 0.5));
                         collision.layer = 2;
@@ -242,6 +242,7 @@ namespace Pogranichye.Client.Presentation
                     var random = new System.Random(417 + index * 7919 + (int)(x0 * 13f) + (int)(z0 * 31f));
                     var area = (x1 - x0) * (z1 - z0);
                     var isCopse = zone.Kind == "copse";
+                    var isDeadwoodEdge = isCopse && layout.Land != null && layout.Land.Forest == "none";
                     var edgeFade = isCopse
                         ? Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.16f, 3f, 7f)
                         : Mathf.Clamp(Mathf.Min(x1 - x0, z1 - z0) * 0.24f, 7f, 18f);
@@ -255,9 +256,11 @@ namespace Pogranichye.Client.Presentation
 
                     // Full forest gets a continuous canopy; a copse stays open and is not
                     // visually misrepresented as the server's harvestable timber woodland.
-                    var treeTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 85f), 5, 36)
-                        : Mathf.Clamp((int)(area / 18f), 24, 1800);
+                    var treeTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 200f), 1, 6)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 85f), 5, 36)
+                            : Mathf.Clamp((int)(area / 18f), 24, 1800);
                     var treeAdded = 0;
                     for (var attempt = 0; attempt < treeTarget * 12 && treeAdded < treeTarget; attempt++)
                     {
@@ -286,9 +289,11 @@ namespace Pogranichye.Client.Presentation
                     }
 
                     // Full forests get dense undergrowth; copses remain open enough to read as small groves.
-                    var bushTarget = isCopse
-                        ? Mathf.Clamp((int)(area / 22f), 8, 60)
-                        : Mathf.Clamp((int)(area / 7f), 36, 2600);
+                    var bushTarget = isDeadwoodEdge
+                        ? Mathf.Clamp((int)(area / 60f), 2, 12)
+                        : isCopse
+                            ? Mathf.Clamp((int)(area / 22f), 8, 60)
+                            : Mathf.Clamp((int)(area / 7f), 36, 2600);
                     var bushAdded = 0;
                     for (var attempt = 0; attempt < bushTarget * 10 && bushAdded < bushTarget; attempt++)
                     {
@@ -333,7 +338,7 @@ namespace Pogranichye.Client.Presentation
 
         /// <summary>
         /// Adds deterministic meadow and field undergrowth to real generated settlements.
-        /// Geometry is batched into two meshes per layout and never creates colliders or per-plant GameObjects.
+        /// Geometry is batched into shared grass, flower, furrow and pond-bank meshes; no per-plant GameObjects or colliders are created.
         /// </summary>
         private static void BuildGeneratedGroundCover(Transform world, WorldLayoutFrame layout)
         {
@@ -343,11 +348,15 @@ namespace Pogranichye.Client.Presentation
             var grassTriangles = new System.Collections.Generic.List<int>(36000);
             var flowerVertices = new System.Collections.Generic.List<Vector3>(6000);
             var flowerTriangles = new System.Collections.Generic.List<int>(9000);
+            var furrowVertices = new System.Collections.Generic.List<Vector3>(2400);
+            var furrowTriangles = new System.Collections.Generic.List<int>(3600);
+            var pondBankVertices = new System.Collections.Generic.List<Vector3>(1200);
+            var pondBankTriangles = new System.Collections.Generic.List<int>(1800);
 
             for (var zoneIndex = 0; zoneIndex < layout.Zones.Count; zoneIndex++)
             {
                 var zone = layout.Zones[zoneIndex];
-                if (zone == null || (zone.Kind != "meadow" && zone.Kind != "field")) continue;
+                if (zone == null || (zone.Kind != "meadow" && zone.Kind != "field" && zone.Kind != "pond")) continue;
 
                 var x0 = Mathf.Max((float)zone.X0, (float)-layout.WorldHalf);
                 var x1 = Mathf.Min((float)zone.X1, (float)layout.WorldHalf);
@@ -359,6 +368,30 @@ namespace Pogranichye.Client.Presentation
                 // keeps its dressing across reconnects, while other settlements differ.
                 var random = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex));
                 var area = (x1 - x0) * (z1 - z0);
+
+                if (zone.Kind == "field")
+                {
+                    if (layout.Land != null)
+                        AddFieldFurrows(furrowVertices, furrowTriangles, x0, z0, x1, z1, layout.Land.Fields);
+                    // No crop entities or growth stages are invented; keep the server field patch readable.
+                    continue;
+                }
+                if (zone.Kind == "pond")
+                {
+                    AddPondBanks(pondBankVertices, pondBankTriangles, x0, z0, x1, z1);
+                    var reedRandom = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex) ^ 0x51A7);
+                    for (var reed = 0; reed < 10; reed++)
+                    {
+                        var edge = reed % 4;
+                        var t = (float)reedRandom.NextDouble();
+                        var x = edge < 2 ? x0 + t * (x1 - x0) : (edge == 2 ? x0 + 0.55f : x1 - 0.55f);
+                        var z = edge < 2 ? (edge == 0 ? z0 + 0.55f : z1 - 0.55f) : z0 + t * (z1 - z0);
+                        AddGrassBlade(grassVertices, grassTriangles,
+                            new Vector3(x, 0.09f, z), 0.55f + (float)reedRandom.NextDouble() * 0.4f,
+                            0.045f, (float)reedRandom.NextDouble() * Mathf.PI);
+                    }
+                    continue;
+                }
                 var target = Mathf.Clamp(Mathf.RoundToInt(area / 3.2f), 24, 1400);
                 var added = 0;
                 for (var attempt = 0; attempt < target * 5 && added < target; attempt++)
@@ -389,6 +422,68 @@ namespace Pogranichye.Client.Presentation
                 grassVertices, grassTriangles, _grass, false);
             CreateCombinedMesh(world, "Generated meadows • scattered wildflowers",
                 flowerVertices, flowerTriangles, _flowers, false);
+            CreateCombinedMesh(world, "Cultivated field furrows • server land style",
+                furrowVertices, furrowTriangles, _trunk, false);
+            CreateCombinedMesh(world, "Pond banks • server water zones",
+                pondBankVertices, pondBankTriangles, _stone, false);
+
+            // Reeds around actual pond zones are merged into one decoration mesh.
+            // The loop above is intentionally reused so pond reeds stay deterministic with the zone seed.
+        }
+
+        private static void AddFieldFurrows(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1, string fieldStyle)
+        {
+            if (fieldStyle != "strip" && fieldStyle != "yards") return;
+            var width = x1 - x0;
+            var depth = z1 - z0;
+            var alongX = width >= depth;
+            var shortSpan = Mathf.Min(width, depth);
+            var longSpan = Mathf.Max(width, depth);
+            var rowCount = fieldStyle == "yards"
+                ? Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.45f), 2, 5)
+                : Mathf.Clamp(Mathf.RoundToInt(shortSpan / 1.7f), 5, 16);
+            var rowWidth = Mathf.Clamp(shortSpan / (rowCount * 1.8f), 0.12f, 0.34f);
+            for (var row = 0; row < rowCount; row++)
+            {
+                var offset = -shortSpan * 0.5f + (row + 0.5f) * shortSpan / rowCount;
+                if (alongX)
+                    AddFlatRect(vertices, triangles, x0 + longSpan * 0.04f, z0 + depth * 0.5f + offset - rowWidth * 0.5f,
+                        x1 - longSpan * 0.04f, z0 + depth * 0.5f + offset + rowWidth * 0.5f, 0.086f);
+                else
+                    AddFlatRect(vertices, triangles, x0 + width * 0.5f + offset - rowWidth * 0.5f, z0 + longSpan * 0.04f,
+                        x0 + width * 0.5f + offset + rowWidth * 0.5f, z1 - longSpan * 0.04f, 0.086f);
+            }
+        }
+
+        private static void AddPondBanks(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1)
+        {
+            const float bank = 0.48f;
+            if (x1 - x0 < bank * 2f || z1 - z0 < bank * 2f) return;
+            AddFlatRect(vertices, triangles, x0, z0, x1, z0 + bank, 0.082f);
+            AddFlatRect(vertices, triangles, x0, z1 - bank, x1, z1, 0.082f);
+            AddFlatRect(vertices, triangles, x0, z0 + bank, x0 + bank, z1 - bank, 0.082f);
+            AddFlatRect(vertices, triangles, x1 - bank, z0 + bank, x1, z1 - bank, 0.082f);
+        }
+
+        private static void AddFlatRect(
+            System.Collections.Generic.List<Vector3> vertices,
+            System.Collections.Generic.List<int> triangles,
+            float x0, float z0, float x1, float z1, float y)
+        {
+            if (x1 <= x0 || z1 <= z0) return;
+            var first = vertices.Count;
+            vertices.Add(new Vector3(x0, y, z0));
+            vertices.Add(new Vector3(x1, y, z0));
+            vertices.Add(new Vector3(x1, y, z1));
+            vertices.Add(new Vector3(x0, y, z1));
+            triangles.Add(first); triangles.Add(first + 2); triangles.Add(first + 1);
+            triangles.Add(first); triangles.Add(first + 3); triangles.Add(first + 2);
         }
 
         private static int StableDecorationSeed(string settlement, int zoneIndex)
@@ -1455,7 +1550,7 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth)
+        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
         {
             // Door position on the actual server wall determines the opening side.
             var centerX = (float)((building.X0 + building.X1) * 0.5f);
@@ -1467,33 +1562,53 @@ namespace Pogranichye.Client.Presentation
             var opening = Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f);
             offset = Mathf.Clamp(offset, -axisLength * 0.5f + opening * 0.5f, axisLength * 0.5f - opening * 0.5f);
 
-            if (side != 0) AddWallCollider(parent, "Tavern south wall", new Vector3(centerX, 2.35f, centerZ - depth * 0.5f + 0.12f), new Vector3(width, 4.7f, 0.24f));
-            if (side != 1) AddWallCollider(parent, "Tavern north wall", new Vector3(centerX, 2.35f, centerZ + depth * 0.5f - 0.12f), new Vector3(width, 4.7f, 0.24f));
-            if (side != 2) AddWallCollider(parent, "Tavern west wall", new Vector3(centerX - width * 0.5f + 0.12f, 2.35f, centerZ), new Vector3(0.24f, 4.7f, depth));
-            if (side != 3) AddWallCollider(parent, "Tavern east wall", new Vector3(centerX + width * 0.5f - 0.12f, 2.35f, centerZ), new Vector3(0.24f, 4.7f, depth));
+            var centerY = wallHeight * 0.5f;
+            if (side != 0) AddWallCollider(parent, "Server south wall", new Vector3(centerX, centerY, centerZ - depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 1) AddWallCollider(parent, "Server north wall", new Vector3(centerX, centerY, centerZ + depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 2) AddWallCollider(parent, "Server west wall", new Vector3(centerX - width * 0.5f + 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
+            if (side != 3) AddWallCollider(parent, "Server east wall", new Vector3(centerX + width * 0.5f - 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
-            AddTavernDoorColliderSegment(parent, "Tavern door wall left", side, centerX, centerZ, width, depth, left,
+            AddTavernDoorColliderSegment(parent, "Server door wall left", side, centerX, centerZ, width, depth, wallHeight, left,
                 -axisLength * 0.5f + left * 0.5f);
-            AddTavernDoorColliderSegment(parent, "Tavern door wall right", side, centerX, centerZ, width, depth, right,
+            AddTavernDoorColliderSegment(parent, "Server door wall right", side, centerX, centerZ, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f);
+
+            // Keep the wall above the actual door opening solid, including on multi-storey facades.
+            var doorHeight = Mathf.Min(2.4f, wallHeight);
+            var lintelHeight = wallHeight - doorHeight;
+            if (lintelHeight > 0.05f)
+            {
+                var lintelY = doorHeight + lintelHeight * 0.5f;
+                var lintelPosition = side == 0
+                    ? new Vector3(centerX + offset, lintelY, centerZ - depth * 0.5f + 0.12f)
+                    : side == 1
+                        ? new Vector3(centerX + offset, lintelY, centerZ + depth * 0.5f - 0.12f)
+                        : side == 2
+                            ? new Vector3(centerX - width * 0.5f + 0.12f, lintelY, centerZ + offset)
+                            : new Vector3(centerX + width * 0.5f - 0.12f, lintelY, centerZ + offset);
+                var lintelSize = horizontal
+                    ? new Vector3(opening, lintelHeight, 0.24f)
+                    : new Vector3(0.24f, lintelHeight, opening);
+                AddWallCollider(parent, "Server door lintel", lintelPosition, lintelSize);
+            }
         }
 
         private static void AddTavernDoorColliderSegment(Transform parent, string name, int side,
-            float centerX, float centerZ, float width, float depth, float segmentLength, float axisPosition)
+            float centerX, float centerZ, float width, float depth, float wallHeight, float segmentLength, float axisPosition)
         {
             if (segmentLength <= 0.05f) return;
             var position = side == 0
-                ? new Vector3(centerX + axisPosition, 2.35f, centerZ - depth * 0.5f + 0.12f)
+                ? new Vector3(centerX + axisPosition, wallHeight * 0.5f, centerZ - depth * 0.5f + 0.12f)
                 : side == 1
-                    ? new Vector3(centerX + axisPosition, 2.35f, centerZ + depth * 0.5f - 0.12f)
+                    ? new Vector3(centerX + axisPosition, wallHeight * 0.5f, centerZ + depth * 0.5f - 0.12f)
                     : side == 2
-                        ? new Vector3(centerX - width * 0.5f + 0.12f, 2.35f, centerZ + axisPosition)
-                        : new Vector3(centerX + width * 0.5f - 0.12f, 2.35f, centerZ + axisPosition);
+                        ? new Vector3(centerX - width * 0.5f + 0.12f, wallHeight * 0.5f, centerZ + axisPosition)
+                        : new Vector3(centerX + width * 0.5f - 0.12f, wallHeight * 0.5f, centerZ + axisPosition);
             var size = side == 0 || side == 1
-                ? new Vector3(segmentLength, 4.7f, 0.24f)
-                : new Vector3(0.24f, 4.7f, segmentLength);
+                ? new Vector3(segmentLength, wallHeight, 0.24f)
+                : new Vector3(0.24f, wallHeight, segmentLength);
             AddWallCollider(parent, name, position, size);
         }
 
@@ -1623,18 +1738,19 @@ namespace Pogranichye.Client.Presentation
             // and validated individually. Server footprint/collision remain authoritative.
 
             var isMarket = building.Kind == "market";
-            var serverHeight = building.HeightMeters > 0d ? (float)building.HeightMeters :
-                (building.Storeys > 1 ? building.Storeys * 3.2f : 0f);
-            // Preserve the village facade while scaling city blocks from server-owned dimensions.
-            var wallHeight = isMarket ? 2.8f : Mathf.Clamp(serverHeight > 0f ? serverHeight : 3.8f, 3.8f, 22f);
-            var wall = isMarket ? _timber : _plaster;
+            // Preserve legacy village scale while using server-authored dimensions for city blocks.
+            var wallHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                building.HeightMeters, building.Storeys, isMarket);
+            var wall = isMarket || building.Kind == "workshop" ? _timber :
+                building.Kind == "hall" || building.Kind == "guard" ? _stone : _plaster;
             var roof = _roof;
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
 
-            var hasDoor = (building.Kind == "tavern" || building.Kind == "inn") && building.Door != null;
+            var hasDoor = building.Door != null;
+            // Only server-authored doors may open a facade. Closed footprints stay visually closed.
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
-                (isMarket ? width * 0.28f : width * 0.34f);
+                (isMarket ? width * 0.28f : 0f);
             var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
@@ -1680,14 +1796,15 @@ namespace Pogranichye.Client.Presentation
                 Create("South facade right", PrimitiveType.Cube, root,
                     new Vector3(opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
                     new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
-                for (var post = -1; post <= 1; post += 2)
-                    Create("Facade timber post", PrimitiveType.Cube, root,
-                        new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                        new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
+                if (opening > 0.05f)
+                    for (var post = -1; post <= 1; post += 2)
+                        Create("Facade timber post", PrimitiveType.Cube, root,
+                            new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                            new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
             }
 
             // Exposed structural framing breaks up the large flat wall planes.
-            var facadeStoreys = Mathf.Clamp(Mathf.RoundToInt(wallHeight / 3.2f), 1, 7);
+            var facadeStoreys = WorldBuildingPresentationPolicy.ResolveStoreyCount(wallHeight);
             for (var y = 0; y < facadeStoreys; y++)
             {
                 var beamY = Mathf.Min(wallHeight - 0.28f, 0.72f + y * 3.2f);
@@ -1697,22 +1814,7 @@ namespace Pogranichye.Client.Presentation
                     depth * 0.5f - 0.02f, width, beamY, hasDoor && doorSide == 1, doorOffset, opening);
             }
 
-            // A dark recessed door and small framed windows give each footprint a readable facade.
-            var doorWidth = Mathf.Min(1.25f, opening * 0.82f);
-            if (!hasDoor && !isMarket)
-            {
-                Create("Shadowed doorway", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
-                    new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
-                Create("Oak door leaf", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
-                    new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
-            }
-            // The server door is an open passage for now; its jambs and lintel are built on its actual wall.
-            if (!hasDoor && !isMarket)
-                Create("Door iron latch", PrimitiveType.Sphere, root,
-                    new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
-                    new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
+            // Server-authored doors are rendered at their actual side/offset; no synthetic entrance is created.
 
             if (!isMarket)
             {
@@ -1722,15 +1824,25 @@ namespace Pogranichye.Client.Presentation
                 {
                     var windowX = side * width * 0.31f;
                     var windowY = Mathf.Min(wallHeight - 0.65f, 1.95f + floor * 3.2f);
-                    Create("Window dark recess • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
-                        new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
-                    Create("Window shutter • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
-                        new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
-                    Create("Window crossbar • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
-                        new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
+                    if (building.Storeys > 1 || building.HeightMeters > 5d)
+                    {
+                        // Dense grid cities use one shutter mesh per opening to keep facade GameObjects bounded.
+                        Create("City storey window • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.045f),
+                            new Vector3(0.82f, 0.88f, 0.08f), _roof, false);
+                    }
+                    else
+                    {
+                        Create("Window dark recess • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
+                            new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
+                        Create("Window shutter • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
+                            new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
+                        Create("Window crossbar • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
+                            new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
+                    }
                 }
             }
 
@@ -1800,7 +1912,7 @@ namespace Pogranichye.Client.Presentation
             if (building.Kind == "tavern" && building.Door != null)
                 BuildTavernInterior(root, width, depth, wallHeight);
 
-            if (building.Kind == "tavern" || building.Kind == "smithy")
+            if (building.Kind == "tavern" || building.Kind == "smithy" || building.Kind == "workshop")
             {
                 Create("Stone chimney stack", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.28f, wallHeight + 0.92f, depth * 0.18f),
@@ -1820,6 +1932,10 @@ namespace Pogranichye.Client.Presentation
                 case "smithy": return "КУЗНИЦА";
                 case "granary": return "АМБАР";
                 case "market": return "ЛАВКА";
+                case "hall": return "РАТУША";
+                case "workshop": return "МАСТЕРСКАЯ";
+                case "guard": return "СТРАЖА";
+                case "inn": return "ПОСТОЯЛЫЙ ДВОР";
                 default: return "ЗДАНИЕ";
             }
         }
@@ -1914,6 +2030,46 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(0.10f, 0.10f, 0.82f);
                 Create("Tavern hanging sign bracket", PrimitiveType.Cube, root,
                     signPosition, signSize, _iron, false);
+            }
+            else if (kind == "hall" && doorWidth > 0.05f)
+            {
+                // Civic portico follows the server door side and offset rather than assuming a south-facing entrance.
+                var horizontal = doorSide == 0 || doorSide == 1;
+                var axisLimit = horizontal ? width : depth;
+                var postOffset = Mathf.Min(doorWidth * 0.5f + 0.52f, axisLimit * 0.5f - 0.32f);
+                var axisCenter = doorOffset;
+                for (var post = -1; post <= 1; post += 2)
+                {
+                    var position = doorSide == 0
+                        ? new Vector3(axisCenter + post * postOffset, 1.65f, -depth * 0.5f - 0.16f)
+                        : doorSide == 1
+                            ? new Vector3(axisCenter + post * postOffset, 1.65f, depth * 0.5f + 0.16f)
+                            : doorSide == 2
+                                ? new Vector3(-width * 0.5f - 0.16f, 1.65f, axisCenter + post * postOffset)
+                                : new Vector3(width * 0.5f + 0.16f, 1.65f, axisCenter + post * postOffset);
+                    Create("Town hall portico column", PrimitiveType.Cube, root,
+                        position, new Vector3(0.34f, 3.3f, 0.34f), _stone, false);
+                }
+                var lintelPosition = doorSide == 0
+                    ? new Vector3(axisCenter, 3.28f, -depth * 0.5f - 0.16f)
+                    : doorSide == 1
+                        ? new Vector3(axisCenter, 3.28f, depth * 0.5f + 0.16f)
+                        : doorSide == 2
+                            ? new Vector3(-width * 0.5f - 0.16f, 3.28f, axisCenter)
+                            : new Vector3(width * 0.5f + 0.16f, 3.28f, axisCenter);
+                Create("Town hall portico lintel", PrimitiveType.Cube, root,
+                    lintelPosition, horizontal ? new Vector3(doorWidth + 1.1f, 0.30f, 0.42f) :
+                        new Vector3(0.42f, 0.30f, doorWidth + 1.1f), _trunk, false);
+            }
+            else if (kind == "guard")
+            {
+                // Low stone corner piers make the guardhouse distinct without inventing a tower.
+                for (var x = -1; x <= 1; x += 2)
+                for (var z = -1; z <= 1; z += 2)
+                    Create("Guardhouse corner pier", PrimitiveType.Cube, root,
+                        new Vector3(x * (width * 0.5f - 0.38f), wallHeight + 0.18f,
+                            z * (depth * 0.5f - 0.38f)),
+                        new Vector3(0.52f, 0.42f, 0.52f), _stone, false);
             }
         }
 

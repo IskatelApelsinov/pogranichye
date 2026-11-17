@@ -64,6 +64,12 @@ internal static class HorseStatsFrameParserCheck
             HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\"active\":true", "\"active\":1")), "me.horses[0]"));
         ExpectFormat("non-string horse settlement rejected", () =>
             HorseFrameParser.Validate(JToken.Parse(herdHorseJson.Replace("\"settlement_name\":\"Великоград\"", "\"settlement_name\":7")), "me.horses[0]"));
+        HorseFrameParser.ValidateArray(JArray.Parse("[" + herdHorseJson + "]"), "me.horses");
+        HorseFrameParser.ValidateArray(JValue.CreateNull(), "me.horses");
+        ExpectFormat("non-array horse roster rejected", () =>
+            HorseFrameParser.ValidateArray(JObject.Parse(herdHorseJson), "me.horses"));
+        ExpectFormat("null horse roster entry rejected", () =>
+            HorseFrameParser.ValidateArray(JArray.Parse("[null]"), "me.horses"));
 
         ExpectFormat("missing stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\"will\":10", "")), "me.stats"));

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Pogranichye.Client;
 using Pogranichye.Client.Networking;
@@ -421,15 +422,19 @@ namespace Pogranichye.Client.Editor
 
         private static void ValidateClaudeV131V133Dtos()
         {
-            const string frameJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"horses\":[{\"id\":\"h1\",\"name\":\"Гнедой\",\"stam\":85,\"mounted\":false,\"active\":true,\"here\":true,\"bag\":{},\"bag_load\":0,\"bag_cap\":40,\"settlement_id\":\"7\",\"settlement_name\":\"Великоград\",\"realm_name\":\"Великоградское княжество\"}]},\"place\":{\"id\":\"7\",\"lair\":{\"since_day\":12,\"bandits\":3,\"names\":[\"Ратибор\",\"Мирон\"]}}}";
+            const string frameJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"mode\":{\"selected\":\"work\",\"goal\":\"work\",\"act\":\"carpentry\",\"act_code\":\"carpentry\",\"deviates\":false,\"options\":[{\"id\":\"work\",\"name\":\"Трудиться\"}]},\"vigor\":{\"energy\":72,\"per_hour\":-2.2,\"stamina\":{\"now\":0.65,\"regen_per_s\":0.02,\"drain_per_s\":0.05}},\"horses\":[{\"id\":\"h1\",\"name\":\"Гнедой\",\"stam\":85,\"mounted\":false,\"active\":true,\"here\":true,\"bag\":{},\"bag_load\":0,\"bag_cap\":40,\"settlement_id\":\"7\",\"settlement_name\":\"Великоград\",\"realm_name\":\"Великоградское княжество\"}]},\"place\":{\"id\":\"7\",\"lair\":{\"since_day\":12,\"bandits\":3,\"names\":[\"Ратибор\",\"Мирон\"]}}}";
             var frame = WorldFrameParser.Parse(frameJson);
             if (frame.Me.Horses == null || frame.Me.Horses.Count != 1 ||
                 frame.Me.Horses[0].SettlementName != "Великоград" ||
                 frame.Me.Horses[0].RealmName != "Великоградское княжество" ||
                 !frame.Me.Horses[0].Active || frame.Place.Lair == null ||
                 frame.Place.Lair.Bandits != 3 || frame.Place.Lair.Names == null ||
-                frame.Place.Lair.Names.Count != 2)
-                throw new FormatException("v1.31 bandit lair and v1.32 horse herd DTO mapping failed.");
+                frame.Place.Lair.Names.Count != 2 ||
+                frame.Me.Mode == null || frame.Me.Mode.Selected != "work" ||
+                frame.Me.Mode.Options == null || frame.Me.Mode.Options.Count != 1 ||
+                frame.Me.Vigor == null || frame.Me.Vigor.Stamina == null ||
+                Math.Abs(frame.Me.Vigor.Stamina.DrainPerSecond - 0.05d) > 0.0001d)
+                throw new FormatException("v1.29 life mode/vigor, v1.31 bandit lair and v1.32 horse herd DTO mapping failed.");
 
             const string layoutJson = "{\"version\":2,\"plan\":\"grid\",\"land\":{\"water\":\"well\",\"fields\":\"none\",\"forest\":\"none\"},\"buildings\":[{\"kind\":\"house\",\"x0\":-4,\"y0\":-4,\"x1\":4,\"y1\":4,\"storeys\":4,\"height_m\":12.8}],\"zones\":[]}";
             var layout = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldLayoutFrame>(layoutJson);
@@ -438,6 +443,11 @@ namespace Pogranichye.Client.Editor
                 layout.Buildings == null || layout.Buildings.Count != 1 ||
                 layout.Buildings[0].Storeys != 4 || Math.Abs(layout.Buildings[0].HeightMeters - 12.8d) > 0.001d)
                 throw new FormatException("v1.33 grid plan, land profile and multi-storey building DTO mapping failed.");
+            Pogranichye.Client.Networking.WorldLandFrameParser.Validate(layout.Land);
+            var cityPoiIds = new HashSet<string>(StringComparer.Ordinal)
+            { "tavern", "well", "hall", "bazaar", "weaver", "tannery", "bakery", "carpenter", "potter", "guard", "caravanserai", "inn" };
+            if (!Pogranichye.Client.Networking.WorldLayoutCompatibilityPolicy.HasRequiredPois("grid", cityPoiIds))
+                throw new FormatException("v1.33 grid city POI compatibility policy rejected the city layout.");
 
             const string worldJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":0,\"n\":0,\"u\":0,\"bandit_lair\":true}]}";
             var world = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldManifestFrame>(worldJson);

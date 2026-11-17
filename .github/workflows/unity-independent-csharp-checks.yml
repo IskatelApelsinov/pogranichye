@@ -20,6 +20,10 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldLandFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldLandFrameParser.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/WorldLayoutCompatibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs'
@@ -51,6 +55,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
       - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
       - '2-client/art-source/textures/**'
@@ -105,6 +110,10 @@ on:
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
+      - '2-client/game/Tests/CharacterLifeFrameParserCheck.cs'
+      - '2-client/game/Tests/WorldLandFrameParserCheck.cs'
+      - '2-client/game/Tests/WorldLayoutCompatibilityPolicyCheck.cs'
+      - '2-client/game/Tests/WorldBuildingPresentationPolicyCheck.cs'
       - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
       - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
@@ -397,6 +406,31 @@ jobs:
         run: |
           mcs -out:/tmp/terrain-resource-visual.exe Tests/TerrainResourceVisualPolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs
           mono /tmp/terrain-resource-visual.exe
+
+      - name: Typed life mode and vigor frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs
+          mono /tmp/character-life-frame.exe
+      - name: Typed v1.33 land style regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/world-land-frame.exe Tests/WorldLandFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldLandFrame.cs Assets/_Project/Scripts/Networking/WorldLandFrameParser.cs
+          mono /tmp/world-land-frame.exe
+      - name: v1.33 city and rural layout compatibility regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-layout-compatibility.exe Tests/WorldLayoutCompatibilityPolicyCheck.cs Assets/_Project/Scripts/Networking/WorldLayoutCompatibilityPolicy.cs
+          mono /tmp/world-layout-compatibility.exe
+      - name: Multi-storey building facade height regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-building-presentation.exe Tests/WorldBuildingPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs
+          mono /tmp/world-building-presentation.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game

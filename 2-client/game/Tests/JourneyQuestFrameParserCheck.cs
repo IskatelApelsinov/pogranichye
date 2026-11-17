@@ -34,17 +34,20 @@ internal static class JourneyQuestFrameParserCheck
         ExpectFormat("non-string journey option rejected",
             () => JourneyFrameParser.Validate(JToken.Parse(journeyJson.Replace("\"pay\"", "2")), "me.journey"));
 
-        const string questsJson = "{\"offers\":[{\"id\":\"food:1:2\",\"kind\":\"deliver\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"good\":\"fish\",\"qty\":4,\"text\":\"Принеси рыбу.\",\"coins\":6}],\"active\":[{\"id\":\"cull:wolf:1:2\",\"kind\":\"cull\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"species\":\"wolf\",\"qty\":2,\"text\":\"Убей двух волков.\",\"coins\":8,\"have\":1,\"ready\":false,\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"}],\"done\":3,\"rep\":-2}";
+        const string questsJson = "{\"offers\":[{\"id\":\"food:1:2\",\"kind\":\"deliver\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"good\":\"fish\",\"qty\":4,\"text\":\"Принеси рыбу.\",\"coins\":6,\"settlement_id\":\"2\",\"settlement_name\":\"Лесное\",\"realm_name\":\"Святоборская земля\"}],\"active\":[{\"id\":\"cull:wolf:1:2\",\"kind\":\"cull\",\"via\":\"board\",\"giver\":\"10\",\"giver_name\":\"староста\",\"species\":\"wolf\",\"qty\":2,\"text\":\"Убей двух волков.\",\"coins\":8,\"have\":1,\"ready\":false,\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"}],\"done\":3,\"rep\":-2}";
         var quests = QuestsFrameParser.Parse(JToken.Parse(questsJson), "me.quests");
         Check("maps offers and active quest views", quests != null && quests.Offers.Count == 1 &&
             quests.Active.Count == 1 && quests.Done == 3 && quests.Reputation == -2 &&
-            quests.Offers[0].Good == "fish" && quests.Active[0].Have == 1 &&
+            quests.Offers[0].Good == "fish" && quests.Offers[0].SettlementName == "Лесное" &&
+            quests.Offers[0].RealmName == "Святоборская земля" && quests.Active[0].Have == 1 &&
             quests.Active[0].Ready == false && quests.Active[0].SettlementName == "Сосновка");
         Check("null quests remains null", QuestsFrameParser.Parse(JValue.CreateNull(), "me.quests") == null);
         ExpectFormat("fractional quest quantity rejected",
             () => QuestsFrameParser.Validate(JToken.Parse(questsJson.Replace("\"qty\":4", "\"qty\":1.5")), "me.quests"));
         ExpectFormat("negative quest reward rejected",
             () => QuestsFrameParser.Validate(JToken.Parse(questsJson.Replace("\"coins\":6", "\"coins\":-1")), "me.quests"));
+        ExpectFormat("non-string offered quest settlement metadata rejected",
+            () => QuestsFrameParser.Validate(JToken.Parse(questsJson.Replace("\"settlement_name\":\"Лесное\"", "\"settlement_name\":7")), "me.quests"));
         ExpectFormat("active quest without settlement snapshot rejected",
             () => QuestsFrameParser.Validate(JToken.Parse(questsJson.Replace(",\"settlement_id\":\"1\",\"settlement_name\":\"Сосновка\",\"realm_name\":\"\"", "")), "me.quests"));
         ExpectFormat("non-boolean quest ready rejected",

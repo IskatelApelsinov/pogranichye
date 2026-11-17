@@ -48,14 +48,20 @@ namespace Pogranichye.Client.Networking
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
                     layout.Buildings == null || layout.River == null || layout.Pois == null ||
-                    layout.Buildings.Count < 1 || !layout.Pois.ContainsKey("tavern") ||
-                    !layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
-                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river") ||
+                    layout.Buildings.Count < 1 ||
+                    !WorldLayoutCompatibilityPolicy.HasRequiredPois(layout.Plan, layout.Pois.Keys) ||
                     !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||
                     !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
                     !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
                     layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
+
+                var isGridCity = string.Equals(layout.Plan, "grid", StringComparison.Ordinal);
+                if (!WorldLayoutCompatibilityPolicy.IsSupportedPlan(layout.Plan))
+                    throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
+                if (isGridCity && layout.Land == null)
+                    throw new InvalidOperationException("Городская раскладка v1.33 не содержит land metadata.");
+                WorldLandFrameParser.Validate(layout.Land);
 
                 if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
                     !string.Equals(settlementId, layout.Settlement, StringComparison.Ordinal))
@@ -66,19 +72,17 @@ namespace Pogranichye.Client.Networking
                      !IsFinite(layout.Anchor.North) || !IsFinite(layout.Anchor.Up)))
                     throw new InvalidOperationException("Layout v2 содержит некорректный глобальный anchor.");
 
-                if (!string.IsNullOrEmpty(layout.Plan) && layout.Plan != "starter" &&
-                    layout.Plan != "street" && layout.Plan != "cross" &&
-                    layout.Plan != "ring" && layout.Plan != "scatter")
-                    throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
-
                 foreach (var building in layout.Buildings)
                 {
                     if (building == null || !IsFinite(building.X0) || !IsFinite(building.Y0) ||
                         !IsFinite(building.X1) || !IsFinite(building.Y1) ||
                         building.X0 >= building.X1 || building.Y0 >= building.Y1 ||
                         building.X0 < -layout.WorldHalf || building.X1 > layout.WorldHalf ||
-                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf)
-                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint здания.");
+                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf ||
+                        building.Storeys < 0 || building.Storeys > 8 ||
+                        !IsFinite(building.HeightMeters) || building.HeightMeters < 0d || building.HeightMeters > 30d ||
+                        (isGridCity && (building.Storeys < 2 || building.HeightMeters <= 0d)))
+                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint/этажность здания.");
                 }
 
                 if (layout.Zones != null)
