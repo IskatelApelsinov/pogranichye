@@ -277,6 +277,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("id")] public string Id { get; set; }
         /// <summary>v1.19: settlement plan ("starter", "street", "cross", "ring", "scatter").</summary>
         [JsonProperty("plan")] public string Plan { get; set; }
+        // v1.33: server-selected village surroundings style (water/fields/forest).
+        [JsonProperty("land")] public WorldLandFrame Land { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; }
         [JsonProperty("food")] public double Food { get; set; }
