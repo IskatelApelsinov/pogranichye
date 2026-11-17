@@ -49,6 +49,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
+      - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
@@ -300,6 +302,12 @@ jobs:
         run: |
           mcs -out:/tmp/client-ui-scale.exe Tests/ClientUiScalePolicyCheck.cs Assets/_Project/Scripts/Presentation/ClientUiScalePolicy.cs
           mono /tmp/client-ui-scale.exe
+
+      - name: Terrain texture source fallback regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-texture-source.exe Tests/TerrainTextureSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs
+          mono /tmp/terrain-texture-source.exe
 
       - name: World ambient lighting palette regression checks
         working-directory: 2-client/game
