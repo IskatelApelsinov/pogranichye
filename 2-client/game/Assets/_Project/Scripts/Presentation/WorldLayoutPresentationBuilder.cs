@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static Material _plaster;
         private static Material _iron;
         private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
@@ -49,6 +50,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
+            _plaster = MakeTexturedMaterial("Building plaster • aged limewash", new Color(0.73f, 0.66f, 0.53f), 6, 1.5f, 1.5f);
             _iron = MakeTexturedMaterial("Forged iron • dark hoops", new Color(0.19f, 0.20f, 0.20f), 0, 1f, 1f);
             if (_iron.HasProperty("_Metallic")) _iron.SetFloat("_Metallic", 0.72f);
             if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
@@ -74,6 +76,7 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
             ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
             ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f, true);
+            ApplyGeneratedWorldMaps(_plaster, "lime_plaster", 1.5f, 1.5f, true);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -1622,7 +1625,7 @@ namespace Pogranichye.Client.Presentation
 
             var isMarket = building.Kind == "market";
             var wallHeight = isMarket ? 2.8f : 3.8f;
-            var wall = _timber;
+            var wall = isMarket ? _timber : _plaster;
             var roof = _roof;
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
@@ -2147,6 +2150,11 @@ namespace Pogranichye.Client.Presentation
                         if ((x * 7 + y * 3) % 29 < 3) shade += 0.18f;
                         if ((x + y * 11) % 47 < 2) shade -= 0.10f;
                         break;
+                    case 6: // chalky lime plaster with worn flakes and fine hairline variation
+                        if ((x * 13 + y * 29) % 43 < 2) shade -= 0.13f;
+                        if ((x * 7 + y * 17) % 59 == 0) shade += 0.07f;
+                        if ((x * 19 + y * 5) % 97 < 2) shade -= 0.08f;
+                        break;
                 }
                 shade = Mathf.Clamp(shade, 0.45f, 1.08f);
                 texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
@@ -2203,6 +2211,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = null;
             _grass = null;
             _stone = null;
+            _plaster = null;
             _iron = null;
             _flowers = null;
         }
