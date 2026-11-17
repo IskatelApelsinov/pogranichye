@@ -233,6 +233,12 @@ namespace Pogranichye.Client.Presentation
                     Part(root, PrimitiveType.Sphere, "DenMound", new Vector3(0, 0.55f, 0), new Vector3(4.6f, 1.1f, 4f), green);
                     Part(root, PrimitiveType.Cube, "DenMouth", new Vector3(0, 0.45f, -1.72f), new Vector3(1.25f, 0.9f, 0.16f), dark);
                     break;
+                // These larger landmarks already have dedicated global-manifest geometry.
+                // Keep their local activation boundary without placing a duplicate marker.
+                case "cave":
+                case "tower":
+                case "grove":
+                    break;
                 default:
                     Part(root, PrimitiveType.Cylinder, "WildPlaceMarker", new Vector3(0, 0.35f, 0),
                         new Vector3(1.3f, 0.35f, 1.3f), stone);
