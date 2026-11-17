@@ -2419,10 +2419,17 @@ namespace Pogranichye.Client
 
         private bool ShouldShowMapPoi(string poiId)
         {
+            if (poiId == "river")
+            {
+                var water = _layout?.Land?.Water;
+                if (water == "well") return false;
+                if (water == "pond") return true;
+                if (_core == null) return _layout == null || _layout.RiverPresent;
+                return _layout != null && _layout.RiverPresent && _core.SupportsFeature("river");
+            }
             if (_core == null) return true;
             switch (poiId)
             {
-                case "river": return _layout != null && _layout.RiverPresent && _core.SupportsFeature("river");
                 case "mine": return _core.SupportsFeature("mine");
                 case "garden": return true; // a meadow/pasture still exists even when no cultivated field is available
                 case "tavern": return _frame?.Place?.Tavern == true;
@@ -2432,6 +2439,11 @@ namespace Pogranichye.Client
 
         private string MapPoiDisplayName(string poiId)
         {
+            if (poiId == "river")
+            {
+                if (_layout?.Land?.Water == "pond") return "Пруд";
+                if (_layout?.Land?.Water == "well") return "Колодец";
+            }
             if (_core != null && poiId == "woods" && !_core.SupportsFeature("woods"))
                 return "Рощица";
             if (_core != null && poiId == "garden" && !_core.SupportsFeature("garden"))
@@ -2467,8 +2479,10 @@ namespace Pogranichye.Client
             }
         }
 
-        private static string MapPoiGlyph(string poiId)
+        private string MapPoiGlyph(string poiId)
         {
+            if (poiId == "river" && _layout?.Land?.Water == "pond") return "Пд";
+            if (poiId == "river" && _layout?.Land?.Water == "well") return "Кл";
             switch (poiId)
             {
                 case "tavern": return "К";
