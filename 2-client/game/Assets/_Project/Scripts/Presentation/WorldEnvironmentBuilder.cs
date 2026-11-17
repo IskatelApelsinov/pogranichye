@@ -1064,6 +1064,7 @@ namespace Pogranichye.Client.Presentation
         private Material _motes;
         private Material _mist;
         private Light _sun;
+        private const float ServerHourCorrectionDegreesPerSecond = 12f;
         private float _phase;
         private int _serverHour;
         private bool _hasServerHour;
@@ -1114,7 +1115,8 @@ namespace Pogranichye.Client.Presentation
         private void Update()
         {
             if (_hasServerHour)
-                _phase = _serverHour / 24f;
+                _phase = WorldClockSmoothingPolicy.AdvancePhase(
+                    _phase, _serverHour / 24f, Time.deltaTime, ServerHourCorrectionDegreesPerSecond);
             else
                 _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, visualDayLengthSeconds), 1f);
             var daylight = Mathf.Clamp01((Mathf.Sin((_phase - 0.25f) * Mathf.PI * 2f) + 0.12f) * 1.8f);
