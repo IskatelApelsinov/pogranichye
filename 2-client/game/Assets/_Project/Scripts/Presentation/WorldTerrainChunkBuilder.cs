@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Pogranichye.Client.Networking.Protocol;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -84,7 +85,8 @@ namespace Pogranichye.Client.Presentation
             return texture;
         }
 
-        public static void Apply(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
+        public static void Apply(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor,
+            ICollection<TerrainChunkFrame> availableChunks = null)
         {
             if (root == null || chunk == null || !chunk.IsValid || anchor == null) return;
             var objectName = ObjectName(chunk.Id);
@@ -130,7 +132,7 @@ namespace Pogranichye.Client.Presentation
             mesh.vertices = vertices;
             mesh.uv = uvs;
             mesh.triangles = triangles;
-            mesh.RecalculateNormals();
+            mesh.normals = BuildSeamAwareNormals(chunk, availableChunks);
             mesh.RecalculateBounds();
 
             var go = new GameObject(objectName);
@@ -209,6 +211,70 @@ namespace Pogranichye.Client.Presentation
             renderer.receiveShadows = true;
             ApplyBiomeTint(renderer, chunk);
             ApplyTerrainFeatures(go.transform, chunk, anchor);
+        }
+
+        private static Vector3[] BuildSeamAwareNormals(TerrainChunkFrame chunk,
+            ICollection<TerrainChunkFrame> availableChunks)
+        {
+            var side = chunk.Side;
+            var west = FindNeighbor(chunk, availableChunks, -1, 0);
+            var east = FindNeighbor(chunk, availableChunks, 1, 0);
+            var south = FindNeighbor(chunk, availableChunks, 0, -1);
+            var north = FindNeighbor(chunk, availableChunks, 0, 1);
+            var normals = new Vector3[side * side];
+
+            for (var z = 0; z < side; z++)
+            for (var x = 0; x < side; x++)
+            {
+                var leftX = x - 1;
+                var rightX = x + 1;
+                var southZ = z - 1;
+                var northZ = z + 1;
+                var hasLeft = TerrainSeamHeightSampler.TryGetHeight(chunk.Heights,
+                    west?.Heights, east?.Heights, south?.Heights, north?.Heights,
+                    side, leftX, z, out var hLeft);
+                var hasRight = TerrainSeamHeightSampler.TryGetHeight(chunk.Heights,
+                    west?.Heights, east?.Heights, south?.Heights, north?.Heights,
+                    side, rightX, z, out var hRight);
+                var hasSouth = TerrainSeamHeightSampler.TryGetHeight(chunk.Heights,
+                    west?.Heights, east?.Heights, south?.Heights, north?.Heights,
+                    side, x, southZ, out var hSouth);
+                var hasNorth = TerrainSeamHeightSampler.TryGetHeight(chunk.Heights,
+                    west?.Heights, east?.Heights, south?.Heights, north?.Heights,
+                    side, x, northZ, out var hNorth);
+
+                // If a neighbor is not streamed yet, fall back to a one-sided edge
+                // derivative. Once it arrives, this chunk and its cardinal neighbors rebuild.
+                if (!hasLeft) hLeft = chunk.Heights[z * side + x];
+                if (!hasRight) hRight = chunk.Heights[z * side + x];
+                if (!hasSouth) hSouth = chunk.Heights[z * side + x];
+                if (!hasNorth) hNorth = chunk.Heights[z * side + x];
+
+                var dxDistance = Math.Max(0.001d, (hasLeft ? 1 : 0) + (hasRight ? 1 : 0)) * chunk.StepMeters;
+                var dzDistance = Math.Max(0.001d, (hasSouth ? 1 : 0) + (hasNorth ? 1 : 0)) * chunk.StepMeters;
+                var dx = (hRight - hLeft) / dxDistance;
+                var dz = (hNorth - hSouth) / dzDistance;
+                normals[z * side + x] = new Vector3((float)-dx, 1f, (float)-dz).normalized;
+            }
+            return normals;
+        }
+
+        private static TerrainChunkFrame FindNeighbor(TerrainChunkFrame chunk,
+            ICollection<TerrainChunkFrame> availableChunks, int offsetX, int offsetZ)
+        {
+            if (chunk?.Chunk == null || chunk.Chunk.Length != 2 || availableChunks == null) return null;
+            var targetX = chunk.Chunk[0] + offsetX;
+            var targetZ = chunk.Chunk[1] + offsetZ;
+            foreach (var candidate in availableChunks)
+            {
+                if (candidate == null || candidate.Frame != chunk.Frame || candidate.Chunk == null ||
+                    candidate.Chunk.Length != 2 || candidate.StepMeters != chunk.StepMeters ||
+                    candidate.Side != chunk.Side || candidate.Heights == null ||
+                    candidate.Heights.Count != chunk.Heights.Count)
+                    continue;
+                if (candidate.Chunk[0] == targetX && candidate.Chunk[1] == targetZ) return candidate;
+            }
+            return null;
         }
 
         private static void ApplyBiomeTint(MeshRenderer renderer, TerrainChunkFrame chunk)
