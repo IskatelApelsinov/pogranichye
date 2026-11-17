@@ -4697,7 +4697,6 @@ namespace Pogranichye.Client
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var canRun = runRequested && GetPredictedStamina() > 0f;
-            if (moving) _audioDirector?.Footsteps(canRun);
             var movementProfile = _worldManifest != null ? _worldManifest.Movement : null;
             var walkSpeed = movementProfile != null && movementProfile.WalkMetersPerSecond > 0d
                 ? (float)movementProfile.WalkMetersPerSecond : 1.4f;
@@ -4709,6 +4708,10 @@ namespace Pogranichye.Client
             if (moving)
                 speed *= ResolveMovementTerrainMultiplier(player.position,
                     new Vector2(worldMove.x, worldMove.z), movementProfile);
+            if (moving) _audioDirector?.Footsteps(canRun);
+            var motion = player.GetComponent<EntityMotion>();
+            if (motion != null)
+                motion.SetLocomotion(moving ? Mathf.Clamp01(speed / Mathf.Max(0.1f, runSpeed)) : 0f);
 
             if (moving)
             {
@@ -4736,9 +4739,6 @@ namespace Pogranichye.Client
                     player.rotation = Quaternion.RotateTowards(player.rotation, targetRotation, 720f * Time.deltaTime);
                 }
             }
-
-            var motion = player.GetComponent<EntityMotion>();
-            if (motion != null) motion.SetLocomotion(moving ? (canRun ? 1f : 0.58f) : 0f);
 
             ApplyMovementCorrection(player);
             ApplyTerrainGrounding(player);
