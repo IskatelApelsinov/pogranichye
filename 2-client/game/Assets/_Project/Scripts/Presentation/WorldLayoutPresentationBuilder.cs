@@ -356,7 +356,7 @@ namespace Pogranichye.Client.Presentation
             for (var zoneIndex = 0; zoneIndex < layout.Zones.Count; zoneIndex++)
             {
                 var zone = layout.Zones[zoneIndex];
-                if (zone == null || (zone.Kind != "meadow" && zone.Kind != "field")) continue;
+                if (zone == null || (zone.Kind != "meadow" && zone.Kind != "field" && zone.Kind != "pond")) continue;
 
                 var x0 = Mathf.Max((float)zone.X0, (float)-layout.WorldHalf);
                 var x1 = Mathf.Min((float)zone.X1, (float)layout.WorldHalf);
@@ -372,7 +372,21 @@ namespace Pogranichye.Client.Presentation
                 if (zone.Kind == "field" && layout.Land != null)
                     AddFieldFurrows(furrowVertices, furrowTriangles, x0, z0, x1, z1, layout.Land.Fields);
                 if (zone.Kind == "pond")
+                {
                     AddPondBanks(pondBankVertices, pondBankTriangles, x0, z0, x1, z1);
+                    var reedRandom = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex) ^ 0x51A7);
+                    for (var reed = 0; reed < 10; reed++)
+                    {
+                        var edge = reed % 4;
+                        var t = (float)reedRandom.NextDouble();
+                        var x = edge < 2 ? x0 + t * (x1 - x0) : (edge == 2 ? x0 + 0.55f : x1 - 0.55f);
+                        var z = edge < 2 ? (edge == 0 ? z0 + 0.55f : z1 - 0.55f) : z0 + t * (z1 - z0);
+                        AddGrassBlade(grassVertices, grassTriangles,
+                            new Vector3(x, 0.09f, z), 0.55f + (float)reedRandom.NextDouble() * 0.4f,
+                            0.045f, (float)reedRandom.NextDouble() * Mathf.PI);
+                    }
+                    continue;
+                }
                 var target = Mathf.Clamp(Mathf.RoundToInt(area / 3.2f), 24, 1400);
                 var added = 0;
                 for (var attempt = 0; attempt < target * 5 && added < target; attempt++)
