@@ -84,9 +84,6 @@ namespace Pogranichye.Client
             if (InputSystem.settings != null && InputSystem.settings.maxEventBytesPerUpdate < maxInputEventBytes)
                 InputSystem.settings.maxEventBytesPerUpdate = maxInputEventBytes;
 
-            InputSystem.onEvent += OnInputEvent;
-            _inputEventListenerRegistered = true;
-
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
             _move.AddCompositeBinding("2DVector")
@@ -183,6 +180,16 @@ namespace Pogranichye.Client
             if (_inputDiagnosticsEnabled == enabled) return;
             _inputDiagnosticsEnabled = enabled;
             _deviceEventDebugState.Reset();
+            if (enabled && !_inputEventListenerRegistered)
+            {
+                InputSystem.onEvent += OnInputEvent;
+                _inputEventListenerRegistered = true;
+            }
+            else if (!enabled && _inputEventListenerRegistered)
+            {
+                InputSystem.onEvent -= OnInputEvent;
+                _inputEventListenerRegistered = false;
+            }
         }
 
         public string BuildDeviceEventDebug()
