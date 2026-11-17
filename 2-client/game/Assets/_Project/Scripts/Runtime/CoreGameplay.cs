@@ -3133,6 +3133,58 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
         }
 
+        /// <summary>
+        /// Draws only recipes the server says are at this workstation. The can/here flags
+        /// are advisory UI state; Craft still revalidates materials, energy and location.
+        /// </summary>
+        public void DrawCraftingContextActions(string station)
+        {
+            if (!_active || _me == null)
+            {
+                GUILayout.Label("Рецепты появятся после подключения к миру.");
+                return;
+            }
+
+            var recipes = Arr(_me, "recipes");
+            var shown = 0;
+            if (recipes != null)
+            {
+                foreach (var recipe in recipes)
+                {
+                    if (!string.Equals(Str(recipe, "at"), station, StringComparison.Ordinal) ||
+                        !Flag(recipe, "here"))
+                        continue;
+
+                    var id = Str(recipe, "id");
+                    if (string.IsNullOrWhiteSpace(id)) continue;
+                    shown++;
+                    var needs = string.Empty;
+                    var needObject = Obj(recipe, "needs");
+                    if (needObject != null)
+                    {
+                        foreach (var need in needObject.Properties())
+                        {
+                            if (needs.Length > 0) needs += " · ";
+                            needs += Name(need.Name) + " ×" + need.Value;
+                        }
+                    }
+
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && Flag(recipe, "can");
+                    var label = Str(recipe, "name") +
+                        (string.IsNullOrEmpty(needs) ? string.Empty : "\nСырьё: " + needs);
+                    if (GUILayout.Button(label, GUILayout.MinHeight(38f)))
+                        Ask(Str(recipe, "name"), "craft", "item", id);
+                    GUI.enabled = previousEnabled;
+                }
+            }
+
+            if (shown == 0)
+                GUILayout.Label("Сейчас сервер не предлагает рецептов для этой мастерской.");
+            else
+                GUILayout.Label("Серые рецепты требуют сырья. Итоговое решение всегда за сервером.");
+        }
+
         private void DrawMenu()
         {
             var width = Mathf.Min(900f, Screen.width - 40f);
