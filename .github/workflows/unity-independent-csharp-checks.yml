@@ -18,6 +18,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
@@ -99,6 +100,7 @@ on:
       - '2-client/game/Tests/ServerSlopeMovementPolicyCheck.cs'
       - '2-client/game/Tests/WorldPositionProjectionPolicyCheck.cs'
       - '2-client/game/Tests/TavernCounterFrameParserCheck.cs'
+      - '2-client/game/Tests/GatherNodeFrameParserCheck.cs'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
@@ -284,6 +286,13 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
           mono /tmp/tavern-counter-frame.exe
+      - name: Nearby gather-node frame normalization regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/gather-node-frame.exe Tests/GatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs
+          mono /tmp/gather-node-frame.exe
       - name: Generated layout POI interaction allow-list checks
         working-directory: 2-client/game
         run: |
