@@ -19,25 +19,31 @@ func init() {
 }
 
 const (
-	walkSpeed = 1.4 // м/с обычная ходьба — не меняем
-	jogSpeed  = 3.2 // м/с лёгкий бег (Alt)
-	runSpeed  = 6.0 // м/с быстрый бег (Shift)
+	walkSpeed = 1.4  // м/с обычная ходьба — не меняем
+	jogSpeed  = 3.2  // м/с лёгкий бег (Alt)
+	runSpeed  = 6.0  // м/с быстрый бег (Shift)
 	moveMaxDt = 0.25 // ограничение шага интегрирования (с) — защита от рывков/читерских dt
 	stamDrain = 0.10 // трата запала в секунду бега (около 10 с непрерывного бега)
 	stamRegen = 0.10 // восстановление запала в секунду не-бега
+	// stamRunHold — пауза после бега, прежде чем запал начнёт копиться (v1.29)
+	stamRunHold = 0.5
 )
 
 // ScenePosC — положение тела в сцене: координаты (м), взгляд (град), запал бега (0..1) и номер
 // последнего обработанного ввода (для сверки на клиенте).
 type ScenePosC struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 	// Z — высота тела НАД ЗЕМЛЁЙ в этой точке, м (v1.19): 0 — на земле, плюс — этаж башни или
 	// галерея, минус — подвал, подземелье. Высота самой земли берётся из рельефа (worldpos.go).
 	Z      float64 `json:"z,omitempty"`
 	Facing float64 `json:"facing"`
 	Stam   float64 `json:"stam"`
-	Seq    int64   `json:"seq"`
+	// v1.29: Dev — тестовая прибавка шага из режима разработчика (не прогресс, не сохраняется);
+	// RunHold — сколько секунд после бега запал ещё не восстанавливается.
+	Dev     float64 `json:"-"`
+	RunHold float64 `json:"-"`
+	Seq     int64   `json:"seq"`
 	// Stuck — накопленное РЕАЛЬНОЕ время (с), которое житель простоял без прогресса у преграды.
 	// Серверно-внутреннее (json:"-"): кадр/контракт не трогает, используется для measured
 	// stuck-recovery в StepNPCMovement.
@@ -121,11 +127,10 @@ func ApplyMove(l *Layout, p *ScenePosC, mx, my float64, run bool, face float64, 
 			if p.Stam < 0 {
 				p.Stam = 0
 			}
-		} else {
-			p.Stam += stamRegen * dt
-			if p.Stam > 1 {
-				p.Stam = 1
-			}
+			p.RunHold = stamRunHold // восстановление — только в RegenStamina, по серверному времени
+		}
+		if p.Dev > 0 {
+			speed *= p.Dev
 		}
 		// коллизия (v1.3): пробуем шаг, но не сквозь стены/реку/край мира — скользим вдоль преград
 		if l.Blocked(p.X, p.Y) { // тело оказалось в стене (раскладка села сменилась) — выносим наружу
@@ -135,12 +140,6 @@ func ApplyMove(l *Layout, p *ScenePosC, mx, my float64, run bool, face float64, 
 			speed *= p.Terr // склон: в гору медленнее, под пологий уклон чуть быстрее
 		}
 		p.X, p.Y = l.ResolveMove(p.X, p.Y, p.X+mx*speed*dt, p.Y+my*speed*dt)
-	} else {
-		// стоит — запал восстанавливается
-		p.Stam += stamRegen * dt
-		if p.Stam > 1 {
-			p.Stam = 1
-		}
 	}
 	// взгляд в допустимом виде
 	p.Facing = math.Mod(face, 360)

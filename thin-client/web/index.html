@@ -124,6 +124,8 @@
 
  <div class="card hidden" id="sitescard"></div>
  <div class="sub hidden" id="trailline" style="margin:4px 0"></div>
+ <div class="card hidden" id="lifecard"></div>
+ <div class="card hidden" id="devcard"></div>
  <div class="card hidden" id="realmcard"></div>
  <div class="card" id="mapcard">
   <div class="row between"><b class="sub">🗺 Окрестности</b><span class="sub">ты — синяя стрелка · тап по зверю — цель · тап по месту — идти</span></div>
@@ -223,13 +225,13 @@ function sendRaw(o){
 }
 function expectsResult(o){
  if(o.reqid) return true;
- if(['buy','consume','trade','take','craft','use','equip','wear','unwear','site','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say','card_game'].includes(o.op)) return true;
+ if(['buy','consume','trade','take','craft','use','equip','wear','unwear','site','weave','attack','dodge','stance','trick','quest','journey','party','act','talk','say','card_game','goal','dev'].includes(o.op)) return true;
  return o.op==='goto' && !!o.target;
 }
 function actionLabel(o){
  const labels={card_game:'Карточная игра',buy:'Покупка',consume:'Использование',trade:'Торговля',take:'Подбор',craft:'Ремесло',use:'Использование предмета',equip:'Экипировка',wear:'Одежда',unwear:'Одежда',
    site:'Окрестности',weave:'Плетение',attack:'Удар',dodge:'Уворот',stance:'Стойка',trick:'Хитрость',quest:'Просьба',journey:'Путешествие',
-   party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти'};
+   party:'Отряд',act:'Действие',talk:'Разговор',say:'Реплика',goto:'Подойти',goal:'Режим жизни',dev:'Режим разработчика'};
  if(o.op==='act') return ({fish:'Рыбалка',chop:'Рубка',mine:'Добыча руды',gather:'Сбор трав',hunt:'Охота',build:'Стройка',fight:'Стычка',cast:'Разряд',farmwork:'Помощь в поле',forge:'Помощь в кузнице',apiary:'Пасека'})[o.action]||'Действие';
  return labels[o.op]||'Действие';
 }

@@ -74,14 +74,11 @@ func (NeedsSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			return
 		}
 		m := core.Mind(e)
-		resting := night || (m != nil && m.Goal == mind.GoalRest)
+		_ = night
 
 		v.Hunger = clamp(v.Hunger+hungerPerHour*k, 0, 100)
-		if resting {
-			v.Energy = clamp(v.Energy+3.0*k, 0, 100)
-		} else {
-			v.Energy = clamp(v.Energy-energyPerHour*k, 0, 100)
-		}
+		rate, _ := EnergyRate(w, e, hour) // одно правило и для счёта, и для показа (me.vigor)
+		v.Energy = clamp(v.Energy+rate*float64(k), 0, 100)
 
 		// поесть — только если ПРОГОЛОДАЛСЯ (иначе цель-eat держится часами и сытый
 		// проедает лишнее — так деревня съедала годовой запас за пару недель)
@@ -183,7 +180,9 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 			return
 		}
 		pstream := hub.Stream("mind", sid(e.ID))
-		if clock.TotalHours >= m.GoalUntil || m.Goal == "" {
+		if m.Pinned != "" { // режим выбран игроком: держим его, кроме житейских исключений (vigor.go)
+			m.Goal, m.GoalUntil = pinnedGoal(m, v, hour), clock.TotalHours+pinnedForever
+		} else if clock.TotalHours >= m.GoalUntil || m.Goal == "" {
 			ctx := mind.Context{Hour: hour, Season: clock.Season()}
 			if pl := core.Place(e); pl != nil {
 				ctx.FoodDays = foodDays[pl.Settlement]

@@ -277,6 +277,49 @@
       "a": "Починок",
       "b": "Броды",
       "boost": 1.15
+    },
+    "dev": null,
+    "mode": {
+      "selected": "rest",
+      "goal": "rest",
+      "act": "отдыхает",
+      "act_code": "rest",
+      "deviates": false,
+      "options": [
+        {
+          "id": "auto",
+          "name": "Сам решает",
+          "hint": "живёт как житель: работает днём, спит ночью, ест, когда голоден"
+        },
+        {
+          "id": "rest",
+          "name": "Отдых",
+          "hint": "отдыхает и спит — силы восполняются"
+        }
+      ]
+    },
+    "vigor": {
+      "energy": 42,
+      "per_hour": 3,
+      "why": "отдыхает",
+      "tips": [
+        "ночной сон или режим «Отдых»: +3 сил в час"
+      ],
+      "full_in_hours": 20,
+      "stamina": {
+        "now": 0.6,
+        "regen_per_s": 0.1,
+        "drain_per_s": 0.1,
+        "full_in_s": 4
+      }
+    },
+    "movement": {
+      "walk": 1.4,
+      "jog": 3.2,
+      "run": 6,
+      "mult": 1,
+      "dev_mult": 1,
+      "can_run": true
     }
   },
   "place": {

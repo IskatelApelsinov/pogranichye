@@ -62,6 +62,8 @@ type Server struct {
 	hot, warm, cold int
 	lastStepMs      float64
 
+	dev *devState // режим разработчика: право, ход времени, шаг (dev.go)
+
 	stop     chan struct{} // закрывается в Close: останавливает тик-петлю
 	stopOnce sync.Once
 }
@@ -290,23 +292,22 @@ func (s *Server) Step() {
 }
 
 func (s *Server) tickLoop() {
-	t := time.NewTicker(s.tickEach)
 	f := time.NewTicker(fastEach)
-	defer t.Stop()
 	defer f.Stop()
 	stop := s.quit()
 	for {
 		select {
 		case <-stop:
 			return
-		case <-t.C:
-			s.mu.Lock()
-			t0 := time.Now()
-			s.runner.Step(s.world) // игровой час: нужды/цели/экономика
-			s.lastStepMs = float64(time.Since(t0).Microseconds()) / 1000
-			s.mu.Unlock()
 		case <-f.C:
 			s.mu.Lock()
+			// игровые часы: нужды/цели/экономика. Счёт идёт по реальному времени с учётом паузы и
+			// множителя хода времени из режима разработчика (dev.go); без него — ровно раз в tickEach.
+			for n := s.hoursDue(fastEach); n > 0; n-- {
+				t0 := time.Now()
+				s.runner.Step(s.world)
+				s.lastStepMs = float64(time.Since(t0).Microseconds()) / 1000
+			}
 			s.fastStep(fastEach.Seconds())
 			s.mu.Unlock()
 		}
@@ -325,7 +326,8 @@ func (s *Server) fastStep(dt float64) {
 	sim.StepLands(s.world, ctl)        // бесшовный мир: идущий переходит в земли ближайшего села
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
-	sim.RegenMana(s.world, dt) // мана игроков восстанавливается в реальном времени
+	sim.RegenMana(s.world, dt)    // мана игроков восстанавливается в реальном времени
+	sim.RegenStamina(s.world, dt) // v1.29: запал — по серверному времени, а не по приходу ввода
 	sim.SoberUp(s.world, dt)
 	sim.UpdateBurden(s.world, dt)
 }
@@ -458,6 +460,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
+	s.devLocked().uidOf[cid] = uid // чей аккаунт правит телом — для права режима разработчика
 	if e := s.world.Get(cid); e != nil {
 		sim.EnsureScenePos(s.world, e)
 		sim.EnsurePlayer(s.world, e)
@@ -475,6 +478,14 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 	defer s.release(cid, sid)
 	defer s.unregisterChat(cid)
+	defer func() {
+		s.mu.Lock()
+		if d := s.dev; d != nil {
+			delete(d.uidOf, cid)
+			delete(d.walk, cid) // тестовая прибавка шага живёт только в сессии разработчика
+		}
+		s.mu.Unlock()
+	}()
 	chatEvents := s.registerChat(cid)
 	done := make(chan struct{})
 	go func() {
@@ -567,6 +578,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		VoiceCandidate string   `json:"candidate"`
 		VoiceSDPMid    string   `json:"sdp_mid"`
 		VoiceSDPMLine  int      `json:"sdp_mline_index"`
+		Value          float64  `json:"value"` // v1.29: число для op:"dev" (множитель, часы)
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -577,15 +589,21 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 	case "voice":
 		s.signalVoice(cid, in.Action, in.Target, in.VoiceSDP, in.VoiceCandidate, in.VoiceSDPMid, in.VoiceSDPMLine)
 	case "goal":
-		if in.Goal == "" {
-			return
-		}
+		// v1.29: режим жизни персонажа — долгий приоритет, в том числе когда игрок не в сети
+		// ("auto" — решает сам, как житель; work|rest|eat|socialize|wander — держит выбранное).
 		s.mu.Lock()
 		if e := s.world.Get(cid); e != nil {
-			if m := core.Mind(e); m != nil {
-				m.Goal = in.Goal
-				m.GoalUntil = s.runner.Clock.TotalHours + 100000
+			ok, why := sim.SetLifeMode(s.world, e, in.Goal, s.runner.Clock.TotalHours, s.runner.Clock.Hour())
+			if in.ReqID != "" || !ok {
+				sim.SetResult(s.world, e, in.ReqID, ok, why)
 			}
+		}
+		s.mu.Unlock()
+	case "dev":
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			ok, why := s.applyDev(cid, in.Action, in.Value, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
 		s.mu.Unlock()
 	case "move":
@@ -596,6 +614,7 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				if in.MX != 0 || in.MY != 0 {
 					sim.CancelWalk(s.world, e) // ручной шаг отменяет самоход
 				}
+				p.Dev = s.walkMultLocked(cid) // v1.29: тестовая прибавка шага разработчика (1 — нет)
 				// v1.23: склон под ногами (вне ровной площадки села) замедляет шаг, круча не пускает
 				p.Terr = 0
 				if in.MX != 0 || in.MY != 0 {
@@ -1020,22 +1039,26 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"coins":    meCoins(e), "debt": meDebt(e),
 			"wounds": meWounds(e), "bleeding": meBleeding(e),
 			"stash":        meStash(e),
-			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()), // снятая комната над корчмой: null, если нет (v1.20)
-			"wpos":         sim.MeWorldPosView(terrain, s.world, e),        // v1.19: каноническое положение в мире (метры, высота, чанк)
-			"walk":         sim.WalkView(s.world, e),                       // v1.22: самоход к месту {to,left} или null
-			"trail":        sim.TrailView(s.world, e),                      // v1.27: на какой тропке/тракте стоит тело (null — в поле или в селе)
-			"at":           sim.AtPOI(s.world, e),                          // v1.22: у какого места села стоит тело ("" — ни у одного)
-			"pos":          mePos(e),                                       // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
-			"talk":         meTalk(s.world, e),                             // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
-			"invite_from":  meInvite(s.world, e),                           // кто зовёт выпить вместе (co-drink, v1.4)
-			"social_event": meSocial(e),                                    // подтверждённый тост/угощение (монотонный seq) — v1.5
-			"known_places": s.meKnownPlaces(e),                             // что игрок знает о поселениях: visited/known (#26, v1.5)
-			"desire":       sim.Desire(e),                                  // текущее главное желание (v1.7)
-			"inv":          meInv(e),                                       // инвентарь: предметы, рука, одежда (v1.7)
-			"world":        sim.Settlements(s.world),                       // карта поселений для путешествий (v1.7)
-			"result":       meResult(e),                                    // ack последнего действия (reqid/ok/reason) — #40
-			"task":         sim.OpeningTask(s.world, e),                    // вводная задача + выданное поручение (#80)
-			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()),  // личная летопись вех (#54)
+			"room":         sim.RoomView(s.world, e, s.runner.Clock.Day()),   // снятая комната над корчмой: null, если нет (v1.20)
+			"wpos":         sim.MeWorldPosView(terrain, s.world, e),          // v1.19: каноническое положение в мире (метры, высота, чанк)
+			"dev":          s.devView(cid),                                   // v1.29: режим разработчика — только аккаунтам из POG_DEV_ACCOUNTS (иначе null)
+			"mode":         sim.LifeModeView(e),                              // v1.29: режим жизни персонажа (сам решает / работа / отдых …)
+			"vigor":        sim.VigorView(s.world, e, s.runner.Clock.Hour()), // v1.29: силы и запал — как и почему восстанавливаются
+			"movement":     sim.MeMovementView(e),                            // v1.29: действующие скорости шага/бега и можно ли бежать
+			"walk":         sim.WalkView(s.world, e),                         // v1.22: самоход к месту {to,left} или null
+			"trail":        sim.TrailView(s.world, e),                        // v1.27: на какой тропке/тракте стоит тело (null — в поле или в селе)
+			"at":           sim.AtPOI(s.world, e),                            // v1.22: у какого места села стоит тело ("" — ни у одного)
+			"pos":          mePos(e),                                         // ходьба v1.1: каноническая позиция тела в сцене (метры) + взгляд/запал/seq
+			"talk":         meTalk(s.world, e),                               // текущий разговор: собеседник, реплика, варианты ответа (v1.4)
+			"invite_from":  meInvite(s.world, e),                             // кто зовёт выпить вместе (co-drink, v1.4)
+			"social_event": meSocial(e),                                      // подтверждённый тост/угощение (монотонный seq) — v1.5
+			"known_places": s.meKnownPlaces(e),                               // что игрок знает о поселениях: visited/known (#26, v1.5)
+			"desire":       sim.Desire(e),                                    // текущее главное желание (v1.7)
+			"inv":          meInv(e),                                         // инвентарь: предметы, рука, одежда (v1.7)
+			"world":        sim.Settlements(s.world),                         // карта поселений для путешествий (v1.7)
+			"result":       meResult(e),                                      // ack последнего действия (reqid/ok/reason) — #40
+			"task":         sim.OpeningTask(s.world, e),                      // вводная задача + выданное поручение (#80)
+			"journal":      sim.Journal(s.world, e, s.runner.Clock.Day()),    // личная летопись вех (#54)
 			// ядро v1.10
 			"weave":     sim.WeaveView(s.world, e),                                                            // плетения: узлы, ёмкость ума, знакомые схемы
 			"combat":    sim.CombatView(s.world, e),                                                           // стойка/блок/щит/стрелы/убитые

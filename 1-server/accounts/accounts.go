@@ -240,3 +240,23 @@ func (s *Store) Count() int {
 }
 
 var _ = strconv.Itoa // зарезервировано для будущих численных полей
+
+// LoginOf — логин аккаунта по его неизменному числовому id ("" — нет такого).
+func (s *Store) LoginOf(uid uint64) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if u := s.byID[uid]; u != nil {
+		return u.Login
+	}
+	return ""
+}
+
+// IDOf — числовой id аккаунта по логину (0 — нет такого).
+func (s *Store) IDOf(login string) uint64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if u := s.byName[strings.ToLower(strings.TrimSpace(login))]; u != nil {
+		return u.ID
+	}
+	return 0
+}

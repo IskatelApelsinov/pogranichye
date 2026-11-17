@@ -38,7 +38,7 @@ function coreRender(s){
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
   show('craftcard', !road); show('roadcard', road); show('mapcard', !road);
-  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawRealm(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
+  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawLife(s); drawDev(s); drawRealm(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
 }
 
 // ---------- лента событий ----------
@@ -243,6 +243,50 @@ function drawSites(s){
     if(r.note) h += `<div class="sub" style="margin:-2px 0 4px 22px">👣 ${esc(r.note)}</div>`;
   });
   setHTML('sitescard', h);
+}
+
+// ---------- режим жизни, силы и запал (v1.29) ----------
+function setMode(id){ send({op:'goal', goal:id}); }
+function drawLife(s){
+  const me=s.me||{}, md=me.mode, vg=me.vigor;
+  if(!md && !vg){ show('lifecard', false); return; } // старый сервер — молчим
+  show('lifecard', true);
+  let h='<b>🧭 Режим жизни</b> <span class="sub">— что персонаж делает сам, и пока ты не в игре</span><div style="margin-top:6px">';
+  (md&&md.options||[]).forEach(o=>{
+    const on=o.id===md.selected;
+    h+=`<button class="${on?'primary':''}" title="${esc(o.hint)}" onclick="setMode('${esc(o.id)}')" ${on?'disabled':''}>${on?'● ':''}${esc(o.name)}</button> `;
+  });
+  h+='</div>';
+  if(md) h+=`<div class="sub" style="margin-top:4px">Сейчас: ${esc(md.act||md.goal||'—')}${md.deviates?' · отступил от выбора: так нужно телу':''}</div>`;
+  if(vg){
+    const r=Number(vg.per_hour)||0;
+    h+=`<div style="margin-top:6px">💪 Силы <b>${esc(vg.energy)}</b>/100 · ${r>0?'+':''}${esc(r)} в час — ${esc(vg.why||'')}`+
+       (vg.full_in_hours?` · полные через ${esc(vg.full_in_hours)} ч`:'')+(vg.empty_in_hours!=null?` · иссякнут через ${esc(vg.empty_in_hours)} ч`:'')+'</div>';
+    if(vg.warning) h+=`<div class="sub" style="color:#c55">⚠ ${esc(vg.warning)}</div>`;
+    const st=vg.stamina;
+    if(st) h+=`<div class="sub">🫁 Запал ${Math.round((Number(st.now)||0)*100)}%${st.full_in_s?` · полный через ${esc(st.full_in_s)} с`:''} · копится сам, даже если стоишь в меню</div>`;
+    if(Array.isArray(vg.tips)&&vg.tips.length) h+=`<details style="margin-top:4px"><summary class="sub">Как восполнить силы</summary>${vg.tips.map(t=>`<div class="sub">· ${esc(t)}</div>`).join('')}</details>`;
+  }
+  setHTML('lifecard', h);
+}
+
+// ---------- режим разработчика (v1.29): только если сервер сам прислал me.dev ----------
+function devCmd(action, value){ const o={op:'dev', action}; if(value!==undefined) o.value=Number(value); send(o); }
+function drawDev(s){
+  const d=(s.me||{}).dev;
+  if(!d||!d.enabled){ show('devcard', false); return; }
+  show('devcard', true);
+  const sig=JSON.stringify([d.paused,d.time_scale,d.walk_mult]);
+  const el=document.getElementById('devcard');
+  const clock=`День ${esc(d.day)} · ${String(d.hour).padStart(2,'0')}:00 · время ${d.paused?'⏸ стоит':'▶ ×'+esc(d.time_scale)} · игровой час ≈ ${esc(d.real_minutes_per_hour)} мин · шаг ×${esc(d.walk_mult)}`;
+  if(el && el.dataset.sig===sig){ const c=el.querySelector('.devclock'); if(c) c.innerHTML=clock; return; }
+  const b=(t,a,v)=>`<button onclick="devCmd('${a}'${v!==undefined?','+v:''})">${t}</button> `;
+  let h='<b>🛠 Режим разработчика</b><div class="sub devclock" style="margin:4px 0">'+clock+'</div>';
+  h+='<div>Время: '+(d.paused?b('▶ Пустить','resume'):b('⏸ Остановить','pause'))+[0.5,1,2,5,10,20].map(x=>b('×'+x,'time_scale',x)).join('')+'</div>';
+  h+='<div style="margin-top:4px">Вперёд: '+b('+1 ч','step_hours',1)+b('+6 ч','step_hours',6)+b('+1 день','step_hours',24)+' · Час: '+[6,12,18,22].map(x=>b(x+':00','set_hour',x)).join('')+'</div>';
+  h+='<div style="margin-top:4px">Шаг персонажа: '+[0.5,1,2,3,5].map(x=>b('×'+x,'walk_speed',x)).join('')+b('↺ Сбросить всё','reset')+'</div>';
+  setHTML('devcard', h);
+  if(el) el.dataset.sig=sig;
 }
 
 // ---------- чьи это земли и обозы на тракте (v1.24) ----------
