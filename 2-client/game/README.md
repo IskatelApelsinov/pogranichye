@@ -195,3 +195,12 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 - The weave canvas includes the four new server nodes `heat`, `chill`, `veil`, `eye`; its preview follows the server's node-priority rules. All ten nodes are selectable by mouse or number keys 1–9 and 0.
 - Server terrain `biome`/`cover` now tint the chunk; `roads` and optional `water` descriptors are drawn as chunk-local ribbons. The heightfield still owns ground mesh/collision. `water` is optional and awaits server PR #662; `resources`/`wild` chunk hints are not yet rendered. Global wild landmarks remain separate.
 - Source-level implementation only. Unity Editor 6000.6.7f1 compile, PlayMode, URP water material appearance and live server acceptance are still required.
+
+## URP lighting foundation — 2026-11-17
+
+- Runtime-generated settlements use a three-part ambient palette (sky / horizon / ground), not flat ambient fill. This is a directional approximation, not baked or real-time GI.
+- WorldEnvironmentBuilder guarantees one directional sun even when the scene already contains point lights, assigns it soft primary shadows, and restores prior RenderSettings on teardown.
+- VerticalSliceController no longer overwrites ambient lighting with a second flat fill.
+- The global URP Volume and camera post-processing grade the image; they do not create indirect light.
+- The repository still needs an Editor-owned URP Asset and active Quality-level assignment. Verify shadow maps, HDR and renderer features in Unity 6000.6.7f1.
+- Runtime-generated layouts have no pre-baked lightmaps. APV/baked GI is a future option for fixed authored prefab scenes after a reproducible bake/sampling pipeline exists. See 3-dev/docs/ОСВЕЩЕНИЕ-UNITY6-URP.md.
