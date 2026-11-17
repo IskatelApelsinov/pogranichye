@@ -108,6 +108,20 @@ namespace Pogranichye.Client.Networking.Protocol
 
     public static class HorseFrameParser
     {
+        public static void ValidateArray(JToken token, string path)
+        {
+            // v1.32 roster is additive; older servers may omit it.
+            if (token == null || token.Type == JTokenType.Null) return;
+            var array = token as JArray;
+            if (array == null) throw new FormatException(path + " должен быть массивом.");
+            for (var i = 0; i < array.Count; i++)
+            {
+                if (array[i] == null || array[i].Type == JTokenType.Null)
+                    throw new FormatException(path + "[" + i.ToString(CultureInfo.InvariantCulture) + "] должен быть объектом лошади.");
+                Validate(array[i], path + "[" + i.ToString(CultureInfo.InvariantCulture) + "]");
+            }
+        }
+
         public static void Validate(JToken token, string path)
         {
             if (token == null || token.Type == JTokenType.Null) return;
