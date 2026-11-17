@@ -31,7 +31,8 @@ namespace Pogranichye.Client
             Inventory,
             Journal,
             Map,
-            Settings
+            Settings,
+            Developer
         }
 
         [SerializeField] private string serverUrl = "http://127.0.0.1:8090";
@@ -189,6 +190,7 @@ namespace Pogranichye.Client
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
+        private string _developerLastRequestId;
         private string _lastDiagnosticDumpStatus = "Дамп ещё не сохранён";
         private GUIStyle _statusTextStyle;
         private GUIStyle _pendingActionStyle;
@@ -518,6 +520,9 @@ namespace Pogranichye.Client
                 return;
             }
 
+            if (_hudTab == HudTab.Developer && _frame.Me?.Dev?.Enabled != true)
+                _hudTab = HudTab.Character;
+
             // Server-authoritative calendar/clock remains visible while the player is in the world.
             DrawWorldClockOverlay();
 
@@ -549,6 +554,8 @@ namespace Pogranichye.Client
                 DrawHudTabButton("Вещи  [I]", HudTab.Inventory);
                 DrawHudTabButton("Журнал  [J]", HudTab.Journal);
                 DrawHudTabButton("Карта  [M]", HudTab.Map);
+                if (_frame.Me?.Dev?.Enabled == true)
+                    DrawHudTabButton("Разработчик", HudTab.Developer);
                 GUILayout.FlexibleSpace();
                 GUILayout.Label("Tab — закрыть");
                 GUILayout.Label("Esc — настройки");
@@ -584,6 +591,9 @@ namespace Pogranichye.Client
                         break;
                     case HudTab.Map:
                         DrawMapTab();
+                        break;
+                    case HudTab.Developer:
+                        DrawDeveloperTab();
                         break;
                 }
                 GUILayout.EndScrollView();
@@ -1168,6 +1178,121 @@ namespace Pogranichye.Client
                         GUILayout.Label("Сейчас некому учить и нет места силы поблизости.");
                 }
             }
+        }
+
+        private void DrawDeveloperTab()
+        {
+            var dev = _frame?.Me?.Dev;
+            if (dev == null || !dev.Enabled)
+            {
+                GUILayout.Label("Сервер не предоставил этой сессии права разработчика.");
+                return;
+            }
+
+            GUILayout.Label("РЕЖИМ РАЗРАБОТЧИКА · СЕРВЕРНЫЕ ИНСТРУМЕНТЫ");
+            GUILayout.Label("Все значения ниже подтверждаются сервером. Это не локальные переключатели.");
+            GUILayout.Label("Игровое время: день " + dev.Day + " · " +
+                dev.Hour.ToString("00", CultureInfo.InvariantCulture) + ":00");
+            GUILayout.Label("Скорость мира: ×" + dev.TimeScale.ToString("0.##", CultureInfo.InvariantCulture) +
+                " · " + (dev.Paused ? "ПАУЗА" : "идёт") +
+                " · примерно " + dev.RealMinutesPerHour.ToString("0.##", CultureInfo.InvariantCulture) +
+                " реальных мин. на игровой час");
+            GUILayout.Label("Скорость шага персонажа: ×" +
+                dev.WalkMultiplier.ToString("0.##", CultureInfo.InvariantCulture));
+
+            GUILayout.Space(8f);
+            GUILayout.Label("ХОД ИГРОВОГО ВРЕМЕНИ");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(dev.Paused ? "▶ Продолжить" : "Ⅱ Пауза", GUILayout.Height(34f)))
+                SendDeveloperCommand(dev.Paused ? "resume" : "pause");
+            if (GUILayout.Button("Сбросить настройки", GUILayout.Height(34f)))
+                SendDeveloperCommand("reset");
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label("Множитель времени мира");
+            GUILayout.BeginHorizontal();
+            foreach (var value in new[] { 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0 })
+            {
+                if (GUILayout.Button("×" + value.ToString("0.#", CultureInfo.InvariantCulture)))
+                    SendDeveloperCommand("time_scale", value);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label("Прокрутить мир вперёд");
+            GUILayout.BeginHorizontal();
+            foreach (var hours in new[] { 1, 6, 24, 72, 168 })
+            {
+                if (GUILayout.Button("+" + (hours < 24 ? hours + " ч" : hours / 24 + " д")))
+                    SendDeveloperCommand("step_hours", hours);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label("Установить час (сервер переводит время только вперёд)");
+            GUILayout.BeginHorizontal();
+            foreach (var hour in new[] { 6, 12, 18, 22 })
+            {
+                if (GUILayout.Button(hour.ToString("00", CultureInfo.InvariantCulture) + ":00"))
+                    SendDeveloperCommand("set_hour", hour);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(8f);
+            GUILayout.Label("СКОРОСТЬ ПЕРСОНАЖА · ТОЛЬКО ТЕКУЩАЯ DEV-СЕССИЯ");
+            GUILayout.BeginHorizontal();
+            foreach (var multiplier in new[] { 0.5, 1.0, 2.0, 3.0, 5.0 })
+            {
+                if (GUILayout.Button("×" + multiplier.ToString("0.#", CultureInfo.InvariantCulture)))
+                    SendDeveloperCommand("walk_speed", multiplier);
+            }
+            GUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(_developerLastRequestId) &&
+                _frame.Me.Result != null &&
+                string.Equals(_frame.Me.Result.RequestId, _developerLastRequestId, StringComparison.Ordinal))
+            {
+                GUILayout.Label(_frame.Me.Result.Ok
+                    ? "Подтверждение сервера: " + (_frame.Me.Result.Reason ?? "команда выполнена")
+                    : "Сервер отклонил команду: " + (_frame.Me.Result.Reason ?? "без пояснения"));
+            }
+            else if (!string.IsNullOrEmpty(_developerLastRequestId))
+            {
+                GUILayout.Label("Команда отправлена; ожидается подтверждение сервера.");
+            }
+
+            GUILayout.Label("Доступные действия: " +
+                (dev.Actions == null || dev.Actions.Count == 0 ? "сервер не перечислил" : string.Join(", ", dev.Actions)));
+            if (dev.Limits != null)
+            {
+                GUILayout.Label("Ограничения сервера: время ×" + FormatDeveloperRange(dev.Limits.TimeScale) +
+                    " · шаг ×" + FormatDeveloperRange(dev.Limits.WalkMultiplier) +
+                    " · прокрутка до " + dev.Limits.StepHoursMax + " ч за команду");
+            }
+        }
+
+        private static string FormatDeveloperRange(List<double> values)
+        {
+            if (values == null || values.Count < 2) return "—";
+            return values[0].ToString("0.##", CultureInfo.InvariantCulture) + "–" +
+                values[1].ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        private void SendDeveloperCommand(string action, double? value = null)
+        {
+            var dev = _frame?.Me?.Dev;
+            if (_connectionState != WorldConnectionState.Active || dev == null || !dev.Enabled ||
+                (dev.Actions != null && !dev.Actions.Contains(action)))
+                return;
+
+            var reqid = Guid.NewGuid().ToString("N");
+            _developerLastRequestId = reqid;
+            var payload = new Dictionary<string, object>
+            {
+                { "op", "dev" },
+                { "action", action },
+                { "reqid", reqid }
+            };
+            if (value.HasValue) payload["value"] = value.Value;
+            SendCorePayload(payload);
         }
 
         private void DrawInventoryTab()
