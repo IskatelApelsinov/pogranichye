@@ -80,8 +80,21 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("room")] public RoomFrame Room { get; set; }
         // Server-authoritative tavern card game state; dealer hidden cards are never sent.
         [JsonProperty("card_game")] public CardGameFrame CardGame { get; set; }
+        // Effective movement speeds are server-authored and already include the developer multiplier.
+        [JsonProperty("movement")] public CharacterMovementFrame Movement { get; set; }
         // Developer capability is server-authored and omitted entirely for ordinary accounts.
         [JsonProperty("dev")] public DeveloperModeFrame Dev { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CharacterMovementFrame
+    {
+        [JsonProperty("walk")] public double Walk { get; set; }
+        [JsonProperty("jog")] public double Jog { get; set; }
+        [JsonProperty("run")] public double Run { get; set; }
+        [JsonProperty("mult")] public double Multiplier { get; set; }
+        [JsonProperty("dev_mult")] public double DeveloperMultiplier { get; set; }
+        [JsonProperty("can_run")] public bool CanRun { get; set; }
     }
 
     [Serializable]
