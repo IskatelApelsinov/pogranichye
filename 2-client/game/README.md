@@ -204,3 +204,11 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 - The global URP Volume and camera post-processing grade the image; they do not create indirect light.
 - The repository still needs an Editor-owned URP Asset and active Quality-level assignment. Verify shadow maps, HDR and renderer features in Unity 6000.6.7f1.
 - Runtime-generated layouts have no pre-baked lightmaps. APV/baked GI is a future option for fixed authored prefab scenes after a reproducible bake/sampling pipeline exists. See 3-dev/docs/ОСВЕЩЕНИЕ-UNITY6-URP.md.
+
+
+## v1.30 nearby gather nodes in the Unity thick client — 2026-11-17
+
+- Optional `place.gather[]` entries are normalized individually and exposed as typed `GatherNodeFrame` values. Older v1 snapshots without the field remain valid and simply show no nearby-pickup section.
+- The character/world panel lists server-authored finds with their name, direction, distance and remaining stock.
+- Before the server reports `here: true`, the only action is `op:"goto"` with the existing `site` ID. At the server-reported pickup range, the client offers `op:"pick"` with the stable `node` ID.
+- Both requests use the existing shared `RequestGate` and generated `reqid`; the UI waits for `me.result`. Stock, energy, distance, bee stings, inventory and success remain server-authoritative. No local item grants or new wire fields are introduced.
