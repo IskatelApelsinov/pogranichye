@@ -93,6 +93,9 @@ namespace Pogranichye.Client.Networking
                     // Optional POI metadata must not reject the authoritative world snapshot.
                     NormalizeTavernCounterForClient(place);
                     NormalizeWildSitesForClient(place);
+                    // v1.30 optional nearby pickups: discard malformed entries individually so
+                    // a bad presentation hint can never reject the authoritative world snapshot.
+                    place["gather"] = GatherNodeFrameParser.Normalize(place["gather"]);
                     TavernCounterFrameParser.Validate(place["tavern_counter"], "place.tavern_counter");
                     FoeFrameParser.Validate(place["foes"], "place.foes");
                     ValidatePlaceRooms(place["rooms"], "place.rooms");
