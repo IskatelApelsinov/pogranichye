@@ -1598,7 +1598,10 @@ namespace Pogranichye.Client
         private static readonly string[] MapPoiOrder =
         {
             "tavern", "smithy", "granary", "market", "well",
-            "hearth", "garden", "river", "woods", "mine"
+            "hearth", "garden", "river", "woods", "mine",
+            // v1.33 city districts and public services.
+            "hall", "bazaar", "weaver", "tannery", "bakery",
+            "carpenter", "potter", "guard", "caravanserai", "inn"
         };
 
         private void DrawExpandedMapOverlay()
