@@ -5473,7 +5473,7 @@ namespace Pogranichye.Client
             {
                 if (_connectionState != WorldConnectionState.Active || socket == null)
                     throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendCharacterPriorityAsync(goal, _lifetime.Token);
+                await socket.SendGoalAsync(goal, _lifetime.Token);
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
