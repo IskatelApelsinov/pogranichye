@@ -27,7 +27,7 @@ internal static class WorldLayoutCompatibilityPolicyCheck
 
         var rural = new HashSet<string>(StringComparer.Ordinal)
         {
-            "tavern", "well", "woods", "garden", "mine", "river"
+            "tavern", "woods", "garden", "mine", "river"
         };
         Check("rural layouts keep the existing required POIs",
             WorldLayoutCompatibilityPolicy.HasRequiredPois("ring", rural));
