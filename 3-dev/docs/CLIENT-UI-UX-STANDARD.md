@@ -144,3 +144,14 @@ The character summary prioritizes the current opening step and tavern/social con
 - Server remains the sole authority for spawn location, map geometry, road connections, known settlements, discoveries, action eligibility and outcomes.
 - Reference principles: Kingdom Come: Deliverance (restrained historical inventory), Red Dead Redemption 2 (map/navigation clarity), The Witcher 3 (information architecture), Valheim (exploration-first map). Do not copy their assets or UI literally.
 - Detailed implementation/review checklist: `3-dev/comms/0263-chatgpt-to-claude-ux-sprint.md`.
+
+
+## Tavern nested navigation — 2026-11-17
+
+The tavern context window has three explicit screens: **Корчма**, **Карточный стол**, and **Партия**. The home screen keeps beer purchase/consume and room services visible. Card selection is a separate screen; an active server-owned game can be resumed there. The active game screen has its own Back action to selection, and selection has Back to the tavern home so beer remains one step away.
+
+- «← Назад» appears only on nested screens; «× Закрыть» closes the whole tavern window.
+- Escape follows the same stack: active game → game selection → tavern home → close.
+- Leaving a screen never sends `card_game:leave`, changes a stake, or fabricates a result. The current game remains server-owned and can be resumed after returning.
+- Card-game hotkeys are scoped to the visible matching screen: 1/2 select a new game only on the selection screen; turn keys work only while the active-game screen is open.
+- This is a source-level implementation and pure C# policy test. IMGUI layout, cursor restoration, live-server card play and Unity PlayMode still require Editor acceptance.
