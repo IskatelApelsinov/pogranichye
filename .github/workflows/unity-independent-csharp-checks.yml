@@ -48,6 +48,11 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
+      - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
+      - '2-client/art-source/textures/**'
+      - '2-client/art-source/blender/generate_world_materials.py'
+      - '2-client/game/Assets/Resources/WorldMaterials/Textures/*_material.json'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainSeamHeightSampler.cs'
       - '2-client/game/Tests/TerrainSeamHeightSamplerCheck.cs'
@@ -311,6 +316,17 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
+
+      - name: World material source priority regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-material-source.exe Tests/WorldMaterialSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs
+          mono /tmp/world-material-source.exe
+
+      - name: Authored world material manifest regression checks
+        run: |
+          python3 -m unittest discover -s 2-client/art-source/textures -p 'test_*.py'
+          python3 2-client/art-source/textures/validate_world_material_assets.py
 
       - name: Adaptive UI typography regression checks
         working-directory: 2-client/game

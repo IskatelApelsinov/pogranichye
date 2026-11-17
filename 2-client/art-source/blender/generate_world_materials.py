@@ -13,6 +13,7 @@ and AO. This is a stylized-realistic base pass, not scanned photogrammetry.
 """
 import json
 import math
+import struct
 from pathlib import Path
 
 import bpy
@@ -27,6 +28,36 @@ TAU = math.tau
 
 def clamp(v, lo=0.0, hi=1.0):
     return max(lo, min(hi, v))
+
+
+def png_dimensions(path):
+    try:
+        with path.open("rb") as stream:
+            header = stream.read(24)
+    except OSError:
+        return None
+    if len(header) < 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", header[16:24])
+
+
+def has_complete_authored_pack(kind, paths, spec):
+    manifest_path = TEXTURES / (kind + "_material.json")
+    if not manifest_path.is_file():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if manifest.get("availability") != "available" or manifest.get("source") != spec["source"]:
+        return False
+    if not (ROOT / spec["source"]).is_file():
+        return False
+    expected_maps = {suffix: kind + "_" + suffix + ".png" for suffix in ("albedo", "normal", "roughness", "ao")}
+    if manifest.get("maps") != expected_maps:
+        return False
+    expected_size = tuple(spec["resolution"])
+    return all(path.is_file() and png_dimensions(path) == expected_size for path in paths.values())
 
 
 def wave(x, y, fx, fy, phase=0.0):
@@ -180,6 +211,7 @@ def main():
     TEXTURES.mkdir(parents=True, exist_ok=True)
     materials = {}
     authored_overrides = {}
+    pending_authored = {}
     kinds = ("meadow_soil", "oak_bark", "oak_planks", "mossy_stone", "forest_floor", "leaf_canopy", "thatch_roof", "packed_road", "cobblestone", "lime_plaster")
     authored_specs = {
         "packed_road": {
@@ -204,19 +236,28 @@ def main():
         }
     }
     for kind in kinds:
-        # Never overwrite a complete authored PBR set with the older procedural approximation.
+        # Only a builder-validated 1024px pack may override the reproducible 512px preview.
         authored_paths = {suffix: TEXTURES / (kind + "_" + suffix + ".png")
                           for suffix in ("albedo", "normal", "roughness", "ao")}
         spec = authored_specs.get(kind)
-        if spec is not None and all(path.is_file() for path in authored_paths.values()):
+        if spec is not None and has_complete_authored_pack(kind, authored_paths, spec):
             materials[kind] = {suffix: str(path) for suffix, path in authored_paths.items()}
             authored_overrides[kind] = {
+                "availability": "available",
                 "resolution": spec["resolution"],
                 "source": spec["source"],
                 "builder": spec["builder"]
             }
             print("Preserving authored %s maps; run %s to regenerate them." % (kind, spec["builder"]))
         else:
+            if spec is not None:
+                pending_authored[kind] = {
+                    "availability": "pending",
+                    "resolution": spec["resolution"],
+                    "source": spec["source"],
+                    "builder": spec["builder"],
+                    "maps": {suffix: path.name for suffix, path in authored_paths.items()}
+                }
             materials[kind] = build_material(kind)
     manifest = {
         "name": "Pogranichye World Materials",
@@ -225,6 +266,7 @@ def main():
         "blender": bpy.app.version_string,
         "resolution": [SIZE, SIZE],
         "authored_overrides": authored_overrides,
+        "pending_authored": pending_authored,
         "tileable": True,
         "maps": ["albedo", "normal", "roughness", "ao"],
         "smoothness": "1 - roughness, stored in the linear alpha channel of albedo for URP Lit",

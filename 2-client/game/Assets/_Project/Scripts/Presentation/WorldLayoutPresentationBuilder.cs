@@ -60,23 +60,20 @@ namespace Pogranichye.Client.Presentation
             // Apply it first; the project's authored PBR maps below take precedence whenever present.
             ApplyGrokWorldMaps(_ground, "grass_meadow", 10f, 10f);
             ApplyGrokWorldMaps(_field, "dirt_soil", 8f, 8f);
-            ApplyGrokWorldMaps(_road, "cobble_path", 2f, 12f);
-            ApplyGrokWorldMaps(_timber, "wood_planks", 2f, 2f);
             ApplyGrokWorldMaps(_roof, "thatch_roof", 2f, 3f);
             ApplyGrokWorldMaps(_trunk, "bark_tree", 1f, 3f);
-            ApplyGrokWorldMaps(_stone, "stone_wall", 1.5f, 2f);
             ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
             ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
 
-            // Authored 1024px PBR maps take priority over the optional Grok starter maps.
-            // Existing procedural/Grok materials remain safe fallbacks until the authored pack is imported.
-            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f, true);
+            // Authored 1024px packs are used only when their manifest says available.
+            // Otherwise prefer the imported Grok starter texture, then the existing procedural fallback.
+            ApplyAuthoredWorldMapsWithGrokFallback(_timber, "oak_planks", "wood_planks", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
-            ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
-            ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f, true);
-            ApplyGeneratedWorldMaps(_plaster, "lime_plaster", 1.5f, 1.5f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_road, "packed_road", "cobble_path", 2f, 12f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_stone, "mossy_stone", "stone_wall", 1.5f, 2f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_plaster, "lime_plaster", "plaster_wall", 1.5f, 1.5f, true);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -2008,16 +2005,59 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        [Serializable]
+        private sealed class WorldMaterialAvailabilityManifest
+        {
+            public string availability;
+        }
+
+        private static string ReadWorldMaterialAvailability(TextAsset manifest)
+        {
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.text)) return null;
+            try
+            {
+                var parsed = JsonUtility.FromJson<WorldMaterialAvailabilityManifest>(manifest.text);
+                return parsed != null ? parsed.availability : "invalid";
+            }
+            catch
+            {
+                return "invalid";
+            }
+        }
+
+        private static void ApplyAuthoredWorldMapsWithGrokFallback(Material material, string materialKey,
+            string grokKey, float tilingX, float tilingY, bool smoothnessInAlbedoAlpha = false)
+        {
+            if (material == null) return;
+            var prefix = "WorldMaterials/Textures/" + materialKey;
+            var authoredAlbedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            var manifest = Resources.Load<TextAsset>(prefix + "_material");
+            var availability = ReadWorldMaterialAvailability(manifest);
+            var hasAuthoredAlbedo = WorldMaterialSourcePolicy.IsAuthoredAvailable(
+                availability, authoredAlbedo != null && authoredAlbedo.width >= 1024);
+            var grokAlbedo = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/" + grokKey);
+            var source = WorldMaterialSourcePolicy.Select(hasAuthoredAlbedo, grokAlbedo != null);
+
+            if (source == WorldMaterialSource.Grok)
+                ApplyGrokWorldMaps(material, grokKey, tilingX, tilingY);
+            else
+                ApplyGeneratedWorldMaps(material, materialKey, tilingX, tilingY, smoothnessInAlbedoAlpha);
+        }
+
         private static void ApplyGeneratedWorldMaps(Material material, string materialKey,
             float tilingX, float tilingY, bool smoothnessInAlbedoAlpha = false)
         {
             if (material == null) return;
             var prefix = "WorldMaterials/Textures/" + materialKey;
             var tiling = new Vector2(tilingX, tilingY);
-            // A material manifest marks the authored PBR pack. Older generated albedo
-            // textures may have opaque alpha, so do not interpret their alpha as smoothness.
-            var hasAuthoredMaterialManifest = Resources.Load<TextAsset>(prefix + "_material") != null;
+            var manifest = Resources.Load<TextAsset>(prefix + "_material");
+            var availability = ReadWorldMaterialAvailability(manifest);
             var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            var albedoWidth = albedo != null ? albedo.width : 0;
+            // Pending 512px previews remain procedural; pending 1024px maps cannot masquerade as authored.
+            if (!WorldMaterialSourcePolicy.ShouldApplyGeneratedMaps(availability, albedoWidth)) return;
+            var hasAuthoredMaterialManifest = WorldMaterialSourcePolicy.IsAuthoredAvailable(
+                availability, albedoWidth >= 1024);
             if (albedo != null)
             {
                 material.mainTexture = albedo;

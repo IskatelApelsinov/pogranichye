@@ -73,5 +73,7 @@
       "horizontal_seam_to_interior_ratio": 1.0378,
       "vertical_seam_to_interior_ratio": 1.0666
     }
-  }
+  },
+  "availability": "pending",
+  "availability_note": "Source artwork and complete authored 1024x1024 maps are absent from the clean checkout; this manifest is a target specification, not an available override."
 }
