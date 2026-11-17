@@ -118,6 +118,12 @@ namespace Pogranichye.Client.Networking.Protocol
             RequireNumber(obj["stam"], path + ".stam", 0d, 100d);
             RequireBool(obj["mounted"], path + ".mounted");
             RequireBool(obj["here"], path + ".here");
+            // v1.32 fields are optional on the legacy me.horse object, but strict when present.
+            if (obj["active"] != null && obj["active"].Type != JTokenType.Boolean)
+                throw new FormatException(path + ".active должен быть boolean.");
+            RequireOptionalString(obj["settlement_id"], path + ".settlement_id");
+            RequireOptionalString(obj["settlement_name"], path + ".settlement_name");
+            RequireOptionalString(obj["realm_name"], path + ".realm_name");
             RequireNumber(obj["bag_load"], path + ".bag_load", 0d, 1000000000d);
             RequireNumber(obj["bag_cap"], path + ".bag_cap", 0d, 1000000000d);
             var bag = obj["bag"] as JObject;
@@ -131,6 +137,12 @@ namespace Pogranichye.Client.Networking.Protocol
             if (token == null || token.Type != JTokenType.String ||
                 (nonEmpty && string.IsNullOrWhiteSpace(token.Value<string>())))
                 throw new FormatException(path + " должен быть строкой.");
+        }
+
+        private static void RequireOptionalString(JToken token, string path)
+        {
+            if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
+                throw new FormatException(path + " должен быть строкой или null.");
         }
 
         private static void RequireBool(JToken token, string path)
