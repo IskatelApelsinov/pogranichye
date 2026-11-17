@@ -220,6 +220,31 @@ namespace Pogranichye.Client.Presentation
                 case "smith_cold":
                     _activity = "wait";
                     break;
+                // v1.33 city trades and crafts: map only stable server act_code values.
+                case "trade_stall":
+                    _activity = "trade";
+                    break;
+                case "guard_patrol":
+                    _activity = "work";
+                    break;
+                case "carpentry":
+                    _activity = "carpentry";
+                    break;
+                case "tanning":
+                    _activity = "tanning";
+                    break;
+                case "pottery":
+                    _activity = "pottery";
+                    break;
+                case "bake_bread":
+                    _activity = "cook";
+                    break;
+                case "scribe_desk":
+                    _activity = "study";
+                    break;
+                case "jewel_work":
+                    _activity = "forge";
+                    break;
                 case "work":
                     _activity = "work";
                     break;
