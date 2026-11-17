@@ -68,6 +68,7 @@ on:
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
@@ -89,6 +90,7 @@ on:
       - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
       - '2-client/game/Tests/CardGameFrameParserCheck.cs'
       - '2-client/game/Tests/CharacterMenuHotkeyPolicyCheck.cs'
+      - '2-client/game/Tests/TavernPanelNavigationPolicyCheck.cs'
       - '2-client/game/Tests/CombatFoeFrameParserCheck.cs'
       - '2-client/game/Tests/DrinkPresentationPolicyCheck.cs'
       - '2-client/game/Tests/FeedFrameParserCheck.cs'
@@ -152,6 +154,11 @@ jobs:
         run: |
           mcs -out:/tmp/character-menu-hotkeys.exe Tests/CharacterMenuHotkeyPolicyCheck.cs Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs
           mono /tmp/character-menu-hotkeys.exe
+      - name: Tavern panel navigation regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/tavern-panel-navigation.exe Tests/TavernPanelNavigationPolicyCheck.cs Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs
+          mono /tmp/tavern-panel-navigation.exe
       - name: Gameplay input capture ownership regression checks
         working-directory: 2-client/game
         run: |
