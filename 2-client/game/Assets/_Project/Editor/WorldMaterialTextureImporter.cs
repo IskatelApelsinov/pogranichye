@@ -21,7 +21,9 @@ namespace Pogranichye.Client.Editor
             importer.wrapMode = TextureWrapMode.Repeat;
             importer.filterMode = FilterMode.Trilinear;
             importer.anisoLevel = 8;
-            importer.maxTextureSize = 1024;
+            // The canonical Grok starter pack is imported at 2048; authored project maps stay at 1024.
+            importer.maxTextureSize = assetPath.Contains("/Resources/WorldMaterials/Textures/Grok/")
+                ? 2048 : 1024;
             // Albedo alpha is reserved for linear URP smoothness data, not transparency.
             importer.alphaIsTransparency = false;
 

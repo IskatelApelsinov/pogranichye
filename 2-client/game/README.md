@@ -22,6 +22,13 @@ and log for each step.
 9. Disconnect and reconnect: no stuck cursor, guard, pending action or stale foes.
 10. v1.19 world data: confirm `me.wpos`/`place.anchor`, inspect the current 256 m terrain mesh, cross a chunk edge and verify stale chunk responses do not replace the current terrain. Keep `-seamless=on` disabled.
 
+## Unity presentation fixes — 2026-11-17
+
+- Building fallback textures now generate mipmaps and use trilinear/aniso filtering to reduce distance shimmer. The editor automatically synchronizes the canonical 116-PNG pack from `grok/textures/grok` into `Assets/Resources/WorldMaterials/Textures/Grok` after loading; the manual command remains available at **Tools → Pogranichye → Art → Import Grok Texture Pack**.
+- The back-facing side of server-layout building signs corrects the TextMesh horizontal orientation, so names such as «Корчма» and «Кузница» remain readable from either side.
+- The character journal shows a **Разработчик** tab only when the server sends `me.dev.enabled=true`. It sends only the server-supported `op:"dev"` actions with unique `reqid`; time, speed and limits are read back from the server. F3 remains the separate technical diagnostics overlay.
+- Movement prediction prefers `me.movement` (effective walk/jog/run speeds including the server developer multiplier); `/api/world.movement` remains the source for slope/trail rules.
+
 ## Input bindings — 2026-11-13
 
 - Fixed a real binding collision: `T` was assigned to both chat and combat stance cycling. Chat remains on `T`; stance cycling is now `N`. The in-game control hint and F3 pressed-key diagnostics are updated together.
