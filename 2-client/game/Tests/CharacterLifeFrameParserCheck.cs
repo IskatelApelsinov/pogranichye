@@ -42,7 +42,7 @@ internal static class CharacterLifeFrameParserCheck
         CharacterVigorFrameParser.Validate(JValue.CreateNull(), "me.vigor");
 
         ExpectFormat("mode options reject malformed ids", () =>
-            CharacterModeFrameParser.Validate(JToken.Parse(modeJson.Replace("\"id\":\"auto\"", "\"id\":7\"")), "me.mode"));
+            CharacterModeFrameParser.Validate(JToken.Parse(modeJson.Replace("\"id\":\"auto\"", "\"id\":7")), "me.mode"));
         ExpectFormat("vigor rejects non-finite energy", () =>
             CharacterVigorFrameParser.Validate(JToken.Parse(vigorJson.Replace("\"energy\":72", "\"energy\":\"high\"")), "me.vigor"));
         ExpectFormat("vigor tips reject non-string entries", () =>
