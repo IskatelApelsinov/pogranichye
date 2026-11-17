@@ -24,8 +24,10 @@ internal static class CharacterLifeFrameParserCheck
         CharacterModeFrameParser.Validate(modeToken, "me.mode");
         var mode = modeToken.ToObject<CharacterModeFrame>();
         Check("maps server life-mode selection and available options",
-            mode != null && mode.Selected == "work" && mode.Options.Count == 2 &&
-            mode.Options[0].Id == "auto" && mode.Options[1].Hint == "Ремесло и работа");
+            mode != null && mode.Selected == "work" && mode.Goal == "work" &&
+            mode.Activity == "carpentry" && mode.ActivityCode == "carpentry" && !mode.Deviates &&
+            mode.Options.Count == 2 && mode.Options[0].Id == "auto" &&
+            mode.Options[1].Hint == "Ремесло и работа");
         CharacterModeFrameParser.Validate(JValue.CreateNull(), "me.mode");
 
         const string vigorJson = "{\"energy\":72,\"per_hour\":-2.2,\"why\":\"бодрствует\",\"tips\":[\"отдохни\",\"поспи\"],\"full_in_hours\":null,\"empty_in_hours\":32,\"warning\":\"усталость\",\"stamina\":{\"now\":0.65,\"regen_per_s\":0.02,\"drain_per_s\":0.05,\"full_in_s\":17.5}}";
@@ -34,7 +36,7 @@ internal static class CharacterLifeFrameParserCheck
         var vigor = vigorToken.ToObject<CharacterVigorFrame>();
         Check("maps server vigor and stamina rates",
             vigor != null && vigor.Energy == 72d && vigor.PerHour == -2.2d &&
-            vigor.Tips.Count == 2 && vigor.Stamina != null &&
+            vigor.Tips.Count == 2 && vigor.EmptyInHours == 32d && vigor.Stamina != null &&
             vigor.Stamina.Now == 0.65d && vigor.Stamina.DrainPerSecond == 0.05d &&
             vigor.Stamina.FullInSeconds == 17.5d);
         CharacterVigorFrameParser.Validate(JValue.CreateNull(), "me.vigor");
