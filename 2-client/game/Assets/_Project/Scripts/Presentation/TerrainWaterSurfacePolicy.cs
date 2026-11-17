@@ -10,11 +10,13 @@ namespace Pogranichye.Client.Presentation
         public static double ResolveLocalHeight(double? serverSurfaceMeters,
             double fallbackWaterLevelMeters, double anchorUpMeters, double legacyVisualLiftMeters)
         {
+            if (!IsFinite(anchorUpMeters))
+                return 0d;
+
             if (serverSurfaceMeters.HasValue && IsFinite(serverSurfaceMeters.Value))
                 return serverSurfaceMeters.Value - anchorUpMeters;
 
-            if (!IsFinite(fallbackWaterLevelMeters) || !IsFinite(anchorUpMeters) ||
-                !IsFinite(legacyVisualLiftMeters))
+            if (!IsFinite(fallbackWaterLevelMeters) || !IsFinite(legacyVisualLiftMeters))
                 return 0d;
 
             return fallbackWaterLevelMeters + legacyVisualLiftMeters - anchorUpMeters;
