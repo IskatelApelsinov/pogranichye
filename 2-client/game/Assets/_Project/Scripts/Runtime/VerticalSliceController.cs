@@ -181,6 +181,10 @@ namespace Pogranichye.Client
         private bool _marketPanelOpen;
         private bool _stablePanelOpen;
         private bool _tavernPanelOpen;
+        private bool _activityPanelOpen;
+        private string _activityTargetId;
+        private string _activityTargetTitle;
+        private Vector2 _activityContextScroll;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
@@ -380,6 +384,7 @@ namespace Pogranichye.Client
             else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
             {
                 if (_chatOpen) SetChatOpen(false);
+                else if (_activityPanelOpen) _activityPanelOpen = false;
                 else if (_marketPanelOpen) _marketPanelOpen = false;
                 else if (_stablePanelOpen) _stablePanelOpen = false;
                 else if (_tavernPanelOpen) _tavernPanelOpen = false;
@@ -394,7 +399,7 @@ namespace Pogranichye.Client
             // F1/Esc opens a modal system menu; TAB remains the character menu.
             // Any open gameplay/system window owns input and prevents movement/camera leakage.
             var pointerOverUi = IsPointerOverUi();
-            var contextualWindowOpen = _marketPanelOpen || _stablePanelOpen || _tavernPanelOpen;
+            var contextualWindowOpen = _marketPanelOpen || _stablePanelOpen || _tavernPanelOpen || _activityPanelOpen;
             var hardGameplayInputBlock = _systemMenuOpen || _chatOpen || contextualWindowOpen ||
                 (_core != null && _core.CapturesInput) || _activityMiniGame != ActivityMiniGame.None;
             var gameplayInputBlocked = hardGameplayInputBlock || pointerOverUi;
@@ -3078,13 +3083,15 @@ namespace Pogranichye.Client
             var atTavern = _tavernPanelOpen && _frame.Place.Tavern && IsAtTavern();
             var atStable = _stablePanelOpen;
             var atMarket = _marketPanelOpen;
-            if (!atTavern && !atMarket && !atStable)
+            var atActivity = _activityPanelOpen;
+            if (!atTavern && !atMarket && !atStable && !atActivity)
                 return new Rect(0f, 0f, 0f, 0f);
 
             var width = Mathf.Min(560f, Screen.width - 24f);
             var height = 42f;
             if (atMarket) height += 250f;
-            if (atStable) height += 118f;
+            if (atStable) height += 280f;
+            if (atActivity) height += 380f;
             if (atTavern)
             {
                 var rooms = _frame.Place.Rooms?.Items;
@@ -3114,11 +3121,27 @@ namespace Pogranichye.Client
             var atTavern = _tavernPanelOpen && _frame.Place.Tavern && IsAtTavern();
             var atStable = _stablePanelOpen;
             var atMarket = _marketPanelOpen;
+            var atActivity = _activityPanelOpen;
 
             GUILayout.BeginArea(panel);
             _contextActionScroll = GUILayout.BeginScrollView(_contextActionScroll,
                 GUILayout.Width(panel.width), GUILayout.Height(panel.height));
             GUILayout.BeginVertical(GUI.skin.box);
+            if (atActivity)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(string.IsNullOrWhiteSpace(_activityTargetTitle) ? "ДЕЙСТВИЯ" : _activityTargetTitle,
+                    GUILayout.ExpandWidth(true));
+                var closeActivity = GUILayout.Button("× Закрыть", GUILayout.Width(96f));
+                if (closeActivity)
+                {
+                    _activityPanelOpen = false;
+                    GUILayout.EndHorizontal(); GUILayout.EndVertical(); GUILayout.EndScrollView(); GUILayout.EndArea();
+                    GUIUtility.ExitGUI();
+                }
+                GUILayout.EndHorizontal();
+                DrawActivityContextActions();
+            }
             if (atMarket)
             {
                 GUILayout.BeginHorizontal();
@@ -3205,6 +3228,77 @@ namespace Pogranichye.Client
             GUILayout.EndArea();
         }
 
+        private void DrawActivityContextActions()
+        {
+            GUILayout.Label("Выбери занятие. Материалы, расстояние, силы и результат проверяет сервер.");
+
+            if (_activityTargetId == "smithy")
+            {
+                if (GUILayout.Button("⚒ Помочь у горна · работа для села"))
+                    QueueWorldAction("forge");
+                DrawRecipeActions("smithy");
+            }
+            else if (_activityTargetId == "garden")
+            {
+                if (GUILayout.Button("🌿 Собрать травы"))
+                    QueueWorldAction("gather");
+                if (GUILayout.Button("🌾 Помочь в поле · сев или жатва по сезону"))
+                    QueueWorldAction("farmwork");
+                if (GUILayout.Button("🍯 Помочь на пасеке"))
+                    QueueWorldAction("apiary");
+            }
+            else if (_activityTargetId == "hearth")
+            {
+                DrawRecipeActions("hearth");
+            }
+        }
+
+        private void DrawRecipeActions(string station)
+        {
+            var recipes = _worldCatalog != null ? _worldCatalog["recipes"] as JArray : null;
+            var found = false;
+            if (recipes != null)
+            {
+                foreach (var recipe in recipes)
+                {
+                    if (recipe == null || !string.Equals((string)recipe["at"], station, StringComparison.Ordinal))
+                        continue;
+                    var id = (string)recipe["id"];
+                    if (string.IsNullOrWhiteSpace(id)) continue;
+                    found = true;
+                    var name = (string)recipe["name"] ?? id;
+                    var needs = recipe["needs"] as JObject;
+                    var needsText = string.Empty;
+                    if (needs != null)
+                    {
+                        foreach (var need in needs.Properties())
+                        {
+                            if (needsText.Length > 0) needsText += " · ";
+                            needsText += need.Name + " ×" + need.Value;
+                        }
+                    }
+                    var label = name + (string.IsNullOrEmpty(needsText) ? string.Empty : "\nСырьё: " + needsText);
+                    if (GUILayout.Button(label, GUILayout.MinHeight(38f)))
+                        QueueCraftAction(id, name);
+                }
+            }
+            if (!found)
+                GUILayout.Label("Рецепты этой мастерской пока не получены из каталога сервера.");
+            else
+                GUILayout.Label("Сырьё берётся из твоей сумы. Если его не хватает, сервер вернёт причину отказа.");
+        }
+
+        private void QueueCraftAction(string recipeId, string label)
+        {
+            if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + label,
+                "craft", "item", recipeId))
+            {
+                _status = "Не удалось отправить ремесленное действие. Дождитесь ответа на предыдущее.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: " + label + "…";
+        }
+
         private void DrawStableActions()
         {
             var stable = _frame?.Place?.Stable;
@@ -3257,13 +3351,50 @@ namespace Pogranichye.Client
                     if (!hasFeed) GUILayout.Label("Для корма нужны сено, зерно или овощи в суме.");
                 }
             }
+            if (horse != null && horse.Here)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
+                    horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
+                    horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
+                var inventory = _frame.Me.Inventory?.Items;
+                var shownStow = 0;
+                if (inventory != null)
+                {
+                    foreach (var item in inventory)
+                    {
+                        if (item.Value <= 0 || shownStow >= 5) continue;
+                        shownStow++;
+                        if (GUILayout.Button("Положить на лошадь: " + item.Key + " ×1"))
+                            QueueHorseAction("stow", "Положить в седельную сумку", item.Key, 1);
+                    }
+                }
+                var shownTake = 0;
+                if (horse.Bag != null)
+                {
+                    foreach (var item in horse.Bag)
+                    {
+                        if (item.Value <= 0d || shownTake >= 5) continue;
+                        shownTake++;
+                        if (GUILayout.Button("Забрать с лошади: " + item.Key + " ×1"))
+                            QueueHorseAction("unstow", "Забрать из седельной сумки", item.Key, 1);
+                    }
+                }
+                if (shownStow == 0 && shownTake == 0)
+                    GUILayout.Label("Сумки пока пусты.");
+            }
+            if (_frame?.Me != null)
+                DrawRecipeActions("granary");
             GUILayout.EndVertical();
         }
 
-        private void QueueHorseAction(string action, string label)
+        private void QueueHorseAction(string action, string label, string good = null, int qty = 0)
         {
-            if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + label,
-                "horse", "action", action))
+            var queued = _core != null && (string.IsNullOrEmpty(good)
+                ? _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action)
+                : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse",
+                    "action", action, "good", good, "qty", qty));
+            if (!queued)
             {
                 _status = "Не удалось отправить действие с лошадью. Дождитесь ответа на предыдущее действие.";
                 return;
@@ -4088,6 +4219,7 @@ namespace Pogranichye.Client
                 var open = !_tavernPanelOpen;
                 _marketPanelOpen = false;
                 _stablePanelOpen = false;
+                _activityPanelOpen = false;
                 _tavernPanelOpen = open;
                 if (_tavernPanelOpen) CollapseHudForContextWindow();
                 _status = _tavernPanelOpen ? "Корчма открыта." : "Окно корчмы закрыто.";
@@ -4098,6 +4230,7 @@ namespace Pogranichye.Client
                 var open = !_marketPanelOpen;
                 _stablePanelOpen = false;
                 _tavernPanelOpen = false;
+                _activityPanelOpen = false;
                 _marketPanelOpen = open;
                 if (_marketPanelOpen) CollapseHudForContextWindow();
                 _status = _marketPanelOpen
@@ -4110,6 +4243,7 @@ namespace Pogranichye.Client
                 var open = !_stablePanelOpen;
                 _marketPanelOpen = false;
                 _tavernPanelOpen = false;
+                _activityPanelOpen = false;
                 _stablePanelOpen = open;
                 if (_stablePanelOpen) CollapseHudForContextWindow();
                 _status = _stablePanelOpen
@@ -4123,13 +4257,27 @@ namespace Pogranichye.Client
                 return;
             }
 
-            if (!string.IsNullOrEmpty(poi.InteractionId))
+            var poiId = (poi.TargetId ?? string.Empty).ToLowerInvariant();
+            if (poiId == "smithy" || poiId == "garden" || poiId == "hearth")
             {
-                if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + poi.Title,
-                    "interact", "interaction_id", poi.InteractionId))
-                    _status = "Не удалось отправить взаимодействие. Дождитесь ответа на предыдущее действие.";
-                else
-                    _status = "Ожидаю подтверждения сервера: " + poi.Title + "…";
+                _marketPanelOpen = false;
+                _stablePanelOpen = false;
+                _tavernPanelOpen = false;
+                _activityTargetId = poiId;
+                _activityTargetTitle = poi.Title;
+                _activityPanelOpen = true;
+                CollapseHudForContextWindow();
+                _status = "Открыты действия: " + poi.Title + ". Результат каждого действия подтвердит сервер.";
+                return;
+            }
+
+            // The current Go server does not implement op:"interact". Never send an
+            // unsupported descriptor ID as a gameplay command; only mapped v1 intents
+            // below are allowed to reach the server.
+            if (!string.IsNullOrEmpty(poi.InteractionId) &&
+                string.IsNullOrEmpty(poi.ActionIntent) && string.IsNullOrEmpty(poi.Goal))
+            {
+                _status = "Для этой точки серверное действие пока не подключено.";
                 return;
             }
 
