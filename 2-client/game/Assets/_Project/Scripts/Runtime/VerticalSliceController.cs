@@ -89,7 +89,6 @@ namespace Pogranichye.Client
         private Vector2 _chatScroll;
         private VoiceChatController _voiceChat;
         private string _token;
-        private string _priorityToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
         // The no-id /api/layout response is retained for the tutorial place across settlement switches.
@@ -468,12 +467,6 @@ namespace Pogranichye.Client
                 }
             }
 
-            if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_priorityToSend))
-            {
-                var goal = _priorityToSend;
-                _priorityToSend = null;
-                _ = SendCharacterPriorityAsync(goal);
-            }
         }
 
         private bool IsPointerOverUi()
@@ -1164,13 +1157,7 @@ namespace Pogranichye.Client
 
             if (_showAdvancedCharacterActions)
             {
-                GUILayout.Space(4f);
-                GUILayout.Label("ДОЛГОСРОЧНЫЕ ПРИОРИТЕТЫ · В ТОМ ЧИСЛЕ ДЛЯ ОФЛАЙНА");
-                GUILayout.Label("Это не запускает действие в конкретной точке. Вы задаёте серверу общий приоритет персонажа; конкретное занятие и его результат выбирает и симулирует сервер.");
-                if (GUILayout.Button("🔨 Приоритет: труд и ремесло")) RequestOfflinePriority("work");
-                if (GUILayout.Button("🍞 Приоритет: добывать пищу")) RequestOfflinePriority("eat");
-                if (GUILayout.Button("🏠 Приоритет: отдыхать")) RequestOfflinePriority("rest");
-                if (GUILayout.Button("🍺 Приоритет: общение")) RequestOfflinePriority("socialize");
+                DrawLifeModePanel(me);
             }
 
             GUILayout.Space(5f);
@@ -1346,6 +1333,16 @@ namespace Pogranichye.Client
                 return;
             }
             _core.DrawInventoryTab();
+            if (_frame.Me.Mug)
+            {
+                GUILayout.Space(8f);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("ПРЕДМЕТ · ПИВО");
+                GUILayout.Label("У тебя есть кружка. Выпить её можно в любом месте.");
+                if (GUILayout.Button("🍺 Выпить пиво"))
+                    QueueContextItemAction("consume", "beer", "Выпить пиво");
+                GUILayout.EndVertical();
+            }
         }
 
         private void DrawJournalTab()
@@ -3631,100 +3628,125 @@ namespace Pogranichye.Client
         private void DrawStableActions()
         {
             var stable = _frame?.Place?.Stable;
-            var horse = _frame?.Me?.Horse;
+            var activeHorse = _frame?.Me?.Horse;
+            var horses = _frame?.Me?.Horses;
+            if ((horses == null || horses.Count == 0) && activeHorse != null)
+                horses = new List<HorseFrame> { activeHorse };
+            var horseCount = horses != null ? horses.Count : 0;
+
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("КОНЮШНЯ У АМБАРА");
-            if (horse == null)
-            {
-                if (stable == null)
-                {
-                    GUILayout.Label("Сведения о конюшне ещё не получены от сервера.");
-                }
-                else if (stable.Horses < 1d)
-                {
-                    GUILayout.Label("Свободных лошадей сейчас нет. Загляните позже.");
-                }
-                else
-                {
-                    GUILayout.Label("Лошади: " + stable.Horses.ToString("0", CultureInfo.InvariantCulture) +
-                        " · цена: " + stable.Price.ToString("0.#", CultureInfo.InvariantCulture) + " монет.");
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = _frame.Me.Coins >= stable.Price;
-                    if (GUILayout.Button("Купить лошадь"))
-                        QueueHorseAction("buy", "Купить лошадь");
-                    GUI.enabled = previousEnabled;
-                    if (_frame.Me.Coins < stable.Price)
-                        GUILayout.Label("Не хватает монет. На счету: " +
-                            _frame.Me.Coins.ToString("0.#", CultureInfo.InvariantCulture) + ".");
-                }
-            }
+            GUILayout.Label("ТВОЙ ТАБУН · " + horseCount.ToString(CultureInfo.InvariantCulture) + " / 5");
+            if (stable == null)
+                GUILayout.Label("Сведения о конюшне ещё не получены от сервера.");
+            else if (horseCount >= 5)
+                GUILayout.Label("У тебя уже предельное число собственных лошадей.");
+            else if (activeHorse != null && activeHorse.Mounted)
+                GUILayout.Label("Чтобы купить ещё одну лошадь, сначала спешься.");
+            else if (stable.Horses < 1d)
+                GUILayout.Label("Свободных лошадей в конюшне сейчас нет. Загляните позже.");
             else
             {
-                GUILayout.Label(horse.Name + " · выносливость " +
-                    horse.Stamina.ToString("0", CultureInfo.InvariantCulture) + " / 100");
-                if (!horse.Here)
-                {
-                    GUILayout.Label("Лошадь осталась в другом поселении: вернитесь туда, чтобы оседлать её.");
-                }
-                else
-                {
-                    if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
-                        QueueHorseAction(horse.Mounted ? "dismount" : "mount",
-                            horse.Mounted ? "Спешиться" : "Оседлать лошадь");
-                    var hasFeed = HasStashGood("hay") || HasStashGood("wheat") || HasStashGood("veg");
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = hasFeed && horse.Stamina < 100d;
-                    if (GUILayout.Button("Покормить лошадь"))
-                        QueueHorseAction("feed", "Покормить лошадь");
-                    GUI.enabled = previousEnabled;
-                    if (!hasFeed) GUILayout.Label("Для корма нужны сено, зерно или овощи в суме.");
-                }
+                GUILayout.Label("В конюшне: " + stable.Horses.ToString("0", CultureInfo.InvariantCulture) +
+                    " · цена: " + stable.Price.ToString("0.#", CultureInfo.InvariantCulture) + " монет.");
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = previousEnabled && _frame.Me.Coins >= stable.Price;
+                if (GUILayout.Button("Купить лошадь"))
+                    QueueHorseAction("buy", "Купить лошадь");
+                GUI.enabled = previousEnabled;
+                if (_frame.Me.Coins < stable.Price)
+                    GUILayout.Label("Не хватает монет. На счету: " +
+                        _frame.Me.Coins.ToString("0.#", CultureInfo.InvariantCulture) + ".");
             }
-            if (horse != null && horse.Here)
+
+            if (horses == null || horses.Count == 0)
+                GUILayout.Label("Своих лошадей пока нет.");
+            else
             {
-                GUILayout.Space(6f);
-                GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
-                    horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
-                    horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
-                var stash = _frame.Me.Stash;
-                var shownStow = 0;
-                if (stash != null)
+                foreach (var horse in horses)
                 {
-                    foreach (var item in stash)
+                    if (horse == null || string.IsNullOrWhiteSpace(horse.Id)) continue;
+                    var isActive = horse.Active ||
+                        (activeHorse != null && string.Equals(activeHorse.Id, horse.Id, StringComparison.Ordinal));
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label((isActive ? "★ ВЕДОМАЯ · " : "ЛОШАДЬ · ") + horse.Name);
+                    GUILayout.Label("Выносливость: " + horse.Stamina.ToString("0", CultureInfo.InvariantCulture) + " / 100");
+                    var location = !string.IsNullOrWhiteSpace(horse.SettlementName)
+                        ? horse.SettlementName : horse.Here ? (_frame.Place?.Name ?? "текущее поселение") : "другое поселение";
+                    if (!string.IsNullOrWhiteSpace(horse.RealmName)) location += " · " + horse.RealmName;
+                    GUILayout.Label("Где оставлена: " + location);
+
+                    if (!isActive && GUILayout.Button("Сделать ведомой"))
+                        QueueHorseAction("choose", "Выбрать лошадь " + horse.Name, targetId: horse.Id);
+
+                    if (!horse.Here)
+                        GUILayout.Label("Чтобы оседлать её или переложить поклажу, вернитесь в это поселение.");
+                    else
                     {
-                        if (item.Value < 1d || shownStow >= 5) continue;
-                        shownStow++;
-                        if (GUILayout.Button("Положить на лошадь: " + item.Key + " ×1"))
-                            QueueHorseAction("stow", "Положить в седельную сумку", item.Key, 1);
+                        if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
+                            QueueHorseAction(horse.Mounted ? "dismount" : "mount",
+                                horse.Mounted ? "Спешиться" : "Оседлать " + horse.Name, targetId: horse.Id);
+
+                        var hasFeed = HasStashGood("hay") || HasStashGood("wheat") || HasStashGood("veg");
+                        var previousEnabled = GUI.enabled;
+                        GUI.enabled = previousEnabled && hasFeed && horse.Stamina < 100d;
+                        if (GUILayout.Button("Покормить"))
+                            QueueHorseAction("feed", "Покормить " + horse.Name, targetId: horse.Id);
+                        GUI.enabled = previousEnabled;
+                        if (!hasFeed) GUILayout.Label("Для кормления нужны сено, зерно или овощи в закромах.");
+
+                        GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
+                            horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
+                            horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
+                        var stash = _frame.Me.Stash;
+                        if (stash != null)
+                        {
+                            var shownStow = 0;
+                            foreach (var item in stash)
+                            {
+                                if (item.Value < 1d || shownStow >= 4) continue;
+                                shownStow++;
+                                if (GUILayout.Button("Положить: " + item.Key + " ×1"))
+                                    QueueHorseAction("stow", "Положить в сумку " + horse.Name,
+                                        item.Key, 1, horse.Id);
+                            }
+                        }
+                        var shownTake = 0;
+                        if (horse.Bag != null)
+                        {
+                            foreach (var item in horse.Bag)
+                            {
+                                if (item.Value <= 0d || shownTake >= 4) continue;
+                                shownTake++;
+                                if (GUILayout.Button("Забрать: " + item.Key + " ×" +
+                                    item.Value.ToString("0", CultureInfo.InvariantCulture)))
+                                    QueueHorseAction("unstow", "Забрать из сумки " + horse.Name,
+                                        item.Key, 1, horse.Id);
+                            }
+                        }
                     }
+                    GUILayout.EndVertical();
                 }
-                var shownTake = 0;
-                if (horse.Bag != null)
-                {
-                    foreach (var item in horse.Bag)
-                    {
-                        if (item.Value <= 0d || shownTake >= 5) continue;
-                        shownTake++;
-                        if (GUILayout.Button("Забрать с лошади: " + item.Key + " ×1"))
-                            QueueHorseAction("unstow", "Забрать из седельной сумки", item.Key, 1);
-                    }
-                }
-                if (shownStow == 0 && shownTake == 0)
-                    GUILayout.Label("Сумки пока пусты.");
             }
-            if (_frame?.Me != null)
-                DrawRecipeActions("granary");
+            if (_frame?.Me != null) DrawRecipeActions("granary");
             GUILayout.EndVertical();
         }
 
-        private void QueueHorseAction(string action, string label, string good = null, int qty = 0, string target = null)
+        private void QueueHorseAction(string action, string label, string good = null,
+            int qty = 0, string targetId = null)
         {
-            var queued = _core != null && (string.IsNullOrEmpty(good)
-                ? (string.IsNullOrEmpty(target)
-                    ? _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action)
-                    : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action, "target", target))
-                : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse",
-                    "action", action, "good", good, "qty", qty));
+            var pairs = new List<object> { "action", action };
+            if (!string.IsNullOrWhiteSpace(good))
+            {
+                pairs.Add("good"); pairs.Add(good);
+                pairs.Add("qty"); pairs.Add(qty);
+            }
+            if (!string.IsNullOrWhiteSpace(targetId))
+            {
+                pairs.Add("target"); pairs.Add(targetId);
+            }
+            var queued = _core != null && _core.QueueRequest(
+                WorldActionLabelPrefix + " " + label, "horse", pairs.ToArray());
             if (!queued)
             {
                 _status = "Не удалось отправить действие с лошадью. Дождитесь ответа на предыдущее действие.";
@@ -3744,16 +3766,15 @@ namespace Pogranichye.Client
             {
                 var counter = _frame.Place.TavernCounter;
                 if (counter == null)
-                    GUILayout.Label("Стойка корчмы пока не описана сервером.");
-                else if (!IsAtTavernCounter())
-                    GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
+                    GUILayout.Label("Сведения о стойке не получены. Сервер проверит возможность заказа.");
                 else if (!counter.BartenderPresent)
-                    GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
-                else if (_frame.Place.Beer <= 0d)
-                    GUILayout.Label("Пиво закончилось.");
-                else if (_frame.Me.Coins < _frame.Place.BeerPrice)
-                    GUILayout.Label("Не хватает монет на кружку.");
-                else if (GUILayout.Button("🍺 Заказать кружку · " +
+                    GUILayout.Label("В последнем кадре корчмарь не отмечен на смене. Сервер всё равно проверит заказ.");
+                if (_frame.Place.Beer <= 0d)
+                    GUILayout.Label("В последнем кадре запас пива пуст — окончательное наличие проверит сервер.");
+                if (_frame.Me.Coins < _frame.Place.BeerPrice)
+                    GUILayout.Label("По последнему кадру монет недостаточно — сервер проверит баланс при заказе.");
+                // Never hide the action based on stale client projections: only the server commits a buy.
+                if (GUILayout.Button("🍺 Попросить кружку · " +
                     _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
                     QueueContextItemAction("buy", "beer", "Заказать пиво");
             }
@@ -4769,12 +4790,6 @@ namespace Pogranichye.Client
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
-        private void RequestOfflinePriority(string goal)
-        {
-            // Goals are long-lived character priorities, not one-shot activities or tutorial progress.
-            _priorityToSend = goal;
-        }
-
         private async Task RegisterAsync()
         {
             if (!ValidateCredentials()) return;
@@ -5757,30 +5772,6 @@ namespace Pogranichye.Client
             });
         }
 
-        private async Task SendCharacterPriorityAsync(string goal)
-        {
-            var socket = _socket;
-            try
-            {
-                if (_connectionState != WorldConnectionState.Active || socket == null)
-                    throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendGoalAsync(goal, _lifetime.Token);
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Запрос долгосрочного приоритета отправлен: " + goal + ". Серверный протокол v1 пока не возвращает отдельное подтверждение для op:goal.";
-                });
-            }
-            catch (Exception ex)
-            {
-                Enqueue(() =>
-                {
-                    if (ReferenceEquals(_socket, socket))
-                        _status = "Не удалось отправить намерение: " + ex.Message;
-                });
-            }
-        }
-
         private void DisconnectWorld(string status)
         {
             _layoutRequestGeneration++;
@@ -5800,7 +5791,6 @@ namespace Pogranichye.Client
             _nextWorldManifestRefreshAt = 0f;
             _nextSettlementPrefetchAt = 0f;
             _worldManifestLastPlaceId = null;
-            _priorityToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
