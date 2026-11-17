@@ -24,6 +24,7 @@ namespace Pogranichye.Client.Presentation
         private WorldPoi _poi;
         private WorldNpc _npc;
         private static GUIStyle _promptStyle;
+        private static int _promptStyleScreenHeight;
 
         private void Awake()
         {
@@ -181,17 +182,18 @@ namespace Pogranichye.Client.Presentation
 
         private static void EnsurePromptStyle()
         {
-            if (_promptStyle != null) return;
+            if (_promptStyle != null && _promptStyleScreenHeight == Screen.height) return;
             _promptStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = ClientUiTypography.HudBody,
+                fontSize = ClientUiScalePolicy.ResolveFontSize(ClientUiTypography.HudBody, Screen.height),
                 fontStyle = FontStyle.Bold,
                 wordWrap = true,
                 clipping = TextClipping.Overflow,
                 padding = new RectOffset(12, 12, 7, 7)
             };
             _promptStyle.normal.textColor = new Color(0.96f, 0.88f, 0.70f, 1f);
+            _promptStyleScreenHeight = Screen.height;
         }
 
         private static void DrawReticle(bool focused)
