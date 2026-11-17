@@ -436,6 +436,86 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
         }
 
+        /// <summary>
+        /// Thick-client party controls backed by the server's me.party and player-only neighbors.
+        /// Names/visibility are taken exactly as published by the server; membership is never predicted locally.
+        /// </summary>
+        public void DrawPartyActions()
+        {
+            if (!_active || _me == null)
+            {
+                GUILayout.Label("Отряд станет доступен после подключения к миру.");
+                return;
+            }
+
+            var party = Obj(_me, "party");
+            var members = Arr(party, "members");
+            var invite = Obj(party, "invite_from");
+            var memberIds = new HashSet<string>();
+            if (members != null)
+                foreach (var member in members)
+                {
+                    var id = Str(member, "id");
+                    if (!string.IsNullOrEmpty(id)) memberIds.Add(id);
+                }
+
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ОТРЯД · ДО 6 ЧЕЛОВЕК");
+
+            if (invite != null)
+            {
+                GUILayout.Label(Str(invite, "who") + " зовёт тебя в отряд.");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Принять приглашение"))
+                    QueueRequest("Вступить в отряд", "party", "action", "accept");
+                if (GUILayout.Button("Отказаться"))
+                    QueueRequest("Отклонить приглашение", "party", "action", "leave");
+                GUILayout.EndHorizontal();
+            }
+
+            if (members != null && members.Count > 0)
+            {
+                foreach (var member in members)
+                {
+                    var name = Str(member, "name");
+                    var health = Num(member, "health");
+                    var line = (Flag(member, "leader") ? "★ " : "• ") +
+                        (string.IsNullOrEmpty(name) ? "Спутник" : name) +
+                        " · здоровье " + health.ToString("0", CultureInfo.InvariantCulture) +
+                        (Flag(member, "road") ? " · в пути" : "");
+                    GUILayout.Label(line);
+                }
+                if (GUILayout.Button("Покинуть отряд"))
+                    QueueRequest("Покинуть отряд", "party", "action", "leave");
+            }
+            else if (invite == null)
+            {
+                GUILayout.Label("Ты пока один. Позвать можно только другого игрока рядом.");
+            }
+
+            var neighbors = Arr(_place, "neighbors");
+            var candidates = 0;
+            if (neighbors != null)
+            {
+                foreach (var neighbor in neighbors)
+                {
+                    if (!Flag(neighbor, "player")) continue;
+                    var id = Str(neighbor, "id");
+                    if (string.IsNullOrEmpty(id) || memberIds.Contains(id)) continue;
+                    var who = Flag(neighbor, "known") ? Str(neighbor, "name") : Str(neighbor, "desc");
+                    if (string.IsNullOrEmpty(who)) who = Str(neighbor, "name");
+                    if (string.IsNullOrEmpty(who)) who = "Игрок";
+                    candidates++;
+                    if (GUILayout.Button("Позвать: " + who))
+                        QueueRequest("Пригласить в отряд", "party", "action", "invite", "target", id);
+                }
+            }
+            if (candidates == 0)
+                GUILayout.Label("Рядом нет других игроков, которых можно пригласить.");
+
+            GUILayout.EndVertical();
+        }
+
         public void DrawInventoryTab()
         {
             if (!_active || _me == null)
@@ -3133,6 +3213,58 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
         }
 
+        /// <summary>
+        /// Draws only recipes the server says are at this workstation. The can/here flags
+        /// are advisory UI state; Craft still revalidates materials, energy and location.
+        /// </summary>
+        public void DrawCraftingContextActions(string station)
+        {
+            if (!_active || _me == null)
+            {
+                GUILayout.Label("Рецепты появятся после подключения к миру.");
+                return;
+            }
+
+            var recipes = Arr(_me, "recipes");
+            var shown = 0;
+            if (recipes != null)
+            {
+                foreach (var recipe in recipes)
+                {
+                    if (!string.Equals(Str(recipe, "at"), station, StringComparison.Ordinal) ||
+                        !Flag(recipe, "here"))
+                        continue;
+
+                    var id = Str(recipe, "id");
+                    if (string.IsNullOrWhiteSpace(id)) continue;
+                    shown++;
+                    var needs = string.Empty;
+                    var needObject = Obj(recipe, "needs");
+                    if (needObject != null)
+                    {
+                        foreach (var need in needObject.Properties())
+                        {
+                            if (needs.Length > 0) needs += " · ";
+                            needs += Name(need.Name) + " ×" + need.Value;
+                        }
+                    }
+
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && Flag(recipe, "can");
+                    var label = Str(recipe, "name") +
+                        (string.IsNullOrEmpty(needs) ? string.Empty : "\nСырьё: " + needs);
+                    if (GUILayout.Button(label, GUILayout.MinHeight(38f)))
+                        Ask(Str(recipe, "name"), "craft", "item", id);
+                    GUI.enabled = previousEnabled;
+                }
+            }
+
+            if (shown == 0)
+                GUILayout.Label("Сейчас сервер не предлагает рецептов для этой мастерской.");
+            else
+                GUILayout.Label("Серые рецепты требуют сырья. Итоговое решение всегда за сервером.");
+        }
+
         private void DrawMenu()
         {
             var width = Mathf.Min(900f, Screen.width - 40f);
@@ -3229,6 +3361,11 @@ namespace Pogranichye.Client
             }
 
             DrawCardGames();
+            var buildButtonEnabled = GUI.enabled;
+            GUI.enabled = buildButtonEnabled && _place != null && Count(stash, "wood") >= 2f && Num(_me, "energy") >= 10f;
+            if (GUILayout.Button("🪚 Помочь в строительстве · 2 дерева"))
+                AskActivity("Стройка", "build");
+            GUI.enabled = buildButtonEnabled;
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) AskActivity("Руда", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) AskActivity("Травы", "gather");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) AskActivity("Работа в поле", "farmwork");

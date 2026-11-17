@@ -1,7 +1,7 @@
 # Unity client: coverage of wire v1 DTOs and gameplay consumers
 
-- Audit date: 2026-11-14
-- Audited main: `a62c0e72c768a07802f7b85483124f15842a4b37`
+- Audit date: 2026-11-17 (incremental reconciliation)
+- Baseline audit: `a62c0e72c768a07802f7b85483124f15842a4b37`; current client sources rechecked on branch `feat/client-contextual-activities-horse-20261117`
 - Sources: `1-server/server/server.go` (`stateJSON`, `fastJSON`), `2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs`, `WorldFrameParser.cs`, `FastFrameParser.cs`, `Runtime/CoreGameplay.cs`, and `3-dev/contract/fixtures/state_v1.example.json`.
 - Contract authority: `3-dev/docs/ПРОТОКОЛ-КЛИЕНТ-СЕРВЕР.md`. This is an implementation inventory, not a wire-contract proposal.
 
@@ -34,8 +34,8 @@
 | `me.quests` | `QuestsFrame`, `QuestFrame` + `QuestsFrameParser` | needs/requests UI | Typed; public `sim.QuestsView` only, full-frame-only |
 | `me.card_game` | `CardGameFrame`, `CardGameCardFrame`, `DurakTablePairFrame` + `CardGameFrameParser` | Ochko/Durak panel and hotkeys | Typed in the card-game slice; validates public state and rejects hidden dealer-hand leaks; full-frame-only |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
-| `me.recipes` | Missing recipe/needs DTOs | crafting panel | **Gap** |
-| `me.party` | Missing `PartyFrame` and member/invite DTOs | party panel | **Gap** |
+| `me.recipes` | Missing recipe/needs DTOs | `CoreGameplay.DrawCraftingContextActions` and existing action tab read validated raw JSON; server `here/can` flags drive contextual recipe choices | **Gap** in typed DTO, but consumed by the contextual workstation UI |
+| `me.party` | Missing `PartyFrame` and member/invite DTOs | Thick-client party controls read validated raw JSON; invite/accept/leave and nearby-player invites use `op:"party"` | **Gap** in typed DTO, functionally consumed |
 
 ## Settlement fields
 
@@ -48,9 +48,10 @@
 | `place.rooms` | `PlaceRoomsFrame`, `PlaceRoomEntryFrame` | public room vacancy summary | Typed |
 | `place.foes[]` | `FoeFrame` + `FoeFrameParser` | `SyncFoes`, combat targets and presentation | Typed in this slice; stable string IDs and full/fast shape validated |
 | `place.exits[]` | Missing `ExitFrame` | `SyncExits`, road choices | **Gap** in full-frame DTO; current server fast frame does not send exits |
-| `place.site` | Missing `SiteFrame` | features, terrain, climate, specialty and state | **Gap** |
-| `place.market[]` | Missing `MarketItemFrame` | stock, buy/sell prices and ownership UI | **Gap** |
-| `place.stable` | Missing `StableFrame` and horse-offer DTO | horse availability and price | **Gap** |
+| `place.site` | Missing `SiteFrame` | No confirmed typed consumer in current client | **Gap**; audit before adding a DTO |
+| `place.market[]` | Missing `MarketItemFrame` | `CoreGameplay.DrawMarketContextActions` reads validated raw JSON | **Gap**; functionally consumed, not typed |
+| `place.stable` | `StableFrame` | `VerticalSliceController.DrawStableActions` | **Typed**; server stock/price drive purchase affordance |
+| `place.sites[]` | `WildPlaceFrame` | wilderness context panel and `goto`/`site` actions | **Typed**; server-provided actions only |
 | `place.tavern_counter` | `TavernCounterFrame` + `TavernCounterFrameParser` | beer purchase affordance and keeper status | Typed; additive nullable v1 view, client-only hint, server revalidates |
 
 ## Fast frame: exact current server shape
@@ -88,14 +89,14 @@ The compact `DrawStatus` HUD now reads an immutable `GameplayStatusView`, and th
 1. Keep the full-frame parser strict and keep the exact validated token document until each legacy consumer is migrated.
 2. Add DTOs only after checking both server serializer and shared fixture; preserve absent/null/empty distinctions. `me.feed[]` is the first completed example.
 3. Keep fast updates as a distinct patch type. Presence must be represented explicitly; never merge a missing field as zero/false.
-4. Migrate one small consumer at a time. Stats, carried bag, horse and regional map now have typed DTOs and typed consumers; next candidates: inventory/card-game/recipes/party, then settlement market/site/exits/stable/tavern counter.
+4. Migrate one small consumer at a time. Stats, carried bag, horse, regional map, card game, stable and wilderness sites now have typed DTOs and typed consumers; next candidates: recipes/party, then settlement market/site/exits.
 5. Preserve privacy-sensitive fields: especially card-game hidden cards, unknown NPC names, private room/chest state and non-public inventory.
 
 ## Position validation note
 
 The parser already contains the seamless-scene boundary exception: `me.pos` may exceed the legacy ±150 m settlement footprint only when `me.wpos` and `place.anchor` are both present and the global/local relation agrees within 2 mm. Editor fixtures cover a valid x=151 m position and a mismatched global position rejection. Do not duplicate or weaken this guard; runtime behavior still requires Unity acceptance.
 
-After the status, feed, result, combat, foe, journey, quest, stats, horse and carried-bag migrations, 3 major character sections remain without dedicated DTOs (`card_game`, `recipes`, `party`, plus other consumer-specific nested shapes as inventoried above); five settlement sections remain (`exits`, `site`, `market`, `stable`, `tavern_counter`).
+Current high-value typed DTO gaps are `me.recipes` and `me.party`; `place.exits`, `place.site` and `place.market` remain settlement DTO gaps. `place.stable`, `place.sites` and `place.tavern_counter` are already typed in the current client. `me.card_game` is also typed and is not a remaining gap.
 
 No wire field, server behavior, protocol version, persistence format, settlement geometry or navigation rule is changed by this inventory.
 
@@ -107,7 +108,7 @@ No wire field, server behavior, protocol version, persistence format, settlement
 - `me.horse` comes from `sim.HorseView(w,e)`: null if no owned horse; otherwise `id` (stable string entity ID), `name`, `stam` (0..100), `mounted`, `here`, `bag` (separate saddle-bag goods map), `bag_load`, `bag_cap`. All fields are emitted by the current server view.
 - The typed fields are assigned from each validated full snapshot in `CoreGameplay.ApplyFrame`. They are absent from the inspected fast frame, so fast patches preserve the latest full values and do not synthesize a horse or bag state.
 - The inventory UI uses the typed stats, carried-bag summary and horse DTO; mount visuals use only the server-confirmed `HorseFrame.Mounted` flag. Buy/mount/dismount/feed/stow/unstow remain server intentions; no local stock, stamina, ownership or inventory mutation is performed.
-- `place.stable` remains a separate untyped settlement view in this slice; its stock/price UI is still read from the validated full-frame token tree.
+- `place.stable` is represented by `StableFrame` on `PlaceFrame`; the stable panel reads server-supplied stock/price and never mutates stock locally.
 
 
 ## Regional map knowledge projection (v1.12)
@@ -153,3 +154,13 @@ Runtime status: source review only; Unity Editor compile and PlayMode acceptance
 - `resources[]` now produce lightweight, non-colliding markers sampled against the server heightfield. `wild[]` is intentionally not drawn a second time: it describes the same persistent wild landmarks already presented from `/api/world.wildsites` by `WorldWildSitePresentationBuilder`. The new `place.sites[]` panel remains the actionable player-facing wilderness layer.
 
 Validation boundary: source edits only. Unity Editor compilation, IMGUI layout, URP water transparency, MeshCollider contact, live-server site actions and the complete 10-node casting flow have not been run in this environment. Do not mark the client runtime accepted until those checks are performed in Unity.
+## Contextual activities and horse controls — 2026-11-17
+
+- E remains the single world-interaction key. It selects server Layout POIs; workstation targets open a contextual panel rather than requiring the player to find separate activity buttons in the character menu.
+- Smithy: `act:forge` plus recipes from `me.recipes[]` where `at==smithy` and `here==true`.
+- Garden: `act:gather`, `act:farmwork`, `act:apiary`; the server decides whether field, season, hive stock and energy permit the action.
+- Hearth: recipes from `me.recipes[]` where `at==hearth` and `here==true`.
+- Granary: `place.stable{horses,price}` drives purchase; `me.horse{mounted,here,stam,bag}` drives mount/dismount/feed and saddlebag UI. `stow/unstow` include the server's `good` and `qty` arguments.
+- All gameplay actions use existing `act`, `craft`, or `horse` operations with `reqid` and are confirmed through `me.result`. No local inventory, money, stock, horse ownership or stamina mutation is performed.
+- The `layout.interactions[]` DTO remains future-compatible only. Current server layout JSON does not emit it and current server does not handle `op:interact`; the client does not send that unsupported operation.
+- Remaining validation: Unity Editor 6000.6.7f1 compile, generated-layout PlayMode raycasts, field/forge/craft outcomes, horse mount movement and saddlebag transfers. CI pure C# checks do not replace runtime checks.

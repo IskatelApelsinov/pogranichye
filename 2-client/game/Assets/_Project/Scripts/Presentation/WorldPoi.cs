@@ -49,7 +49,7 @@ namespace Pogranichye.Client.Presentation
 
         public void RequestInteraction()
         {
-            if (enabled && CanInteract && (!string.IsNullOrEmpty(InteractionId) || !string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(ActionIntent)))
+            if (enabled && CanInteract && (!string.IsNullOrEmpty(InteractionId) || !string.IsNullOrEmpty(Goal) || !string.IsNullOrEmpty(ActionIntent) || !string.IsNullOrEmpty(TargetId)))
                 Selected?.Invoke(this);
         }
 
