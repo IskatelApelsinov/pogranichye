@@ -34,7 +34,7 @@ Base implementation added:
 | `smithy` | context menu: `act:forge` + server-available `craft` recipes |
 | `market` | goal `eat` |
 | `garden` | context menu: `act:gather`, `act:farmwork`, `act:apiary` |
-| `woods` | `forest` → action `chop`; `copse` → action `gather_brushwood` |
+| `woods` | context menu: `forest` → `chop`; `copse` → `gather_brushwood`; additionally `hunt/fight` |
 | `river` | action `fish` |
 | `mine` | action `mine` |
 | `granary` | horse/stable panel + recipes at `granary` |
