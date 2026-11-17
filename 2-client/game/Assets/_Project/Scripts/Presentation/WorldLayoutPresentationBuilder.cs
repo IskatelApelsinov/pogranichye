@@ -98,14 +98,14 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
+                    var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                        b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
                     if (b.Door != null)
-                        BuildTavernWallColliders(world, b, width, depth);
+                        BuildTavernWallColliders(world, b, width, depth, obstructionHeight);
                     else
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
                         collision.transform.SetParent(world, false);
-                        var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
-                            b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
                         collision.transform.localPosition = new Vector3(
                             (float)((b.X0 + b.X1) * 0.5), obstructionHeight * 0.5f, (float)((b.Y0 + b.Y1) * 0.5));
                         collision.layer = 2;
@@ -1545,7 +1545,7 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth)
+        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
         {
             // Door position on the actual server wall determines the opening side.
             var centerX = (float)((building.X0 + building.X1) * 0.5f);
@@ -1557,33 +1557,34 @@ namespace Pogranichye.Client.Presentation
             var opening = Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f);
             offset = Mathf.Clamp(offset, -axisLength * 0.5f + opening * 0.5f, axisLength * 0.5f - opening * 0.5f);
 
-            if (side != 0) AddWallCollider(parent, "Tavern south wall", new Vector3(centerX, 2.35f, centerZ - depth * 0.5f + 0.12f), new Vector3(width, 4.7f, 0.24f));
-            if (side != 1) AddWallCollider(parent, "Tavern north wall", new Vector3(centerX, 2.35f, centerZ + depth * 0.5f - 0.12f), new Vector3(width, 4.7f, 0.24f));
-            if (side != 2) AddWallCollider(parent, "Tavern west wall", new Vector3(centerX - width * 0.5f + 0.12f, 2.35f, centerZ), new Vector3(0.24f, 4.7f, depth));
-            if (side != 3) AddWallCollider(parent, "Tavern east wall", new Vector3(centerX + width * 0.5f - 0.12f, 2.35f, centerZ), new Vector3(0.24f, 4.7f, depth));
+            var centerY = wallHeight * 0.5f;
+            if (side != 0) AddWallCollider(parent, "Server south wall", new Vector3(centerX, centerY, centerZ - depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 1) AddWallCollider(parent, "Server north wall", new Vector3(centerX, centerY, centerZ + depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 2) AddWallCollider(parent, "Server west wall", new Vector3(centerX - width * 0.5f + 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
+            if (side != 3) AddWallCollider(parent, "Server east wall", new Vector3(centerX + width * 0.5f - 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
-            AddTavernDoorColliderSegment(parent, "Tavern door wall left", side, centerX, centerZ, width, depth, left,
+            AddTavernDoorColliderSegment(parent, "Server door wall left", side, centerX, centerZ, width, depth, wallHeight, left,
                 -axisLength * 0.5f + left * 0.5f);
-            AddTavernDoorColliderSegment(parent, "Tavern door wall right", side, centerX, centerZ, width, depth, right,
+            AddTavernDoorColliderSegment(parent, "Server door wall right", side, centerX, centerZ, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f);
         }
 
         private static void AddTavernDoorColliderSegment(Transform parent, string name, int side,
-            float centerX, float centerZ, float width, float depth, float segmentLength, float axisPosition)
+            float centerX, float centerZ, float width, float depth, float wallHeight, float segmentLength, float axisPosition)
         {
             if (segmentLength <= 0.05f) return;
             var position = side == 0
-                ? new Vector3(centerX + axisPosition, 2.35f, centerZ - depth * 0.5f + 0.12f)
+                ? new Vector3(centerX + axisPosition, wallHeight * 0.5f, centerZ - depth * 0.5f + 0.12f)
                 : side == 1
-                    ? new Vector3(centerX + axisPosition, 2.35f, centerZ + depth * 0.5f - 0.12f)
+                    ? new Vector3(centerX + axisPosition, wallHeight * 0.5f, centerZ + depth * 0.5f - 0.12f)
                     : side == 2
-                        ? new Vector3(centerX - width * 0.5f + 0.12f, 2.35f, centerZ + axisPosition)
-                        : new Vector3(centerX + width * 0.5f - 0.12f, 2.35f, centerZ + axisPosition);
+                        ? new Vector3(centerX - width * 0.5f + 0.12f, wallHeight * 0.5f, centerZ + axisPosition)
+                        : new Vector3(centerX + width * 0.5f - 0.12f, wallHeight * 0.5f, centerZ + axisPosition);
             var size = side == 0 || side == 1
-                ? new Vector3(segmentLength, 4.7f, 0.24f)
-                : new Vector3(0.24f, 4.7f, segmentLength);
+                ? new Vector3(segmentLength, wallHeight, 0.24f)
+                : new Vector3(0.24f, wallHeight, segmentLength);
             AddWallCollider(parent, name, position, size);
         }
 
