@@ -38,7 +38,10 @@ namespace Pogranichye.Client.Presentation
                     return NpcActivitySoundKind.Mining;
                 case "cook_hearth":
                 case "brew_remedy":
+                case "bake_bread":
                     return NpcActivitySoundKind.Hearth;
+                case "jewel_work":
+                    return NpcActivitySoundKind.Forge;
                 case "drink_tavern":
                     return NpcActivitySoundKind.Drinking;
                 case "herd_barn":
