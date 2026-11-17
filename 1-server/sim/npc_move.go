@@ -78,6 +78,9 @@ func StepNPCMovement(w *core.World, dt float64, controlled func(core.ID) bool) {
 			layouts[pl.Settlement] = l
 		}
 		bx, by := targetFor(l, e, id.Role, m.Goal, m.ActCode)
+		if fx, fy, ok := forayTarget(w, e, pl.Settlement, m.ActCode); ok {
+			bx, by = fx, fy // v1.30: промысел за околицей — к урочищу своего ремесла
+		}
 		key := spot{pl.Settlement, bx, by}
 		rank := nextRank[key]
 		nextRank[key] = rank + 1

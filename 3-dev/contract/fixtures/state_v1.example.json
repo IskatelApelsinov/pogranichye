@@ -548,6 +548,25 @@
       "y": 20.0,
       "radius": 2.2,
       "bartender_present": true
-    }
+    },
+    "gather": [
+      {
+        "id": "g:31:-552",
+        "kind": "hive",
+        "name": "Дикий улей",
+        "good": "honey",
+        "good_name": "мёд",
+        "left": 2,
+        "max": 2,
+        "e": 1262.4,
+        "n": -22075.1,
+        "u": 131.2,
+        "x": 12.4,
+        "y": -8.0,
+        "dist": 14.6,
+        "dir": "на северо-востоке",
+        "here": false
+      }
+    ]
   }
 }

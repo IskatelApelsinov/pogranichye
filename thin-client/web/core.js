@@ -38,7 +38,7 @@ function coreRender(s){
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
   show('craftcard', !road); show('roadcard', road); show('mapcard', !road);
-  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawLife(s); drawDev(s); drawRealm(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
+  drawRoad(s); drawFeed(s); drawFight(s); drawSites(s); drawGather(s); drawLife(s); drawDev(s); drawRealm(s); drawWeave(s); drawQuests(s); drawCraft(s); drawParty(s); drawLiveMap(s); drawStats(s);
 }
 
 // ---------- лента событий ----------
@@ -229,6 +229,22 @@ function drawFight(s){
 
 // ---------- окрестности: места без жителей (v1.22) ----------
 function siteGo(id){ send({op:'goto', site:id}); }
+// ---------- находки под ногами (v1.30): травы, грибы, ягоды, мёд, хворост ----------
+const GATHER_ICON={herb:'🌿',mushroom:'🍄',berries:'🫐',hive:'🍯',deadwood:'🪵',nest:'🪶',flax:'🌾'};
+function pick(id){ send({op:'pick', node:id}); }
+function drawGather(s){
+  const rows=PogCatalog.gatherRows((s.place||{}).gather, (s.me||{}).walk);
+  if(!rows.length){ show('gathercard', false); return; }
+  show('gathercard', true);
+  let h='<b>🧺 Под рукой</b> <span class="sub">— можно подобрать</span>';
+  rows.slice(0,8).forEach(r=>{
+    h+=`<div style="margin-top:4px">${GATHER_ICON[r.kind]||'•'} <b>${esc(r.name)}</b> <span class="sub">· ${esc(r.good)} · осталось ${esc(r.left)} · ${esc(r.where)}</span> `;
+    if(r.here) h+=r.left>0?`<button class="primary" onclick="pick('${esc(r.id)}')">собрать</button>`:'<span class="sub">отрастёт за сутки</span>';
+    else h+=`<button ${r.going?'disabled':''} onclick="siteGo('${esc(r.id)}')">${r.going?'🚶 иду…':'подойти'}</button>`;
+    h+='</div>';
+  });
+  setHTML('gathercard', h);
+}
 function siteAct(id, action){ send({op:'site', site:id, action:action}); }
 function drawSites(s){
   const rows = PogCatalog.siteRows((s.place||{}).sites, (s.me||{}).walk);

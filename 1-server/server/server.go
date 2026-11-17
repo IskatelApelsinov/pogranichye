@@ -324,6 +324,7 @@ func (s *Server) fastStep(dt float64) {
 	sim.StepCombatAtHour(s.world, dt, s.runner.Clock.Hour(), ctl, s.runner.Hub.Stream("combat"))
 	sim.StepAutoWalk(s.world, dt, ctl) // самоход игрока-менеджера к выбранному месту села
 	sim.StepLands(s.world, ctl)        // бесшовный мир: идущий переходит в земли ближайшего села
+	sim.StepFoeLands(s.world)          // v1.30: звери и разбойники фронтира тоже переходят межу
 	sim.StepExits(s.world, ctl, func(id core.ID) *dice.Stream { return s.runner.Hub.Stream("player", eid(id)) })
 	sim.StepJourneys(s.world, dt)
 	sim.RegenMana(s.world, dt)    // мана игроков восстанавливается в реальном времени
@@ -578,7 +579,8 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		VoiceCandidate string   `json:"candidate"`
 		VoiceSDPMid    string   `json:"sdp_mid"`
 		VoiceSDPMLine  int      `json:"sdp_mline_index"`
-		Value          float64  `json:"value"` // v1.29: число для op:"dev" (множитель, часы)
+		Value          float64  `json:"value"`
+		Node           string   `json:"node"` // v1.30: находка под ногами (op:"pick", goto) // v1.29: число для op:"dev" (множитель, часы)
 	}
 	if json.Unmarshal([]byte(msg), &in) != nil {
 		return
@@ -597,6 +599,13 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 			if in.ReqID != "" || !ok {
 				sim.SetResult(s.world, e, in.ReqID, ok, why)
 			}
+		}
+		s.mu.Unlock()
+	case "pick": // v1.30: взять находку под ногами — травы, грибы, ягоды, мёд, хворост
+		s.mu.Lock()
+		if e := s.world.Get(cid); e != nil {
+			ok, why := sim.PickUp(s.world, e, in.Node, in.ReqID)
+			sim.SetResult(s.world, e, in.ReqID, ok, why)
 		}
 		s.mu.Unlock()
 	case "dev":
@@ -1125,6 +1134,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 				"anchor":         sim.AnchorViewUsing(s.world, terrain, pl.Settlement),                    // v1.19: центр села в мире; мир = anchor + pos
 				"plan":           sim.LayoutOf(s.world, pl.Settlement).Plan,                               // v1.19: план застройки (раскладку брать /api/layout?settlement=id)
 				"stable":         sim.StableView(se),                                                      // конюшня: лошади на продажу и цена (v1.13)
+				"gather":         sim.GatherView(s.world, terrain, e),                                     // v1.30: находки под ногами (до 45 м)
 				"sites":          sim.SitesView(s.world, terrain, e, int(s.runner.Clock.Day())),           // v1.22: места без жителей вокруг (урочища, пещеры, башни)
 				"realm":          sim.PlaceRealmView(s.world, pl.Settlement),                              // v1.24: чьи это земли — держава, столица, война и союзы (null — вольная земля)
 				"caravans":       sim.NearCaravansView(s.world, terrain, e, s.runner.Clock.Hour()),        // v1.24: обозы неподалёку — что везут и куда

@@ -72,3 +72,11 @@ test('site rows carry the trace of villagers',()=>{
   assert.equal(rows[0].note,'сегодня здесь были люди из села Починок');
   assert.equal(rows[1].note,'');
 });
+
+test('gather rows tell what lies at hand',()=>{
+  const r=C.gatherRows([{id:'g:1:2',kind:'hive',name:'Дикий улей',good:'honey',good_name:'мёд',left:2.0,dist:12.4,dir:'на севере',here:false},
+    {id:'g:1:3',kind:'herb',name:'Зверобой',good_name:'травы',left:0,dist:1,here:true},{bad:1}],{site:'g:1:2'});
+  assert.equal(r.length,2);
+  assert.equal(r[0].going,true); assert.equal(r[0].good,'мёд'); assert.match(r[0].where,/на севере/);
+  assert.equal(r[1].here,true); assert.equal(r[1].where,'прямо здесь'); assert.equal(r[1].left,0);
+});

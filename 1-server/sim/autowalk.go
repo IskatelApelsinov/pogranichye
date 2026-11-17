@@ -20,9 +20,10 @@ func init() { core.Register("autowalk", func() core.Component { return &AutoWalk
 
 // AutoWalkC — «иду к месту»: ключ точки интереса и её координаты в сцене села.
 type AutoWalkC struct {
-	Loc string  `json:"loc"`
-	TX  float64 `json:"tx"`
-	TY  float64 `json:"ty"`
+	Reach float64 `json:"reach,omitempty"` // v1.30: радиус «пришёл» (находке — вплотную); 0 — как у урочища
+	Loc   string  `json:"loc"`
+	TX    float64 `json:"tx"`
+	TY    float64 `json:"ty"`
 	// Site — идём не к месту села, а к месту без жителей в поле (wildlands.go): его id и точка в мире.
 	Site   string      `json:"site,omitempty"`
 	Name   string      `json:"name,omitempty"`
@@ -94,6 +95,12 @@ func WalkToSite(w *core.World, e *core.Entity, siteID string) (bool, string) {
 		return false, "ты в комнате — сперва выйди"
 	}
 	site, ok := WildPlaceByID(w, NewTerrain(w), siteID)
+	reach := 0.0
+	if !ok { // v1.30: находка под ногами — к ней подходят вплотную
+		if g, gok := GatherNodeByID(w, terrainFor(w), siteID); gok {
+			site, ok, reach = WildPlace{ID: g.ID, Name: g.Kind.Name, E: g.E, N: g.N}, true, gatherReach*0.6
+		}
+	}
 	if !ok {
 		return false, "нет такого места"
 	}
@@ -105,7 +112,7 @@ func WalkToSite(w *core.World, e *core.Entity, siteID string) (bool, string) {
 		return false, "слишком далеко — сначала подойди ближе"
 	}
 	CancelWalk(w, e)
-	w.Attach(e, &AutoWalkC{Loc: "", Site: site.ID, Name: site.Name, WE: site.E, WN: site.N, Best: math.MaxFloat64})
+	w.Attach(e, &AutoWalkC{Loc: "", Site: site.ID, Name: site.Name, WE: site.E, WN: site.N, Best: math.MaxFloat64, Reach: reach})
 	if nav := navOf(e); nav != nil {
 		nav.Route = nil
 	}
@@ -122,7 +129,11 @@ func stepFieldWalk(w *core.World, e *core.Entity, c *AutoWalkC, p *ScenePosC, dt
 	ax, ay := Anchor(w, s)
 	tx, ty := c.WE-ax, c.WN-ay // цель в координатах текущих земель
 	d := math.Hypot(tx-p.X, ty-p.Y)
-	if d <= wildReach*0.4 {
+	arrive := wildReach * 0.4
+	if c.Reach > 0 {
+		arrive = c.Reach
+	}
+	if d <= arrive {
 		return true
 	}
 	l := layoutFor(w, e)

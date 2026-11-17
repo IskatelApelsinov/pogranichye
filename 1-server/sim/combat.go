@@ -67,23 +67,26 @@ type FoeC struct {
 	HP         float64 `json:"hp"`
 	Max        float64 `json:"max"`
 	State      string  `json:"state"` // roam|chase|flee|eat|dead
-	Target     core.ID `json:"target"`
-	Aware      bool    `json:"aware"`
-	HomeX      float64 `json:"hx"`
-	HomeY      float64 `json:"hy"`
-	CD         float64 `json:"cd"`
-	Stun       float64 `json:"stun"`
-	Windup     float64 `json:"windup"` // читаемая пауза перед атакой: даёт игроку окно на реакцию
-	Blind      float64 `json:"blind"`
-	Bait       float64 `json:"bait"`
-	Slow       bool    `json:"slow"`
-	Weak       bool    `json:"weak"`
-	Bleed      float64 `json:"bleed"` // урон/с от жгучего плетения
-	BleedLeft  float64 `json:"bleed_left"`
-	Dead       float64 `json:"dead"` // сек до исчезновения туши
-	WX         float64 `json:"-"`    // точка блуждания
-	WY         float64 `json:"-"`
-	WT         float64 `json:"-"`
+	// v1.30: зверь/разбойник фронтира — из какого дикого места (id урочища) и как далеко бродит
+	Wild      string  `json:"wild,omitempty"`
+	Roam      float64 `json:"roam,omitempty"`
+	Target    core.ID `json:"target"`
+	Aware     bool    `json:"aware"`
+	HomeX     float64 `json:"hx"`
+	HomeY     float64 `json:"hy"`
+	CD        float64 `json:"cd"`
+	Stun      float64 `json:"stun"`
+	Windup    float64 `json:"windup"` // читаемая пауза перед атакой: даёт игроку окно на реакцию
+	Blind     float64 `json:"blind"`
+	Bait      float64 `json:"bait"`
+	Slow      bool    `json:"slow"`
+	Weak      bool    `json:"weak"`
+	Bleed     float64 `json:"bleed"` // урон/с от жгучего плетения
+	BleedLeft float64 `json:"bleed_left"`
+	Dead      float64 `json:"dead"` // сек до исчезновения туши
+	WX        float64 `json:"-"`    // точка блуждания
+	WY        float64 `json:"-"`
+	WT        float64 `json:"-"`
 }
 
 func (c *FoeC) Kind() string { return "foe" }
@@ -267,6 +270,9 @@ func StepCombatAtHour(w *core.World, dt float64, hour int, controlled func(core.
 	for _, sid := range sids {
 		if se := w.Get(sid); se != nil {
 			populateFoes(w, se, dt)
+			if camp, _ := se.Get("foecamp").(*FoeCampC); camp != nil && camp.Timer >= 11.99 { // раз в 12 с, вместе с подсевом у околицы
+				populateFrontierFoes(w, se, players[sid], hour)
+			}
 		}
 	}
 	var gone []core.ID
@@ -385,7 +391,7 @@ func stepFoeAtHour(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, d
 			return
 		}
 		f.Aware = false
-		wanderFoe(l, f, dt, s)
+		wanderFoeAt(w, l, f, dt, hour, s)
 		return
 	}
 	aggro := foeAggroRadius(near, st.aggro, hour)
@@ -393,7 +399,11 @@ func stepFoeAtHour(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, d
 		aggro *= 0.4
 	}
 	safe := l.InCore(pp.X, pp.Y) // село под защитой людей — зверь туда не идёт
-	leash := math.Hypot(f.X-f.HomeX, f.Y-f.HomeY) > 75
+	leashR := 75.0
+	if f.Roam > 0 {
+		leashR = f.Roam + 80 // зверь фронтира гонит дальше — но и он возвращается к своему месту
+	}
+	leash := math.Hypot(f.X-f.HomeX, f.Y-f.HomeY) > leashR
 	hunting := (f.Aware || nd <= aggro) && !safe && !leash
 	if f.Species == "wolf" && f.HP < f.Max*0.25 { // подранок уходит
 		hunting = false
@@ -407,7 +417,7 @@ func stepFoeAtHour(w *core.World, fe *core.Entity, f *FoeC, ps []*core.Entity, d
 	if !hunting {
 		f.Windup = 0
 		f.Aware, f.Target = false, 0
-		wanderFoe(l, f, dt, s)
+		wanderFoeAt(w, l, f, dt, hour, s)
 		return
 	}
 	f.Aware, f.Target, f.State = true, near.ID, "chase"
@@ -452,6 +462,22 @@ func moveFoe(l *Layout, f *FoeC, tx, ty, step float64) {
 	f.Facing = facingDeg(dx, dy, f.Facing)
 }
 
+// wanderFoeAt — бродить: зверь у околицы — рядом со своей точкой; зверь фронтира — широко вокруг
+// своего дикого места (ночью дальше), разбойник — выходит к тропам.
+func wanderFoeAt(w *core.World, l *Layout, f *FoeC, dt float64, hour int, s *dice.Stream) {
+	if f.Roam <= 0 {
+		wanderFoe(l, f, dt, s)
+		return
+	}
+	f.State = "roam"
+	f.WT -= dt
+	if f.WT <= 0 || math.Hypot(f.WX-f.X, f.WY-f.Y) < 2 {
+		f.WT = s.Uniform(12, 30)
+		f.WX, f.WY = frontierWanderTarget(w, f, s.Float(), s.Float(), hour >= 21 || hour < 5)
+	}
+	moveFoe(l, f, f.WX, f.WY, foeStats[f.Species].speed*0.45*dt)
+}
+
 func wanderFoe(l *Layout, f *FoeC, dt float64, s *dice.Stream) {
 	f.State = "roam"
 	f.WT -= dt
@@ -492,7 +518,7 @@ func foeStrike(w *core.World, fe *core.Entity, f *FoeC, pe *core.Entity, s *dice
 	}
 	inv := Inv(pe)
 	dmg *= armorMul(pe) // всё надетое гасит часть удара: куртка, кольчуга, шлем, рукавицы
-	if c.Guard { // блок работает только в лицо
+	if c.Guard {        // блок работает только в лицо
 		ang := math.Abs(angDiff(facingDeg(f.X-p.X, f.Y-p.Y, p.Facing), p.Facing))
 		if ang <= 75 {
 			k := 0.35
@@ -816,7 +842,21 @@ func Strike(w *core.World, e *core.Entity, in StrikeInput, s *dice.Stream) (bool
 func killFoe(w *core.World, fe *core.Entity, f *FoeC, by *core.Entity) {
 	f.State, f.HP, f.Dead, f.Aware, f.Target = "dead", 0, 25, false, 0
 	se := w.Get(f.Settlement)
-	if f.Species == "bandit" {
+	if f.Wild != "" { // фронтир: место помнит потерю; поголовье угодий села тут ни при чём
+		u := wildUse(w)
+		alive := 0
+		w.Each("foe", func(o *core.Entity) {
+			if of := Foe(o); of != f && of.Wild == f.Wild && of.State != "dead" {
+				alive++
+			}
+		})
+		if alive == 0 {
+			if u.Cleared == nil {
+				u.Cleared = map[string]int{}
+			}
+			u.Cleared[f.Wild] = u.Today
+		}
+	} else if f.Species == "bandit" {
 		if se != nil {
 			if camp, _ := se.Get("foecamp").(*FoeCampC); camp != nil {
 				camp.Bandits = math.Max(0, camp.Bandits-1)
