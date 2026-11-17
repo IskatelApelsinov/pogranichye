@@ -23,6 +23,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/BillboardLabel.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ClientUiTypography.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ClientUiScalePolicy.cs'
+      - '2-client/game/Tests/ClientUiScalePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/EntityViewRegistry.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
@@ -289,6 +291,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
+
+      - name: Adaptive UI typography regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/client-ui-scale.exe Tests/ClientUiScalePolicyCheck.cs Assets/_Project/Scripts/Presentation/ClientUiScalePolicy.cs
+          mono /tmp/client-ui-scale.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
