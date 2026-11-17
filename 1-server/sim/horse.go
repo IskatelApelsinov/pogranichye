@@ -263,3 +263,56 @@ func StableView(se *core.Entity) map[string]any {
 	s := core.Settle(se)
 	return map[string]any{"horses": stableStock(s), "price": HorsePrice}
 }
+
+// FixHorseGoods — починка старых сохранений. До этой правки рынок по ошибке показывал счётчик
+// лошадей конюшни (Store["horse"]) как обычный товар: «лошадь» можно было купить за монету, и она
+// ложилась в суму вещью, а настоящей лошади (HorseC) не появлялось. Здесь такие «вещи» превращаются
+// обратно: у игрока без лошади первая становится настоящей лошадью, остальные возвращаются в
+// конюшню его села. Возвращает, сколько «вещей» исправлено.
+func FixHorseGoods(w *core.World) int {
+	fixed := 0
+	type item struct {
+		e *core.Entity
+		n float64
+	}
+	var found []item
+	w.Each("stash", func(e *core.Entity) {
+		if st := econ.Stash(e); st != nil && st.Goods[horseGood] > 0 {
+			found = append(found, item{e, st.Goods[horseGood]})
+		}
+	})
+	w.Each("horse", func(he *core.Entity) {
+		if h, _ := he.Get("horse").(*HorseC); h != nil && h.Bag[horseGood] > 0 {
+			if o := w.Get(h.Owner); o != nil {
+				found = append(found, item{o, h.Bag[horseGood]})
+			}
+			delete(h.Bag, horseGood)
+		}
+	})
+	for _, it := range found {
+		e := it.e
+		if st := econ.Stash(e); st != nil {
+			delete(st.Goods, horseGood)
+		}
+		n := math.Floor(it.n)
+		fixed += int(n)
+		var home *core.Entity
+		if pl := core.Place(e); pl != nil {
+			home = w.Get(pl.Settlement)
+		}
+		if _, h := horseOf(w, e); h == nil && Player(e) != nil && n >= 1 && home != nil {
+			nh := w.Spawn(&HorseC{Owner: e.ID, Settlement: home.ID, Stam: 100, Bag: map[string]float64{},
+				Name: horseNames[int(uint64(e.ID)%uint64(len(horseNames)))]})
+			w.Attach(e, &RiderC{Horse: nh.ID})
+			say(w, e, "loot", "Купленная на рынке «лошадь» теперь настоящая — она ждёт у конюшни.")
+			n--
+		}
+		if n > 0 && home != nil {
+			if s := core.Settle(home); s != nil {
+				stableStock(s)
+				s.Store[horseGood] += n
+			}
+		}
+	}
+	return fixed
+}
