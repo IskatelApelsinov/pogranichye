@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Pogranichye.Client
 {
@@ -30,6 +31,9 @@ namespace Pogranichye.Client
         private readonly InputAction[] _weaveNodes = new InputAction[10];
         private readonly InputAction[] _journeyChoices = new InputAction[9];
         private readonly InputEventDebugState _inputDebugState = new InputEventDebugState();
+        private readonly InputDeviceEventDebugState _deviceEventDebugState = new InputDeviceEventDebugState();
+        private bool _inputDiagnosticsEnabled;
+        private bool _inputEventListenerRegistered;
         private InputActionRebindingExtensions.RebindingOperation _rebindOperation;
         private const string BindingOverridesPrefsKey = "Pogranichye.InputBindingOverrides";
 
@@ -79,6 +83,9 @@ namespace Pogranichye.Client
             // setting; only raise the budget enough to absorb high-frequency device bursts.
             if (InputSystem.settings != null && InputSystem.settings.maxEventBytesPerUpdate < maxInputEventBytes)
                 InputSystem.settings.maxEventBytesPerUpdate = maxInputEventBytes;
+
+            InputSystem.onEvent += OnInputEvent;
+            _inputEventListenerRegistered = true;
 
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
@@ -159,6 +166,30 @@ namespace Pogranichye.Client
                 control != null ? control.displayName : null,
                 PhaseName(context.phase),
                 Time.unscaledTime);
+        }
+
+        private void OnInputEvent(InputEventPtr eventPtr, InputDevice device)
+        {
+            if (!_inputDiagnosticsEnabled || device == null) return;
+            _deviceEventDebugState.Record(
+                device.deviceId,
+                device.displayName,
+                eventPtr.sizeInBytes,
+                Time.frameCount);
+        }
+
+        public void SetDiagnosticsEnabled(bool enabled)
+        {
+            if (_inputDiagnosticsEnabled == enabled) return;
+            _inputDiagnosticsEnabled = enabled;
+            _deviceEventDebugState.Reset();
+        }
+
+        public string BuildDeviceEventDebug()
+        {
+            var budget = InputSystem.settings != null
+                ? InputSystem.settings.maxEventBytesPerUpdate : 0;
+            return _deviceEventDebugState.Describe(Time.frameCount, budget);
         }
 
         private static string PhaseName(InputActionPhase phase)
@@ -343,6 +374,11 @@ namespace Pogranichye.Client
 
         private void OnDestroy()
         {
+            if (_inputEventListenerRegistered)
+            {
+                InputSystem.onEvent -= OnInputEvent;
+                _inputEventListenerRegistered = false;
+            }
             _rebindOperation?.Cancel();
             _rebindOperation?.Dispose();
             _rebindOperation = null;
