@@ -1097,6 +1097,44 @@ namespace Pogranichye.Client
             GUILayout.Label($"{me.Name} {me.Surname}");
             GUILayout.Label($"Здоровье {me.Health:0} | Голод {me.Hunger:0} | Энергия {me.Energy:0} | Настрой {me.Morale:0}");
             GUILayout.Label($"Монеты {me.Coins:0.0} | Долг {me.Debt:0.0}");
+            if (me.Horses != null && me.Horses.Count > 0)
+            {
+                GUILayout.Space(5f);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("ТВОЙ ТАБУН · " + me.Horses.Count + " / 5");
+                foreach (var ownedHorse in me.Horses)
+                {
+                    if (ownedHorse == null) continue;
+                    var where = string.IsNullOrWhiteSpace(ownedHorse.SettlementName)
+                        ? "вольная земля"
+                        : ownedHorse.SettlementName;
+                    if (!string.IsNullOrWhiteSpace(ownedHorse.RealmName))
+                        where += " · " + ownedHorse.RealmName;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label((ownedHorse.Active ? "✓ " : "🐎 ") + ownedHorse.Name +
+                        " · силы " + ownedHorse.Stamina.ToString("0", CultureInfo.InvariantCulture) +
+                        " · " + (ownedHorse.Here ? "здесь" : where));
+                    GUILayout.FlexibleSpace();
+                    var canChoose = !ownedHorse.Active && (_frame.Me.Horse == null || !_frame.Me.Horse.Mounted);
+                    var previousEnabled = GUI.enabled;
+                    GUI.enabled = previousEnabled && canChoose;
+                    if (GUILayout.Button("Вести", GUILayout.Width(72f)))
+                        QueueHorseAction("choose", "Выбрать лошадь", null, 0, ownedHorse.Id);
+                    GUI.enabled = previousEnabled;
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.EndVertical();
+            }
+            if (_frame.Place?.Lair != null)
+            {
+                GUILayout.Space(4f);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("⚠ ЛОГОВО РАЗБОЙНИКОВ · " + _frame.Place.Lair.Bandits);
+                if (_frame.Place.Lair.Names != null && _frame.Place.Lair.Names.Count > 0)
+                    GUILayout.Label(string.Join(" · ", _frame.Place.Lair.Names.ToArray()));
+                GUILayout.Label("В этом поселении обосновалась ватага. Путь может быть опасен.");
+                GUILayout.EndVertical();
+            }
             GUILayout.Label($"Выносливость: {_serverStamina * 100f:0}% | WASD — движение, Shift — бег, Space — прыжок");
             if (me.Trail != null && !string.IsNullOrWhiteSpace(me.Trail.Kind))
                 GUILayout.Label((me.Trail.Kind == "road" ? "🛤 Тракт" : "👣 Тропка") +
@@ -2431,6 +2469,14 @@ namespace Pogranichye.Client
                 case "herd_barn": return "ухаживает за скотом";
                 case "keep_tavern": return "за стойкой";
                 case "study_mana": return "изучает плетения";
+                case "trade_stall": return "торгует в рядах";
+                case "guard_patrol": return "в дозоре";
+                case "carpentry": return "плотничает";
+                case "tanning": return "выделывает кожи";
+                case "pottery": return "лепит горшки";
+                case "bake_bread": return "печёт хлеб";
+                case "scribe_desk": return "пишет грамоты";
+                case "jewel_work": return "гранит камни";
                 case "fisher_mend": return "чинит сети";
                 case "farm_mend": return "чинит снасти";
                 case "farm_nosow":
@@ -2515,12 +2561,13 @@ namespace Pogranichye.Client
                 var size = current ? 16f : 10f;
                 var previousBackground = GUI.backgroundColor;
                 var previousContent = GUI.contentColor;
-                GUI.backgroundColor = current
-                    ? new Color(0.68f, 0.22f, 0.16f, 1f)
+                GUI.backgroundColor = settlement.BanditLair
+                    ? new Color(0.78f, 0.18f, 0.12f, 1f)
+                    : current ? new Color(0.68f, 0.22f, 0.16f, 1f)
                     : hasName ? new Color(0.72f, 0.67f, 0.43f, 1f) : new Color(0.42f, 0.48f, 0.40f, 1f);
                 GUI.contentColor = Color.white;
                 GUI.Box(new Rect(point.x - size * 0.5f, point.y - size * 0.5f, size, size),
-                    current ? "★" : hasName ? "●" : "?", _mapNeighborStyle);
+                    settlement.BanditLair ? "!" : current ? "★" : hasName ? "●" : "?", _mapNeighborStyle);
                 GUI.backgroundColor = previousBackground;
                 GUI.contentColor = previousContent;
                 if (current || hasName)
@@ -3670,10 +3717,12 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
         }
 
-        private void QueueHorseAction(string action, string label, string good = null, int qty = 0)
+        private void QueueHorseAction(string action, string label, string good = null, int qty = 0, string target = null)
         {
             var queued = _core != null && (string.IsNullOrEmpty(good)
-                ? _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action)
+                ? (string.IsNullOrEmpty(target)
+                    ? _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action)
+                    : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action, "target", target))
                 : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse",
                     "action", action, "good", good, "qty", qty));
             if (!queued)

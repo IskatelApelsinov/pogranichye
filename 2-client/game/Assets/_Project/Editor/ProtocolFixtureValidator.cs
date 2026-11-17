@@ -77,6 +77,7 @@ namespace Pogranichye.Client.Editor
                 ValidateSpatialDescriptorDtos();
                 ValidateTrailDtos();
                 ValidateWorldV120Dtos();
+                ValidateClaudeV131V133Dtos();
                 ValidateFastFrameCases();
                 ValidateFeedCases();
                 ValidateActionResultCases();
@@ -416,6 +417,36 @@ namespace Pogranichye.Client.Editor
                 throw new FormatException("v1.0-v1.19 frames without v1.20 room fields must remain compatible.");
 
             ExpectRejected("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"anchor\":{\"frame\":0,\"e\":0,\"n\":0,\"u\":0},\"neighbors\":[{\"id\":\"43\",\"pos\":{\"x\":2,\"y\":3,\"facing\":90},\"wpos\":{\"scheme\":\"yof-tangent\",\"v\":1,\"frame\":0,\"e\":300,\"n\":3,\"u\":120,\"ground\":120,\"z\":0,\"chunk\":[1,0],\"layer\":1}}]}}", "neighbor wpos inconsistent with local pos");
+        }
+
+        private static void ValidateClaudeV131V133Dtos()
+        {
+            const string frameJson = "{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\",\"horses\":[{\"id\":\"h1\",\"name\":\"Гнедой\",\"stam\":85,\"mounted\":false,\"active\":true,\"here\":true,\"bag\":{},\"bag_load\":0,\"bag_cap\":40,\"settlement_id\":\"7\",\"settlement_name\":\"Великоград\",\"realm_name\":\"Великоградское княжество\"}]},\"place\":{\"id\":\"7\",\"lair\":{\"since_day\":12,\"bandits\":3,\"names\":[\"Ратибор\",\"Мирон\"]}}}";
+            var frame = WorldFrameParser.Parse(frameJson);
+            if (frame.Me.Horses == null || frame.Me.Horses.Count != 1 ||
+                frame.Me.Horses[0].SettlementName != "Великоград" ||
+                frame.Me.Horses[0].RealmName != "Великоградское княжество" ||
+                !frame.Me.Horses[0].Active || frame.Place.Lair == null ||
+                frame.Place.Lair.Bandits != 3 || frame.Place.Lair.Names == null ||
+                frame.Place.Lair.Names.Count != 2)
+                throw new FormatException("v1.31 bandit lair and v1.32 horse herd DTO mapping failed.");
+
+            const string layoutJson = "{\"version\":2,\"plan\":\"grid\",\"land\":{\"water\":\"well\",\"fields\":\"none\",\"forest\":\"none\"},\"buildings\":[{\"kind\":\"house\",\"x0\":-4,\"y0\":-4,\"x1\":4,\"y1\":4,\"storeys\":4,\"height_m\":12.8}],\"zones\":[]}";
+            var layout = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldLayoutFrame>(layoutJson);
+            if (layout == null || layout.Plan != "grid" || layout.Land == null ||
+                layout.Land.Water != "well" || layout.Land.Fields != "none" ||
+                layout.Buildings == null || layout.Buildings.Count != 1 ||
+                layout.Buildings[0].Storeys != 4 || Math.Abs(layout.Buildings[0].HeightMeters - 12.8d) > 0.001d)
+                throw new FormatException("v1.33 grid plan, land profile and multi-storey building DTO mapping failed.");
+
+            const string worldJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":0,\"n\":0,\"u\":0,\"bandit_lair\":true}]}";
+            var world = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldManifestFrame>(worldJson);
+            if (world?.Settlements == null || world.Settlements.Count != 1 || !world.Settlements[0].BanditLair)
+                throw new FormatException("v1.31 world.settlements[].bandit_lair DTO mapping failed.");
+
+            var legacy = WorldFrameParser.Parse("{\"v\":1,\"alive\":true,\"me\":{\"id\":\"42\"},\"place\":{\"id\":\"7\"}}");
+            if (legacy.Me.Horses != null || legacy.Place.Lair != null)
+                throw new FormatException("Legacy v1 frames without v1.31/v1.32 fields must remain compatible.");
         }
 
         private static void ValidateMapProjection()

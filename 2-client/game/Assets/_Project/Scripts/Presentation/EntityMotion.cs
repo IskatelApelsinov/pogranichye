@@ -220,6 +220,31 @@ namespace Pogranichye.Client.Presentation
                 case "smith_cold":
                     _activity = "wait";
                     break;
+                // v1.33 city trades and crafts: map only stable server act_code values.
+                case "trade_stall":
+                    _activity = "trade";
+                    break;
+                case "guard_patrol":
+                    _activity = "work";
+                    break;
+                case "carpentry":
+                    _activity = "carpentry";
+                    break;
+                case "tanning":
+                    _activity = "tanning";
+                    break;
+                case "pottery":
+                    _activity = "pottery";
+                    break;
+                case "bake_bread":
+                    _activity = "cook";
+                    break;
+                case "scribe_desk":
+                    _activity = "study";
+                    break;
+                case "jewel_work":
+                    _activity = "forge";
+                    break;
                 case "work":
                     _activity = "work";
                     break;
@@ -452,8 +477,13 @@ namespace Pogranichye.Client.Presentation
             var foraging = _activity == "forage";
             var herding = _activity == "herd";
             var tavernWork = _activity == "tavern";
+            var carpentry = _activity == "carpentry";
+            var tanning = _activity == "tanning";
+            var pottery = _activity == "pottery";
+            var trading = _activity == "trade";
             var working = _activity == "work" || chopping || fishing || forging || farming || mining ||
-                hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet || mendingGear;
+                hunting || weaving || studying || cooking || foraging || herding || tavernWork || mendingNet ||
+                mendingGear || carpentry || tanning || pottery || trading;
 
             // Animate the held prop independently from the arm pose: this makes a hammer,
             // axe, hoe, rod or ladle visibly move through its work cycle without spawning objects.
@@ -462,7 +492,7 @@ namespace Pogranichye.Client.Presentation
                 var toolBeat = Mathf.Sin(_phase * 2.8f);
                 var toolAngle = 0f;
                 var toolOffset = Vector3.zero;
-                if (!walking && (chopping || mining || forging))
+                if (!walking && (chopping || mining || forging || carpentry))
                 {
                     toolAngle = Mathf.Max(0f, toolBeat) * (forging ? 20f : 27f);
                     toolOffset.y = Mathf.Max(0f, toolBeat) * 0.018f;
@@ -477,7 +507,7 @@ namespace Pogranichye.Client.Presentation
                     toolAngle = Mathf.Sin(_phase * 0.65f) * (fishing ? 4f : 9f);
                     toolOffset.x = Mathf.Sin(_phase * 0.65f) * 0.008f;
                 }
-                else if (!walking && cooking)
+                else if (!walking && (cooking || pottery))
                 {
                     toolAngle = Mathf.Sin(_phase * 2.1f) * 14f;
                     toolOffset.x = Mathf.Cos(_phase * 2.1f) * 0.01f;
@@ -487,7 +517,7 @@ namespace Pogranichye.Client.Presentation
                     toolAngle = Mathf.Sin(_phase * 3.2f) * 12f;
                     toolOffset.x = Mathf.Sin(_phase * 3.2f) * 0.012f;
                 }
-                else if (!walking && (foraging || tavernWork))
+                else if (!walking && (foraging || tavernWork || trading || tanning))
                 {
                     toolAngle = Mathf.Sin(_phase * 1.8f) * 7f;
                 }

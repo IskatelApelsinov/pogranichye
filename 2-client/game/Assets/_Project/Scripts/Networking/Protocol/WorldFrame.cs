@@ -55,6 +55,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stats")] public StatsFrame Stats { get; set; }
         [JsonProperty("bag")] public CarryBagFrame Bag { get; set; }
         [JsonProperty("horse")] public HorseFrame Horse { get; set; }
+        // v1.32: all owned horses; optional on older compatible servers.
+        [JsonProperty("horses")] public List<HorseFrame> Horses { get; set; }
         [JsonProperty("region")] public RegionFrame Region { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
@@ -298,6 +300,16 @@ namespace Pogranichye.Client.Networking.Protocol
         // v1.25: current settlement's sovereign realm and nearby moving caravans.
         [JsonProperty("realm")] public PlaceRealmFrame Realm { get; set; }
         [JsonProperty("caravans")] public List<NearbyCaravanFrame> Caravans { get; set; }
+        // v1.31: a human bandit gang may occupy this settlement.
+        [JsonProperty("lair")] public PlaceLairFrame Lair { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceLairFrame
+    {
+        [JsonProperty("since_day")] public int SinceDay { get; set; }
+        [JsonProperty("bandits")] public int Bandits { get; set; }
+        [JsonProperty("names")] public List<string> Names { get; set; }
     }
 
     [Serializable]
@@ -658,6 +670,7 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("cauldron")] public bool Cauldron { get; set; }
         [JsonProperty("half")] public double Half { get; set; }
         [JsonProperty("layout")] public string LayoutPath { get; set; }
+        [JsonProperty("bandit_lair")] public bool BanditLair { get; set; }
     }
 
     [Serializable]
@@ -754,6 +767,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("settlement")] public string Settlement { get; set; }
         // v1.19: settlement-local layout origin in the same global frame as place.anchor.
         [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
+        // v1.33 semantic profile; spatial patches are still read from zones[].
+        [JsonProperty("land")] public WorldLandFrame Land { get; set; }
 
         /// <summary>True when the layout was generated for a non-tutorial settlement.</summary>
         public bool IsGenerated => !string.IsNullOrEmpty(Plan) && Plan != "starter";
@@ -843,6 +858,17 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("y0")] public double Y0 { get; set; }
         [JsonProperty("x1")] public double X1 { get; set; }
         [JsonProperty("y1")] public double Y1 { get; set; }
+        // v1.33: server-authored city building height.
+        [JsonProperty("storeys")] public int Storeys { get; set; }
+        [JsonProperty("height_m")] public double HeightMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldLandFrame
+    {
+        [JsonProperty("water")] public string Water { get; set; }
+        [JsonProperty("fields")] public string Fields { get; set; }
+        [JsonProperty("forest")] public string Forest { get; set; }
     }
 
     [Serializable]

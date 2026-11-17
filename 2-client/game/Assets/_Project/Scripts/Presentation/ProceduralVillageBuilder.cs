@@ -1869,7 +1869,8 @@ namespace Pogranichye.Client.Presentation
                 activity != "farm" && activity != "mend_gear" && activity != "fish" && activity != "mend_net" && activity != "hunt" &&
                 activity != "weave" && activity != "study" && activity != "cook" &&
                 activity != "brew" && activity != "forage" && activity != "herd" &&
-                activity != "tavern")
+                activity != "tavern" && activity != "carpentry" && activity != "tanning" &&
+                activity != "pottery" && activity != "trade")
                 return null;
 
             var tool = new GameObject("Held activity tool • " + activity).transform;
@@ -1881,7 +1882,7 @@ namespace Pogranichye.Client.Presentation
             // Only long-handled tools need a haft. Food, documents, net repair and small
             // hand props must not inherit a wooden rod through their center.
             if (activity == "chop" || activity == "mine" || activity == "forge" ||
-                activity == "farm" || activity == "hunt")
+                activity == "farm" || activity == "hunt" || activity == "carpentry")
             {
                 // These objects move with the hand, so they must remain dynamic (not marked static).
                 CreatePrimitive("Tool • wooden haft", PrimitiveType.Cylinder, tool,
@@ -2012,6 +2013,33 @@ namespace Pogranichye.Client.Presentation
                     crook.transform.localRotation = Quaternion.Euler(0f, 0f, -5f);
                     CreatePrimitive("Tool • crook handle", PrimitiveType.Sphere, tool,
                         new Vector3(0.035f, 0.56f, 0f), new Vector3(0.045f, 0.035f, 0.035f), _woodMaterial);
+                    break;
+                }
+                case "carpentry":
+                {
+                    var saw = CreatePrimitive("Tool • carpenter hand saw", PrimitiveType.Cube, tool,
+                        new Vector3(0.02f, 0.43f, 0f), new Vector3(0.34f, 0.045f, 0.075f), _metalMaterial);
+                    saw.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+                    break;
+                }
+                case "tanning":
+                {
+                    CreatePrimitive("Tool • leather scraper", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.42f, 0.02f), new Vector3(0.20f, 0.035f, 0.12f), _metalMaterial);
+                    CreatePrimitive("Tool • leather hide", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.30f, 0.02f), new Vector3(0.23f, 0.10f, 0.035f), _clothMaterial);
+                    break;
+                }
+                case "pottery":
+                {
+                    CreatePrimitive("Tool • clay vessel", PrimitiveType.Cylinder, tool,
+                        new Vector3(0f, 0.40f, 0.02f), new Vector3(0.11f, 0.13f, 0.11f), _stoneMaterial);
+                    break;
+                }
+                case "trade":
+                {
+                    CreatePrimitive("Tool • merchant ledger", PrimitiveType.Cube, tool,
+                        new Vector3(0f, 0.38f, 0.02f), new Vector3(0.17f, 0.22f, 0.025f), _clothMaterial);
                     break;
                 }
                 case "tavern":
