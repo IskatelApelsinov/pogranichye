@@ -25,7 +25,7 @@ internal static class TerrainSeamHeightSamplerCheck
         var east = Plane(side, side - 1, 0);
         var south = Plane(side, 0, -side + 1);
         var north = Plane(side, 0, side - 1);
-        double left, edge, right, below, above;
+        double left, edge, right, below, above, eastOutside, northOutside;
 
         Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
             side, -1, 2, out left), "west edge sample must come from adjacent chunk");
@@ -35,6 +35,10 @@ internal static class TerrainSeamHeightSamplerCheck
             side, 1, 2, out right), "inner sample must exist");
         Assert(Math.Abs((edge - left) - 2d) < 0.000001d, "west boundary derivative must match plane");
         Assert(Math.Abs((right - edge) - 2d) < 0.000001d, "eastward derivative must match plane");
+        Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
+            side, side, 2, out eastOutside), "east edge sample must come from adjacent chunk");
+        Assert(Math.Abs((eastOutside - center[2 * side + side - 1]) - 2d) < 0.000001d,
+            "east boundary derivative must match plane");
 
         Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
             side, 2, -1, out below), "south edge sample must come from adjacent chunk");
@@ -44,6 +48,10 @@ internal static class TerrainSeamHeightSamplerCheck
             "south boundary derivative must match plane");
         Assert(Math.Abs((above - center[2]) - 3d) < 0.000001d,
             "northward derivative must match plane");
+        Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
+            side, 2, side, out northOutside), "north edge sample must come from adjacent chunk");
+        Assert(Math.Abs((northOutside - center[(side - 1) * side + 2]) - 3d) < 0.000001d,
+            "north boundary derivative must match plane");
 
         Assert(!TerrainSeamHeightSampler.TryGetHeight(center, null, east, south, north,
             side, -1, 2, out _), "missing neighbor must not fabricate a height");
