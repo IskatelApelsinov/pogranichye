@@ -103,3 +103,29 @@ python 2-client/art-source/textures/build_mossy_stone_material.py
 
 Если полный набор карт или `mossy_stone_material.json` отсутствует, остаётся прежний fallback. Blender master generator сохраняет полный авторский набор и не перезаписывает его процедурной версией.
 
+
+
+## Авторская состаренная известковая штукатурка
+
+Новая realistic-stylized поверхность старой известковой побелки: тёплый кремовый известковый слой, пигментные охристые пятна, мелкие трещины, потёртые гребни и зернистые следы ручного нанесения. Это отдельный художественный исходник, а не процедурный синусоидальный узор.
+
+Скрипт `build_lime_plaster_material.py` создаёт в Unity Resources:
+
+- `lime_plaster_albedo.png` — 1024×1024 RGBA; RGB — albedo, A — линейная smoothness (`1 - roughness`);
+- `lime_plaster_normal.png` — tangent-space normal, positive Y;
+- `lime_plaster_roughness.png` — отдельная линейная roughness;
+- `lime_plaster_ao.png` — отдельная линейная AO;
+- `lime_plaster_material.json` — PBR-настройки и измерения швов.
+
+Все карты выведены из одного художественного исходника и общей карты высот. Для URP Lit smoothness хранится в alpha albedo, а отдельная roughness остаётся для других шейдеров и экспорта. Проверка генератора требует seam ratio не выше 1.35, нормализованные normal-векторы и совпадение alpha с обратной roughness с погрешностью не более одного уровня.
+
+Пересборка:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_lime_plaster_material.py
+```
+
+Исходник `lime_plaster_source.jpg` и готовые PNG-карты входят в комплект `pogranichye_lime_plaster_pbr_pack.zip`; распаковать его нужно в корень репозитория с сохранением путей.
+
+В `WorldLayoutPresentationBuilder` штукатурка применяется к стеновым плоскостям сгенерированных домов и таверны. Деревянный каркас, двери, стойки, крыши и открытый рыночный навес остаются на отдельных timber/thatch материалах. UV tiling — 1.5×1.5; если авторские карты отсутствуют, остаётся безопасный процедурный fallback.
