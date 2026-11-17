@@ -16,6 +16,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
@@ -286,6 +287,14 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
           mono /tmp/horse-stats-frame.exe
+
+      - name: Typed life mode and vigor frame regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs
+          mono /tmp/character-life-frame.exe
       - name: Typed card game frame regression checks
         working-directory: 2-client/game
         run: |
