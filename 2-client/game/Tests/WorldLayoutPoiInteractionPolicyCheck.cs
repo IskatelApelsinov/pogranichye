@@ -44,15 +44,19 @@ internal static class WorldLayoutPoiInteractionPolicyCheck
             interaction.Goal == null && interaction.ActionIntent == "mine");
         Check("unsupported stable is not interactive",
             !WorldLayoutPoiInteractionPolicy.TryResolve("stable", out interaction));
-        Check("unsupported granary is not interactive",
-            !WorldLayoutPoiInteractionPolicy.TryResolve("granary", out interaction));
+        Check("granary opens the stable/workshop context without inventing a server action",
+            WorldLayoutPoiInteractionPolicy.TryResolve("granary", out interaction) &&
+            interaction.Goal == null && interaction.ActionIntent == null && interaction.TargetId == "granary");
+        Check("hearth opens the recipe context without inventing a server action",
+            WorldLayoutPoiInteractionPolicy.TryResolve("hearth", out interaction) &&
+            interaction.Goal == null && interaction.ActionIntent == null && interaction.TargetId == "hearth");
         Check("unsupported apiary is not interactive",
             !WorldLayoutPoiInteractionPolicy.TryResolve("apiary", out interaction));
         Check("unknown and null POIs fail closed",
             !WorldLayoutPoiInteractionPolicy.TryResolve("unknown", out interaction) &&
             !WorldLayoutPoiInteractionPolicy.TryResolve(null, out interaction));
         Check("allow-list is deterministic and bounded",
-            WorldLayoutPoiInteractionPolicy.SupportedIds.Length == 7);
+            WorldLayoutPoiInteractionPolicy.SupportedIds.Length == 9);
         Console.WriteLine("WorldLayoutPoiInteractionPolicy: " + _checks + " checks passed.");
         return 0;
     }
