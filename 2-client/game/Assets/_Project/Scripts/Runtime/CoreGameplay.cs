@@ -55,7 +55,7 @@ namespace Pogranichye.Client
             if (_uiButtonActiveTexture == null) _uiButtonActiveTexture = MakeUiTexture(new Color(0.34f, 0.265f, 0.16f, 1f));
 
             var label = GUI.skin.label;
-            label.fontSize = ClientUiTypography.HudBody;
+            label.fontSize = ClientUiScalePolicy.ResolveFontSize(ClientUiTypography.HudBody, Screen.height);
             label.wordWrap = true;
             label.normal.textColor = new Color(0.88f, 0.90f, 0.88f);
             label.margin = new RectOffset(4, 4, 3, 4);
@@ -63,7 +63,7 @@ namespace Pogranichye.Client
             var box = GUI.skin.box;
             box.normal.background = _uiPanelTexture;
             box.normal.textColor = new Color(0.88f, 0.72f, 0.48f);
-            box.fontSize = ClientUiTypography.HudBody;
+            box.fontSize = ClientUiScalePolicy.ResolveFontSize(ClientUiTypography.HudBody, Screen.height);
             box.fontStyle = FontStyle.Bold;
             box.alignment = TextAnchor.UpperLeft;
             box.padding = new RectOffset(14, 14, 11, 11);
@@ -77,7 +77,7 @@ namespace Pogranichye.Client
             button.normal.textColor = new Color(0.88f, 0.90f, 0.88f);
             button.hover.textColor = Color.white;
             button.active.textColor = Color.white;
-            button.fontSize = ClientUiTypography.HudSecondary;
+            button.fontSize = ClientUiScalePolicy.ResolveFontSize(ClientUiTypography.HudSecondary, Screen.height);
             button.fontStyle = FontStyle.Bold;
             button.padding = new RectOffset(11, 11, 7, 7);
             button.margin = new RectOffset(3, 3, 3, 3);
@@ -86,7 +86,7 @@ namespace Pogranichye.Client
             field.normal.background = _uiButtonTexture;
             field.focused.background = _uiButtonHoverTexture;
             field.normal.textColor = Color.white;
-            field.fontSize = ClientUiTypography.HudSecondary;
+            field.fontSize = ClientUiScalePolicy.ResolveFontSize(ClientUiTypography.HudSecondary, Screen.height);
             field.padding = new RectOffset(8, 8, 6, 6);
         }
 
