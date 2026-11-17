@@ -23,13 +23,13 @@ namespace Pogranichye.Client.Presentation
             }
 
             if (z >= 0 && z < side && x == -1 && HasGrid(west, side))
-                height = west[z * side + side - 1];
+                height = west[z * side + side - 2];
             else if (z >= 0 && z < side && x == side && HasGrid(east, side))
-                height = east[z * side];
+                height = east[z * side + 1];
             else if (x >= 0 && x < side && z == -1 && HasGrid(south, side))
-                height = south[(side - 1) * side + x];
+                height = south[(side - 2) * side + x];
             else if (x >= 0 && x < side && z == side && HasGrid(north, side))
-                height = north[x];
+                height = north[side + x];
             else
                 return false;
 
