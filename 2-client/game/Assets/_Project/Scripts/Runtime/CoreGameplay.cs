@@ -3281,6 +3281,11 @@ namespace Pogranichye.Client
             }
 
             DrawCardGames();
+            var buildButtonEnabled = GUI.enabled;
+            GUI.enabled = buildButtonEnabled && Count(stash, "wood") >= 2f && Num(_me, "energy") >= 10f;
+            if (GUILayout.Button("🪚 Помочь в строительстве · 2 дерева"))
+                AskActivity("Стройка", "build");
+            GUI.enabled = buildButtonEnabled;
             if (HasFeature("mine") && Near("mine", 10f) && GUILayout.Button("Добыть руду")) AskActivity("Руда", "mine");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("Собрать травы")) AskActivity("Травы", "gather");
             if (HasFeature("garden") && Near("garden", 10f) && GUILayout.Button("🌾 Помочь в поле")) AskActivity("Работа в поле", "farmwork");
