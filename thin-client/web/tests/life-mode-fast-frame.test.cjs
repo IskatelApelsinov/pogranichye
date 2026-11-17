@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'core.js'), 'utf8');
-const match = source.match(/function coreRender\\(s\\)\\{[\\s\\S]*?\\n\\}/);
+const match = source.match(/function coreRender\(s\)\{[\s\S]*?\n\}/);
 assert.ok(match, 'coreRender must remain a directly testable function');
 
 function invokeCoreRender(frame) {
