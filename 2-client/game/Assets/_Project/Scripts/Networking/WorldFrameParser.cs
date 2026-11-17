@@ -74,15 +74,6 @@ namespace Pogranichye.Client.Networking
                 HorseFrameParser.ValidateArray(me["horses"], "me.horses");
                 CharacterModeFrameParser.Validate(me["mode"], "me.mode");
                 CharacterVigorFrameParser.Validate(me["vigor"], "me.vigor");
-                // v1.32: validate each owned horse without requiring the collection on older v1 servers.
-                var horses = me["horses"];
-                if (horses != null && horses.Type != JTokenType.Null)
-                {
-                    var horseArray = horses as JArray;
-                    if (horseArray == null) throw new FormatException("me.horses должен быть массивом.");
-                    for (var horseIndex = 0; horseIndex < horseArray.Count; horseIndex++)
-                        HorseFrameParser.Validate(horseArray[horseIndex], "me.horses[" + horseIndex + "]");
-                }
                 RegionFrameParser.Validate(me["region"], "me.region");
                 FeedFrameParser.Validate(me["feed"], "me.feed");
                 ValidateJournal(me["journal"], "me.journal");
