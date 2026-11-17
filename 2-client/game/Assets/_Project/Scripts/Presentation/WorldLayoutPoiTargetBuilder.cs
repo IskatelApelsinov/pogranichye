@@ -16,7 +16,7 @@ namespace Pogranichye.Client.Presentation
 
             // The current server does not yet implement op:"interact". Use descriptors only
             // as authoritative target geometry/availability, then translate known target IDs
-            // to already-supported v1 goal/act/horse flows. Unknown descriptors fail closed.
+            // to already-supported v1 action/horse flows. Character goals are configured separately in the character UI. Unknown descriptors fail closed.
             var descriptorTargetsBuilt = 0;
             if (layout.Interactions != null && layout.Interactions.Count > 0)
             {
