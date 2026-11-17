@@ -167,6 +167,7 @@ def main() -> None:
     }
     report = {
         "name": "Pogranichye authored packed earth",
+        "availability": "available",
         "version": 2,
         "resolution": [SIZE, SIZE],
         "tileable": True,

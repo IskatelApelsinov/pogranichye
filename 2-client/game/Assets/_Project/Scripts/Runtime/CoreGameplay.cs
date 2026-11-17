@@ -3333,6 +3333,7 @@ namespace Pogranichye.Client
             }
             DrawSettlementPulse();
             DrawWildSites();
+            DrawNearbyGather();
             if (_place != null && Flag(_place, "tavern") && Near("tavern", 12f))
             {
                 if (Flag(_me, "mug"))
@@ -3767,6 +3768,118 @@ namespace Pogranichye.Client
                 GUILayout.EndVertical();
                 GUILayout.Space(4f);
             }
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// v1.30 server-owned small pickups. The client only displays place.gather and sends
+        /// existing goto/pick intents through the shared reqid gate; it never grants stock locally.
+        /// </summary>
+        private void DrawNearbyGather()
+        {
+            var nodes = Arr(_place, "gather");
+            if (nodes == null || nodes.Count == 0) return;
+
+            GUILayout.Space(8f);
+            GUILayout.Label("НАХОДКИ ПОД НОГАМИ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            foreach (var node in nodes)
+            {
+                if (node == null) continue;
+                var id = Str(node, "id");
+                var name = Str(node, "name");
+                if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name)) continue;
+
+                var goodName = Str(node, "good_name");
+                var left = Num(node, "left");
+                var maximum = Num(node, "max");
+                var here = Flag(node, "here");
+                GUILayout.BeginVertical();
+                GUILayout.Label(name + (string.IsNullOrEmpty(goodName) ? "" : " · " + goodName));
+                if (left < 1f)
+                {
+                    GUILayout.Label("Всё собрано · запас отрастает за сутки.");
+                }
+                else if (here)
+                {
+                    GUILayout.Label("Рядом · осталось " +
+                        left.ToString("0", CultureInfo.InvariantCulture) + "/" +
+                        maximum.ToString("0", CultureInfo.InvariantCulture));
+                    RequestButton("Собрать", "Сбор: " + name, "pick", "node", id);
+                }
+                else
+                {
+                    var direction = Str(node, "dir");
+                    var distance = Num(node, "dist");
+                    GUILayout.Label((string.IsNullOrEmpty(direction) ? "" : direction + " · ") +
+                        distance.ToString("0", CultureInfo.InvariantCulture) + " м · осталось " +
+                        left.ToString("0", CultureInfo.InvariantCulture) + "/" +
+                        maximum.ToString("0", CultureInfo.InvariantCulture));
+                    RequestButton("Подойти", "Подойти к находке: " + name, "goto", "site", id);
+                }
+                GUILayout.EndVertical();
+                GUILayout.Space(4f);
+            }
+            GUILayout.EndVertical();
+        }
+
+
+        /// <summary>Displays only server-authored v1.30 gather nodes; server validates every action.</summary>
+        public void DrawNearbyGatherables()
+        {
+            if (!_active || _place == null) return;
+            var nodes = Arr(_place, "gather");
+            if (nodes == null || nodes.Count == 0) return;
+            GUILayout.Space(8f);
+            GUILayout.Label("НАХОДКИ ПОБЛИЗОСТИ");
+            GUILayout.BeginVertical(GUI.skin.box);
+            var shown = 0;
+            foreach (var node in nodes)
+            {
+                if (node == null || node.Type != JTokenType.Object) continue;
+                var id = Str(node, "id");
+                var kind = Str(node, "kind");
+                var name = Str(node, "name");
+                var goodName = Str(node, "good_name");
+                var direction = Str(node, "dir");
+                var distanceToken = node["dist"];
+                var remainingToken = node["left"];
+                var hereToken = node["here"];
+                if (distanceToken == null || (distanceToken.Type != JTokenType.Integer && distanceToken.Type != JTokenType.Float) ||
+                    remainingToken == null || (remainingToken.Type != JTokenType.Integer && remainingToken.Type != JTokenType.Float) ||
+                    hereToken == null || hereToken.Type != JTokenType.Boolean) continue;
+                var distance = Num(node, "dist");
+                var remaining = Num(node, "left");
+                var here = Flag(node, "here");
+                if (!GatherNodePresentationPolicy.IsValid(id, kind, distance, remaining)) continue;
+                if (shown >= GatherNodePresentationPolicy.MaxVisibleNodes) break;
+                shown++;
+                var title = string.IsNullOrWhiteSpace(name) ? GatherNodePresentationPolicy.KindName(kind) : name;
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+                GUILayout.Label(title + " · " + GatherNodePresentationPolicy.KindName(kind));
+                GUILayout.Label((here ? "В пределах руки" : (string.IsNullOrWhiteSpace(direction) ? "Рядом" : direction)) +
+                    " · " + distance.ToString("0.0", CultureInfo.InvariantCulture) + " м");
+                if (!string.IsNullOrWhiteSpace(goodName))
+                    GUILayout.Label("Добыча: " + goodName + " · осталось: " + remaining.ToString("0", CultureInfo.InvariantCulture));
+                GUILayout.EndVertical();
+                if (remaining < 1d) GUILayout.Label("Исчерпано", GUILayout.Width(92f));
+                else if (here)
+                {
+                    var canPick = GatherNodePresentationPolicy.CanPick(here, distance, remaining);
+                    var wasEnabled = GUI.enabled;
+                    GUI.enabled = wasEnabled && canPick;
+                    var clicked = GUILayout.Button("Собрать", GUILayout.Width(104f), GUILayout.Height(32f));
+                    GUI.enabled = wasEnabled;
+                    if (clicked) Ask("Собрать: " + title, "pick", "node", id);
+                }
+                else if (GUILayout.Button("Подойти", GUILayout.Width(104f), GUILayout.Height(32f)))
+                    Ask("Подойти к находке: " + title, "goto", "site", id);
+                GUILayout.EndHorizontal();
+                GUILayout.Space(3f);
+            }
+            if (shown == 0) GUILayout.Label("Сервер пока не сообщил пригодных находок поблизости.");
+            GUILayout.Label("Дистанцию, запас, силы и результат сбора проверяет сервер.");
             GUILayout.EndVertical();
         }
 

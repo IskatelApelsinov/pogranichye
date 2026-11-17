@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _scarecrowCloth;
         private static Material _grass;
         private static Material _stone;
+        private static Material _plaster;
         private static Material _iron;
         private static Material _flowers;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
@@ -49,6 +50,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = MakeTexturedMaterial("Scarecrow faded cloth", new Color(0.42f, 0.30f, 0.20f), 2, 1f, 1f);
             _grass = MakeTexturedMaterial("Meadow grass • muted olive", new Color(0.39f, 0.48f, 0.25f), 0, 1f, 1f);
             _stone = MakeTexturedMaterial("Building stone • weathered masonry", new Color(0.38f, 0.37f, 0.32f), 4, 1.5f, 2f);
+            _plaster = MakeTexturedMaterial("Building plaster • aged limewash", new Color(0.73f, 0.66f, 0.53f), 6, 1.5f, 1.5f);
             _iron = MakeTexturedMaterial("Forged iron • dark hoops", new Color(0.19f, 0.20f, 0.20f), 0, 1f, 1f);
             if (_iron.HasProperty("_Metallic")) _iron.SetFloat("_Metallic", 0.72f);
             if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
@@ -58,22 +60,20 @@ namespace Pogranichye.Client.Presentation
             // Apply it first; the project's authored PBR maps below take precedence whenever present.
             ApplyGrokWorldMaps(_ground, "grass_meadow", 10f, 10f);
             ApplyGrokWorldMaps(_field, "dirt_soil", 8f, 8f);
-            ApplyGrokWorldMaps(_road, "cobble_path", 2f, 12f);
-            ApplyGrokWorldMaps(_timber, "wood_planks", 2f, 2f);
             ApplyGrokWorldMaps(_roof, "thatch_roof", 2f, 3f);
             ApplyGrokWorldMaps(_trunk, "bark_tree", 1f, 3f);
-            ApplyGrokWorldMaps(_stone, "stone_wall", 1.5f, 2f);
             ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
             ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
 
-            // Authored 1024px PBR maps take priority over the optional Grok starter maps.
-            // Existing procedural/Grok materials remain safe fallbacks until the authored pack is imported.
-            ApplyGeneratedWorldMaps(_timber, "oak_planks", 2f, 2f, true);
+            // Authored 1024px packs are used only when their manifest says available.
+            // Otherwise prefer the imported Grok starter texture, then the existing procedural fallback.
+            ApplyAuthoredWorldMapsWithGrokFallback(_timber, "oak_planks", "wood_planks", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyGeneratedWorldMaps(_straw, "thatch_roof", 2f, 2f);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
-            ApplyGeneratedWorldMaps(_road, "packed_road", 2f, 12f, true);
-            ApplyGeneratedWorldMaps(_stone, "mossy_stone", 1.5f, 2f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_road, "packed_road", "cobble_path", 2f, 12f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_stone, "mossy_stone", "stone_wall", 1.5f, 2f, true);
+            ApplyAuthoredWorldMapsWithGrokFallback(_plaster, "lime_plaster", "plaster_wall", 1.5f, 1.5f, true);
 
             // Water and bridge are placed from the exact server geometry. Settlements without a river
             // (v1.19 generated layouts) carry a placeholder band outside the land: nothing is drawn for it.
@@ -1622,7 +1622,7 @@ namespace Pogranichye.Client.Presentation
 
             var isMarket = building.Kind == "market";
             var wallHeight = isMarket ? 2.8f : 3.8f;
-            var wall = _timber;
+            var wall = isMarket ? _timber : _plaster;
             var roof = _roof;
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
@@ -2005,16 +2005,59 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
+        [Serializable]
+        private sealed class WorldMaterialAvailabilityManifest
+        {
+            public string availability;
+        }
+
+        private static string ReadWorldMaterialAvailability(TextAsset manifest)
+        {
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.text)) return null;
+            try
+            {
+                var parsed = JsonUtility.FromJson<WorldMaterialAvailabilityManifest>(manifest.text);
+                return parsed != null ? parsed.availability : "invalid";
+            }
+            catch
+            {
+                return "invalid";
+            }
+        }
+
+        private static void ApplyAuthoredWorldMapsWithGrokFallback(Material material, string materialKey,
+            string grokKey, float tilingX, float tilingY, bool smoothnessInAlbedoAlpha = false)
+        {
+            if (material == null) return;
+            var prefix = "WorldMaterials/Textures/" + materialKey;
+            var authoredAlbedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            var manifest = Resources.Load<TextAsset>(prefix + "_material");
+            var availability = ReadWorldMaterialAvailability(manifest);
+            var hasAuthoredAlbedo = WorldMaterialSourcePolicy.IsAuthoredAvailable(
+                availability, authoredAlbedo != null && authoredAlbedo.width >= 1024);
+            var grokAlbedo = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/" + grokKey);
+            var source = WorldMaterialSourcePolicy.Select(hasAuthoredAlbedo, grokAlbedo != null);
+
+            if (source == WorldMaterialSource.Grok)
+                ApplyGrokWorldMaps(material, grokKey, tilingX, tilingY);
+            else
+                ApplyGeneratedWorldMaps(material, materialKey, tilingX, tilingY, smoothnessInAlbedoAlpha);
+        }
+
         private static void ApplyGeneratedWorldMaps(Material material, string materialKey,
             float tilingX, float tilingY, bool smoothnessInAlbedoAlpha = false)
         {
             if (material == null) return;
             var prefix = "WorldMaterials/Textures/" + materialKey;
             var tiling = new Vector2(tilingX, tilingY);
-            // A material manifest marks the authored PBR pack. Older generated albedo
-            // textures may have opaque alpha, so do not interpret their alpha as smoothness.
-            var hasAuthoredMaterialManifest = Resources.Load<TextAsset>(prefix + "_material") != null;
+            var manifest = Resources.Load<TextAsset>(prefix + "_material");
+            var availability = ReadWorldMaterialAvailability(manifest);
             var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            var albedoWidth = albedo != null ? albedo.width : 0;
+            // Pending 512px previews remain procedural; pending 1024px maps cannot masquerade as authored.
+            if (!WorldMaterialSourcePolicy.ShouldApplyGeneratedMaps(availability, albedoWidth)) return;
+            var hasAuthoredMaterialManifest = WorldMaterialSourcePolicy.IsAuthoredAvailable(
+                availability, albedoWidth >= 1024);
             if (albedo != null)
             {
                 material.mainTexture = albedo;
@@ -2147,6 +2190,11 @@ namespace Pogranichye.Client.Presentation
                         if ((x * 7 + y * 3) % 29 < 3) shade += 0.18f;
                         if ((x + y * 11) % 47 < 2) shade -= 0.10f;
                         break;
+                    case 6: // chalky lime plaster with worn flakes and fine hairline variation
+                        if ((x * 13 + y * 29) % 43 < 2) shade -= 0.13f;
+                        if ((x * 7 + y * 17) % 59 == 0) shade += 0.07f;
+                        if ((x * 19 + y * 5) % 97 < 2) shade -= 0.08f;
+                        break;
                 }
                 shade = Mathf.Clamp(shade, 0.45f, 1.08f);
                 texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
@@ -2203,6 +2251,7 @@ namespace Pogranichye.Client.Presentation
             _scarecrowCloth = null;
             _grass = null;
             _stone = null;
+            _plaster = null;
             _iron = null;
             _flowers = null;
         }

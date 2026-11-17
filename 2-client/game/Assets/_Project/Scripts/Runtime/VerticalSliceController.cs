@@ -518,6 +518,9 @@ namespace Pogranichye.Client
                 return;
             }
 
+            // Server-authoritative calendar/clock remains visible while the player is in the world.
+            DrawWorldClockOverlay();
+
             if (_mapExpanded)
             {
                 DrawExpandedMapOverlay();
@@ -555,7 +558,7 @@ namespace Pogranichye.Client
                 GUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(_frame.Place != null
-                    ? $"ДЕНЬ {_frame.Day}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
+                    ? $"ДЕНЬ {_frame.Day}  ·  {(_frame.Hour.HasValue ? _frame.Hour.Value.ToString("00", CultureInfo.InvariantCulture) + ":00" : "--:--")}  ·  ГОД {_frame.Year}  ·  {_frame.Season}  ·  {_frame.Place.Name}"
                     : "Мир загружается");
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Закрыть  ×", GUILayout.Width(112f), GUILayout.Height(32f)))
@@ -618,6 +621,19 @@ namespace Pogranichye.Client
                 if (GUI.Button(new Rect(Screen.width - 124f, 12f, 112f, 28f), "Чат [T]"))
                     SetChatOpen(true);
             }
+        }
+
+        private void DrawWorldClockOverlay()
+        {
+            if (_frame == null) return;
+            var time = _frame.Hour.HasValue
+                ? _frame.Hour.Value.ToString("00", CultureInfo.InvariantCulture) + ":00"
+                : "--:--";
+            var calendar = "ДЕНЬ " + _frame.Day.ToString(CultureInfo.InvariantCulture) +
+                "  ·  " + time + "  ·  " + (_frame.Season ?? "") +
+                "  ·  ГОД " + _frame.Year.ToString(CultureInfo.InvariantCulture);
+            var rect = new Rect(12f, 12f, Mathf.Min(430f, Screen.width - 148f), 34f);
+            GUI.Box(rect, calendar);
         }
 
         // Opaque title/loading screen hides the local fallback village while the authoritative
@@ -1113,6 +1129,7 @@ namespace Pogranichye.Client
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
             GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
             _core?.DrawPartyActions();
+            _core?.DrawNearbyGatherables();
 
             if (_showAdvancedCharacterActions)
             {

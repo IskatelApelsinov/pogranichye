@@ -18,6 +18,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
@@ -48,6 +49,11 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
+      - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
+      - '2-client/art-source/textures/**'
+      - '2-client/art-source/blender/generate_world_materials.py'
+      - '2-client/game/Assets/Resources/WorldMaterials/Textures/*_material.json'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainSeamHeightSampler.cs'
       - '2-client/game/Tests/TerrainSeamHeightSamplerCheck.cs'
@@ -55,6 +61,9 @@ on:
       - '2-client/game/Tests/TerrainWaterSurfacePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
       - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldTerrainChunkBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs'
+      - '2-client/game/Tests/TerrainResourceVisualPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
@@ -62,6 +71,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
+      - '2-client/game/Tests/GatherNodePresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
@@ -101,6 +112,7 @@ on:
       - '2-client/game/Tests/ServerSlopeMovementPolicyCheck.cs'
       - '2-client/game/Tests/WorldPositionProjectionPolicyCheck.cs'
       - '2-client/game/Tests/TavernCounterFrameParserCheck.cs'
+      - '2-client/game/Tests/GatherNodeFrameParserCheck.cs'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
@@ -291,6 +303,13 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
           mono /tmp/tavern-counter-frame.exe
+      - name: Nearby gather-node frame normalization regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/gather-node-frame.exe Tests/GatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs
+          mono /tmp/gather-node-frame.exe
       - name: Generated layout POI interaction allow-list checks
         working-directory: 2-client/game
         run: |
@@ -308,6 +327,12 @@ jobs:
           mcs -out:/tmp/wild-site-map-projection.exe Tests/WildSiteMapProjectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs
           mono /tmp/wild-site-map-projection.exe
 
+      - name: Frontier gather-node presentation regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/gather-node-presentation.exe Tests/GatherNodePresentationPolicyCheck.cs Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs
+          mono /tmp/gather-node-presentation.exe
+
       - name: Server-authored multi-level space descriptor regression checks
         working-directory: 2-client/game
         run: |
@@ -315,6 +340,17 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
+
+      - name: World material source priority regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-material-source.exe Tests/WorldMaterialSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs
+          mono /tmp/world-material-source.exe
+
+      - name: Authored world material manifest regression checks
+        run: |
+          python3 -m unittest discover -s 2-client/art-source/textures -p 'test_*.py'
+          python3 2-client/art-source/textures/validate_world_material_assets.py
 
       - name: Adaptive UI typography regression checks
         working-directory: 2-client/game
@@ -351,6 +387,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-clock-smoothing.exe Tests/WorldClockSmoothingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs
           mono /tmp/world-clock-smoothing.exe
+
+      - name: Terrain resource visual policy regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-resource-visual.exe Tests/TerrainResourceVisualPolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs
+          mono /tmp/terrain-resource-visual.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game

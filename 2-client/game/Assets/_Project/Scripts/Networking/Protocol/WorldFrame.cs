@@ -256,6 +256,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stable")] public StableFrame Stable { get; set; }
         // v1.22 nearby wilderness places; actions and proximity are server-authored.
         [JsonProperty("sites")] public List<WildPlaceFrame> Sites { get; set; }
+        // v1.30 nearby gatherable nodes; IDs, stock, coordinates and proximity are server-authored.
+        [JsonProperty("gather")] public List<GatherNodeFrame> Gather { get; set; }
         // v1.25: current settlement's sovereign realm and nearby moving caravans.
         [JsonProperty("realm")] public PlaceRealmFrame Realm { get; set; }
         [JsonProperty("caravans")] public List<NearbyCaravanFrame> Caravans { get; set; }

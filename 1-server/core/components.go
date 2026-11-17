@@ -71,6 +71,10 @@ type MindC struct {
 	// (см. sim.LifeSystem/becomeBandit): счётчик пути в разбой. Внутреннее состояние A-Life, как и
 	// Routine*-поля выше — тоже не новое проводное поле, лишь персистентность мира.
 	DesperateDays int64 `json:"desperate_days,omitempty"`
+	// Pinned — режим, который ВЫБРАЛ ИГРОК (v1.29): work|rest|eat|socialize|wander; "" — решает сам.
+	// Держится и когда игрок не в сети; разум житейски отступает от него, только если валится с ног
+	// или голоден до слабости.
+	Pinned string `json:"pinned,omitempty"`
 }
 
 func (c *MindC) Kind() string { return "mind" }

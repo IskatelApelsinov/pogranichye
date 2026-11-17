@@ -1,6 +1,19 @@
+## Статус чистого checkout — 2026-11-17
+
+Скрипты генерации четырёх авторских наборов есть, но source JPG и готовые 1024×1024 карты сейчас не закоммичены. Все четыре manifest (packed_road, oak_planks, mossy_stone, lime_plaster) помечены availability: pending. Описания ниже фиксируют целевой вид материалов и формат будущих карт, а не наличие готового artwork.
+
+Пока набор не собран, Unity использует импортированный Grok fallback (если владелец выполнил Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты от master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только после успешного запуска соответствующего builder: он создаёт все четыре 1024×1024 карты и записывает availability: available.
+
+Проверка чистого checkout и полноты доступных наборов:
+
+```bash
+python3 -m unittest discover -s 2-client/art-source/textures -p 'test_*.py'
+python3 2-client/art-source/textures/validate_world_material_assets.py
+```
+
 # Авторская текстура утрамбованной земли
 
-Исходник — оригинальная AI-сгенерированная художественная поверхность: влажная утрамбованная земля, мелкий гравий, отдельные камни, соломинки, корешки и редкие опавшие листья. Это не синусоидальный процедурный шум.
+Целевой вид исходника (packed_road_source.jpg пока отсутствует в чистом checkout): влажная утрамбованная земля, мелкий гравий, отдельные камни, соломинки, корешки и редкие опавшие листья. Это не синусоидальный процедурный шум.
 
 ## Состав PBR-набора
 
@@ -30,7 +43,7 @@ python -m pip install pillow numpy opencv-python
 python 2-client/art-source/textures/build_packed_road_material.py
 ```
 
-Исходник `packed_road_source.jpg` лежит рядом со скриптом. Генератор воспроизводимо пишет карты прямо в Unity Resources.
+Ожидаемый packed_road_source.jpg должен лежать рядом со скриптом; в текущем main этот файл отсутствует. Генератор воспроизводимо пишет карты прямо в Unity Resources.
 
 Unity импортирует PNG автоматически через `WorldMaterialTextureImporter`: Repeat, mipmaps, trilinear, anisotropic 8; normal получает тип Normal Map, roughness/AO — linear. Albedo RGB остаётся sRGB, alpha не трактуется как прозрачность.
 
@@ -47,7 +60,7 @@ UV tiling дороги сохраняется: 2×12. URP Lit читает smoot
 
 ## Авторская текстура состаренных дубовых досок
 
-Исходник — оригинальная realistic-stylized художественная поверхность из четырёх широких досок старого дуба: глубокие стыки, продольные волокна, сучки, трещины, потёртости и отверстия от старого крепежа. Это не синусоидальная процедурная подмена.
+Целевой вид исходника oak_planks_source.jpg (файл пока отсутствует в чистом checkout): глубокие стыки, продольные волокна, сучки, трещины, потёртости и отверстия от старого крепежа. Это не синусоидальная процедурная подмена.
 
 Скрипт `build_oak_planks_material.py` создаёт в Unity Resources:
 
@@ -66,7 +79,7 @@ python -m pip install pillow numpy opencv-python
 python 2-client/art-source/textures/build_oak_planks_material.py
 ```
 
-Исходник `oak_planks_source.jpg` лежит рядом со скриптом. Генератор берёт четыре целые доски между исходными продольными стыками, затем ремонтирует повтор по обеим осям выровненными внутренними фрагментами с cosine feather. Он проверяет каждую карту и завершает работу ошибкой, если отношение перепада на шве к внутреннему перепаду превышает 1.35.
+Ожидаемый oak_planks_source.jpg должен лежать рядом со скриптом; в текущем main этот файл отсутствует. Генератор берёт четыре целые доски между исходными продольными стыками, затем ремонтирует повтор по обеим осям выровненными внутренними фрагментами с cosine feather. Он проверяет каждую карту и завершает работу ошибкой, если отношение перепада на шве к внутреннему перепаду превышает 1.35.
 
 ## Подключение в мире
 
@@ -76,7 +89,7 @@ python 2-client/art-source/textures/build_oak_planks_material.py
 
 ## Авторская текстура старой каменной кладки
 
-Исходник — художественная поверхность нерегулярной кладки из полевых камней: серый сланец, тёплый известняк и песчаник, выветренные грани, минеральные прожилки, углублённый известковый раствор и сдержанные участки мха. Это не процедурная синусоидальная имитация.
+Целевой вид исходника stone_masonry_source.jpg (файл пока отсутствует в чистом checkout): серый сланец, тёплый известняк и песчаник, выветренные грани, минеральные прожилки, углублённый известковый раствор и сдержанные участки мха. Это не процедурная синусоидальная имитация.
 
 `build_mossy_stone_material.py` создаёт в Unity Resources:
 
@@ -95,7 +108,7 @@ python -m pip install pillow numpy opencv-python
 python 2-client/art-source/textures/build_mossy_stone_material.py
 ```
 
-Исходник `stone_masonry_source.jpg` должен находиться рядом со скриптом. Карты записываются прямо в `2-client/game/Assets/Resources/WorldMaterials/Textures/`; `WorldMaterialTextureImporter` задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear для roughness/AO.
+Ожидаемый stone_masonry_source.jpg должен находиться рядом со скриптом; в текущем main этот файл отсутствует. Карты записываются прямо в `2-client/game/Assets/Resources/WorldMaterials/Textures/`; `WorldMaterialTextureImporter` задаёт Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear для roughness/AO.
 
 ## Подключение в мире
 
@@ -103,3 +116,29 @@ python 2-client/art-source/textures/build_mossy_stone_material.py
 
 Если полный набор карт или `mossy_stone_material.json` отсутствует, остаётся прежний fallback. Blender master generator сохраняет полный авторский набор и не перезаписывает его процедурной версией.
 
+
+
+## Авторская состаренная известковая штукатурка
+
+Целевой вид исходника lime_plaster_source.jpg (файл пока отсутствует в чистом checkout): тёплый кремовый известковый слой, пигментные охристые пятна, мелкие трещины, потёртые гребни и зернистые следы ручного нанесения. Это отдельный художественный исходник, а не процедурный синусоидальный узор.
+
+Скрипт `build_lime_plaster_material.py` создаёт в Unity Resources:
+
+- `lime_plaster_albedo.png` — 1024×1024 RGBA; RGB — albedo, A — линейная smoothness (`1 - roughness`);
+- `lime_plaster_normal.png` — tangent-space normal, positive Y;
+- `lime_plaster_roughness.png` — отдельная линейная roughness;
+- `lime_plaster_ao.png` — отдельная линейная AO;
+- `lime_plaster_material.json` — PBR-настройки и измерения швов.
+
+Все карты выведены из одного художественного исходника и общей карты высот. Для URP Lit smoothness хранится в alpha albedo, а отдельная roughness остаётся для других шейдеров и экспорта. Проверка генератора требует seam ratio не выше 1.35, нормализованные normal-векторы и совпадение alpha с обратной roughness с погрешностью не более одного уровня.
+
+Пересборка:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_lime_plaster_material.py
+```
+
+Ранее документированный архив pogranichye_lime_plaster_pbr_pack.zip также отсутствует в текущем main. Когда source artwork будет предоставлен, положить lime_plaster_source.jpg рядом со скриптом и запустить builder.
+
+В `WorldLayoutPresentationBuilder` штукатурка применяется к стеновым плоскостям сгенерированных домов и таверны. Деревянный каркас, двери, стойки, крыши и открытый рыночный навес остаются на отдельных timber/thatch материалах. UV tiling — 1.5×1.5. До появления полного authored pack сначала используется Grok plaster_wall (если импортирован), затем procedural fallback; authored lime plaster применяется только при availability: available и наличии 1024px albedo.

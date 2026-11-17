@@ -1,0 +1,26 @@
+{
+  "name": "Pogranichye authored weathered oak planks",
+  "version": 1,
+  "availability": "pending",
+  "availability_note": "Source artwork and complete authored 1024x1024 maps are absent from the clean checkout; this manifest is a target specification, not an available override.",
+  "resolution": [
+    1024,
+    1024
+  ],
+  "tileable": true,
+  "source": "2-client/art-source/textures/oak_planks_source.jpg",
+  "builder": "2-client/art-source/textures/build_oak_planks_material.py",
+  "maps": {
+    "albedo": "oak_planks_albedo.png",
+    "normal": "oak_planks_normal.png",
+    "roughness": "oak_planks_roughness.png",
+    "ao": "oak_planks_ao.png"
+  },
+  "urp": {
+    "smoothness": "1 - roughness",
+    "smoothness_storage": "linear alpha channel of _BaseMap; _SmoothnessTextureChannel = 1",
+    "metallic": 0,
+    "wrap": "Repeat",
+    "mipmaps": true
+  }
+}

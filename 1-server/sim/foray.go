@@ -56,6 +56,9 @@ type ForaySystem struct{}
 func (ForaySystem) Name() string { return "foray" }
 
 func (ForaySystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
+	if u := peekWildUse(w); u != nil || clock.Hour() == forayHour {
+		wildUse(w).Today = int(clock.Day()) // день мира для памяти мест (зачистка фронтира)
+	}
 	if clock.Hour() != forayHour {
 		return
 	}

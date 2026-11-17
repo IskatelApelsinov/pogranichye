@@ -81,9 +81,9 @@ func TestRunDrainsStamina(t *testing.T) {
 		t.Fatalf("бег должен тратить запал: stam=%.3f", p.Stam)
 	}
 	before := p.Stam
-	ApplyMove(nil, p, 0, 0, false, 0, moveMaxDt, 2) // стоим
-	if p.Stam <= before {
-		t.Fatal("стоя запал должен восстанавливаться")
+	ApplyMove(nil, p, 0, 0, false, 0, moveMaxDt, 2) // стоим: в ApplyMove запал больше не копится (v1.29)
+	if p.Stam != before {
+		t.Fatalf("ApplyMove не должен восстанавливать запал сам: %.3f → %.3f", before, p.Stam)
 	}
 }
 

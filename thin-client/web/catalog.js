@@ -66,5 +66,12 @@
       '🐎 Обоз: '+(c.good_name&&c.good_name!==c.good?c.good_name:name(cat,c.good))+' ×'+Math.round(Number(c.amount)||0)+
       ' · '+(c.from||'?')+' → '+(c.to||'?')+' · '+distText(c.dist)+' '+(c.dir||''));
   }
-  return {name,waresAt,lists,siteRows,distText,realmLines,caravanRows};
+  // Находки под ногами (v1.30): строки для карточки «Под рукой».
+  function gatherRows(gs,walk){
+    const going=walk&&walk.site?walk.site:'';
+    return (Array.isArray(gs)?gs:[]).filter(g=>g&&g.id).map(g=>({id:g.id,kind:g.kind||'',name:g.name||g.kind||'находка',
+      good:g.good_name||g.good||'',left:Math.max(0,Math.floor(Number(g.left)||0)),here:!!g.here,going:going===g.id,
+      where:g.here?'прямо здесь':(distText(g.dist)+(g.dir?' '+g.dir:''))}));
+  }
+  return {name,waresAt,lists,siteRows,distText,realmLines,caravanRows,gatherRows};
 });
