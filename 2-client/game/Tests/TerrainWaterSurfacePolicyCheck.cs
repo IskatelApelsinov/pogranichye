@@ -24,6 +24,8 @@ internal static class TerrainWaterSurfacePolicyCheck
             "valid explicit surface does not depend on fallback water level");
         Equal(0d, TerrainWaterSurfacePolicy.ResolveLocalHeight(null, double.NaN, 100d, 0.34d),
             "invalid fallback data does not propagate NaN");
+        Equal(0d, TerrainWaterSurfacePolicy.ResolveLocalHeight(112.5d, 110d, double.NaN, 0.34d),
+            "invalid floating origin does not propagate NaN");
         Console.WriteLine("Terrain water surface policy: " + _checks + " checks passed.");
     }
 }
