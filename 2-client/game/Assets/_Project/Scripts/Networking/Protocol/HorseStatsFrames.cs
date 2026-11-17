@@ -114,7 +114,11 @@ namespace Pogranichye.Client.Networking.Protocol
             var array = token as JArray;
             if (array == null) throw new FormatException(path + " должен быть массивом.");
             for (var i = 0; i < array.Count; i++)
+            {
+                if (array[i] == null || array[i].Type == JTokenType.Null)
+                    throw new FormatException(path + "[" + i.ToString(CultureInfo.InvariantCulture) + "] должен быть объектом лошади.");
                 Validate(array[i], path + "[" + i.ToString(CultureInfo.InvariantCulture) + "]");
+            }
         }
 
         public static void Validate(JToken token, string path)
