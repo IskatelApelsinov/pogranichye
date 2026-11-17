@@ -47,6 +47,10 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stam")] public double Stamina { get; set; }
         [JsonProperty("mounted")] public bool Mounted { get; set; }
         [JsonProperty("here")] public bool Here { get; set; }
+        [JsonProperty("active")] public bool Active { get; set; }
+        [JsonProperty("settlement_id")] public string SettlementId { get; set; }
+        [JsonProperty("settlement_name")] public string SettlementName { get; set; }
+        [JsonProperty("realm_name")] public string RealmName { get; set; }
         [JsonProperty("bag")] public Dictionary<string, double> Bag { get; set; }
         [JsonProperty("bag_load")] public double BagLoad { get; set; }
         [JsonProperty("bag_cap")] public double BagCapacity { get; set; }
@@ -103,6 +107,16 @@ namespace Pogranichye.Client.Networking.Protocol
 
     public static class HorseFrameParser
     {
+        public static void ValidateArray(JToken token, string path)
+        {
+            // v1.32 is additive: older servers may omit me.horses entirely.
+            if (token == null || token.Type == JTokenType.Null) return;
+            var array = token as JArray;
+            if (array == null) throw new FormatException(path + " должен быть массивом.");
+            for (var i = 0; i < array.Count; i++)
+                Validate(array[i], path + "[" + i.ToString(CultureInfo.InvariantCulture) + "]");
+        }
+
         public static void Validate(JToken token, string path)
         {
             if (token == null || token.Type == JTokenType.Null) return;
@@ -113,12 +127,22 @@ namespace Pogranichye.Client.Networking.Protocol
             RequireNumber(obj["stam"], path + ".stam", 0d, 100d);
             RequireBool(obj["mounted"], path + ".mounted");
             RequireBool(obj["here"], path + ".here");
+            if (obj["active"] != null) RequireBool(obj["active"], path + ".active");
+            ValidateOptionalString(obj["settlement_id"], path + ".settlement_id");
+            ValidateOptionalString(obj["settlement_name"], path + ".settlement_name");
+            ValidateOptionalString(obj["realm_name"], path + ".realm_name");
             RequireNumber(obj["bag_load"], path + ".bag_load", 0d, 1000000000d);
             RequireNumber(obj["bag_cap"], path + ".bag_cap", 0d, 1000000000d);
             var bag = obj["bag"] as JObject;
             if (bag == null) throw new FormatException(path + ".bag должен быть объектом товаров.");
             foreach (var property in bag.Properties())
                 RequireNumber(property.Value, path + ".bag." + property.Name, 0d, 1000000000d);
+        }
+
+        private static void ValidateOptionalString(JToken token, string path)
+        {
+            if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
+                throw new FormatException(path + " должен быть строкой или null.");
         }
 
         private static void RequireString(JToken token, string path, bool nonEmpty)
