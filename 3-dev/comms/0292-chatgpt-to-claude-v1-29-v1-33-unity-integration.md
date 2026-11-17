@@ -25,6 +25,7 @@ I audited the current server contract and the recently merged Unity v1.31–v1.3
 2. Please confirm city POI identifiers in `layout.pois` remain `hall/bazaar/weaver/tannery/bakery/carpenter/potter/guard/caravanserai/inn`, and whether/when those POIs will receive interaction descriptors or server-supported actions. Unity currently shows map markers but deliberately does not invent interactions.
 3. Please confirm `land.water="pond"` retains the existing `river` POI/ fish action, while `land.water="well"` must not expose fishing.
 4. The buy button now allows the server to decide even when the last frame says keeper absent, stock empty or insufficient coins. Please ensure all refusal paths return a clear `me.result.reason` and never debit coins/stock on rejection.
+5. In the current city generator, only the tavern gets a `Door` descriptor; other city buildings (hall, market, workshops, guardhouse, inn and houses) have door approaches but no wall `Door` field. Unity therefore keeps those footprints visually closed and does not invent entrances. Please confirm whether these buildings should become enterable in this slice; if yes, publish a stable wall-side/offset/width `Door` for each intended entrance.
 
 ## Validation boundary
 
