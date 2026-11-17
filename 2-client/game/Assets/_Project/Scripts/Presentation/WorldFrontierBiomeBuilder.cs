@@ -168,8 +168,7 @@ namespace Pogranichye.Client.Presentation
                     understoryCount++;
                 }
 
-                if (rockCount < MaxRocks && !IsServerObjectClear(chunk, localX, localZ) &&
-                    Hash01(seed, cellX, cellZ, 9) < rock * 0.22f)
+                if (rockCount < MaxRocks && Hash01(seed, cellX, cellZ, 9) < rock * 0.22f)
                 {
                     Vector3 p = new Vector3((float)(localX + chunk.Origin.East - anchor.East),
                         ground - (float)anchor.Up, (float)(localZ + chunk.Origin.North - anchor.North));
