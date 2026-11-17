@@ -13,8 +13,13 @@
 - [ ] Server-validated time pause/set/step/speed multiplier commands.
 - [ ] Server-validated movement speed multiplier for only the authorized test character.
 - [ ] Audit log, limits, reqid idempotency, reset controls.
-- [ ] Unity developer tab only when server says me.dev.enabled.
+- [x] Unity developer tab only when server says me.dev.enabled (pause/resume, time scale, step/set hour, own-character walk multiplier, reset; reqid and server result feedback).
 - [ ] Owner creates a dedicated account and supplies its numeric account ID for allowlist.
+
+### Unity integration note — 2026-11-17
+- Unity now deserializes `me.dev` and `me.movement`; the developer tab is capability-gated by `me.dev.enabled`.
+- Movement prediction reads the effective server speeds from `me.movement`, including `dev_mult`; slope/trail rules still come from `/api/world.movement`.
+- Editor/PlayMode verification remains outstanding; this checklist entry records implementation, not runtime acceptance.
 
 ### Terrain grounding (client first pass)
 - [x] Stop resetting player root Y to zero every moving frame.
