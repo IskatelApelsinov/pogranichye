@@ -369,8 +369,13 @@ namespace Pogranichye.Client.Presentation
                 var random = new System.Random(StableDecorationSeed(layout.Settlement, zoneIndex));
                 var area = (x1 - x0) * (z1 - z0);
 
-                if (zone.Kind == "field" && layout.Land != null)
-                    AddFieldFurrows(furrowVertices, furrowTriangles, x0, z0, x1, z1, layout.Land.Fields);
+                if (zone.Kind == "field")
+                {
+                    if (layout.Land != null)
+                        AddFieldFurrows(furrowVertices, furrowTriangles, x0, z0, x1, z1, layout.Land.Fields);
+                    // No crop entities or growth stages are invented; keep the server field patch readable.
+                    continue;
+                }
                 if (zone.Kind == "pond")
                 {
                     AddPondBanks(pondBankVertices, pondBankTriangles, x0, z0, x1, z1);
