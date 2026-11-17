@@ -42,7 +42,7 @@ Base implementation added:
 
 No new wire field or server action is introduced. POIs absent from the server layout are not created. Unsupported locations are not made interactive. The target collider is presentation-only; E still flows through the existing selection handler and current server intent/RequestGate path. Server validation remains final.
 
-The server's current `Layout.JSON()` does not publish `interactions[]`, and `server.go` does not dispatch `op:"interact"`. The client therefore never sends that unsupported operation. If a future layout includes descriptors, the client uses their server-authored coordinates/title/availability only when `target_id` maps to a known v1 goal/action; otherwise it fails closed. Legacy POI mapping remains the compatibility fallback.
+The server's current `Layout.JSON()` does not publish `interactions[]`, and `server.go` does not dispatch `op:"interact"`. The client therefore never sends that unsupported operation. If a future layout includes descriptors, the client uses their server-authored coordinates/title/availability only when `target_id` maps to a known v1 immediate action/horse context; otherwise it fails closed. Legacy POI mapping remains the compatibility fallback.
 
 ## Explicit exclusions
 
