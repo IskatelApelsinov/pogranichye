@@ -3254,48 +3254,8 @@ namespace Pogranichye.Client
 
         private void DrawRecipeActions(string station)
         {
-            var recipes = _worldCatalog != null ? _worldCatalog["recipes"] as JArray : null;
-            var found = false;
-            if (recipes != null)
-            {
-                foreach (var recipe in recipes)
-                {
-                    if (recipe == null || !string.Equals((string)recipe["at"], station, StringComparison.Ordinal))
-                        continue;
-                    var id = (string)recipe["id"];
-                    if (string.IsNullOrWhiteSpace(id)) continue;
-                    found = true;
-                    var name = (string)recipe["name"] ?? id;
-                    var needs = recipe["needs"] as JObject;
-                    var needsText = string.Empty;
-                    if (needs != null)
-                    {
-                        foreach (var need in needs.Properties())
-                        {
-                            if (needsText.Length > 0) needsText += " · ";
-                            needsText += need.Name + " ×" + need.Value;
-                        }
-                    }
-                    var label = name + (string.IsNullOrEmpty(needsText) ? string.Empty : "\nСырьё: " + needsText);
-                    if (GUILayout.Button(label, GUILayout.MinHeight(38f)))
-                        QueueCraftAction(id, name);
-                }
-            }
-            if (!found)
-                GUILayout.Label("Рецепты этой мастерской пока не получены из каталога сервера.");
-            else
-                GUILayout.Label("Сырьё берётся из твоей сумы. Если его не хватает, сервер вернёт причину отказа.");
-        }
-
-        private void QueueCraftAction(string recipeId, string label)
-        {
-            if (_core == null || !_core.QueueRequest(WorldActionLabelPrefix + " " + label,
-                "craft", "item", recipeId))
-            {
-                _status = "Не удалось отправить ремесленное действие. Дождитесь ответа на предыдущее.";
-                return;
-            }
-            _status = "Ожидаю подтверждения сервера: " + label + "…";
+            if (_core != null)
+                _core.DrawCraftingContextActions(station);
         }
 
         private void DrawStableActions()
