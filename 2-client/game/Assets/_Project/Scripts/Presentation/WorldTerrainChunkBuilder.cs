@@ -162,7 +162,8 @@ namespace Pogranichye.Client.Presentation
                 // the synthetic 64px fallback even after the texture pack was imported.
                 var authoredGround = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
                 var grokGround = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow");
-                switch (TerrainTextureSourcePolicy.Select(authoredGround != null, grokGround != null))
+                var groundSource = TerrainTextureSourcePolicy.Select(authoredGround != null, grokGround != null);
+                switch (groundSource)
                 {
                     case TerrainTextureSourcePolicy.Source.Authored:
                         _groundTexture = authoredGround;
@@ -183,8 +184,11 @@ namespace Pogranichye.Client.Presentation
 
                 var authoredNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
                 var grokNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
-                var normal = TerrainTextureSourcePolicy.Select(authoredNormal != null, grokNormal != null) ==
-                    TerrainTextureSourcePolicy.Source.Authored ? authoredNormal : grokNormal;
+                // A normal map must belong to the same texture set as the selected albedo.
+                // Never combine an authored albedo with an unrelated Grok normal (or vice versa).
+                var normal = groundSource == TerrainTextureSourcePolicy.Source.Authored
+                    ? authoredNormal
+                    : groundSource == TerrainTextureSourcePolicy.Source.Grok ? grokNormal : null;
                 if (normal != null && _material.HasProperty("_BumpMap"))
                 {
                     _material.SetTexture("_BumpMap", normal);
