@@ -203,6 +203,7 @@ namespace Pogranichye.Client
         private Vector2 _hudScroll;
         private Vector2 _contextActionScroll;
         private float _mapZoom = 1f;
+        private bool _mapExpanded;
         private Vector2 _mapPan;
         private bool _mapDragging;
         private Vector2 _mapLastPointer;
@@ -383,7 +384,8 @@ namespace Pogranichye.Client
                 SetSystemMenuOpen(!_systemMenuOpen);
             else if (_input != null && _input.CancelPressed && _activityMiniGame == ActivityMiniGame.None)
             {
-                if (_chatOpen) SetChatOpen(false);
+                if (_mapExpanded) _mapExpanded = false;
+                else if (_chatOpen) SetChatOpen(false);
                 else if (_activityPanelOpen) _activityPanelOpen = false;
                 else if (_marketPanelOpen) _marketPanelOpen = false;
                 else if (_stablePanelOpen) _stablePanelOpen = false;
@@ -468,7 +470,7 @@ namespace Pogranichye.Client
 
         private bool IsPointerOverUi()
         {
-            if (_systemMenuOpen || _chatOpen) return true;
+            if (_systemMenuOpen || _chatOpen || _mapExpanded) return true;
             if (_input == null) return false;
             var pointer = _input.PointerPosition;
             var guiPoint = new Vector2(pointer.x, Screen.height - pointer.y);
@@ -507,6 +509,12 @@ namespace Pogranichye.Client
             {
                 DrawTitleLoadingBackdrop();
                 DrawMovementDebugOverlay();
+                return;
+            }
+
+            if (_mapExpanded)
+            {
+                DrawExpandedMapOverlay();
                 return;
             }
 
@@ -1347,6 +1355,23 @@ namespace Pogranichye.Client
             "hearth", "garden", "river", "woods", "mine"
         };
 
+        private void DrawExpandedMapOverlay()
+        {
+            var panel = new Rect(12f, 12f, Screen.width - 24f, Screen.height - 24f);
+            GUI.Box(panel, "КАРТА МИРА · РАСШИРЕННЫЙ РЕЖИМ");
+            GUILayout.BeginArea(new Rect(panel.x + 16f, panel.y + 30f, panel.width - 32f, panel.height - 44f));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Карта мира · серверная география · Esc — закрыть");
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Свернуть  ×", GUILayout.Width(116f), GUILayout.Height(32f)))
+                _mapExpanded = false;
+            GUILayout.EndHorizontal();
+            _hudScroll = GUILayout.BeginScrollView(_hudScroll, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+            DrawMapTab();
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
         private void DrawMapTab()
         {
             GUILayout.Label("КАРТА МИРА");
@@ -1362,6 +1387,8 @@ namespace Pogranichye.Client
             if (GUILayout.Button("+", GUILayout.Width(28f))) nextZoom = Mathf.Min(24f, _mapZoom + 0.75f);
             if (GUILayout.Button("К персонажу", GUILayout.Width(112f))) _mapPan = Vector2.zero;
             if (GUILayout.Button("Сброс", GUILayout.Width(54f))) { nextZoom = 1f; _mapPan = Vector2.zero; }
+            if (GUILayout.Button(_mapExpanded ? "Свернуть" : "На весь экран", GUILayout.Width(112f)))
+                _mapExpanded = !_mapExpanded;
             _mapZoom = Mathf.Clamp(nextZoom, 1f, 24f);
             GUILayout.EndHorizontal();
             GUILayout.Label("Колесо — приблизить/отдалить · ЛКМ — двигать карту · Север ↑");
@@ -1372,7 +1399,7 @@ namespace Pogranichye.Client
             }
 
             EnsureMapStyles();
-            var mapSize = Mathf.Min(520f, Screen.width - 72f);
+            var mapSize = WorldMapViewportPolicy.GetMapSize(Screen.width, Screen.height, _mapExpanded);
             var rect = GUILayoutUtility.GetRect(mapSize, mapSize, GUILayout.Width(mapSize), GUILayout.Height(mapSize));
             var player = _frame?.Me?.WorldPosition;
             var hasPlayer = player != null && player.IsValid && player.Frame == anchor.Frame;
