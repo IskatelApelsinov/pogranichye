@@ -22,6 +22,8 @@ The client uses E as the one contextual key:
 - garden → `gather/farmwork/apiary`;
 - hearth → server-available hearth recipes;
 - granary → stable/horse panel plus granary recipes;
+- woods → zone-correct timber/brushwood action plus hunt/fight;
+- general work menu → build contribution when current stash/energy snapshot meets the known server minimum.
 - horse panel now exposes purchase, mount/dismount, feed, stow and unstow.
 
 All actions retain reqid and server ACK handling. No local inventory/stock/horse mutation.
