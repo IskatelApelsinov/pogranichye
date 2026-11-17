@@ -30,16 +30,22 @@ namespace Pogranichye.Client.Presentation
             new Dictionary<string, SiteView>(StringComparer.Ordinal);
         private static readonly Dictionary<string, Material> Materials =
             new Dictionary<string, Material>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, SiteView> NearbyViews =
+            new Dictionary<string, SiteView>(StringComparer.Ordinal);
+        private static Material _activationMaterial;
+        private const float SiteActivationRadius = 25f;
+        private const float NearbyVisibleRadius = 420f;
         private static Transform _root;
         private static WorldManifestFrame _manifest;
 
         public static void Rebuild(Transform parent, WorldManifestFrame manifest)
         {
             Clear();
-            if (parent == null || manifest?.WildSites == null) return;
+            if (parent == null) return;
             _manifest = manifest;
             _root = new GameObject("WorldWildSites").transform;
             _root.SetParent(parent, false);
+            if (manifest.WildSites == null) return;
             foreach (var site in manifest.WildSites)
             {
                 if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
@@ -55,7 +61,7 @@ namespace Pogranichye.Client.Presentation
 
         public static void Update(Transform parent, WorldManifestFrame manifest, WorldFrame frame)
         {
-            if (parent == null || manifest == null || manifest.WildSites == null || manifest.WildSites.Count == 0 || frame?.Me?.WorldPosition == null ||
+            if (parent == null || frame?.Me?.WorldPosition == null ||
                 frame.Me.Position == null || !frame.Me.WorldPosition.IsValid)
             {
                 if (_root != null) _root.gameObject.SetActive(false);
@@ -103,6 +109,157 @@ namespace Pogranichye.Client.Presentation
                 }
                 view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
             }
+            UpdateNearbySites(parent, frame, origin, scene);
+        }
+
+        private static void UpdateNearbySites(Transform parent, WorldFrame frame,
+            WorldPositionFrame origin, ScenePositionFrame scene)
+        {
+            var sites = frame?.Place?.Sites;
+            var activeIds = new HashSet<string>(StringComparer.Ordinal);
+            if (sites != null)
+            {
+                foreach (var site in sites)
+                {
+                    if (site == null || string.IsNullOrWhiteSpace(site.Id)) continue;
+                    var east = site.East - origin.East;
+                    var north = site.North - origin.North;
+                    var distanceSquared = east * east + north * north;
+                    if (distanceSquared > NearbyVisibleRadius * NearbyVisibleRadius) continue;
+                    activeIds.Add(site.Id);
+                    if (!NearbyViews.TryGetValue(site.Id, out var view))
+                    {
+                        view = new SiteView { Id = site.Id, Type = site.Kind };
+                        view.Root = new GameObject("NearbyWildPlace_" + site.Id).transform;
+                        view.Root.SetParent(_root, false);
+                        BuildNearbyPlace(view.Root, site.Kind);
+                        NearbyViews.Add(site.Id, view);
+                    }
+                    view.Root.gameObject.SetActive(true);
+                    var up = site.Up - origin.Up;
+                    view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
+                }
+            }
+
+            foreach (var pair in NearbyViews)
+                if (!activeIds.Contains(pair.Key) && pair.Value.Root != null)
+                    pair.Value.Root.gameObject.SetActive(false);
+        }
+
+        private static void BuildNearbyPlace(Transform root, string kind)
+        {
+            var wood = MaterialFor("site_wood", new Color(0.29f, 0.19f, 0.11f));
+            var stone = MaterialFor("site_stone", new Color(0.39f, 0.37f, 0.33f));
+            var dark = MaterialFor("site_dark", new Color(0.075f, 0.06f, 0.045f));
+            var green = MaterialFor("site_green", new Color(0.17f, 0.30f, 0.12f));
+            var leaf = MaterialFor("site_leaf", new Color(0.27f, 0.38f, 0.13f));
+            var water = MaterialFor("site_water", new Color(0.10f, 0.34f, 0.43f, 0.82f));
+            switch (kind)
+            {
+                case "camp":
+                    Part(root, PrimitiveType.Cylinder, "ColdFirepit", new Vector3(0, 0.12f, 0), new Vector3(1.25f, 0.12f, 1.25f), stone);
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var angle = i * Mathf.PI * 2f / 7f;
+                        Part(root, PrimitiveType.Sphere, "FirepitStone" + i,
+                            new Vector3(Mathf.Cos(angle) * 0.72f, 0.18f, Mathf.Sin(angle) * 0.72f),
+                            new Vector3(0.32f, 0.22f, 0.32f), stone);
+                    }
+                    Part(root, PrimitiveType.Cube, "CampLogA", new Vector3(-1.5f, 0.25f, 1.5f), new Vector3(2.1f, 0.32f, 0.38f), wood);
+                    Part(root, PrimitiveType.Cube, "CampLogB", new Vector3(1.5f, 0.25f, 1.5f), new Vector3(2.1f, 0.32f, 0.38f), wood);
+                    break;
+                case "hut":
+                    Part(root, PrimitiveType.Cube, "HutBody", new Vector3(0, 1.15f, 0), new Vector3(4.2f, 2.3f, 3.6f), wood);
+                    Part(root, PrimitiveType.Cube, "HutRoof", new Vector3(0, 2.65f, 0), new Vector3(4.9f, 0.45f, 4.3f), dark);
+                    Part(root, PrimitiveType.Cube, "HutDoor", new Vector3(0, 0.85f, -1.84f), new Vector3(0.9f, 1.7f, 0.12f), dark);
+                    break;
+                case "berry":
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var x = Mathf.Sin(i * 2.4f) * 2.3f;
+                        var z = Mathf.Cos(i * 2.4f) * 2.0f;
+                        Part(root, PrimitiveType.Sphere, "BerryBush" + i, new Vector3(x, 0.48f, z),
+                            new Vector3(1.15f, 0.8f, 1.1f), green);
+                        Part(root, PrimitiveType.Sphere, "BerryFruit" + i, new Vector3(x + 0.2f, 0.72f, z - 0.2f),
+                            Vector3.one * 0.16f, MaterialFor("site_berry", new Color(0.35f, 0.08f, 0.12f)));
+                    }
+                    break;
+                case "herbs":
+                    for (var i = 0; i < 11; i++)
+                    {
+                        var x = Mathf.Sin(i * 1.7f) * 2.5f;
+                        var z = Mathf.Cos(i * 1.7f) * 2.2f;
+                        Part(root, PrimitiveType.Cone, "Herb" + i, new Vector3(x, 0.35f, z),
+                            new Vector3(0.22f, 0.7f, 0.22f), leaf);
+                    }
+                    break;
+                case "thicket":
+                case "copse":
+                    for (var i = 0; i < 5; i++)
+                    {
+                        var x = Mathf.Sin(i * 1.25f) * 3.1f;
+                        var z = Mathf.Cos(i * 1.25f) * 2.8f;
+                        Part(root, PrimitiveType.Cylinder, "ThicketTrunk" + i, new Vector3(x, 1.5f, z),
+                            new Vector3(0.45f, 1.5f, 0.45f), wood);
+                        Part(root, PrimitiveType.Sphere, "ThicketCanopy" + i, new Vector3(x, 3.5f, z),
+                            new Vector3(2.4f, 2.6f, 2.4f), green);
+                    }
+                    break;
+                case "outcrop":
+                    for (var i = 0; i < 5; i++)
+                        Part(root, PrimitiveType.Sphere, "OreStone" + i, new Vector3(i * 0.7f - 1.4f, 0.55f, Mathf.Sin(i) * 0.6f),
+                            new Vector3(1.1f, 0.9f, 1.0f), stone);
+                    break;
+                case "pond":
+                    Part(root, PrimitiveType.Cylinder, "PondWater", new Vector3(0, 0.06f, 0),
+                        new Vector3(5.2f, 0.06f, 3.8f), water);
+                    break;
+                case "barrow":
+                    Part(root, PrimitiveType.Sphere, "BarrowMound", new Vector3(0, 0.65f, 0),
+                        new Vector3(6f, 1.35f, 5f), green);
+                    Part(root, PrimitiveType.Cube, "BarrowStone", new Vector3(0, 0.55f, -1.9f),
+                        new Vector3(1.3f, 1.1f, 0.25f), stone);
+                    break;
+                case "ruins":
+                    Part(root, PrimitiveType.Cube, "RuinWallA", new Vector3(-1.8f, 1.1f, 0), new Vector3(0.65f, 2.2f, 4.5f), stone);
+                    Part(root, PrimitiveType.Cube, "RuinWallB", new Vector3(1.4f, 0.8f, -1.8f), new Vector3(3.8f, 1.6f, 0.65f), stone);
+                    break;
+                case "den":
+                    Part(root, PrimitiveType.Sphere, "DenMound", new Vector3(0, 0.55f, 0), new Vector3(4.6f, 1.1f, 4f), green);
+                    Part(root, PrimitiveType.Cube, "DenMouth", new Vector3(0, 0.45f, -1.72f), new Vector3(1.25f, 0.9f, 0.16f), dark);
+                    break;
+                default:
+                    Part(root, PrimitiveType.Cylinder, "WildPlaceMarker", new Vector3(0, 0.35f, 0),
+                        new Vector3(1.3f, 0.35f, 1.3f), stone);
+                    break;
+            }
+
+            // Server's current wild-place action radius is 25 m. This unobtrusive ring
+            // makes the exact activation boundary visible without changing its authority.
+            var ringObject = new GameObject("ActivationRadius_25m");
+            ringObject.transform.SetParent(root, false);
+            var line = ringObject.AddComponent<LineRenderer>();
+            line.useWorldSpace = false;
+            line.loop = true;
+            line.positionCount = 65;
+            line.widthMultiplier = 0.16f;
+            line.sharedMaterial = ActivationMaterial();
+            for (var i = 0; i < 65; i++)
+            {
+                var angle = i * Mathf.PI * 2f / 64f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(angle) * SiteActivationRadius, 0.12f,
+                    Mathf.Sin(angle) * SiteActivationRadius));
+            }
+        }
+
+        private static Material ActivationMaterial()
+        {
+            if (_activationMaterial != null) return _activationMaterial;
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color") ??
+                Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return null;
+            _activationMaterial = new Material(shader) { color = new Color(0.92f, 0.70f, 0.28f, 0.82f) };
+            return _activationMaterial;
         }
 
         private static void BuildLandmark(Transform root, string type, double mana, double danger, double verticalOffset)
@@ -194,6 +351,11 @@ namespace Pogranichye.Client.Presentation
             if (_root != null) UnityEngine.Object.Destroy(_root.gameObject);
             _root = null;
             Views.Clear();
+            foreach (var view in NearbyViews.Values)
+                if (view.Root != null) UnityEngine.Object.Destroy(view.Root.gameObject);
+            NearbyViews.Clear();
+            if (_activationMaterial != null) UnityEngine.Object.Destroy(_activationMaterial);
+            _activationMaterial = null;
             _manifest = null;
         }
     }
