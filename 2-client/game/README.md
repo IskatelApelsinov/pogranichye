@@ -191,7 +191,6 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 ## v1.22 client feature hookup — 2026-11-16
 
 - `place.sites[]` now appears in the character panel. The client offers approach (`op:goto`, `site`) and only the actions advertised by the server (`op:site`, `site`, `action`). Site proximity, daily reuse, finite stock and outcomes are never predicted locally.
-- v1.30 `place.gather[]` now appears beside the character's nearby-world information. Each server node offers `op:goto` with `site` until it is in reach, then `op:pick` with `node` and a generated `reqid`; depleted nodes stay visible as exhausted. The client does not invent node placement, stock, range or rewards.
 - On connect, the client optionally loads `/api/catalog` and shows the current item/equipment list, recipes and weave node/schema reference in the Inventory tab. The catalogue drives shop purchase options at each item’s declared POI, hand/wear equipment controls and every server-declared usable item. All requests remain result-gated and server-authoritative; the catalogue never grants ownership or mutates state locally.
 - The weave canvas includes the four new server nodes `heat`, `chill`, `veil`, `eye`; its preview follows the server's node-priority rules. All ten nodes are selectable by mouse or number keys 1–9 and 0.
 - Server terrain `biome`/`cover` now tint the chunk; `roads` and optional `water` descriptors are drawn as chunk-local ribbons. The heightfield still owns ground mesh/collision. `water` is optional and awaits server PR #662; `resources`/`wild` chunk hints are not yet rendered. Global wild landmarks remain separate.
@@ -205,3 +204,11 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 - The global URP Volume and camera post-processing grade the image; they do not create indirect light.
 - The repository still needs an Editor-owned URP Asset and active Quality-level assignment. Verify shadow maps, HDR and renderer features in Unity 6000.6.7f1.
 - Runtime-generated layouts have no pre-baked lightmaps. APV/baked GI is a future option for fixed authored prefab scenes after a reproducible bake/sampling pipeline exists. See 3-dev/docs/ОСВЕЩЕНИЕ-UNITY6-URP.md.
+
+
+## v1.30 frontier gather-node UI — 2026-11-17
+
+- The character journal now shows up to six nearest server-provided `place.gather[]` nodes with kind, direction/distance, output and remaining stock.
+- A node outside reach offers `op:goto` with its `site` ID; a server-marked in-reach node offers `op:pick` with its `node` ID. Both requests use the shared request gate and generated `reqid`; only the matching server result reports success or rejection.
+- Depleted or malformed entries never offer a pick. The client does not create node positions, replenish stock, spend stamina or grant items locally. The new policy regression test covers stable IDs, finite distances/stock and the 3 m affordance boundary.
+- This is the first functional thick-client hookup, not finished 3D gatherable art. Chunk-level `/api/terrain.gather[]` placement visuals remain a separate presentation task. Unity Editor/PlayMode and live-server acceptance are still required.
