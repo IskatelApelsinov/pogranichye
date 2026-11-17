@@ -467,11 +467,6 @@ namespace Pogranichye.Client
                 }
             }
 
-            if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_priorityToSend))
-            {
-                var goal = _priorityToSend;
-                    _ = SendCharacterPriorityAsync(goal);
-            }
         }
 
         private bool IsPointerOverUi()
@@ -5886,7 +5881,6 @@ namespace Pogranichye.Client
             _nextWorldManifestRefreshAt = 0f;
             _nextSettlementPrefetchAt = 0f;
             _worldManifestLastPlaceId = null;
-            _priorityToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
