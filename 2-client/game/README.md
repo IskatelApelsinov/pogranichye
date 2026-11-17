@@ -3,6 +3,8 @@
 - v1.31: typed place.lair and world.settlements[].bandit_lair; the character panel shows a server-reported bandit lair and its named human members. Nearby foe labels already prefer place.foes[].name, so named bandits remain identifiable without inventing client NPCs.
 - v1.32: typed me.horses[] and per-horse active, settlement_id, settlement_name, and realm_name. The character panel lists the owned herd and sends op:"horse", action:"choose", target:<owned horse id> through the existing request gate. Server state remains authoritative.
 - v1.33: typed layout.land and building storeys/height_m. Dense plan:"grid" layouts now render multi-floor facades, repeated window bays, and obstruction colliders using server-authored height. inn uses the existing tavern-style entrance presentation. Countryside patches continue to come only from server zones[] (including yards field patches and ring forest patches); land is descriptive metadata, not a source for fabricated zones.
+- v1.33 NPC activity codes are mapped explicitly: trade_stall, guard_patrol, carpentry, tanning, pottery, bake_bread, scribe_desk, and jewel_work. They drive the presentation-only poses/props and localized activity labels; no activity is inferred from prose or Goal.
+
 - ProtocolFixtureValidator includes additive/legacy compatibility checks for these fields. Unity Editor and live-world visual validation are still required; no client-side city, lair, horse, or NPC state is generated.
 
 # Unity 6 client — v1 vertical slice
