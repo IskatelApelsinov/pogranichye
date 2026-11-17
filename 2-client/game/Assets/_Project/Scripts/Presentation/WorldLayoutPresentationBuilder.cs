@@ -98,14 +98,14 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    if (b.Door != null && (b.Kind == "tavern" || b.Kind == "inn"))
+                    if (b.Door != null)
                         BuildTavernWallColliders(world, b, width, depth);
                     else
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
                         collision.transform.SetParent(world, false);
-                        var obstructionHeight = b.HeightMeters > 0d ? Mathf.Clamp((float)b.HeightMeters, 3.8f, 22f) :
-                            (b.Storeys > 1 ? Mathf.Clamp(b.Storeys * 3.2f, 3.8f, 22f) : 4.7f);
+                        var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                            b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
                         collision.transform.localPosition = new Vector3(
                             (float)((b.X0 + b.X1) * 0.5), obstructionHeight * 0.5f, (float)((b.Y0 + b.Y1) * 0.5));
                         collision.layer = 2;
@@ -1713,18 +1713,19 @@ namespace Pogranichye.Client.Presentation
             // and validated individually. Server footprint/collision remain authoritative.
 
             var isMarket = building.Kind == "market";
-            var serverHeight = building.HeightMeters > 0d ? (float)building.HeightMeters :
-                (building.Storeys > 1 ? building.Storeys * 3.2f : 0f);
-            // Preserve the village facade while scaling city blocks from server-owned dimensions.
-            var wallHeight = isMarket ? 2.8f : Mathf.Clamp(serverHeight > 0f ? serverHeight : 3.8f, 3.8f, 22f);
-            var wall = isMarket ? _timber : _plaster;
+            // Preserve legacy village scale while using server-authored dimensions for city blocks.
+            var wallHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
+                building.HeightMeters, building.Storeys, isMarket);
+            var wall = isMarket || building.Kind == "workshop" ? _timber :
+                building.Kind == "hall" || building.Kind == "guard" ? _stone : _plaster;
             var roof = _roof;
             Create("Building plinth", PrimitiveType.Cube, root,
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
 
-            var hasDoor = (building.Kind == "tavern" || building.Kind == "inn") && building.Door != null;
+            var hasDoor = building.Door != null;
+            // Only server-authored doors may open a facade. Closed footprints stay visually closed.
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
-                (isMarket ? width * 0.28f : width * 0.34f);
+                (isMarket ? width * 0.28f : 0f);
             var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
@@ -1770,14 +1771,15 @@ namespace Pogranichye.Client.Presentation
                 Create("South facade right", PrimitiveType.Cube, root,
                     new Vector3(opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
                     new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
-                for (var post = -1; post <= 1; post += 2)
-                    Create("Facade timber post", PrimitiveType.Cube, root,
-                        new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                        new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
+                if (opening > 0.05f)
+                    for (var post = -1; post <= 1; post += 2)
+                        Create("Facade timber post", PrimitiveType.Cube, root,
+                            new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                            new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
             }
 
             // Exposed structural framing breaks up the large flat wall planes.
-            var facadeStoreys = Mathf.Clamp(Mathf.RoundToInt(wallHeight / 3.2f), 1, 7);
+            var facadeStoreys = WorldBuildingPresentationPolicy.ResolveStoreyCount(wallHeight);
             for (var y = 0; y < facadeStoreys; y++)
             {
                 var beamY = Mathf.Min(wallHeight - 0.28f, 0.72f + y * 3.2f);
@@ -1787,22 +1789,7 @@ namespace Pogranichye.Client.Presentation
                     depth * 0.5f - 0.02f, width, beamY, hasDoor && doorSide == 1, doorOffset, opening);
             }
 
-            // A dark recessed door and small framed windows give each footprint a readable facade.
-            var doorWidth = Mathf.Min(1.25f, opening * 0.82f);
-            if (!hasDoor && !isMarket)
-            {
-                Create("Shadowed doorway", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
-                    new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
-                Create("Oak door leaf", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
-                    new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
-            }
-            // The server door is an open passage for now; its jambs and lintel are built on its actual wall.
-            if (!hasDoor && !isMarket)
-                Create("Door iron latch", PrimitiveType.Sphere, root,
-                    new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
-                    new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
+            // Server-authored doors are rendered at their actual side/offset; no synthetic entrance is created.
 
             if (!isMarket)
             {
@@ -1812,15 +1799,25 @@ namespace Pogranichye.Client.Presentation
                 {
                     var windowX = side * width * 0.31f;
                     var windowY = Mathf.Min(wallHeight - 0.65f, 1.95f + floor * 3.2f);
-                    Create("Window dark recess • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
-                        new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
-                    Create("Window shutter • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
-                        new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
-                    Create("Window crossbar • floor " + floor, PrimitiveType.Cube, root,
-                        new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
-                        new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
+                    if (building.Storeys > 1 || building.HeightMeters > 5d)
+                    {
+                        // Dense grid cities use one shutter mesh per opening to keep facade GameObjects bounded.
+                        Create("City storey window • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.045f),
+                            new Vector3(0.82f, 0.88f, 0.08f), _roof, false);
+                    }
+                    else
+                    {
+                        Create("Window dark recess • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
+                            new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
+                        Create("Window shutter • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
+                            new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
+                        Create("Window crossbar • floor " + floor, PrimitiveType.Cube, root,
+                            new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
+                            new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
+                    }
                 }
             }
 
@@ -1890,7 +1887,7 @@ namespace Pogranichye.Client.Presentation
             if (building.Kind == "tavern" && building.Door != null)
                 BuildTavernInterior(root, width, depth, wallHeight);
 
-            if (building.Kind == "tavern" || building.Kind == "smithy")
+            if (building.Kind == "tavern" || building.Kind == "smithy" || building.Kind == "workshop")
             {
                 Create("Stone chimney stack", PrimitiveType.Cube, root,
                     new Vector3(-width * 0.28f, wallHeight + 0.92f, depth * 0.18f),
@@ -1910,6 +1907,10 @@ namespace Pogranichye.Client.Presentation
                 case "smithy": return "КУЗНИЦА";
                 case "granary": return "АМБАР";
                 case "market": return "ЛАВКА";
+                case "hall": return "РАТУША";
+                case "workshop": return "МАСТЕРСКАЯ";
+                case "guard": return "СТРАЖА";
+                case "inn": return "ПОСТОЯЛЫЙ ДВОР";
                 default: return "ЗДАНИЕ";
             }
         }
