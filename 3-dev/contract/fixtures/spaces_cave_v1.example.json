@@ -1,0 +1,468 @@
+{
+  "chunk": [
+    -9,
+    -3
+  ],
+  "frame": 0,
+  "revision": 3562144064219084,
+  "scheme": "yof-tangent",
+  "spaces": [
+    {
+      "bounds": {
+        "max_e": -2298.5,
+        "max_n": -478,
+        "max_u": 152.324,
+        "min_e": -2307.5,
+        "min_n": -515,
+        "min_u": 137.924
+      },
+      "floors": [
+        {
+          "elevation_m": 149.924,
+          "id": "w:312:cave:floor:mouth",
+          "kind": "entrance",
+          "walkable": true
+        },
+        {
+          "elevation_m": 137.924,
+          "id": "w:312:cave:floor:hall",
+          "kind": "cave",
+          "walkable": true
+        }
+      ],
+      "frame": 0,
+      "id": "w:312:cave",
+      "kind": "cave",
+      "name": "Тёмная нора",
+      "origin": {
+        "e": -2307.5,
+        "n": -515,
+        "u": 149.924
+      },
+      "parent_id": null,
+      "portals": [
+        {
+          "e": -2303,
+          "height_m": 2.4,
+          "id": "w:312:cave:portal:mouth",
+          "kind": "cave_mouth",
+          "n": -515,
+          "open": true,
+          "target_portal_id": null,
+          "target_space_id": null,
+          "u": 149.924,
+          "width_m": 3
+        }
+      ],
+      "rooms": [
+        {
+          "bounds": {
+            "max_e": -2298.5,
+            "max_n": -478,
+            "max_u": 141.124,
+            "min_e": -2307.5,
+            "min_n": -485,
+            "min_u": 137.924
+          },
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:room:hall",
+          "kind": "cave",
+          "name": "Тёмная нора"
+        },
+        {
+          "bounds": {
+            "max_e": -2301.5,
+            "max_n": -485,
+            "max_u": 152.324,
+            "min_e": -2304.5,
+            "min_n": -515,
+            "min_u": 137.924
+          },
+          "floor_id": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:room:tunnel",
+          "kind": "tunnel",
+          "name": "Ход"
+        }
+      ],
+      "stairs": [
+        {
+          "from_floor": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:stair:descent",
+          "kind": "ramp",
+          "points": [
+            {
+              "x": 4.5,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 4.5,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 4.5,
+              "y": -12,
+              "z": 31
+            }
+          ],
+          "step_count": 0,
+          "to_floor": "w:312:cave:floor:hall",
+          "width_m": 3
+        }
+      ],
+      "surfaces": [
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:surf:001",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 6,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -12,
+              "z": 30
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:surf:002",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 3,
+              "y": 2.4,
+              "z": 0
+            },
+            {
+              "x": 6,
+              "y": 2.4,
+              "z": 0
+            },
+            {
+              "x": 6,
+              "y": -9.6,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -9.6,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:surf:003",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 3,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -9.6,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": 2.4,
+              "z": 0
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:mouth",
+          "id": "w:312:cave:surf:004",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 6,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 6,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 6,
+              "y": -9.6,
+              "z": 30
+            },
+            {
+              "x": 6,
+              "y": 2.4,
+              "z": 0
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:005",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 0,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -12,
+              "z": 37
+            },
+            {
+              "x": 0,
+              "y": -12,
+              "z": 37
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:006",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 37
+            },
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 37
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:007",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 0,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 0,
+              "y": -12,
+              "z": 37
+            },
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 37
+            },
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:008",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 9,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -12,
+              "z": 37
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 37
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:009",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 0,
+              "y": -12,
+              "z": 37
+            },
+            {
+              "x": 9,
+              "y": -12,
+              "z": 37
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 37
+            },
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 37
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:010",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 0,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -8.8,
+              "z": 30
+            },
+            {
+              "x": 0,
+              "y": -8.8,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:011",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 6,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -12,
+              "z": 30
+            },
+            {
+              "x": 9,
+              "y": -8.8,
+              "z": 30
+            },
+            {
+              "x": 6,
+              "y": -8.8,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "w:312:cave:floor:hall",
+          "id": "w:312:cave:surf:012",
+          "kind": "cave_wall",
+          "points": [
+            {
+              "x": 3,
+              "y": -9.6,
+              "z": 30
+            },
+            {
+              "x": 6,
+              "y": -9.6,
+              "z": 30
+            },
+            {
+              "x": 6,
+              "y": -8.8,
+              "z": 30
+            },
+            {
+              "x": 3,
+              "y": -8.8,
+              "z": 30
+            }
+          ],
+          "walkable": false
+        }
+      ],
+      "wildsite": "312"
+    }
+  ],
+  "v": 1
+}
