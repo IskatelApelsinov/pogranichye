@@ -277,8 +277,6 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("id")] public string Id { get; set; }
         /// <summary>v1.19: settlement plan ("starter", "street", "cross", "ring", "scatter").</summary>
         [JsonProperty("plan")] public string Plan { get; set; }
-        // v1.33: server-selected village surroundings style (water/fields/forest).
-        [JsonProperty("land")] public WorldLandFrame Land { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("tier")] public string Tier { get; set; }
         [JsonProperty("food")] public double Food { get; set; }
@@ -749,6 +747,8 @@ namespace Pogranichye.Client.Networking.Protocol
         // v1.19 (additive): every settlement has its own layout, fetched with ?settlement=<place.id>.
         /// <summary>"starter" for the hand-made tutorial village; otherwise a generated plan.</summary>
         [JsonProperty("plan")] public string Plan { get; set; }
+        // v1.33: server-selected village surroundings style (water/fields/forest).
+        [JsonProperty("land")] public WorldLandFrame Land { get; set; }
         /// <summary>Null on pre-v1.19 servers, where the river always exists.</summary>
         [JsonProperty("has_river")] public bool? HasRiver { get; set; }
         [JsonProperty("zones")] public List<WorldZoneFrame> Zones { get; set; }
