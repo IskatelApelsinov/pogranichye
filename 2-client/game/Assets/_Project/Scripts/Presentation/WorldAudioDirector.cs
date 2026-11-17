@@ -32,8 +32,8 @@ namespace Pogranichye.Client.Presentation
             _oneShot.rolloffMode = AudioRolloffMode.Linear;
             _oneShot.priority = 64;
             _oneShot.volume = _sfxVolume;
-            _step = MakeNoise("Soft footsteps on earth", 0.12f, 0.085f, 0.12f);
-            _run = MakeNoise("Running footsteps", 0.20f, 0.065f, 0.17f);
+            _step = MakeNoise("Soft footsteps on earth", 0.075f, 0.085f, 0.12f);
+            _run = MakeNoise("Running footsteps", 0.11f, 0.065f, 0.17f);
             _magic = MakeTone("Magic cast shimmer", 0.38f, 0.42f, 0.19f);
             _beer = MakeNoise("Beer sip and mug", 0.15f, 0.24f, 0.13f);
             _npcWoodcut = MakeNoise("Nearby NPC axe and wood", 0.22f, 0.13f, 0.055f);
@@ -80,8 +80,8 @@ namespace Pogranichye.Client.Presentation
         public void Footsteps(bool running)
         {
             if (Time.unscaledTime < _nextStepAt || _oneShot == null) return;
-            _nextStepAt = Time.unscaledTime + (running ? 0.31f : 0.48f);
-            _oneShot.PlayOneShot(running ? _run : _step, running ? 0.82f : 0.62f);
+            _nextStepAt = Time.unscaledTime + (running ? 0.46f : 0.68f);
+            _oneShot.PlayOneShot(running ? _run : _step, running ? 0.38f : 0.27f);
         }
 
         public void Magic() { if (_oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
@@ -89,7 +89,7 @@ namespace Pogranichye.Client.Presentation
 
         private void OnNearbyFootstep(Vector3 position, bool running)
         {
-            PlayNearby(position, running ? _run : _step, running ? 0.62f : 0.48f);
+            PlayNearby(position, running ? _run : _step, running ? 0.28f : 0.20f);
         }
 
         private void OnNearbyMagicCast(Vector3 position)
