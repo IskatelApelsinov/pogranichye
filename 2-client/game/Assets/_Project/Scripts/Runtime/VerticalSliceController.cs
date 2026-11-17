@@ -184,7 +184,6 @@ namespace Pogranichye.Client
         private bool _activityPanelOpen;
         private string _activityTargetId;
         private string _activityTargetTitle;
-        private Vector2 _activityContextScroll;
         private bool _systemMenuOpen;
         private HudTab _hudTab = HudTab.Character;
         private bool _movementDebugVisible;
@@ -4271,13 +4270,12 @@ namespace Pogranichye.Client
                 return;
             }
 
-            // The current Go server does not implement op:"interact". Never send an
-            // unsupported descriptor ID as a gameplay command; only mapped v1 intents
-            // below are allowed to reach the server.
-            if (!string.IsNullOrEmpty(poi.InteractionId) &&
-                string.IsNullOrEmpty(poi.ActionIntent) && string.IsNullOrEmpty(poi.Goal))
+            // The current Go server does not implement op:"interact". Never send
+            // interaction_id as a command; descriptors are translated by the target builder
+            // only when their target ID has a supported v1 goal/action mapping.
+            if (!string.IsNullOrEmpty(poi.InteractionId))
             {
-                _status = "Для этой точки серверное действие пока не подключено.";
+                _status = "Эта точка пока не поддерживает серверное действие.";
                 return;
             }
 
