@@ -403,7 +403,7 @@ namespace Pogranichye.Client.Presentation
             if (!_isPlayer && walking && Time.unscaledTime >= _nextFootstepSoundAt)
             {
                 var running = _locomotion >= 0.72f;
-                _nextFootstepSoundAt = Time.unscaledTime + (running ? 0.34f : 0.52f);
+                _nextFootstepSoundAt = Time.unscaledTime + (running ? 0.48f : 0.68f);
                 NearbyFootstep?.Invoke(transform.position, running);
             }
             if (_workGestureLoop && walking) CancelWorkGesture();
