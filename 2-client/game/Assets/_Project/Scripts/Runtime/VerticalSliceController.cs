@@ -1280,7 +1280,7 @@ namespace Pogranichye.Client
         {
             var dev = _frame?.Me?.Dev;
             if (_connectionState != WorldConnectionState.Active || dev == null || !dev.Enabled ||
-                (dev.Actions != null && !dev.Actions.Contains(action)))
+                dev.Actions == null || !dev.Actions.Contains(action))
                 return;
 
             var reqid = Guid.NewGuid().ToString("N");
