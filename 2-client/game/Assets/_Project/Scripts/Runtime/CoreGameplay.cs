@@ -3282,7 +3282,7 @@ namespace Pogranichye.Client
 
             DrawCardGames();
             var buildButtonEnabled = GUI.enabled;
-            GUI.enabled = buildButtonEnabled && Count(stash, "wood") >= 2f && Num(_me, "energy") >= 10f;
+            GUI.enabled = buildButtonEnabled && _place != null && Count(stash, "wood") >= 2f && Num(_me, "energy") >= 10f;
             if (GUILayout.Button("🪚 Помочь в строительстве · 2 дерева"))
                 AskActivity("Стройка", "build");
             GUI.enabled = buildButtonEnabled;
