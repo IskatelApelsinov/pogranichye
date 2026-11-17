@@ -61,6 +61,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/World/WorldOriginState.cs'
       - '2-client/game/Assets/_Project/Scripts/World/WorldChunkStreamingPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/World/WorldMapLineClipper.cs'
       - '2-client/game/Tests/WorldOriginStateCheck.cs'
       - '2-client/game/Tests/WorldChunkStreamingPolicyCheck.cs'
       - '2-client/game/Tests/ActionResultFrameParserCheck.cs'
@@ -172,6 +173,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-chunk-streaming.exe Tests/WorldChunkStreamingPolicyCheck.cs Assets/_Project/Scripts/World/WorldChunkStreamingPolicy.cs
           mono /tmp/world-chunk-streaming.exe
+
+      - name: World map line clipping regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-map-line-clipper.exe Tests/WorldMapLineClipperCheck.cs Assets/_Project/Scripts/World/WorldMapLineClipper.cs
+          mono /tmp/world-map-line-clipper.exe
       - name: Foe presentation policy regression checks
         working-directory: 2-client/game
         run: |
