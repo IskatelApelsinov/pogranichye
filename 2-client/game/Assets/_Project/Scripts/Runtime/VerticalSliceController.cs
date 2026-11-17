@@ -2499,7 +2499,7 @@ namespace Pogranichye.Client
                 case "potter": return "Г";
                 case "guard": return "Ст";
                 case "caravanserai": return "Кс";
-                case "inn": return "Пд";
+                case "inn": return "Тр";
                 default: return "·";
             }
         }
@@ -5668,8 +5668,8 @@ namespace Pogranichye.Client
                 if (canRun)
                 {
                     var vigorStamina = _frame?.Me?.Vigor?.Stamina;
-                    var drainPerSecond = vigorStamina != null && vigorStamina.DrainPerSecond > 0d
-                        ? (float)vigorStamina.DrainPerSecond : 0.10f;
+                    var drainPerSecond = vigorStamina != null
+                        ? Mathf.Max(0f, (float)vigorStamina.DrainPerSecond) : 0.10f;
                     stamina = Mathf.Max(0f, stamina - drainPerSecond * dt);
                 }
 
