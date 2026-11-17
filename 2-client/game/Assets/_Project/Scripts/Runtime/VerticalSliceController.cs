@@ -88,7 +88,7 @@ namespace Pogranichye.Client
         private Vector2 _chatScroll;
         private VoiceChatController _voiceChat;
         private string _token;
-        private string _goalToSend;
+        private string _priorityToSend;
         private WorldFrame _frame;
         private WorldLayoutFrame _layout;
         // The no-id /api/layout response is retained for the tutorial place across settlement switches.
@@ -458,11 +458,11 @@ namespace Pogranichye.Client
                 }
             }
 
-            if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_goalToSend))
+            if (_connectionState == WorldConnectionState.Active && !string.IsNullOrEmpty(_priorityToSend))
             {
-                var goal = _goalToSend;
-                _goalToSend = null;
-                _ = SendGoalAsync(goal);
+                var goal = _priorityToSend;
+                _priorityToSend = null;
+                _ = SendCharacterPriorityAsync(goal);
             }
         }
 
@@ -4255,7 +4255,7 @@ namespace Pogranichye.Client
 
             // The current Go server does not implement op:"interact". Never send
             // interaction_id as a command; descriptors are translated by the target builder
-            // only when their target ID has a supported v1 goal/action mapping.
+            // only when their target ID has a supported v1 action/horse mapping.
             if (!string.IsNullOrEmpty(poi.InteractionId))
             {
                 _status = "Эта точка пока не поддерживает серверное действие.";
@@ -4335,7 +4335,7 @@ namespace Pogranichye.Client
         private void RequestOfflinePriority(string goal)
         {
             // Goals are long-lived character priorities, not one-shot activities or tutorial progress.
-            _goalToSend = goal;
+            _priorityToSend = goal;
         }
 
         private async Task RegisterAsync()
@@ -5227,14 +5227,14 @@ namespace Pogranichye.Client
             });
         }
 
-        private async Task SendGoalAsync(string goal)
+        private async Task SendCharacterPriorityAsync(string goal)
         {
             var socket = _socket;
             try
             {
                 if (_connectionState != WorldConnectionState.Active || socket == null)
                     throw new InvalidOperationException("Мир ещё не подключён.");
-                await socket.SendGoalAsync(goal, _lifetime.Token);
+                await socket.SendCharacterPriorityAsync(goal, _lifetime.Token);
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
@@ -5270,7 +5270,7 @@ namespace Pogranichye.Client
             _nextWorldManifestRefreshAt = 0f;
             _nextSettlementPrefetchAt = 0f;
             _worldManifestLastPlaceId = null;
-            _goalToSend = null;
+            _priorityToSend = null;
             _moveSendInFlight = false;
             _pendingMoveIntents.Clear();
             _moveSendQueue.Clear();
