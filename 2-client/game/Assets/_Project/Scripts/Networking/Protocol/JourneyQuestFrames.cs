@@ -181,6 +181,9 @@ namespace Pogranichye.Client.Networking
                 ValidateOptionalString(obj, "species", itemPath);
                 RequireInteger(obj, "qty", itemPath, true);
                 RequireNumber(obj, "coins", itemPath);
+                ValidateOptionalString(obj, "settlement_id", itemPath);
+                ValidateOptionalString(obj, "settlement_name", itemPath);
+                ValidateOptionalString(obj, "realm_name", itemPath);
                 if (active)
                 {
                     RequireInteger(obj, "have", itemPath, false);
