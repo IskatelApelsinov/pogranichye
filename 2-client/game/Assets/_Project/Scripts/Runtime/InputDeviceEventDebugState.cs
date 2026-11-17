@@ -40,7 +40,7 @@ namespace Pogranichye.Client
             if (_totalEvents < int.MaxValue) _totalEvents++;
             if (eventBytes > _largestEventBytes) _largestEventBytes = eventBytes;
 
-            var slot = FindDevice(deviceId);
+            var slot = FindDevice(deviceId, deviceName);
             if (slot < 0)
             {
                 _otherBytes += eventBytes;
@@ -107,7 +107,7 @@ namespace Pogranichye.Client
             _otherEvents = 0;
         }
 
-        private int FindDevice(int deviceId)
+        private int FindDevice(int deviceId, string deviceName)
         {
             var empty = -1;
             for (var i = 0; i < _devices.Length; i++)
@@ -121,7 +121,7 @@ namespace Pogranichye.Client
             {
                 Used = true,
                 Id = deviceId,
-                Name = NormalizeName(null)
+                Name = NormalizeName(deviceName)
             };
             return empty;
         }
