@@ -174,6 +174,10 @@ func (MindSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		if m == nil || v == nil {
 			return
 		}
+		if IsBanditPerson(e) { // разбойник: живёт станом и набегами (BanditSystem), не трудом села
+			m.Goal, m.ActCode = "", "bandit"
+			return
+		}
 		if Migration(e) != nil {
 			m.ActCode = "travel"
 			m.LastAct = "в пути"
@@ -264,17 +268,27 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 			m.LastAct = "голодает — еды нет"
 		}
 	case mind.GoalSeekHome:
+		// v1.31: дом по карману. Хватает на избу — покупает; нет — снимает угол дешевле. Раньше искать
+		// начинали с 25 монет, а изба стоила 30: половина бездомных навсегда застревала «в поисках».
 		if p := core.Purse(e); p != nil {
 			h := core.Home(e)
-			if h != nil && h.Status == "none" && p.Coins >= 30 {
-				p.Coins -= 30
+			switch {
+			case h != nil && h.Status != "owned" && p.Coins >= mind.HousePrice:
+				p.Coins -= mind.HousePrice
 				h.Status = "owned"
 				if d := core.Drives(e); d != nil {
 					d.Dwelling = clamp(d.Dwelling+30, 0, 100)
 				}
 				m.LastAct = "обзавёлся домом"
-			} else {
-				m.LastAct = "ищет, где осесть"
+			case h != nil && h.Status == "none" && p.Coins >= mind.RentPrice:
+				p.Coins -= mind.RentPrice
+				h.Status = "rented"
+				if d := core.Drives(e); d != nil {
+					d.Dwelling = clamp(d.Dwelling+12, 0, 100)
+				}
+				m.LastAct = "снял угол в избе"
+			default:
+				m.LastAct = "копит на угол"
 			}
 		}
 	case mind.GoalLeave:
@@ -377,7 +391,7 @@ func (LifeSystem) Hour(w *core.World, clock core.Clock, hub *dice.Hub) {
 		pu := core.Purse(e)
 		// Player(e)!=nil защищает тело игрока (хоть бы и бывшего/вышедшего) — фон никогда
 		// не делает его враждебным без согласия.
-		desperate := home != nil && home.Status == "none" && Player(e) == nil &&
+		desperate := home != nil && home.Status == "none" && Player(e) == nil && !IsBanditPerson(e) &&
 			pu != nil && pu.Coins < desperateCashFloor && econ.MarketDebt(e) >= desperatePovertyDebt
 		if !desperate {
 			mn.DesperateDays = 0
@@ -576,7 +590,7 @@ func spawnNewborn(w *core.World, s *dice.Stream, settlement core.ID, parent *cor
 		&core.MindC{LastAct: "родился"},
 		&core.SkillsC{Skills: map[string]float64{}},
 		&core.PurseC{Coins: 0, Debts: map[string]float64{}},
-		&core.HomeC{Status: "none", Settlement: settlement},
+		&core.HomeC{Status: "family", Settlement: settlement}, // v1.31: живёт в доме родителей, а не «бездомный»
 		&core.PlaceC{Settlement: settlement},
 	)
 }
@@ -635,15 +649,11 @@ func recordNotableDeath(w *core.World, day int64, id core.ID) {
 // и попытка повторится на следующей проверке.
 func becomeBandit(w *core.World, day int64, id core.ID) {
 	e := w.Get(id)
-	if e == nil {
+	if e == nil || IsBanditPerson(e) {
 		return
 	}
 	pl := core.Place(e)
 	if pl == nil || pl.Settlement == 0 {
-		return
-	}
-	se := w.Get(pl.Settlement)
-	if se == nil {
 		return
 	}
 	alive := 0
@@ -652,25 +662,19 @@ func becomeBandit(w *core.World, day int64, id core.ID) {
 			alive++
 		}
 	})
-	st := foeStats["bandit"]
-	if alive >= st.cap {
+	if alive >= foeStats["bandit"].cap {
 		return
 	}
-	who := core.Ident(e)
-	name := ""
-	if who != nil {
-		name = who.Name
-		if who.Surname != "" {
-			name += " " + who.Surname
-		}
+	settlement := pl.Settlement
+	if se := w.Get(settlement); se != nil && core.Settle(se).Keeper == id {
+		core.Settle(se).Keeper = 0 // место за стойкой освобождается — его займут (VacancySystem)
 	}
-	x, y := foeSpot(LayoutOf(w, pl.Settlement), "bandit", pl.Settlement, alive)
-	w.Spawn(&FoeC{Species: "bandit", Settlement: pl.Settlement, X: x, Y: y, HomeX: x, HomeY: y,
-		HP: st.hp, Max: st.hp, State: "roam", WX: x, WY: y})
-	if name != "" {
-		chronicle.Record(w, day, "разбой", name+" подался в лихие люди — долг рынку не отпускал, а честный путь не вышел")
+	x, y, wild, roam := banditCampFor(w, settlement, alive)
+	// v1.31: тот же человек, а не новый безликий враг — с именем, возрастом и памятью
+	turnBandit(w, e, settlement, x, y, wild, roam)
+	if name := fullName(e); name != "" {
+		chronicle.Record(w, day, "разбой", name+" подался в лихие люди — долг рынку не отпускал, а честным трудом не выбраться")
 	}
-	w.Remove(id)
 }
 
 // isFoodRole — ремесло, добывающее съестное (приносит часть добытого домой в закрома).
@@ -754,7 +758,7 @@ func relocateAt(w *core.World, e *core.Entity, s *dice.Stream, startedAtHour int
 // (сев/жатва/добыча/переработка наполняют склады), затем нужды тратят, разум ставит цели,
 // жизнь считает старение/смертность/рождения.
 func Default() []core.System {
-	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, ForaySystem{}, NeedsSystem{}, MindSystem{}, MigrationSystem{}, LifeSystem{}, WarSystem{}, DiplomacySystem{}, ClimateSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, BrewSystem{}, worldmut.System{}}
+	return []core.System{econ.EconomySystem{}, econ.TradeSystem{}, econ.CaravanSystem{}, ForaySystem{}, BanditSystem{}, VacancySystem{}, NeedsSystem{}, MindSystem{}, MigrationSystem{}, LifeSystem{}, WarSystem{}, DiplomacySystem{}, ClimateSystem{}, DiseaseSystem{}, BattleSystem{}, MagicSystem{}, BrewSystem{}, worldmut.System{}}
 }
 
 // --- Болезни (хворь): НЕ сезонные и не из воздуха, а от РЕАЛЬНЫХ причин ---

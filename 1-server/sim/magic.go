@@ -190,7 +190,9 @@ func latentStep(w *core.World, e *core.Entity, mg *arcane.MageC, sk *core.Skills
 	}
 	if skill >= awakenAt { // ПРОБУЖДЕНИЕ
 		mg.Awakened = true
-		if id := core.Ident(e); id != nil {
+		// v1.31: магом-ремеслом становится лишь тот, на кого в селе есть место (mageSeats); прочие
+		// пробуждённые плетут при нужде, но живут прежним ремеслом — село не пустеет на ремёсла.
+		if id := core.Ident(e); id != nil && mageRolesIn(w, settlement) < mageSeats(len(residentsOf(w, settlement))) {
 			id.Role = "mage"
 		}
 		if m != nil {

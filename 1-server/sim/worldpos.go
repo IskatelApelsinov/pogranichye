@@ -359,7 +359,7 @@ func WorldManifestUsing(w *core.World, t *Terrain) map[string]any {
 		l := LayoutOf(w, se.ID)
 		sets = append(sets, map[string]any{"id": eidStr(se.ID), "frame": 0, "e": r3(e), "n": r3(n), "u": r3(t.Height(e, n)),
 			"tier": s.Tier, "terrain": site.Terrain, "plan": l.Plan, "cauldron": site.Cauldron,
-			"half": l.Half, "layout": "/api/layout?settlement=" + eidStr(se.ID)})
+			"half": l.Half, "layout": "/api/layout?settlement=" + eidStr(se.ID), "bandit_lair": lairOf(se) != nil})
 	})
 	roads := []map[string]any{}
 	for _, outer := range []bool{false, true} {

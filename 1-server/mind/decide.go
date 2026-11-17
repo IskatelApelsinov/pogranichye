@@ -38,6 +38,14 @@ type Context struct {
 	FoodDays float64 // запас еды деревни в днях на душу (мера продовольственной безопасности)
 }
 
+// Жильё (v1.31): изба покупается, угол снимается дешевле. Искать кров житель идёт, только когда
+// ему хватает хотя бы на угол, — иначе он копит трудом, а не стоит вечно «в поисках».
+const (
+	HousePrice = 30.0
+	RentPrice  = 8.0
+	upgradeAt  = 45.0 // снимающий угол с таким запасом идёт покупать свою избу
+)
+
 // порог «деревне грозит голод»: меньше стольких дней запаса — безопасность под угрозой.
 const foodSecureDays = 12.0
 
@@ -84,9 +92,14 @@ func Decide(e *core.Entity, ctx Context, s *dice.Stream) (goal string, holdHours
 		return GoalWork, hold
 	}
 	// кров: нет своего угла и есть на что осесть
-	if home != nil && home.Status == "none" {
-		if p := core.Purse(e); p != nil && p.Coins >= 25 {
-			return GoalSeekHome, hold
+	if home != nil {
+		if p := core.Purse(e); p != nil {
+			switch {
+			case home.Status == "none" && p.Coins >= RentPrice:
+				return GoalSeekHome, hold
+			case home.Status == "rented" && p.Coins >= upgradeAt:
+				return GoalSeekHome, hold
+			}
 		}
 	}
 

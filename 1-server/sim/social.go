@@ -36,7 +36,10 @@ type SocialEventC struct {
 
 func (c *SocialEventC) Kind() string { return "socialevent" }
 
-func SocialEvent(e *core.Entity) *SocialEventC { c, _ := e.Get("socialevent").(*SocialEventC); return c }
+func SocialEvent(e *core.Entity) *SocialEventC {
+	c, _ := e.Get("socialevent").(*SocialEventC)
+	return c
+}
 
 // fireSocial — отметить подтверждённое соц-событие игроку (повышает Seq). Клиент ловит по новому Seq.
 func fireSocial(w *core.World, e *core.Entity, kind string, with core.ID) {
@@ -122,6 +125,12 @@ func DescFor(role string) string {
 		return "пастух"
 	case "woodcutter":
 		return "дровосек"
+	case "mage":
+		return "маг"
+	case "bandit":
+		return "лихой человек"
+	case "idler":
+		return "без ремесла"
 	default:
 		return "местный"
 	}

@@ -31,11 +31,10 @@ type frontierPack struct {
 var frontierFauna = map[string]frontierPack{
 	"den":     {"wolf", 3, 260, false},
 	"thicket": {"boar", 2, 160, false},
-	"barrow":  {"bandit", 2, 220, false},
-	"ruins":   {"bandit", 2, 260, false},
-	"camp":    {"bear", 1, 200, true},
-	"berry":   {"fox", 1, 140, false},
-	"herbs":   {"hare", 2, 120, false},
+	// курганы и руины — станы разбойников-жителей (bandits.go), безымянных тут больше нет
+	"camp":  {"bear", 1, 200, true},
+	"berry": {"fox", 1, 140, false},
+	"herbs": {"hare", 2, 120, false},
 }
 
 func frontierCleared(u *WildUseC, id string) bool {

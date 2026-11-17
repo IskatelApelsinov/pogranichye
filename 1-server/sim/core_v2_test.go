@@ -248,12 +248,16 @@ func TestFoesSpawnFromFaunaOnlyNearPlayers(t *testing.T) {
 	if n == 0 {
 		t.Fatal("рядом с игроком должны появиться звери из поголовья")
 	}
-	// игрок ушёл — сцена врагов снимается
+	// игрок ушёл — звери из сцены снимаются (разбойники-люди живут и без игрока: v1.31)
 	StepCombat(w, 0.1, func(core.ID) bool { return false }, s)
 	n = 0
-	w.Each("foe", func(*core.Entity) { n++ })
+	w.Each("foe", func(fe *core.Entity) {
+		if !IsBanditPerson(fe) {
+			n++
+		}
+	})
 	if n != 0 {
-		t.Fatal("без игроков врагов в сцене быть не должно")
+		t.Fatal("без игроков зверей в сцене быть не должно")
 	}
 }
 
