@@ -3846,23 +3846,19 @@ namespace Pogranichye.Client
             {
                 var counter = _frame.Place.TavernCounter;
                 if (counter == null)
-                    GUILayout.Label("Стойка корчмы пока не описана сервером.");
+                    GUILayout.Label("Сведения о стойке не получены. Сервер проверит возможность заказа.");
                 else if (!counter.BartenderPresent)
-                    GUILayout.Label("Корчмарь сейчас не на смене. Попробуйте позже.");
-                else if (_frame.Place.Beer <= 0d)
-                    GUILayout.Label("Пиво закончилось.");
-                else if (_frame.Me.Coins < _frame.Place.BeerPrice)
-                    GUILayout.Label("Не хватает монет на кружку.");
-                else
-                {
-                    // Client position projections can differ slightly from the server counter check.
-                    // Send the intent and let the server make the authoritative range decision.
-                    if (!IsAtTavernCounter())
-                        GUILayout.Label("Ты не у стойки. Сервер подтвердит заказ только в пределах стойки.");
-                    if (GUILayout.Button("🍺 Заказать кружку · " +
-                        _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
-                        QueueContextItemAction("buy", "beer", "Заказать пиво");
-                }
+                    GUILayout.Label("В последнем кадре корчмарь не отмечен на смене. Сервер всё равно проверит заказ.");
+                if (_frame.Place.Beer <= 0d)
+                    GUILayout.Label("В последнем кадре запас пива пуст — окончательное наличие проверит сервер.");
+                if (_frame.Me.Coins < _frame.Place.BeerPrice)
+                    GUILayout.Label("По последнему кадру монет недостаточно — сервер проверит баланс при заказе.");
+
+                // Counter radius, keeper schedule, stock and money can change between snapshots.
+                // Never hide the action based on stale client-side projections; only the server commits a buy.
+                if (GUILayout.Button("🍺 Попросить кружку · " +
+                    _frame.Place.BeerPrice.ToString("0.#", CultureInfo.InvariantCulture) + " мон."))
+                    QueueContextItemAction("buy", "beer", "Заказать пиво");
             }
 
             var game = _frame.Me.CardGame;
