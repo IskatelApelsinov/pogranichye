@@ -3653,98 +3653,142 @@ namespace Pogranichye.Client
         private void DrawStableActions()
         {
             var stable = _frame?.Place?.Stable;
-            var horse = _frame?.Me?.Horse;
+            var activeHorse = _frame?.Me?.Horse;
+            var horses = _frame?.Me?.Horses;
+            if ((horses == null || horses.Count == 0) && activeHorse != null)
+                horses = new List<HorseFrame> { activeHorse };
+            var horseCount = horses != null ? horses.Count : 0;
+
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("КОНЮШНЯ У АМБАРА");
-            if (horse == null)
+            GUILayout.Label("ТВОЙ ТАБУН · " + horseCount.ToString(CultureInfo.InvariantCulture) + " / 5");
+            if (stable == null)
             {
-                if (stable == null)
-                {
-                    GUILayout.Label("Сведения о конюшне ещё не получены от сервера.");
-                }
-                else if (stable.Horses < 1d)
-                {
-                    GUILayout.Label("Свободных лошадей сейчас нет. Загляните позже.");
-                }
-                else
-                {
-                    GUILayout.Label("Лошади: " + stable.Horses.ToString("0", CultureInfo.InvariantCulture) +
-                        " · цена: " + stable.Price.ToString("0.#", CultureInfo.InvariantCulture) + " монет.");
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = _frame.Me.Coins >= stable.Price;
-                    if (GUILayout.Button("Купить лошадь"))
-                        QueueHorseAction("buy", "Купить лошадь");
-                    GUI.enabled = previousEnabled;
-                    if (_frame.Me.Coins < stable.Price)
-                        GUILayout.Label("Не хватает монет. На счету: " +
-                            _frame.Me.Coins.ToString("0.#", CultureInfo.InvariantCulture) + ".");
-                }
+                GUILayout.Label("Сведения о конюшне ещё не получены от сервера.");
+            }
+            else if (horseCount >= 5)
+            {
+                GUILayout.Label("У тебя уже предельное число собственных лошадей.");
+            }
+            else if (activeHorse != null && activeHorse.Mounted)
+            {
+                GUILayout.Label("Чтобы купить ещё одну лошадь, сначала спешься.");
+            }
+            else if (stable.Horses < 1d)
+            {
+                GUILayout.Label("Свободных лошадей в конюшне сейчас нет. Загляните позже.");
             }
             else
             {
-                GUILayout.Label(horse.Name + " · выносливость " +
-                    horse.Stamina.ToString("0", CultureInfo.InvariantCulture) + " / 100");
-                if (!horse.Here)
-                {
-                    GUILayout.Label("Лошадь осталась в другом поселении: вернитесь туда, чтобы оседлать её.");
-                }
-                else
-                {
-                    if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
-                        QueueHorseAction(horse.Mounted ? "dismount" : "mount",
-                            horse.Mounted ? "Спешиться" : "Оседлать лошадь");
-                    var hasFeed = HasStashGood("hay") || HasStashGood("wheat") || HasStashGood("veg");
-                    var previousEnabled = GUI.enabled;
-                    GUI.enabled = hasFeed && horse.Stamina < 100d;
-                    if (GUILayout.Button("Покормить лошадь"))
-                        QueueHorseAction("feed", "Покормить лошадь");
-                    GUI.enabled = previousEnabled;
-                    if (!hasFeed) GUILayout.Label("Для корма нужны сено, зерно или овощи в суме.");
-                }
+                GUILayout.Label("В конюшне: " + stable.Horses.ToString("0", CultureInfo.InvariantCulture) +
+                    " · цена: " + stable.Price.ToString("0.#", CultureInfo.InvariantCulture) + " монет.");
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = _frame.Me.Coins >= stable.Price;
+                if (GUILayout.Button("Купить лошадь"))
+                    QueueHorseAction("buy", "Купить лошадь");
+                GUI.enabled = previousEnabled;
+                if (_frame.Me.Coins < stable.Price)
+                    GUILayout.Label("Не хватает монет. На счету: " +
+                        _frame.Me.Coins.ToString("0.#", CultureInfo.InvariantCulture) + ".");
             }
-            if (horse != null && horse.Here)
+
+            if (horses == null || horses.Count == 0)
             {
-                GUILayout.Space(6f);
-                GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
-                    horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
-                    horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
-                var stash = _frame.Me.Stash;
-                var shownStow = 0;
-                if (stash != null)
-                {
-                    foreach (var item in stash)
-                    {
-                        if (item.Value < 1d || shownStow >= 5) continue;
-                        shownStow++;
-                        if (GUILayout.Button("Положить на лошадь: " + item.Key + " ×1"))
-                            QueueHorseAction("stow", "Положить в седельную сумку", item.Key, 1);
-                    }
-                }
-                var shownTake = 0;
-                if (horse.Bag != null)
-                {
-                    foreach (var item in horse.Bag)
-                    {
-                        if (item.Value <= 0d || shownTake >= 5) continue;
-                        shownTake++;
-                        if (GUILayout.Button("Забрать с лошади: " + item.Key + " ×1"))
-                            QueueHorseAction("unstow", "Забрать из седельной сумки", item.Key, 1);
-                    }
-                }
-                if (shownStow == 0 && shownTake == 0)
-                    GUILayout.Label("Сумки пока пусты.");
+                GUILayout.Label("Своих лошадей пока нет.");
             }
-            if (_frame?.Me != null)
-                DrawRecipeActions("granary");
+            else
+            {
+                foreach (var horse in horses)
+                {
+                    if (horse == null || string.IsNullOrWhiteSpace(horse.Id)) continue;
+                    var isActive = horse.Active ||
+                        (activeHorse != null && string.Equals(activeHorse.Id, horse.Id, StringComparison.Ordinal));
+                    GUILayout.BeginVertical(GUI.skin.box);
+                    GUILayout.Label((isActive ? "★ ВЕДОМАЯ · " : "ЛОШАДЬ · ") + horse.Name);
+                    GUILayout.Label("Выносливость: " +
+                        horse.Stamina.ToString("0", CultureInfo.InvariantCulture) + " / 100");
+                    var location = !string.IsNullOrWhiteSpace(horse.SettlementName)
+                        ? horse.SettlementName
+                        : horse.Here ? (_frame.Place?.Name ?? "текущее поселение") : "другое поселение";
+                    if (!string.IsNullOrWhiteSpace(horse.RealmName))
+                        location += " · " + horse.RealmName;
+                    GUILayout.Label("Где оставлена: " + location);
+
+                    if (!isActive && GUILayout.Button("Сделать ведомой"))
+                        QueueHorseAction("choose", "Выбрать лошадь " + horse.Name, targetId: horse.Id);
+
+                    if (!horse.Here)
+                    {
+                        GUILayout.Label("Чтобы оседлать её или переложить поклажу, вернитесь в это поселение.");
+                    }
+                    else
+                    {
+                        if (GUILayout.Button(horse.Mounted ? "Спешиться" : "Оседлать"))
+                            QueueHorseAction(horse.Mounted ? "dismount" : "mount",
+                                horse.Mounted ? "Спешиться" : "Оседлать " + horse.Name, targetId: horse.Id);
+
+                        var hasFeed = HasStashGood("hay") || HasStashGood("wheat") || HasStashGood("veg");
+                        var previousEnabled = GUI.enabled;
+                        GUI.enabled = hasFeed && horse.Stamina < 100d;
+                        if (GUILayout.Button("Покормить"))
+                            QueueHorseAction("feed", "Покормить " + horse.Name, targetId: horse.Id);
+                        GUI.enabled = previousEnabled;
+
+                        GUILayout.Label("СЕДЕЛЬНАЯ СУМКА · " +
+                            horse.BagLoad.ToString("0.#", CultureInfo.InvariantCulture) + " / " +
+                            horse.BagCapacity.ToString("0.#", CultureInfo.InvariantCulture));
+                        var stash = _frame.Me.Stash;
+                        if (stash != null)
+                        {
+                            var shownStow = 0;
+                            foreach (var item in stash)
+                            {
+                                if (item.Value < 1d || shownStow >= 4) continue;
+                                shownStow++;
+                                if (GUILayout.Button("Положить: " + item.Key + " ×1"))
+                                    QueueHorseAction("stow", "Положить в сумку " + horse.Name,
+                                        item.Key, 1, horse.Id);
+                            }
+                        }
+                        var shownTake = 0;
+                        if (horse.Bag != null)
+                        {
+                            foreach (var item in horse.Bag)
+                            {
+                                if (item.Value <= 0d || shownTake >= 4) continue;
+                                shownTake++;
+                                if (GUILayout.Button("Забрать: " + item.Key + " ×" +
+                                    item.Value.ToString("0", CultureInfo.InvariantCulture)))
+                                    QueueHorseAction("unstow", "Забрать из сумки " + horse.Name,
+                                        item.Key, 1, horse.Id);
+                            }
+                        }
+                    }
+                    GUILayout.EndVertical();
+                }
+            }
+            if (_frame?.Me != null) DrawRecipeActions("granary");
             GUILayout.EndVertical();
         }
 
-        private void QueueHorseAction(string action, string label, string good = null, int qty = 0)
+        private void QueueHorseAction(string action, string label, string good = null,
+            int qty = 0, string targetId = null)
         {
-            var queued = _core != null && (string.IsNullOrEmpty(good)
-                ? _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse", "action", action)
-                : _core.QueueRequest(WorldActionLabelPrefix + " " + label, "horse",
-                    "action", action, "good", good, "qty", qty));
+            var pairs = new List<object> { "action", action };
+            if (!string.IsNullOrWhiteSpace(good))
+            {
+                pairs.Add("good");
+                pairs.Add(good);
+                pairs.Add("qty");
+                pairs.Add(qty);
+            }
+            if (!string.IsNullOrWhiteSpace(targetId))
+            {
+                pairs.Add("target");
+                pairs.Add(targetId);
+            }
+            var queued = _core != null && _core.QueueRequest(
+                WorldActionLabelPrefix + " " + label, "horse", pairs.ToArray());
             if (!queued)
             {
                 _status = "Не удалось отправить действие с лошадью. Дождитесь ответа на предыдущее действие.";
