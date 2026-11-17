@@ -64,6 +64,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/InputDeviceEventDebugState.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
@@ -87,6 +88,7 @@ on:
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
+      - '2-client/game/Tests/InputDeviceEventDebugStateCheck.cs'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
       - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
       - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
@@ -135,6 +137,11 @@ jobs:
         run: |
           mcs -out:/tmp/input-event-debug.exe Tests/InputEventDebugStateCheck.cs Assets/_Project/Scripts/Runtime/InputEventDebugState.cs
           mono /tmp/input-event-debug.exe
+      - name: Per-device input event traffic regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/input-device-event-debug.exe Tests/InputDeviceEventDebugStateCheck.cs Assets/_Project/Scripts/Runtime/InputDeviceEventDebugState.cs
+          mono /tmp/input-device-event-debug.exe
       - name: Character menu hotkey regression checks
         working-directory: 2-client/game
         run: |
