@@ -98,7 +98,7 @@ namespace Pogranichye.Client.Presentation
                     if (b == null) continue;
                     var width = (float)(b.X1 - b.X0);
                     var depth = (float)(b.Y1 - b.Y0);
-                    if (b.Door != null && b.Kind == "tavern")
+                    if (b.Door != null && (b.Kind == "tavern" || b.Kind == "inn"))
                         BuildTavernWallColliders(world, b, width, depth);
                     else
                     {
@@ -1794,9 +1794,10 @@ namespace Pogranichye.Client.Presentation
             BuildBuildingTypeDetails(root, building.Kind, width, depth, wallHeight, opening, doorSide, doorOffset);
 
             if (building.Kind == "tavern" || building.Kind == "inn" || building.Kind == "smithy" ||
-                building.Kind == "granary" || building.Kind == "market")
+                building.Kind == "granary" || building.Kind == "market" || building.Kind == "hall" ||
+                building.Kind == "workshop" || building.Kind == "guard")
                 CreateFootprintSign(root, BuildingDisplayName(building), width, depth, wallHeight);
-            if ((building.Kind == "tavern" || building.Kind == "inn") && building.Door != null)
+            if (building.Kind == "tavern" && building.Door != null)
                 BuildTavernInterior(root, width, depth, wallHeight);
 
             if (building.Kind == "tavern" || building.Kind == "smithy")
