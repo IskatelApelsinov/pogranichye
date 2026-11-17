@@ -6,6 +6,7 @@ namespace Pogranichye.Client.Presentation
     /// Resolution-aware typography policy for IMGUI. It never shrinks the baseline on
     /// compact displays and caps growth so large monitors do not produce oversized panels.
     /// </summary>
+    // Presentation policy; deliberately independent from Unity runtime APIs.
     public static class ClientUiScalePolicy
     {
         public const int ReferenceHeight = 1080;
