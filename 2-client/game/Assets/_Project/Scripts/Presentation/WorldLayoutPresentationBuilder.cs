@@ -1702,8 +1702,10 @@ namespace Pogranichye.Client.Presentation
                 new Vector3(0f, 0.18f, 0f), new Vector3(width, 0.36f, depth), _trunk, false);
 
             var hasDoor = building.Door != null;
+            // A visible opening must correspond to a server door; otherwise the server's
+            // IsBlocked() treats the footprint as closed and the facade must not fake a doorway.
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
-                (isMarket ? width * 0.28f : building.Storeys > 1 ? width * 0.42f : width * 0.34f);
+                (isMarket ? width * 0.28f : 0f);
             var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
@@ -1749,10 +1751,11 @@ namespace Pogranichye.Client.Presentation
                 Create("South facade right", PrimitiveType.Cube, root,
                     new Vector3(opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
                     new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
-                for (var post = -1; post <= 1; post += 2)
-                    Create("Facade timber post", PrimitiveType.Cube, root,
-                        new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                        new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
+                if (opening > 0.05f)
+                    for (var post = -1; post <= 1; post += 2)
+                        Create("Facade timber post", PrimitiveType.Cube, root,
+                            new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
+                            new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
             }
 
             // Exposed floor bands make each server-authored storey readable from a distance.
@@ -1766,23 +1769,7 @@ namespace Pogranichye.Client.Presentation
                     depth * 0.5f - 0.02f, width, beamY, hasDoor && doorSide == 1, doorOffset, opening);
             }
 
-            // A dark recessed door and small framed windows give each footprint a readable facade.
-            var doorWidth = Mathf.Min(1.25f, opening * 0.82f);
-            if (!hasDoor && !isMarket)
-            {
-                Create("Shadowed doorway", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.05f, -depth * 0.5f - 0.015f),
-                    new Vector3(doorWidth, 2.05f, 0.08f), _trunk, false);
-                Create("Oak door leaf", PrimitiveType.Cube, root,
-                    new Vector3(0f, 1.02f, -depth * 0.5f - 0.07f),
-                    new Vector3(doorWidth - 0.12f, 1.88f, 0.055f), _timber, false);
-            }
-            // The server door is an open passage for now; its jambs and lintel are built on its actual wall.
-            if (!hasDoor && !isMarket)
-                Create("Door iron latch", PrimitiveType.Sphere, root,
-                    new Vector3(doorWidth * 0.32f, 1.02f, -depth * 0.5f - 0.12f),
-                    new Vector3(0.09f, 0.09f, 0.05f), _trunk, false);
-
+            // Server-authored doors are rendered at their actual side/offset; no synthetic door is added.
             if (!isMarket)
             {
                 for (var floor = 0; floor < floorCount; floor++)
