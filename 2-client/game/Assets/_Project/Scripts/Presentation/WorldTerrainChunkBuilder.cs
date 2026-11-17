@@ -389,10 +389,11 @@ namespace Pogranichye.Client.Presentation
             if (material == null) return;
             foreach (var resource in chunk.Resources)
             {
-                if (resource == null || string.IsNullOrEmpty(resource.Kind) ||
+                if (resource == null || string.IsNullOrWhiteSpace(resource.Kind) ||
                     !IsFinite(resource.X) || !IsFinite(resource.Z) ||
                     resource.X < 0 || resource.X > chunk.SizeMeters ||
                     resource.Z < 0 || resource.Z > chunk.SizeMeters) continue;
+
                 double ground;
                 float slope;
                 Vector3 normal;
@@ -400,38 +401,106 @@ namespace Pogranichye.Client.Presentation
                 var north = chunk.Origin.North + resource.Z;
                 if (!TerrainHeightSampler.TrySample(chunk, east, north, out ground, out slope, out normal)) continue;
 
-                var kind = resource.Kind.ToLowerInvariant();
-                var primitive = kind == "ore" ? PrimitiveType.Cube :
-                    kind == "wood" ? PrimitiveType.Cylinder : PrimitiveType.Sphere;
-                var marker = GameObject.CreatePrimitive(primitive);
-                marker.name = "Resource_" + SafeName(resource.Id);
+                // These are deterministic visual hints, not harvestable server entities.
+                // Keep every part collider-free and derive placement only from the server descriptor.
+                var marker = new GameObject("ResourceHint_" + SafeName(resource.Id));
                 marker.transform.SetParent(root, false);
-                var count = Mathf.Clamp(resource.Count, 1, 3);
-                var scale = 0.42f + count * 0.10f;
                 marker.transform.localPosition = new Vector3(
                     (float)(chunk.Origin.East - anchor.East) + (float)resource.X,
-                    (float)(ground - anchor.Up) + scale * 0.45f + 0.06f,
+                    (float)(ground - anchor.Up),
                     (float)(chunk.Origin.North - anchor.North) + (float)resource.Z);
-                marker.transform.localScale = kind == "wood"
-                    ? new Vector3(scale * 0.72f, scale * 1.6f, scale * 0.72f)
-                    : new Vector3(scale, scale, scale);
-                var collider = marker.GetComponent<Collider>();
-                if (collider != null) collider.enabled = false;
-                var renderer = marker.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = material;
-                var tint = kind == "ore" ? new Color(0.48f, 0.49f, 0.50f) :
-                    kind == "wood" ? new Color(0.38f, 0.27f, 0.16f) :
-                    kind == "fish" ? new Color(0.30f, 0.57f, 0.70f) :
-                    kind == "veg" ? new Color(0.56f, 0.62f, 0.28f) :
-                    new Color(0.36f, 0.55f, 0.31f);
-                var block = new MaterialPropertyBlock();
-                renderer.GetPropertyBlock(block);
-                block.SetColor("_BaseColor", tint);
-                block.SetColor("_Color", tint);
-                renderer.SetPropertyBlock(block);
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = true;
+                var count = Mathf.Clamp(resource.Count, 1, 3);
+                switch (TerrainResourceVisualPolicy.Resolve(resource.Kind))
+                {
+                    case TerrainResourceVisualKind.LogPile:
+                        BuildLogPile(marker.transform, count, material);
+                        break;
+                    case TerrainResourceVisualKind.BerryBush:
+                        BuildBerryBush(marker.transform, count, material);
+                        break;
+                    case TerrainResourceVisualKind.StoneCluster:
+                        BuildStoneCluster(marker.transform, count, material);
+                        break;
+                    default:
+                        AddResourcePart(marker.transform, PrimitiveType.Sphere, "Hint",
+                            new Vector3(0f, 0.16f, 0f), new Vector3(0.28f, 0.28f, 0.28f),
+                            Quaternion.identity, material, new Color(0.36f, 0.55f, 0.31f));
+                        break;
+                }
             }
+        }
+
+        private static void BuildLogPile(Transform parent, int count, Material material)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var side = (i - (count - 1) * 0.5f) * 0.14f;
+                var height = 0.08f + (i % 2) * 0.045f;
+                var rotation = Quaternion.Euler(0f, (i % 2) * 7f, 90f);
+                AddResourcePart(parent, PrimitiveType.Cylinder, "Log_" + i,
+                    new Vector3(0f, height, side), new Vector3(0.16f, 0.38f, 0.16f),
+                    rotation, material, new Color(0.31f, 0.20f, 0.11f));
+                AddResourcePart(parent, PrimitiveType.Cylinder, "LogCut_" + i,
+                    new Vector3(0.38f, height, side), new Vector3(0.16f, 0.012f, 0.16f),
+                    rotation, material, new Color(0.58f, 0.45f, 0.29f));
+            }
+        }
+
+        private static void BuildBerryBush(Transform parent, int count, Material material)
+        {
+            var clumps = Mathf.Clamp(count, 1, 3);
+            for (var i = 0; i < clumps; i++)
+            {
+                var angle = i * Mathf.PI * 2f / clumps;
+                var center = new Vector3(Mathf.Cos(angle) * 0.08f, 0.13f + (i % 2) * 0.035f,
+                    Mathf.Sin(angle) * 0.08f);
+                AddResourcePart(parent, PrimitiveType.Sphere, "Leaves_" + i, center,
+                    new Vector3(0.25f, 0.22f, 0.25f), Quaternion.identity, material,
+                    i % 2 == 0 ? new Color(0.22f, 0.35f, 0.17f) : new Color(0.29f, 0.42f, 0.20f));
+            }
+
+            AddResourcePart(parent, PrimitiveType.Sphere, "Berry_0", new Vector3(-0.09f, 0.25f, -0.13f),
+                new Vector3(0.065f, 0.065f, 0.065f), Quaternion.identity, material, new Color(0.52f, 0.08f, 0.07f));
+            AddResourcePart(parent, PrimitiveType.Sphere, "Berry_1", new Vector3(0.10f, 0.22f, -0.11f),
+                new Vector3(0.06f, 0.06f, 0.06f), Quaternion.identity, material, new Color(0.62f, 0.13f, 0.09f));
+            AddResourcePart(parent, PrimitiveType.Sphere, "Berry_2", new Vector3(0.01f, 0.31f, 0.04f),
+                new Vector3(0.055f, 0.055f, 0.055f), Quaternion.identity, material, new Color(0.48f, 0.07f, 0.08f));
+        }
+
+        private static void BuildStoneCluster(Transform parent, int count, Material material)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var offset = (i - (count - 1) * 0.5f) * 0.14f;
+                var position = new Vector3(offset, 0.07f + (i % 2) * 0.045f, (i % 2 == 0 ? -0.045f : 0.055f));
+                var scale = new Vector3(0.22f + (i % 2) * 0.04f, 0.17f + (i % 2) * 0.035f, 0.20f);
+                AddResourcePart(parent, PrimitiveType.Sphere, "Stone_" + i, position, scale,
+                    Quaternion.Euler(0f, i * 17f, i * 6f), material,
+                    i % 2 == 0 ? new Color(0.43f, 0.44f, 0.42f) : new Color(0.34f, 0.35f, 0.34f));
+            }
+        }
+
+        private static void AddResourcePart(Transform parent, PrimitiveType primitive, string name,
+            Vector3 position, Vector3 scale, Quaternion rotation, Material material, Color tint)
+        {
+            var part = GameObject.CreatePrimitive(primitive);
+            part.name = name;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = position;
+            part.transform.localRotation = rotation;
+            part.transform.localScale = scale;
+            var collider = part.GetComponent<Collider>();
+            if (collider != null) collider.enabled = false;
+            var renderer = part.GetComponent<MeshRenderer>();
+            if (renderer == null) return;
+            renderer.sharedMaterial = material;
+            var block = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(block);
+            block.SetColor("_BaseColor", tint);
+            block.SetColor("_Color", tint);
+            renderer.SetPropertyBlock(block);
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = true;
         }
 
         private static Material ResourceMaterial()

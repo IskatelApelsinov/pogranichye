@@ -55,6 +55,9 @@ on:
       - '2-client/game/Tests/TerrainWaterSurfacePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
       - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldTerrainChunkBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs'
+      - '2-client/game/Tests/TerrainResourceVisualPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
@@ -344,6 +347,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-clock-smoothing.exe Tests/WorldClockSmoothingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs
           mono /tmp/world-clock-smoothing.exe
+
+      - name: Terrain resource visual policy regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-resource-visual.exe Tests/TerrainResourceVisualPolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs
+          mono /tmp/terrain-resource-visual.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
