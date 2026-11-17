@@ -46,6 +46,10 @@ function drawClock(s){
 }
 function coreRender(s){
   drawClock(s);
+  // Fast frames are partial patches: they omit mode, vigor, dev and most place data.
+  // Refresh only the panels backed by fast fields; preserve full-snapshot cards until
+  // the next full frame instead of hiding them on every movement/combat tick.
+  if(s.fast){ drawFeed(s); drawFight(s); return; }
   const me = s.me || {};
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
