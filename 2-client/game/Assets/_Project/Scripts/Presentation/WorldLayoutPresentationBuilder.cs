@@ -1925,6 +1925,9 @@ namespace Pogranichye.Client.Presentation
             label.SetParent(parent, false);
             label.localPosition = position;
             label.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            // Rotating a TextMesh around Y to face the opposite side also reverses its local
+            // horizontal axis from the viewer's perspective. Reflect only that back face.
+            label.localScale = yaw > 90f ? new Vector3(-1f, 1f, 1f) : Vector3.one;
             var text = label.gameObject.AddComponent<TextMesh>();
             text.text = title;
             text.anchor = TextAnchor.MiddleCenter;
@@ -2151,11 +2154,12 @@ namespace Pogranichye.Client.Presentation
         private static Texture2D MakeSurfaceTexture(string textureName, int pattern)
         {
             const int size = 64;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
             {
                 name = textureName,
                 wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Bilinear
+                filterMode = FilterMode.Trilinear,
+                anisoLevel = 8
             };
             var random = new System.Random(100 + pattern * 37);
             for (var y = 0; y < size; y++)
@@ -2199,7 +2203,8 @@ namespace Pogranichye.Client.Presentation
                 shade = Mathf.Clamp(shade, 0.45f, 1.08f);
                 texture.SetPixel(x, y, new Color(shade, shade, shade, 1f));
             }
-            texture.Apply();
+            // Mipmaps + trilinear/aniso filtering prevent distant facade textures from shimmering.
+            texture.Apply(true, false);
             return texture;
         }
 
