@@ -28,10 +28,10 @@ Server implementation references: `1-server/sim/tavern.go`, `1-server/sim/layout
 - Added `TavernCounterFrame` and strict `TavernCounterFrameParser`.
 - `PlaceFrame.TavernCounter` maps `place.tavern_counter`; `WorldFrameParser` validates it.
 - Parser accepts absent/null for backward-compatible v1 frames, but rejects malformed objects, non-finite coordinates, invalid radius and non-boolean keeper state.
-- `WorldLayoutPresentationBuilder` aligns the generated visual bar with the server counter centre (visual bar centre offset 1.0m and frontage width capped at 3.6m, keeping the full player-facing bar frontage within the 2.2m server radius); the starter visual bar is already offset 1.25m, also within range. The buy action is presented only when the player is within the server-provided counter radius and the latest server view says the keeper is on shift. Otherwise it explains: counter data missing, approach the counter, keeper absent, stock empty or insufficient coins.
+- `WorldLayoutPresentationBuilder` aligns the generated visual bar with the server counter centre (visual bar centre offset 1.0m and frontage width capped at 3.6m, keeping the full player-facing bar frontage within the 2.2m server radius); the starter visual bar is already offset 1.25m, also within range. The buy action is never hidden solely by client-side projections. Missing counter data, keeper absence, empty stock and insufficient coins are shown as information from the last snapshot, but the button remains available and the server makes the final range/keeper/stock/balance decision. This avoids false negatives from stale or divergent Unity projections.
 - The older `CoreGameplay` panel now uses the same typed counter state instead of presenting a buy button merely because the player is near the exterior tavern POI.
 - Co-drink invite UI is shown only in the tavern vicinity and only for neighbors the server marks as controlled players. The invite/accept/decline requests still use the shared RequestGate and server reqid/result; server decides final eligibility and outcomes.
-- Drinking a confirmed mug still sends the existing `consume` intent; client does not clear the mug or apply morale/drunk locally.
+- Drinking a confirmed mug sends the existing `consume` intent from either the tavern panel or the Inventory tab. The client does not clear the mug or apply morale/drunk locally; the next server snapshot is authoritative.
 
 ## Server status update — 2026-11-16 (Claude, tasks 012/013)
 
@@ -49,7 +49,7 @@ Co-drink intentionally remains on the server's broader `atTavern` check (within 
 
 - Added `TavernCounterFrameParserCheck.cs` for valid mapping, absent/null compatibility, malformed type, missing field, invalid radius, wrong keeper type and non-finite coordinates.
 - Unity-independent CI runs this parser test.
-- No Unity Editor compile, PlayMode, physical door traversal, actual server purchase or two-Unity-client co-drink is claimed as tested.
+- No Unity Editor compile, PlayMode, physical door traversal, actual server purchase or two-Unity-client co-drink is claimed as tested. The no-client-gate buy button and inventory consume action are included in the current Unity integration PR; runtime acceptance is still required.
 
 
 ## CI result
