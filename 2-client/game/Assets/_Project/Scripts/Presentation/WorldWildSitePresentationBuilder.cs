@@ -189,7 +189,7 @@ namespace Pogranichye.Client.Presentation
                     {
                         var x = Mathf.Sin(i * 1.7f) * 2.5f;
                         var z = Mathf.Cos(i * 1.7f) * 2.2f;
-                        Part(root, PrimitiveType.Cone, "Herb" + i, new Vector3(x, 0.35f, z),
+                        Part(root, PrimitiveType.Cylinder, "Herb" + i, new Vector3(x, 0.35f, z),
                             new Vector3(0.22f, 0.7f, 0.22f), leaf);
                     }
                     break;
@@ -213,6 +213,12 @@ namespace Pogranichye.Client.Presentation
                 case "pond":
                     Part(root, PrimitiveType.Cylinder, "PondWater", new Vector3(0, 0.06f, 0),
                         new Vector3(5.2f, 0.06f, 3.8f), water);
+                    break;
+                case "spring":
+                    Part(root, PrimitiveType.Cylinder, "SpringStoneRim", new Vector3(0, 0.18f, 0),
+                        new Vector3(2.4f, 0.3f, 2.4f), stone);
+                    Part(root, PrimitiveType.Cylinder, "SpringPool", new Vector3(0, 0.34f, 0),
+                        new Vector3(1.8f, 0.05f, 1.8f), water);
                     break;
                 case "barrow":
                     Part(root, PrimitiveType.Sphere, "BarrowMound", new Vector3(0, 0.65f, 0),
