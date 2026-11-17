@@ -21,10 +21,10 @@ internal static class TerrainSeamHeightSamplerCheck
     {
         const int side = 5;
         var center = Plane(side, 0, 0);
-        var west = Plane(side, -side, 0);
-        var east = Plane(side, side, 0);
-        var south = Plane(side, 0, -side);
-        var north = Plane(side, 0, side);
+        var west = Plane(side, -side + 1, 0);
+        var east = Plane(side, side - 1, 0);
+        var south = Plane(side, 0, -side + 1);
+        var north = Plane(side, 0, side - 1);
         double left, edge, right, below, above;
 
         Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
