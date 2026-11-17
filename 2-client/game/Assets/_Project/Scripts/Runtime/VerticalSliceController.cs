@@ -880,12 +880,35 @@ namespace Pogranichye.Client
                 " · pending " + _pendingMoveIntents.Count + " · dropped " + _discardedMoveIntentCount);
             GUI.Label(new Rect(rect.x + 10f, rect.y + 278f, rect.width - 20f, 20f),
                 "Place: " + (_frame?.Place?.Id ?? "—") + " · terrain chunks: " + _terrainChunks.Count +
-                " · in flight: " + _terrainChunkRequests.Count);
+                " · in flight: " + _terrainChunkRequests.Count +
+                " · step: " + GetTerrainStepSummary() + " · biome: " + GetTerrainBiomeSummary());
             if (GUI.Button(new Rect(rect.x + 10f, rect.y + 304f, rect.width - 20f, 28f), "СОХРАНИТЬ ДАМП ДЛЯ ОТЛАДКИ"))
                 SaveClientDiagnosticDump();
             GUI.Label(new Rect(rect.x + 10f, rect.y + 336f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
             GUI.Label(new Rect(rect.x + 10f, rect.y + 360f, rect.width - 20f, 22f),
                 "Локальный файл: включает координаты и состояние персонажа.");
+        }
+
+        private string GetTerrainStepSummary()
+        {
+            var steps = new HashSet<int>();
+            foreach (var chunk in _terrainChunks.Values)
+                if (chunk != null && chunk.StepMeters > 0) steps.Add(chunk.StepMeters);
+            if (steps.Count == 0) return "—";
+            var values = new List<int>(steps);
+            values.Sort();
+            return string.Join("/", values.ConvertAll(value => value.ToString(CultureInfo.InvariantCulture)).ToArray()) + "m";
+        }
+
+        private string GetTerrainBiomeSummary()
+        {
+            var biomes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var chunk in _terrainChunks.Values)
+                if (!string.IsNullOrWhiteSpace(chunk?.Biome)) biomes.Add(chunk.Biome);
+            if (biomes.Count == 0) return "—";
+            var values = new List<string>(biomes);
+            values.Sort(StringComparer.OrdinalIgnoreCase);
+            return string.Join(",", values.ToArray());
         }
 
         private static Rect GetAutoWalkControlRect()
@@ -4655,6 +4678,79 @@ namespace Pogranichye.Client
             }
         }
 
+        private JArray BuildTerrainDiagnosticSnapshot()
+        {
+            var snapshot = new JArray();
+            foreach (var pair in _terrainChunks)
+            {
+                var chunk = pair.Value;
+                if (chunk == null) continue;
+
+                double minHeight = double.PositiveInfinity;
+                double maxHeight = double.NegativeInfinity;
+                if (chunk.Heights != null)
+                {
+                    foreach (var height in chunk.Heights)
+                    {
+                        if (height < minHeight) minHeight = height;
+                        if (height > maxHeight) maxHeight = height;
+                    }
+                }
+
+                var item = new JObject
+                {
+                    ["cache_key"] = pair.Key,
+                    ["id"] = chunk.Id,
+                    ["frame"] = chunk.Frame,
+                    ["chunk_x"] = chunk.Chunk != null && chunk.Chunk.Length == 2
+                        ? (JToken)new JValue(chunk.Chunk[0]) : JValue.CreateNull(),
+                    ["chunk_z"] = chunk.Chunk != null && chunk.Chunk.Length == 2
+                        ? (JToken)new JValue(chunk.Chunk[1]) : JValue.CreateNull(),
+                    ["origin_east"] = chunk.Origin != null ? (JToken)new JValue(chunk.Origin.East) : JValue.CreateNull(),
+                    ["origin_north"] = chunk.Origin != null ? (JToken)new JValue(chunk.Origin.North) : JValue.CreateNull(),
+                    ["size_m"] = chunk.SizeMeters,
+                    ["step_m"] = chunk.StepMeters,
+                    ["side"] = chunk.Side,
+                    ["height_samples"] = chunk.Heights != null ? chunk.Heights.Count : 0,
+                    ["height_min_m"] = double.IsInfinity(minHeight) ? (JToken)JValue.CreateNull() : new JValue(minHeight),
+                    ["height_max_m"] = double.IsInfinity(maxHeight) ? (JToken)JValue.CreateNull() : new JValue(maxHeight),
+                    ["generator_version"] = chunk.GeneratorVersion.HasValue
+                        ? (JToken)new JValue(chunk.GeneratorVersion.Value) : JValue.CreateNull(),
+                    ["seed"] = chunk.Seed.HasValue ? (JToken)new JValue(chunk.Seed.Value) : JValue.CreateNull(),
+                    ["biome"] = chunk.Biome,
+                    ["roads"] = chunk.Roads != null ? chunk.Roads.Count : 0,
+                    ["water"] = chunk.Water != null ? chunk.Water.Count : 0,
+                    ["resources"] = chunk.Resources != null ? chunk.Resources.Count : 0,
+                    ["wild_hints"] = chunk.Wild != null ? chunk.Wild.Count : 0,
+                    ["settlements"] = chunk.Settlements != null ? chunk.Settlements.Count : 0,
+                    ["valid"] = chunk.IsValid
+                };
+
+                if (chunk.Cover != null)
+                {
+                    item["cover"] = new JObject
+                    {
+                        ["forest"] = chunk.Cover.Forest,
+                        ["grass"] = chunk.Cover.Grass,
+                        ["rock"] = chunk.Cover.Rock,
+                        ["wet"] = chunk.Cover.Wet
+                    };
+                }
+                else item["cover"] = JValue.CreateNull();
+
+                snapshot.Add(item);
+            }
+            return snapshot;
+        }
+
+        private JArray BuildTerrainRequestSnapshot()
+        {
+            var snapshot = new JArray();
+            foreach (var requestId in _terrainChunkRequests)
+                snapshot.Add(requestId);
+            return snapshot;
+        }
+
         private void SaveClientDiagnosticDump()
         {
             try
@@ -4726,7 +4822,9 @@ namespace Pogranichye.Client
                     ["neighbors"] = neighborSummary,
                     ["remote_view_count"] = _views?.RemoteViewCount ?? 0,
                     ["terrain_chunks"] = _terrainChunks.Count,
+                    ["terrain_chunks_detail"] = BuildTerrainDiagnosticSnapshot(),
                     ["terrain_requests_in_flight"] = _terrainChunkRequests.Count,
+                    ["terrain_request_ids"] = BuildTerrainRequestSnapshot(),
                     ["move_queue"] = _moveSendQueue.Count,
                     ["move_pending"] = _pendingMoveIntents.Count,
                     ["move_dropped"] = _discardedMoveIntentCount,
