@@ -129,6 +129,7 @@ def main():
                     v["vertical_seam_to_interior_ratio"]) for v in edges.values())
     report = {
         "name": "Pogranichye authored weathered oak planks",
+        "availability": "available",
         "version": 1, "resolution": [SIZE, SIZE], "tileable": True,
         "source": "2-client/art-source/textures/oak_planks_source.jpg",
         "source_crop_x": list(CROP_X),

@@ -161,6 +161,7 @@ def main():
 
     report = {
         "name": "Pogranichye aged limewashed plaster",
+        "availability": "available",
         "version": 1,
         "resolution": [SIZE, SIZE],
         "tileable": True,

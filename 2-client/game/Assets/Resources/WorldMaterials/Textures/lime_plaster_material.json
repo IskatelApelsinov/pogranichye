@@ -57,5 +57,7 @@
     }
   },
   "worst_seam_ratio": 1.0371,
-  "alpha_vs_inverse_roughness_max_error_levels": 1
+  "alpha_vs_inverse_roughness_max_error_levels": 1,
+  "availability": "pending",
+  "availability_note": "Source artwork and complete authored 1024x1024 maps are absent from the clean checkout; this manifest is a target specification, not an available override."
 }

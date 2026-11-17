@@ -154,6 +154,7 @@ def main():
 
     report = {
         "name": "Pogranichye authored weathered mossy fieldstone masonry",
+        "availability": "available",
         "version": 1, "resolution": [SIZE, SIZE], "tileable": True,
         "source": "2-client/art-source/textures/stone_masonry_source.jpg",
         "seam_method": "feathered interior masonry patches on both axes",
