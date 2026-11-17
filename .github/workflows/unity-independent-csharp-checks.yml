@@ -46,6 +46,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
@@ -289,6 +290,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
+
+      - name: World clock smoothing regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-clock-smoothing.exe Tests/WorldClockSmoothingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs
+          mono /tmp/world-clock-smoothing.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
