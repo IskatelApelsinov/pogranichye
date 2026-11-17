@@ -1041,7 +1041,7 @@ namespace Pogranichye.Client
                 ? "WASD — движение; Shift — бег; Space — прыжок; мышь — осмотр; ПКМ — альтернативный режим предмета/инструмента."
                 : "WASD — движение; Shift — бег; Space — прыжок; мышь — обзор камеры; колесо — зум; ПКМ — альтернативный режим предмета/инструмента.");
             GUILayout.Space(4f);
-            GUILayout.Label("ЗНАКОМСТВО И ПРАКТИКА");
+            GUILayout.Label("ЗНАКОМСТВО И ПРИОРИТЕТЫ ПЕРСОНАЖА");
             GUILayout.Label(TutorialHint(), GUILayout.Height(58f));
             if (me.Result != null && !string.IsNullOrEmpty(me.Result.RequestId))
                 GUILayout.Label(me.Result.Ok
@@ -1058,11 +1058,12 @@ namespace Pogranichye.Client
             if (_showAdvancedCharacterActions)
             {
                 GUILayout.Space(4f);
-                GUILayout.Label("СВОБОДНАЯ ПРАКТИКА · НЕ ОБЯЗАТЕЛЬНАЯ ЧАСТЬ ПОРУЧЕНИЯ");
-                GUILayout.Label("Мир проверит место, инструмент и возможность действия на сервере.");
-                if (GUILayout.Button("🔨 Кузница / огород — работать")) RequestPracticeGoal("work");
-                if (GUILayout.Button("🍞 Рынок — поесть")) RequestPracticeGoal("eat");
-                if (GUILayout.Button("🏠 Дом — отдохнуть")) RequestPracticeGoal("rest");
+                GUILayout.Label("ДОЛГОСРОЧНЫЕ ПРИОРИТЕТЫ · В ТОМ ЧИСЛЕ ДЛЯ ОФЛАЙНА");
+                GUILayout.Label("Это не запускает действие в конкретной точке. Вы задаёте серверу общий приоритет персонажа; конкретное занятие и его результат выбирает и симулирует сервер.");
+                if (GUILayout.Button("🔨 Приоритет: труд и ремесло")) RequestOfflinePriority("work");
+                if (GUILayout.Button("🍞 Приоритет: добывать пищу")) RequestOfflinePriority("eat");
+                if (GUILayout.Button("🏠 Приоритет: отдыхать")) RequestOfflinePriority("rest");
+                if (GUILayout.Button("🍺 Приоритет: общение")) RequestOfflinePriority("socialize");
             }
 
             GUILayout.Space(5f);
@@ -4267,8 +4268,9 @@ namespace Pogranichye.Client
                 return;
             }
 
-            RequestPracticeGoal(poi.Goal);
-            _status = "Выбрана точка: " + poi.Title + ". Отправляю намерение серверу…";
+            // E is for an immediate interaction at this place. Long-lived character goals
+            // are configured only from the character UI, never as a side effect of touching a POI.
+            _status = "Для этой точки пока нет отдельного действия. Долгосрочные приоритеты задаются в разделе персонажа.";
         }
 
         private void CollapseHudForContextWindow()
@@ -4330,9 +4332,9 @@ namespace Pogranichye.Client
             _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
         }
 
-        private void RequestPracticeGoal(string goal)
+        private void RequestOfflinePriority(string goal)
         {
-            // Practice intents are server-validated, but are not tutorial completion or quest progress.
+            // Goals are long-lived character priorities, not one-shot activities or tutorial progress.
             _goalToSend = goal;
         }
 
@@ -5236,7 +5238,7 @@ namespace Pogranichye.Client
                 Enqueue(() =>
                 {
                     if (ReferenceEquals(_socket, socket))
-                        _status = "Намерение отправлено: " + goal;
+                        _status = "Запрос долгосрочного приоритета отправлен: " + goal + ". Серверный протокол v1 пока не возвращает отдельное подтверждение для op:goal.";
                 });
             }
             catch (Exception ex)
