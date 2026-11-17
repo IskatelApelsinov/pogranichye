@@ -5558,7 +5558,9 @@ namespace Pogranichye.Client
         {
             var position = character != null ? character.Position : null;
             if (position == null || _views?.PlayerTransform == null) return;
-            _serverStamina = Mathf.Clamp01((float)position.Stamina);
+            _serverStamina = character.Vigor?.Stamina != null
+                ? Mathf.Clamp01((float)character.Vigor.Stamina.Now)
+                : Mathf.Clamp01((float)position.Stamina);
             Vector3 authoritativePosition;
             if (!WorldPositionProjection.TryToUnityPosition(
                 character.WorldPosition, ResolveWorldAnchor(_frame), out authoritativePosition))
@@ -5652,8 +5654,15 @@ namespace Pogranichye.Client
                     : movement != null && movement.RunMetersPerSecond > 0d
                         ? (float)movement.RunMetersPerSecond : 6.0f;
                 var speed = canRun ? (intent.Fast ? runSpeed : jogSpeed) : walkSpeed;
-                if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
-                else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
+                // Predict only the drain caused by queued running intents. Recovery is server-timed
+                // (including while the player sends no input), so never invent it from client input.
+                if (canRun)
+                {
+                    var vigorStamina = _frame?.Me?.Vigor?.Stamina;
+                    var drainPerSecond = vigorStamina != null && vigorStamina.DrainPerSecond > 0d
+                        ? (float)vigorStamina.DrainPerSecond : 0.10f;
+                    stamina = Mathf.Max(0f, stamina - drainPerSecond * dt);
+                }
 
                 speed *= ResolveMovementTerrainMultiplier(position, direction, movement);
 
@@ -5665,10 +5674,6 @@ namespace Pogranichye.Client
                 position.x = flat.x;
                 position.z = flat.y;
             }
-            else
-            {
-                // Match server stamRegen; this remains prediction for queued intents only.
-                stamina = Mathf.Min(1f, stamina + 0.10f * dt);
             }
         }
 
