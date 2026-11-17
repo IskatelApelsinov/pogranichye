@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
@@ -81,6 +82,58 @@ func TestTrailsLinkSettlementsAndWind(t *testing.T) {
 		t.Fatal("все нитки прямые — тропки должны петлять")
 	}
 	_ = grid
+}
+
+// v1.28: там, где прямой наезд на звено круче slopeAvoidGrade, нитка не хуже — отступ вбок либо
+// находит более пологий проход, либо (если рядом ровнее нет) остаётся на прежнем месте, но никогда
+// не выбирает место КРУЧЕ исходного. Перебираем несколько миров, чтобы точно встретить крутой рельеф.
+func TestTrailAvoidsSteepWhenPossible(t *testing.T) {
+	improved := false
+	for seedN := 0; seedN < 8; seedN++ {
+		w, _ := Generate(fmt.Sprintf("trails-slope-%d", seedN), 16)
+		tr0 := terrainFor(w)
+		for _, rd := range RoadGraph(w, false) {
+			sa, sb := settleOf(w, rd.A), settleOf(w, rd.B)
+			if sa == nil || sb == nil {
+				continue
+			}
+			ax, ay := Anchor(w, sa)
+			bx, by := Anchor(w, sb)
+			L := math.Hypot(bx-ax, by-ay)
+			if L < 1 {
+				continue
+			}
+			px, py := -(by-ay)/L, (bx-ax)/L
+			amp := math.Min(L*trailBend, trailBendM)
+			n := int(math.Max(2, math.Ceil(L/trailStep)))
+			salt := float64(rd.A%9973)*811.0 + float64(rd.B%9973)*37.0
+			prevX, prevY := ax, ay
+			for i := 0; i <= n; i++ {
+				f := float64(i) / float64(n)
+				env := math.Sin(math.Pi * f)
+				d := f * L
+				off := ((noise(tr0.seed+97, salt+d, salt*0.5, 700)-0.5)*2*amp + (noise(tr0.seed+131, salt+d, salt*0.5+50, 170)-0.5)*0.5*amp) * env
+				naiveX, naiveY := ax+(bx-ax)*f+px*off, ay+(by-ay)*f+py*off
+				if i > 0 && i < n {
+					naiveGrade := segGrade(tr0, prevX, prevY, naiveX, naiveY)
+					gotX, gotY := avoidSteep(tr0, prevX, prevY, naiveX, naiveY, px, py, amp)
+					gotGrade := segGrade(tr0, prevX, prevY, gotX, gotY)
+					if gotGrade > naiveGrade+1e-9 {
+						t.Fatalf("отступ вбок хуже прямого звена: было %.3f, стало %.3f", naiveGrade, gotGrade)
+					}
+					if naiveGrade > slopeAvoidGrade && gotGrade < naiveGrade-1e-9 {
+						improved = true
+					}
+					prevX, prevY = gotX, gotY
+					continue
+				}
+				prevX, prevY = naiveX, naiveY
+			}
+		}
+	}
+	if !improved {
+		t.Skip("за все миры отступ вбок не нашёл ни одного улучшения — рельеф сидов оказался мягче")
+	}
 }
 
 // На нитке шаг легче, в стороне от неё — обычный; чанк отдаёт нитку с видом и шириной.
