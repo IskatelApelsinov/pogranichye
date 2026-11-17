@@ -14,14 +14,18 @@ namespace Pogranichye.Client.Presentation
             if (root == null || layout == null)
                 return;
 
-            // New server-authored descriptors take precedence over the legacy POI intent map.
-            // Their coordinates may represent a counter, workstation, bench or interior object.
-            if (layout.Interactions != null)
+            // The current server does not yet implement op:"interact". Use descriptors only
+            // as authoritative target geometry/availability, then translate known target IDs
+            // to already-supported v1 goal/act/horse flows. Unknown descriptors fail closed.
+            var descriptorTargetsBuilt = 0;
+            if (layout.Interactions != null && layout.Interactions.Count > 0)
             {
                 foreach (var descriptor in layout.Interactions)
                 {
                     if (descriptor == null || string.IsNullOrWhiteSpace(descriptor.Id) ||
-                        !IsFinite(descriptor.X) || !IsFinite(descriptor.Y))
+                        !IsFinite(descriptor.X) || !IsFinite(descriptor.Y) ||
+                        string.IsNullOrWhiteSpace(descriptor.TargetId) ||
+                        !WorldLayoutPoiInteractionPolicy.TryResolve(descriptor.TargetId, out var interaction))
                         continue;
 
                     var target = new GameObject("Server interaction target • " + descriptor.Id);
@@ -33,11 +37,15 @@ namespace Pogranichye.Client.Presentation
                     hitArea.isTrigger = true;
                     var poi = target.AddComponent<WorldPoi>();
                     poi.Initialize(
-                        string.IsNullOrWhiteSpace(descriptor.Title) ? "Взаимодействие" : descriptor.Title,
-                        null, null, Color.clear, null, descriptor.Id, descriptor.Hint,
-                        descriptor.Available, descriptor.Reason, descriptor.TargetType, descriptor.TargetId);
+                        string.IsNullOrWhiteSpace(descriptor.Title) ? interaction.Title : descriptor.Title,
+                        interaction.Goal, null, Color.clear, interaction.ActionIntent, null,
+                        descriptor.Hint, descriptor.Available, descriptor.Reason,
+                        descriptor.TargetType, descriptor.TargetId);
+                    descriptorTargetsBuilt++;
                 }
-                return;
+
+                // A partial/unknown descriptor list must not disable known legacy POIs.
+                if (descriptorTargetsBuilt > 0) return;
             }
 
             // Compatibility path for older servers: coordinates still come from server Layout POIs.
@@ -66,7 +74,8 @@ namespace Pogranichye.Client.Presentation
                 hitArea.isTrigger = true;
 
                 var poi = target.AddComponent<WorldPoi>();
-                poi.Initialize(interaction.Title, interaction.Goal, null, Color.clear, interaction.ActionIntent);
+                poi.Initialize(interaction.Title, interaction.Goal, null, Color.clear, interaction.ActionIntent,
+                    null, null, true, null, "poi", interaction.Id);
             }
         }
 
