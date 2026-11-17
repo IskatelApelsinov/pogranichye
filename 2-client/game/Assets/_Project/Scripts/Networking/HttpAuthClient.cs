@@ -48,8 +48,8 @@ namespace Pogranichye.Client.Networking
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
                     layout.Buildings == null || layout.River == null || layout.Pois == null ||
-                    layout.Buildings.Count < 1 || !layout.Pois.ContainsKey("tavern") ||
-                    !layout.Pois.ContainsKey("well") ||
+                    layout.Buildings.Count < 1 ||
+                    !WorldLayoutCompatibilityPolicy.HasRequiredPois(layout.Plan, layout.Pois.Keys) ||
                     !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||
                     !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
                     !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
@@ -57,11 +57,6 @@ namespace Pogranichye.Client.Networking
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
 
                 var isGridCity = string.Equals(layout.Plan, "grid", StringComparison.Ordinal);
-                if (!isGridCity && (!layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
-                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river")))
-                    throw new InvalidOperationException("Сельская раскладка не содержит обязательные угодья.");
-                if (isGridCity && !layout.Pois.ContainsKey("hall"))
-                    throw new InvalidOperationException("Городская раскладка не содержит ратушу.");
                 WorldLandFrameParser.Validate(layout.Land);
 
                 if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
@@ -73,9 +68,7 @@ namespace Pogranichye.Client.Networking
                      !IsFinite(layout.Anchor.North) || !IsFinite(layout.Anchor.Up)))
                     throw new InvalidOperationException("Layout v2 содержит некорректный глобальный anchor.");
 
-                if (!string.IsNullOrEmpty(layout.Plan) && layout.Plan != "starter" &&
-                    layout.Plan != "street" && layout.Plan != "cross" &&
-                    layout.Plan != "ring" && layout.Plan != "scatter" && layout.Plan != "grid")
+                if (!WorldLayoutCompatibilityPolicy.IsSupportedPlan(layout.Plan))
                     throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
 
                 foreach (var building in layout.Buildings)
