@@ -16,5 +16,12 @@ namespace Pogranichye.Client.Presentation
             if (grokAvailable) return Source.Grok;
             return Source.ProceduralFallback;
         }
+
+        public static bool HasMatchingNormal(Source albedoSource, bool authoredNormalAvailable, bool grokNormalAvailable)
+        {
+            if (albedoSource == Source.Authored) return authoredNormalAvailable;
+            if (albedoSource == Source.Grok) return grokNormalAvailable;
+            return false;
+        }
     }
 }
