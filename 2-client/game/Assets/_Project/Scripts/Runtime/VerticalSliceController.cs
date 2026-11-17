@@ -2513,12 +2513,24 @@ namespace Pogranichye.Client
                 case "river": return "Река";
                 case "woods": return "Лес";
                 case "mine": return "Рудник";
+                case "hall": return "Ратуша";
+                case "bazaar": return "Базар";
+                case "weaver": return "Ткацкая";
+                case "tannery": return "Кожевня";
+                case "bakery": return "Пекарня";
+                case "carpenter": return "Плотницкая";
+                case "potter": return "Гончарная";
+                case "guard": return "Караулка";
+                case "caravanserai": return "Караван-сарай";
+                case "inn": return "Постоялый двор";
                 default: return poiId;
             }
         }
 
-        private static string MapPoiGlyph(string poiId)
+        private string MapPoiGlyph(string poiId)
         {
+            if (poiId == "river" && _layout?.Land?.Water == "pond") return "Пд";
+            if (poiId == "river" && _layout?.Land?.Water == "well") return "Кл";
             switch (poiId)
             {
                 case "tavern": return "К";
@@ -2531,6 +2543,16 @@ namespace Pogranichye.Client
                 case "river": return "Рк";
                 case "woods": return "Л";
                 case "mine": return "Ш";
+                case "hall": return "Рт";
+                case "bazaar": return "Б";
+                case "weaver": return "Тк";
+                case "tannery": return "Кж";
+                case "bakery": return "П";
+                case "carpenter": return "Пл";
+                case "potter": return "Г";
+                case "guard": return "Ст";
+                case "caravanserai": return "Кс";
+                case "inn": return "Тр";
                 default: return "·";
             }
         }
