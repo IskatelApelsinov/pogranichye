@@ -30,8 +30,11 @@ public static class NpcActivitySoundPolicyCheck
         Check(NpcActivitySoundPolicy.FromServerCode("mine_ore") == NpcActivitySoundKind.Mining,
             "active mining maps to a stone/metal impact");
         Check(NpcActivitySoundPolicy.FromServerCode("cook_hearth") == NpcActivitySoundKind.Hearth &&
-              NpcActivitySoundPolicy.FromServerCode("brew_remedy") == NpcActivitySoundKind.Hearth,
-            "hearth work maps to one quiet category");
+              NpcActivitySoundPolicy.FromServerCode("brew_remedy") == NpcActivitySoundKind.Hearth &&
+              NpcActivitySoundPolicy.FromServerCode("bake_bread") == NpcActivitySoundKind.Hearth,
+            "hearth work and city baking map to one quiet category");
+        Check(NpcActivitySoundPolicy.FromServerCode("jewel_work") == NpcActivitySoundKind.Forge,
+            "city jewellery work maps to the existing restrained forge cue");
         Check(NpcActivitySoundPolicy.FromServerCode("drink_tavern") == NpcActivitySoundKind.Drinking,
             "server-confirmed tavern drinking maps to a mug cue");
         Check(NpcActivitySoundPolicy.FromServerCode("herd_graze") == NpcActivitySoundKind.Herding &&
