@@ -238,16 +238,8 @@ namespace Pogranichye.Client.Presentation
                     if (road == null || road.Points == null || road.Points.Count < 2 ||
                         !IsFinite(road.WidthMeters) || road.WidthMeters < 0 || !AreFeaturePointsValid(road.Points)) continue;
                     var width = road.WidthMeters > 0 ? (float)road.WidthMeters : 3f;
-                    var mesh = BuildRibbon(road.Points, width, point =>
-                    {
-                        double height;
-                        float slope;
-                        Vector3 normal;
-                        var east = chunk.Origin.East + point.X;
-                        var north = chunk.Origin.North + point.Z;
-                        return TerrainHeightSampler.TrySample(chunk, east, north, out height, out slope, out normal)
-                            ? (float)(height - anchor.Up + 0.035d) : 0.035f;
-                    }, "Road " + road.Id);
+                    var mesh = BuildRibbon(road.Points, width,
+                        point => SamplePathHeight(chunk, anchor, point), "Road " + road.Id);
                     var pathMaterial = string.Equals(road.Kind, "trail", StringComparison.OrdinalIgnoreCase)
                         ? TrailMaterial() : RoadMaterial();
                     var pathPrefix = string.Equals(road.Kind, "trail", StringComparison.OrdinalIgnoreCase)
@@ -255,6 +247,45 @@ namespace Pogranichye.Client.Presentation
                     AddFeatureMesh(root, pathPrefix + SafeName(road.Id), mesh, pathMaterial,
                         (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
+        }
+
+        private static float SamplePathHeight(TerrainChunkFrame chunk, WorldAnchorFrame anchor,
+            TerrainFeaturePointFrame point)
+        {
+            if (chunk == null || anchor == null || point == null || chunk.Side < 2 ||
+                chunk.Heights == null || chunk.Heights.Count < chunk.Side * chunk.Side ||
+                chunk.StepMeters <= 0d)
+                return 0.06f;
+
+            // Server polylines are chunk-local. Clamp tiny boundary/rounding overshoots to the
+            // last valid heightfield sample instead of dropping the ribbon to local Y=0.
+            var maxX = Math.Min(chunk.SizeMeters, (chunk.Side - 1) * chunk.StepMeters);
+            var maxZ = maxX;
+            var localX = Math.Max(0d, Math.Min(maxX, point.X));
+            var localZ = Math.Max(0d, Math.Min(maxZ, point.Z));
+            var east = chunk.Origin.East + localX;
+            var north = chunk.Origin.North + localZ;
+            if (TerrainHeightSampler.TrySample(chunk, east, north, out var sampled, out _, out _))
+                return (float)(sampled - anchor.Up + 0.06d);
+
+            // Defensive bilinear fallback for a valid heightfield whose edge normal cannot
+            // be sampled (e.g. a clipped road endpoint at the outermost grid row/column).
+            var gx = localX / chunk.StepMeters;
+            var gz = localZ / chunk.StepMeters;
+            var x0 = Math.Max(0, Math.Min(chunk.Side - 1, (int)Math.Floor(gx)));
+            var z0 = Math.Max(0, Math.Min(chunk.Side - 1, (int)Math.Floor(gz)));
+            var x1 = Math.Min(chunk.Side - 1, x0 + 1);
+            var z1 = Math.Min(chunk.Side - 1, z0 + 1);
+            var tx = gx - x0;
+            var tz = gz - z0;
+            var h00 = chunk.Heights[z0 * chunk.Side + x0];
+            var h10 = chunk.Heights[z0 * chunk.Side + x1];
+            var h01 = chunk.Heights[z1 * chunk.Side + x0];
+            var h11 = chunk.Heights[z1 * chunk.Side + x1];
+            var height = (h00 * (1d - tx) + h10 * tx) * (1d - tz) +
+                (h01 * (1d - tx) + h11 * tx) * tz;
+            return double.IsNaN(height) || double.IsInfinity(height)
+                ? 0.06f : (float)(height - anchor.Up + 0.06d);
         }
 
         private static Material _resourceMaterial;
