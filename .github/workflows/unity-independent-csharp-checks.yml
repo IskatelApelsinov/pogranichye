@@ -70,6 +70,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
+      - '2-client/game/Tests/GatherNodePresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
@@ -317,6 +319,12 @@ jobs:
         run: |
           mcs -out:/tmp/wild-site-map-projection.exe Tests/WildSiteMapProjectionPolicyCheck.cs Assets/_Project/Scripts/Presentation/WildSiteMapProjectionPolicy.cs
           mono /tmp/wild-site-map-projection.exe
+
+      - name: Frontier gather-node presentation regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/gather-node-presentation.exe Tests/GatherNodePresentationPolicyCheck.cs Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs
+          mono /tmp/gather-node-presentation.exe
 
       - name: Server-authored multi-level space descriptor regression checks
         working-directory: 2-client/game
