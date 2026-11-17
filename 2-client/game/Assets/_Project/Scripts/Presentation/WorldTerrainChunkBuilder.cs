@@ -247,11 +247,13 @@ namespace Pogranichye.Client.Presentation
                     if (water == null || water.Points == null || water.Points.Count < 2 ||
                         !IsFinite(water.WidthMeters) || water.WidthMeters <= 0 || !IsFinite(water.WaterLevelMeters) ||
                         !AreFeaturePointsValid(water.Points)) continue;
-                    // Server level is currently an estimate 0.3 m below the sampled ground. Since the
-                    // heightfield has no carved river bed yet, lift only this visual ribbon back to
-                    // the ground skin; it has no collider and does not alter canonical terrain.
-                    var y = (float)(water.WaterLevelMeters - anchor.Up + 0.34d);
-                    var mesh = BuildRibbon(water.Points, (float)water.WidthMeters, _ => y, "Water " + water.Id);
+                    // Prefer explicit per-point server surface elevations when available. Legacy
+                    // descriptors retain the existing visual lift over their estimated water level.
+                    // This remains presentation only: no bed depth or swimming authority is inferred.
+                    var mesh = BuildRibbon(water.Points, (float)water.WidthMeters,
+                        point => (float)TerrainWaterSurfacePolicy.ResolveLocalHeight(
+                            point.SurfaceMeters, water.WaterLevelMeters, anchor.Up, 0.34d),
+                        "Water " + water.Id);
                     AddFeatureMesh(root, "Water_" + SafeName(water.Id), mesh, WaterMaterial(),
                         (float)(chunk.Origin.East - anchor.East), (float)(chunk.Origin.North - anchor.North));
                 }
