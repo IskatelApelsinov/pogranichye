@@ -22,12 +22,14 @@
 2. Added contextual activity panels:
    - smithy: act:forge and recipes for this workstation;
    - garden: gather, farmwork, apiary;
+   - woods: zone-correct chop/brushwood plus hunt/fight;
    - hearth: recipes for this workstation;
    - granary: stable/horse controls plus recipes for granary.
-3. Recipe options use me.recipes[].here/can from the current validated full state. craft is sent as op:"craft", item=<recipe-id>, reqid.
-4. Added horse saddlebag stow/unstow buttons with good and qty, alongside existing buy/mount/dismount/feed.
-5. Removed the client path that sent unsupported op:"interact". If future descriptors arrive, the builder translates only known target_id values to existing v1 intents; unknown IDs fail closed.
-6. Added/updated policy regression tests and reconciled interaction/DTO coverage docs.
+3. Exposed the existing build contribution action in the general work menu, gated by current server snapshot (2 wood and 10 energy).
+4. Recipe options use me.recipes[].here/can from the current validated full state. craft is sent as op:"craft", item=<recipe-id>, reqid.
+5. Added horse saddlebag stow/unstow buttons with good and qty, alongside existing buy/mount/dismount/feed.
+6. Removed the client path that sent unsupported op:"interact". If future descriptors arrive, the builder translates only known target_id values to existing v1 intents; unknown IDs fail closed.
+7. Added/updated policy regression tests and reconciled interaction/DTO coverage docs.
 
 ## Authority rules
 
@@ -46,3 +48,6 @@
 - Confirm UI input capture prevents WASD/mouse-look leakage while contextual panel is open.
 
 CI source checks do not constitute Unity Editor/PlayMode acceptance.
+
+
+Additional action audit: `act:build`, `act:hunt` and `act:fight` were accepted by the server but had no obvious thick-client affordance. Build is now in the general work menu; hunt/fight are exposed from the woodland E panel. Server still resolves fauna, energy, equipment modifiers and outcome.
