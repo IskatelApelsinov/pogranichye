@@ -43,13 +43,13 @@ namespace Pogranichye.Client.Presentation
             switch (id)
             {
                 case "tavern":
-                    interaction = new WorldLayoutPoiInteraction(id, "Корчма", "socialize", null);
+                    interaction = new WorldLayoutPoiInteraction(id, "Корчма", null, null);
                     return true;
                 case "smithy":
                     interaction = new WorldLayoutPoiInteraction(id, "Кузница · работать у горна", null, "forge");
                     return true;
                 case "market":
-                    interaction = new WorldLayoutPoiInteraction(id, "Рынок", "eat", null);
+                    interaction = new WorldLayoutPoiInteraction(id, "Рынок", null, null);
                     return true;
                 case "granary":
                     interaction = new WorldLayoutPoiInteraction(id, "Амбар · конюшня и мастерская", null, null);
