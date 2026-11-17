@@ -35,7 +35,7 @@
 | `me.card_game` | `CardGameFrame`, `CardGameCardFrame`, `DurakTablePairFrame` + `CardGameFrameParser` | Ochko/Durak panel and hotkeys | Typed in the card-game slice; validates public state and rejects hidden dealer-hand leaks; full-frame-only |
 | `me.combat` | `CombatFrame` + `CombatFrameParser` | stance, weapon, guard, shield, light, arrows and combat HUD | Typed in this slice; exact server `CombatView` shape including `kills` map and integer `ko` counter validated |
 | `me.recipes` | Missing recipe/needs DTOs | `CoreGameplay.DrawCraftingContextActions` and existing action tab read validated raw JSON; server `here/can` flags drive contextual recipe choices | **Gap** in typed DTO, but consumed by the contextual workstation UI |
-| `me.party` | Missing `PartyFrame` and member/invite DTOs | party panel | **Gap** |
+| `me.party` | Missing `PartyFrame` and member/invite DTOs | Thick-client party controls read validated raw JSON; invite/accept/leave and nearby-player invites use `op:"party"` | **Gap** in typed DTO, functionally consumed |
 
 ## Settlement fields
 
