@@ -33,7 +33,19 @@ function show(id, on){ const el=document.getElementById(id); if(el) el.classList
 const sbtn = (label, js, dis, cls) =>
   `<button class="${cls||''}" style="width:auto;padding:6px 10px" ${dis?'disabled':''} onclick="${js}">${label}</button>`;
 
+// Часы мира (task_ai/014 B): только серверные день и час, не часы устройства.
+function clockText(day, hour){
+  if(typeof hour!=='number' || hour<0 || hour>23) return '🕰 время мира неизвестно';
+  const part = hour<6?'ночь':hour<10?'утро':hour<17?'день':hour<22?'вечер':'ночь';
+  return `${hour<6||hour>=22?'🌙':'☀️'} ${day!=null?'День '+day+' · ':''}${String(hour).padStart(2,'0')}:00 · ${part}`;
+}
+function drawClock(s){
+  if(s.fast) return; // в быстрых кадрах часов нет — держим последнее известное
+  const el=document.getElementById('worldclock');
+  if(el) el.textContent=clockText(s.day, s.hour);
+}
 function coreRender(s){
+  drawClock(s);
   const me = s.me || {};
   const road = !!me.journey;
   show('villagecard', !road); show('locscreen', !road); show('fightcard', !road);
