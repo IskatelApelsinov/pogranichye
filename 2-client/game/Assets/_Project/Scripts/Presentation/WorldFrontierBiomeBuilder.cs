@@ -114,8 +114,8 @@ namespace Pogranichye.Client.Presentation
             var lod1 = new LodMeshes();
             var lod2 = new LodMeshes();
 
-            // Grid coordinates are global, not chunk-local. This prevents visible density/phase
-            // changes at chunk edges, including negative chunk coordinates.
+            // Six-metre global cells make server forest biomes read as woodland, not isolated saplings.
+            // Global coordinates keep placement deterministic across chunk edges and negative coordinates.
             long minCellX = FloorDiv((long)Math.Floor(chunk.Origin.East), 6);
             long minCellZ = FloorDiv((long)Math.Floor(chunk.Origin.North), 6);
             int sideCells = Mathf.CeilToInt(chunk.SizeMeters / 6f) + 1;
