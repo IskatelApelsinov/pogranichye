@@ -31,6 +31,7 @@ on:
       - '2-client/game/Tests/ClientUiScalePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/EntityViewRegistry.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/EntityMotion.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs'
