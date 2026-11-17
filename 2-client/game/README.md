@@ -212,3 +212,8 @@ The server now defaults to `-seamless=on` at the owner's request. Use `-seamless
 - The character/world panel lists server-authored finds with their name, direction, distance and remaining stock.
 - Before the server reports `here: true`, the only action is `op:"goto"` with the existing `site` ID. At the server-reported pickup range, the client offers `op:"pick"` with the stable `node` ID.
 - Both requests use the existing shared `RequestGate` and generated `reqid`; the UI waits for `me.result`. Stock, energy, distance, bee stings, inventory and success remain server-authoritative. No local item grants or new wire fields are introduced.
+
+
+## v1.30 frontier gather-node UI
+
+The character journal shows up to six server-authored `place.gather[]` nodes. `goto` approaches a node and `pick` is offered only when the server reports `here=true`, with non-empty stock and the 3 m presentation gate. Requests use the existing request gate; only server results confirm outcomes. No local placement, stock or item rewards are generated. 3D chunk props remain separate.
