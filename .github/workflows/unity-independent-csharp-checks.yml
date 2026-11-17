@@ -57,6 +57,8 @@ on:
       - '2-client/art-source/blender/generate_world_materials.py'
       - '2-client/game/Assets/Resources/WorldMaterials/Textures/*_material.json'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldEnvironmentBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldWildSitePresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainSeamHeightSampler.cs'
       - '2-client/game/Tests/TerrainSeamHeightSamplerCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainWaterSurfacePolicy.cs'
