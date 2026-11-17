@@ -158,7 +158,8 @@ namespace Pogranichye.Client.Presentation
                 float underChance = Mathf.Clamp01(grass * 0.38f + forest * 0.48f + wet * 0.12f);
                 if (understoryCount < MaxUnderstory &&
                     Hash01(seed, cellX, cellZ, 6) < underChance &&
-                    !IsFeatureClear(chunk, localX, localZ, 2.8f))
+                    !IsFeatureClear(chunk, localX, localZ, 2.8f) &&
+                    !IsServerObjectClear(chunk, localX, localZ))
                 {
                     Vector3 p = new Vector3((float)(localX + chunk.Origin.East - anchor.East),
                         ground - (float)anchor.Up, (float)(localZ + chunk.Origin.North - anchor.North));
