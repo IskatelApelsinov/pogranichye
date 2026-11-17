@@ -198,6 +198,7 @@ namespace Pogranichye.Client
         private Vector2 _movementKeyboardDebug;
         private Vector2 _movementRawAxesDebug;
         private string _pressedKeysDebug = "none";
+        private string _inputDeviceEventDebug = "события: нет";
         private Vector3 _movementDirectionDebug;
         private float _movementCameraYawDebug;
         private float _movementPlayerYawDebug;
@@ -328,8 +329,15 @@ namespace Pogranichye.Client
             _audioDirector?.SetPlayerPosition(audioPlayer.position);
             UpdateServerAudioAnchors(audioPlayer);
             // Keep F3 diagnostics live even on the title/login screen, before movement starts.
-            if (_movementDebugVisible && _input != null)
-                _pressedKeysDebug = _input.BuildPressedKeysDebug();
+            if (_input != null)
+            {
+                _input.SetDiagnosticsEnabled(_movementDebugVisible);
+                if (_movementDebugVisible)
+                {
+                    _pressedKeysDebug = _input.BuildPressedKeysDebug();
+                    _inputDeviceEventDebug = _input.BuildDeviceEventDebug();
+                }
+            }
             if (_core != null)
                 _core.SetContext(_connectionState == WorldConnectionState.Active, _firstPerson, _hudCollapsed,
                     _views != null ? _views.PlayerTransform : null, _cameraRig);
@@ -443,7 +451,11 @@ namespace Pogranichye.Client
                     HandleActivityMiniGamePrimaryAction();
                 }
             }
-            if (_input != null && _input.ToggleDiagnosticsPressed) _movementDebugVisible = !_movementDebugVisible;
+            if (_input != null && _input.ToggleDiagnosticsPressed)
+            {
+                _movementDebugVisible = !_movementDebugVisible;
+                _input.SetDiagnosticsEnabled(_movementDebugVisible);
+            }
             if (_input != null && _input.ToggleFullscreenPressed) ToggleFullscreen();
             if (_interactionProbe != null)
                 _interactionProbe.enabled = _connectionState == WorldConnectionState.Active;
@@ -869,7 +881,7 @@ namespace Pogranichye.Client
         {
             if (!_movementDebugVisible) return;
 
-            var rect = new Rect(Screen.width - 430f, 12f, 418f, 390f);
+            var rect = new Rect(Screen.width - 430f, 12f, 418f, 438f);
             GUI.Box(rect, "ТЕХНИЧЕСКАЯ ДИАГНОСТИКА [F3]");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 28f, rect.width - 20f, 20f),
                 "Режим: " + (_firstPerson ? "первое лицо" : "третье лицо"));
@@ -885,33 +897,35 @@ namespace Pogranichye.Client
                 $"Input System {_movementKeyboardDebug.x:0.00}/{_movementKeyboardDebug.y:0.00} | raw action {_movementRawAxesDebug.x:0.00}/{_movementRawAxesDebug.y:0.00}");
             GUI.Label(new Rect(rect.x + 10f, rect.y + 150f, rect.width - 20f, 46f),
                 "Нажато: " + _pressedKeysDebug);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 198f, rect.width - 20f, 42f),
+                "События устройств (байты/кадр): " + _inputDeviceEventDebug);
             var neighbors = _frame?.Place?.Neighbors?.Count ?? 0;
             var views = _views?.RemoteViewCount ?? 0;
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 198f, rect.width - 20f, 20f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 242f, rect.width - 20f, 20f),
                 "NPC AOI: " + neighbors + " | визуальных сущностей: " + views);
             if (_frame?.Me?.Position != null)
-                GUI.Label(new Rect(rect.x + 10f, rect.y + 218f, rect.width - 20f, 20f),
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 262f, rect.width - 20f, 20f),
                     "ScenePos: " + _frame.Me.Position.X.ToString("0.0", CultureInfo.InvariantCulture) +
                     ", " + _frame.Me.Position.Y.ToString("0.0", CultureInfo.InvariantCulture) +
                     " · facing " + _frame.Me.Position.Facing.ToString("0.0", CultureInfo.InvariantCulture));
             if (_frame?.Me?.WorldPosition != null)
-                GUI.Label(new Rect(rect.x + 10f, rect.y + 238f, rect.width - 20f, 20f),
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 282f, rect.width - 20f, 20f),
                     "WorldPos: " + _frame.Me.WorldPosition.East.ToString("0.0", CultureInfo.InvariantCulture) +
                     ", " + _frame.Me.WorldPosition.North.ToString("0.0", CultureInfo.InvariantCulture) +
                     " · frame " + _frame.Me.WorldPosition.Frame +
                     " · space " + (_frame.Me.WorldPosition.SpaceId ?? "—") +
                     " · level " + (_frame.Me.WorldPosition.LevelId ?? "—"));
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 258f, rect.width - 20f, 20f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 302f, rect.width - 20f, 20f),
                 "Move queue: " + _moveSendQueue.Count + "/" + MaxQueuedMoveIntents +
                 " · pending " + _pendingMoveIntents.Count + " · dropped " + _discardedMoveIntentCount);
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 278f, rect.width - 20f, 20f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 322f, rect.width - 20f, 20f),
                 "Place: " + (_frame?.Place?.Id ?? "—") + " · terrain chunks: " + _terrainChunks.Count +
                 " · in flight: " + _terrainChunkRequests.Count +
                 " · step: " + GetTerrainStepSummary() + " · biome: " + GetTerrainBiomeSummary());
-            if (GUI.Button(new Rect(rect.x + 10f, rect.y + 304f, rect.width - 20f, 28f), "СОХРАНИТЬ ДАМП ДЛЯ ОТЛАДКИ"))
+            if (GUI.Button(new Rect(rect.x + 10f, rect.y + 348f, rect.width - 20f, 28f), "СОХРАНИТЬ ДАМП ДЛЯ ОТЛАДКИ"))
                 SaveClientDiagnosticDump();
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 336f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 360f, rect.width - 20f, 22f),
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 380f, rect.width - 20f, 24f), _lastDiagnosticDumpStatus);
+            GUI.Label(new Rect(rect.x + 10f, rect.y + 404f, rect.width - 20f, 22f),
                 "Локальный файл: включает координаты и состояние персонажа.");
         }
 
