@@ -42,7 +42,7 @@ Unity imports the PNG files automatically. Set:
 - Roughness is not Unity's Smoothness. A shader/material setup must invert it
   when feeding a Smoothness slot (Smoothness = 1 - Roughness).
 
-The procedural fallback maps are generated from a shared periodic height field. Four authored 1024×1024 overrides are now defined: packed earth for generated settlement roads/tavern floors, aged oak boards for shared timber surfaces, weathered fieldstone for stonework, and aged limewash for generated building wall planes. Each override has albedo, tangent-space normal, roughness and AO; smoothness (`1 - roughness`) is packed into the linear albedo alpha channel for URP Lit. The manifest records each per-material resolution and source builder. The Blender generator preserves complete authored map sets rather than overwriting them with procedural noise.
+The procedural fallback maps are generated from a shared periodic height field. The four authored builders are intended to produce 1024×1024 albedo, tangent-space normal, roughness and AO maps, with smoothness (`1 - roughness`) packed into albedo alpha for URP Lit. However, their source JPGs and generated PNG sets are not currently committed; the manifests alone do not provide runtime textures. The Blender generator preserves complete authored map sets when they are actually present. See issue [#722](https://github.com/IskatelApelsinov/pogranichye/issues/722) for the asset gap and acceptance criteria.
 
 For all authored materials, see [../textures/README.md](../textures/README.md).
 
