@@ -5289,14 +5289,24 @@ namespace Pogranichye.Client
             if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
-            var canRun = runRequested && GetPredictedStamina() > 0f;
             var movementProfile = _worldManifest != null ? _worldManifest.Movement : null;
-            var walkSpeed = movementProfile != null && movementProfile.WalkMetersPerSecond > 0d
-                ? (float)movementProfile.WalkMetersPerSecond : 1.4f;
-            var jogSpeed = movementProfile != null && movementProfile.JogMetersPerSecond > 0d
-                ? (float)movementProfile.JogMetersPerSecond : 3.2f;
-            var runSpeed = movementProfile != null && movementProfile.RunMetersPerSecond > 0d
-                ? (float)movementProfile.RunMetersPerSecond : 6.0f;
+            var characterMovement = _frame?.Me?.Movement;
+            var canRun = runRequested && GetPredictedStamina() > 0f &&
+                (characterMovement == null || characterMovement.CanRun);
+            // me.movement already includes server-side trail/character multipliers, including dev_mult.
+            // /api/world.movement remains the source for slope and trail geometry rules.
+            var walkSpeed = characterMovement != null && characterMovement.Walk > 0d
+                ? (float)characterMovement.Walk
+                : movementProfile != null && movementProfile.WalkMetersPerSecond > 0d
+                    ? (float)movementProfile.WalkMetersPerSecond : 1.4f;
+            var jogSpeed = characterMovement != null && characterMovement.Jog > 0d
+                ? (float)characterMovement.Jog
+                : movementProfile != null && movementProfile.JogMetersPerSecond > 0d
+                    ? (float)movementProfile.JogMetersPerSecond : 3.2f;
+            var runSpeed = characterMovement != null && characterMovement.Run > 0d
+                ? (float)characterMovement.Run
+                : movementProfile != null && movementProfile.RunMetersPerSecond > 0d
+                    ? (float)movementProfile.RunMetersPerSecond : 6.0f;
             var speed = canRun ? (fastRequested ? runSpeed : jogSpeed) : walkSpeed;
             if (moving)
                 speed *= ResolveMovementTerrainMultiplier(player.position,
@@ -5484,14 +5494,22 @@ namespace Pogranichye.Client
             if (length > 0.000001f)
             {
                 direction /= length;
-                var canRun = intent.Run && stamina > 0f;
                 var movement = _worldManifest != null ? _worldManifest.Movement : null;
-                var walkSpeed = movement != null && movement.WalkMetersPerSecond > 0d
-                    ? (float)movement.WalkMetersPerSecond : 1.4f;
-                var jogSpeed = movement != null && movement.JogMetersPerSecond > 0d
-                    ? (float)movement.JogMetersPerSecond : 3.2f;
-                var runSpeed = movement != null && movement.RunMetersPerSecond > 0d
-                    ? (float)movement.RunMetersPerSecond : 6.0f;
+                var characterMovement = _frame?.Me?.Movement;
+                var canRun = intent.Run && stamina > 0f &&
+                    (characterMovement == null || characterMovement.CanRun);
+                var walkSpeed = characterMovement != null && characterMovement.Walk > 0d
+                    ? (float)characterMovement.Walk
+                    : movement != null && movement.WalkMetersPerSecond > 0d
+                        ? (float)movement.WalkMetersPerSecond : 1.4f;
+                var jogSpeed = characterMovement != null && characterMovement.Jog > 0d
+                    ? (float)characterMovement.Jog
+                    : movement != null && movement.JogMetersPerSecond > 0d
+                        ? (float)movement.JogMetersPerSecond : 3.2f;
+                var runSpeed = characterMovement != null && characterMovement.Run > 0d
+                    ? (float)characterMovement.Run
+                    : movement != null && movement.RunMetersPerSecond > 0d
+                        ? (float)movement.RunMetersPerSecond : 6.0f;
                 var speed = canRun ? (intent.Fast ? runSpeed : jogSpeed) : walkSpeed;
                 if (canRun) stamina = Mathf.Max(0f, stamina - 0.10f * dt);
                 else stamina = Mathf.Min(1f, stamina + 0.10f * dt);
