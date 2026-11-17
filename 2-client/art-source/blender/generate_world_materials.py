@@ -196,6 +196,11 @@ def main():
             "resolution": [1024, 1024],
             "source": "2-client/art-source/textures/stone_masonry_source.jpg",
             "builder": "build_mossy_stone_material.py"
+        },
+        "lime_plaster": {
+            "resolution": [1024, 1024],
+            "source": "2-client/art-source/textures/lime_plaster_source.jpg",
+            "builder": "build_lime_plaster_material.py"
         }
     }
     for kind in kinds:
