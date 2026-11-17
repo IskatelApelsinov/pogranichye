@@ -57,6 +57,8 @@ namespace Pogranichye.Client.Networking
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
 
                 var isGridCity = string.Equals(layout.Plan, "grid", StringComparison.Ordinal);
+                if (isGridCity && layout.Land == null)
+                    throw new InvalidOperationException("Городская раскладка v1.33 не содержит land metadata.");
                 WorldLandFrameParser.Validate(layout.Land);
 
                 if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
