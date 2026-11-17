@@ -1351,11 +1351,14 @@ namespace Pogranichye.Client
             if (mode == null) GUILayout.Label("Сервер пока не прислал доступные режимы жизни.");
             else
             {
-                GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected) ? "не задано" : mode.Selected) +
+                GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected)
+                    ? "не задано" : ResolveLifeModeLabel(mode, mode.Selected)) +
                     (mode.Deviates ? " · сейчас разумно отступает от приоритета" : string.Empty));
                 if (!string.IsNullOrWhiteSpace(mode.Goal) && mode.Goal != mode.Selected)
-                    GUILayout.Label("Цель: " + mode.Goal);
-                if (!string.IsNullOrWhiteSpace(mode.Activity)) GUILayout.Label("Сейчас: " + mode.Activity);
+                    GUILayout.Label("Цель: " + ResolveLifeModeLabel(mode, mode.Goal));
+                var activityLabel = !string.IsNullOrWhiteSpace(mode.ActivityCode)
+                    ? MapActivityName(mode.ActivityCode) : mode.Activity;
+                if (!string.IsNullOrWhiteSpace(activityLabel)) GUILayout.Label("Сейчас: " + activityLabel);
                 if (mode.Options == null || mode.Options.Count == 0)
                     GUILayout.Label("Сервер не перечислил варианты режима.");
                 else
@@ -1375,6 +1378,16 @@ namespace Pogranichye.Client
             }
             GUILayout.Label("Это долгосрочный приоритет, действующий онлайн и офлайн. Он не запускает действие в конкретной точке.");
             GUILayout.EndVertical();
+        }
+
+        private static string ResolveLifeModeLabel(CharacterModeFrame mode, string id)
+        {
+            if (mode?.Options != null)
+                foreach (var option in mode.Options)
+                    if (option != null && string.Equals(option.Id, id, StringComparison.Ordinal) &&
+                        !string.IsNullOrWhiteSpace(option.Name))
+                        return option.Name;
+            return id;
         }
 
         private void QueueLifeModeGoal(string goal, string label)
