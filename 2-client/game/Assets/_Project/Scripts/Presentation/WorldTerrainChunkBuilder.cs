@@ -156,8 +156,25 @@ namespace Pogranichye.Client.Presentation
                 _material = new Material(shader) { name = "World terrain • meadow PBR" };
                 // Generated maps are optional: the client remains playable before the
                 // Blender asset-generation step has been run on a developer machine.
-                _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
-                if (_groundTexture == null) _groundTexture = CreateSeamlessGroundTexture();
+                // Prefer the project's authored terrain PBR map, then the imported Grok
+                // meadow starter map. The latter is synchronized into Resources/Grok by the
+                // editor importer; without this lookup the streamed frontier kept using only
+                // the synthetic 64px fallback even after the texture pack was imported.
+                var authoredGround = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
+                var grokGround = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow");
+                var groundSource = TerrainTextureSourcePolicy.Select(authoredGround != null, grokGround != null);
+                switch (groundSource)
+                {
+                    case TerrainTextureSourcePolicy.Source.Authored:
+                        _groundTexture = authoredGround;
+                        break;
+                    case TerrainTextureSourcePolicy.Source.Grok:
+                        _groundTexture = grokGround;
+                        break;
+                    default:
+                        _groundTexture = CreateSeamlessGroundTexture();
+                        break;
+                }
                 _groundTexture.wrapMode = TextureWrapMode.Repeat;
                 _material.mainTexture = _groundTexture;
                 if (_material.HasProperty("_BaseMap")) _material.SetTexture("_BaseMap", _groundTexture);
@@ -165,7 +182,14 @@ namespace Pogranichye.Client.Presentation
                 if (_material.HasProperty("_BaseColor")) _material.SetColor("_BaseColor", Color.white);
                 else if (_material.HasProperty("_Color")) _material.color = Color.white;
 
-                var normal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
+                var authoredNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
+                var grokNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
+                // A normal map must belong to the same texture set as the selected albedo.
+                // Never combine an authored albedo with an unrelated Grok normal (or vice versa).
+                var hasMatchingNormal = TerrainTextureSourcePolicy.HasMatchingNormal(
+                    groundSource, authoredNormal != null, grokNormal != null);
+                var normal = !hasMatchingNormal ? null :
+                    groundSource == TerrainTextureSourcePolicy.Source.Authored ? authoredNormal : grokNormal;
                 if (normal != null && _material.HasProperty("_BumpMap"))
                 {
                     _material.SetTexture("_BumpMap", normal);
