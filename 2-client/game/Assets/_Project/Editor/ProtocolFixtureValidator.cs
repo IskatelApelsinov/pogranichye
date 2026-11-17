@@ -330,9 +330,12 @@ namespace Pogranichye.Client.Editor
             if (terrain == null || !terrain.IsValid || terrain.Chunk[0] != 1 || terrain.Chunk[1] != -1)
                 throw new FormatException("Terrain chunk v1.19 DTO deserialization failed.");
 
-            const string layoutJson = "{\"version\":2,\"world_half\":150,\"village_half\":50,\"buildings\":[{\"name\":\"Tavern\",\"kind\":\"tavern\",\"x0\":10,\"y0\":6,\"x1\":24,\"y1\":18}],\"river\":{\"y0\":-190,\"y1\":-180,\"bridge_x0\":-6,\"bridge_x1\":6},\"pois\":{\"tavern\":{\"x\":17,\"y\":4},\"well\":{\"x\":0,\"y\":0},\"woods\":{\"x\":80,\"y\":10},\"garden\":{\"x\":0,\"y\":-80},\"river\":{\"x\":20,\"y\":70},\"mine\":{\"x\":-90,\"y\":-90}},\"plan\":\"cross\",\"has_river\":false,\"zones\":[{\"kind\":\"forest\",\"x0\":-120,\"y0\":-100,\"x1\":-40,\"y1\":100}],\"roads\":[[0,0,20,10]],\"homes\":[{\"x\":-10,\"y\":12}],\"entry\":{\"x\":0,\"y\":-120},\"open\":false,\"settlement\":\"7\",\"anchor\":{\"frame\":0,\"e\":256,\"n\":-256,\"u\":120}}";
+            const string layoutJson = "{\"version\":2,\"world_half\":150,\"village_half\":50,\"buildings\":[{\"name\":\"Tavern\",\"kind\":\"tavern\",\"x0\":10,\"y0\":6,\"x1\":24,\"y1\":18,\"storeys\":3,\"height_m\":9.6}],\"river\":{\"y0\":-190,\"y1\":-180,\"bridge_x0\":-6,\"bridge_x1\":6},\"pois\":{\"tavern\":{\"x\":17,\"y\":4},\"well\":{\"x\":0,\"y\":0},\"woods\":{\"x\":80,\"y\":10},\"garden\":{\"x\":0,\"y\":-80},\"river\":{\"x\":20,\"y\":70},\"mine\":{\"x\":-90,\"y\":-90}},\"plan\":\"cross\",\"land\":{\"water\":\"pond\",\"fields\":\"yards\",\"forest\":\"ring\"},\"has_river\":false,\"zones\":[{\"kind\":\"forest\",\"x0\":-120,\"y0\":-100,\"x1\":-40,\"y1\":100}],\"roads\":[[0,0,20,10]],\"homes\":[{\"x\":-10,\"y\":12}],\"entry\":{\"x\":0,\"y\":-120},\"open\":false,\"settlement\":\"7\",\"anchor\":{\"frame\":0,\"e\":256,\"n\":-256,\"u\":120}}";
             var layout = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldLayoutFrame>(layoutJson);
             if (layout == null || layout.Plan != "cross" || layout.HasRiver != false ||
+                layout.Land == null || layout.Land.Water != "pond" || layout.Land.Fields != "yards" ||
+                layout.Buildings == null || layout.Buildings[0].Storeys != 3 ||
+                Math.Abs(layout.Buildings[0].HeightMeters - 9.6d) > 0.001d ||
                 layout.Settlement != "7" || layout.Anchor == null || layout.Anchor.Frame != 0 ||
                 layout.Zones == null || layout.Zones.Count != 1 || layout.Roads == null ||
                 layout.Roads.Count != 1 || layout.Homes == null || layout.Homes.Count != 1 ||
