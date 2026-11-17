@@ -29,6 +29,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/EntityViewRegistry.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
@@ -48,6 +49,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
@@ -79,6 +81,7 @@ on:
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
       - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
+      - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
@@ -190,6 +193,12 @@ jobs:
           mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
           mono /tmp/map-label-layout.exe
 
+      - name: Expanded world map viewport regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-map-viewport.exe Tests/WorldMapViewportPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs
+          mono /tmp/world-map-viewport.exe
+
       - name: Server slope movement formula regression checks
         working-directory: 2-client/game
         run: |
@@ -286,17 +295,23 @@ jobs:
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
 
+      - name: Adaptive UI typography regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/client-ui-scale.exe Tests/ClientUiScalePolicyCheck.cs Assets/_Project/Scripts/Presentation/ClientUiScalePolicy.cs
+          mono /tmp/client-ui-scale.exe
+
       - name: World ambient lighting palette regression checks
         working-directory: 2-client/game
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
 
-      - name: Adaptive UI typography regression checks
+      - name: World clock smoothing regression checks
         working-directory: 2-client/game
         run: |
-          mcs -out:/tmp/client-ui-scale.exe Tests/ClientUiScalePolicyCheck.cs Assets/_Project/Scripts/Presentation/ClientUiScalePolicy.cs
-          mono /tmp/client-ui-scale.exe
+          mcs -out:/tmp/world-clock-smoothing.exe Tests/WorldClockSmoothingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs
+          mono /tmp/world-clock-smoothing.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
