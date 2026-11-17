@@ -27,6 +27,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/EntityViewRegistry.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
@@ -77,6 +78,7 @@ on:
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
       - '2-client/game/Tests/MapLabelLayoutPolicyCheck.cs'
+      - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
       - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
@@ -187,6 +189,12 @@ jobs:
         run: |
           mcs -out:/tmp/map-label-layout.exe Tests/MapLabelLayoutPolicyCheck.cs Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs
           mono /tmp/map-label-layout.exe
+
+      - name: Expanded world map viewport regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-map-viewport.exe Tests/WorldMapViewportPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs
+          mono /tmp/world-map-viewport.exe
 
       - name: Server slope movement formula regression checks
         working-directory: 2-client/game
