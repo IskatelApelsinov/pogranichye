@@ -1,7 +1,7 @@
 # Generated Layout v2 — E/Interact POI targets
 
 Date: 2026-11-17  
-Status: base E probe in PR #642/#646; contextual activity and horse integration in PR #<pending>; Unity runtime acceptance pending.
+Status: base E probe in PR #642/#646; contextual activity and horse integration in PR #697; Unity runtime acceptance pending.
 
 ## Finding
 
