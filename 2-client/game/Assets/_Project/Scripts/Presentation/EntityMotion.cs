@@ -152,6 +152,7 @@ namespace Pogranichye.Client.Presentation
                     _activity = "drink";
                     break;
                 case "visit_neighbors":
+                case "trade_stall":
                     _activity = "social";
                     break;
                 case "fish_river":
@@ -162,6 +163,7 @@ namespace Pogranichye.Client.Presentation
                     _activity = "mend_net";
                     break;
                 case "chop_wood":
+                case "carpentry":
                     _activity = "chop";
                     break;
                 case "farm_sow":
@@ -193,6 +195,7 @@ namespace Pogranichye.Client.Presentation
                     _activity = "hunt";
                     break;
                 case "cook_hearth":
+                case "bake_bread":
                     _activity = "cook";
                     break;
                 case "brew_remedy":
@@ -215,7 +218,17 @@ namespace Pogranichye.Client.Presentation
                     _activity = "tavern";
                     break;
                 case "study_mana":
+                case "scribe_desk":
                     _activity = "study";
+                    break;
+                case "tanning":
+                case "pottery":
+                case "jewel_work":
+                    _activity = "work";
+                    break;
+                case "guard_patrol":
+                    // Patrol animation is driven by replicated movement; do not force a work pose.
+                    _activity = string.Empty;
                     break;
                 case "smith_cold":
                     _activity = "wait";
