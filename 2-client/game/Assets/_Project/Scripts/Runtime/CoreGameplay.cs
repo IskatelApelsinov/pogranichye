@@ -436,6 +436,86 @@ namespace Pogranichye.Client
             GUILayout.EndVertical();
         }
 
+        /// <summary>
+        /// Thick-client party controls backed by the server's me.party and player-only neighbors.
+        /// Names/visibility are taken exactly as published by the server; membership is never predicted locally.
+        /// </summary>
+        public void DrawPartyActions()
+        {
+            if (!_active || _me == null)
+            {
+                GUILayout.Label("Отряд станет доступен после подключения к миру.");
+                return;
+            }
+
+            var party = Obj(_me, "party");
+            var members = Arr(party, "members");
+            var invite = Obj(party, "invite_from");
+            var memberIds = new HashSet<string>();
+            if (members != null)
+                foreach (var member in members)
+                {
+                    var id = Str(member, "id");
+                    if (!string.IsNullOrEmpty(id)) memberIds.Add(id);
+                }
+
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("ОТРЯД · ДО 6 ЧЕЛОВЕК");
+
+            if (invite != null)
+            {
+                GUILayout.Label(Str(invite, "who") + " зовёт тебя в отряд.");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Принять приглашение"))
+                    QueueRequest("Вступить в отряд", "party", "action", "accept");
+                if (GUILayout.Button("Отказаться"))
+                    QueueRequest("Отклонить приглашение", "party", "action", "leave");
+                GUILayout.EndHorizontal();
+            }
+
+            if (members != null && members.Count > 0)
+            {
+                foreach (var member in members)
+                {
+                    var name = Str(member, "name");
+                    var health = Num(member, "health");
+                    var line = (Flag(member, "leader") ? "★ " : "• ") +
+                        (string.IsNullOrEmpty(name) ? "Спутник" : name) +
+                        " · здоровье " + health.ToString("0", CultureInfo.InvariantCulture) +
+                        (Flag(member, "road") ? " · в пути" : "");
+                    GUILayout.Label(line);
+                }
+                if (GUILayout.Button("Покинуть отряд"))
+                    QueueRequest("Покинуть отряд", "party", "action", "leave");
+            }
+            else if (invite == null)
+            {
+                GUILayout.Label("Ты пока один. Позвать можно только другого игрока рядом.");
+            }
+
+            var neighbors = Arr(_place, "neighbors");
+            var candidates = 0;
+            if (neighbors != null)
+            {
+                foreach (var neighbor in neighbors)
+                {
+                    if (!Flag(neighbor, "player")) continue;
+                    var id = Str(neighbor, "id");
+                    if (string.IsNullOrEmpty(id) || memberIds.Contains(id)) continue;
+                    var who = Str(neighbor, "known") == "true" ? Str(neighbor, "name") : Str(neighbor, "desc");
+                    if (string.IsNullOrEmpty(who)) who = Str(neighbor, "name");
+                    if (string.IsNullOrEmpty(who)) who = "Игрок";
+                    candidates++;
+                    if (GUILayout.Button("Позвать: " + who))
+                        QueueRequest("Пригласить в отряд", "party", "action", "invite", "target", id);
+                }
+            }
+            if (candidates == 0)
+                GUILayout.Label("Рядом нет других игроков, которых можно пригласить.");
+
+            GUILayout.EndVertical();
+        }
+
         public void DrawInventoryTab()
         {
             if (!_active || _me == null)
