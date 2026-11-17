@@ -186,9 +186,10 @@ namespace Pogranichye.Client.Presentation
                 var grokNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
                 // A normal map must belong to the same texture set as the selected albedo.
                 // Never combine an authored albedo with an unrelated Grok normal (or vice versa).
-                var normal = groundSource == TerrainTextureSourcePolicy.Source.Authored
-                    ? authoredNormal
-                    : groundSource == TerrainTextureSourcePolicy.Source.Grok ? grokNormal : null;
+                var hasMatchingNormal = TerrainTextureSourcePolicy.HasMatchingNormal(
+                    groundSource, authoredNormal != null, grokNormal != null);
+                var normal = !hasMatchingNormal ? null :
+                    groundSource == TerrainTextureSourcePolicy.Source.Authored ? authoredNormal : grokNormal;
                 if (normal != null && _material.HasProperty("_BumpMap"))
                 {
                     _material.SetTexture("_BumpMap", normal);
