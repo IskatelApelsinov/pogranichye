@@ -30,9 +30,9 @@ Base implementation added:
 
 | Server POI | Existing intent |
 |---|---|
-| `tavern` | goal `socialize` |
+| `tavern` | open tavern panel; no character-goal change |
 | `smithy` | context menu: `act:forge` + server-available `craft` recipes |
-| `market` | goal `eat` |
+| `market` | open market panel; no character-goal change |
 | `garden` | context menu: `act:gather`, `act:farmwork`, `act:apiary` |
 | `woods` | context menu: `forest` → `chop`; `copse` → `gather_brushwood`; additionally `hunt/fight` |
 | `river` | action `fish` |
@@ -99,3 +99,8 @@ The regression runner now covers both woodland cases and the fail-closed missing
 - Interaction raycast mask policy: **5 checks passed**.
 - The first run (#397) stopped at a stale assertion that expected finite negative character stats to be rejected. That expectation contradicted main commit f00bf1d; the test now verifies the intended finite-negative compatibility while retaining non-finite rejection.
 - This validates pure C# policies only. Unity Editor, physics raycasts and PlayMode remain unverified.
+
+
+### Character goals are not POI interactions
+
+The character UI sends `op:"goal"` for long-lived priorities such as work, food, rest and socializing. Current `server.applyIntent` stores the goal and sets `GoalUntil` far into the future; the v1 handler does not return a correlated `reqid` acknowledgement. Therefore the client reports only that the request was sent, not that it was confirmed. E at a tavern or market opens the corresponding panel and does not mutate this priority.
