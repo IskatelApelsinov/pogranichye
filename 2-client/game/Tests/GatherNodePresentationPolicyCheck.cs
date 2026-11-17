@@ -37,11 +37,27 @@ internal static class GatherNodePresentationPolicyCheck
             "empty node must not offer pick");
         Require(!GatherNodePresentationPolicy.CanPick(true, double.NaN, 1),
             "non-finite distance must not offer pick");
+        Require(!GatherNodePresentationPolicy.CanPick(true, double.PositiveInfinity, 1),
+            "infinite distance must not offer pick");
 
+        Require(GatherNodePresentationPolicy.KindName("herb") == "дикорастущая трава",
+            "herb label must be recognizable");
+        Require(GatherNodePresentationPolicy.KindName("mushroom") == "грибы",
+            "mushroom label must be recognizable");
+        Require(GatherNodePresentationPolicy.KindName("berries") == "ягодный куст",
+            "berries label must be recognizable");
         Require(GatherNodePresentationPolicy.KindName("hive") == "дикий улей",
             "hive label must be recognizable");
+        Require(GatherNodePresentationPolicy.KindName("deadwood") == "сухостой",
+            "deadwood label must be recognizable");
+        Require(GatherNodePresentationPolicy.KindName("nest") == "птичье гнездо",
+            "nest label must be recognizable");
+        Require(GatherNodePresentationPolicy.KindName("flax") == "дикий лён",
+            "flax label must be recognizable");
         Require(GatherNodePresentationPolicy.KindName("unknown") == "находка",
             "future kinds must fail soft");
+        Require(GatherNodePresentationPolicy.MaxVisibleNodes == 6,
+            "nearby list must stay bounded");
 
         Console.WriteLine("PASS: server gather-node visibility and pick affordance policy");
     }
