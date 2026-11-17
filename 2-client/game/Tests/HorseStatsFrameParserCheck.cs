@@ -41,16 +41,29 @@ internal static class HorseStatsFrameParserCheck
         CarryBagFrameParser.Validate(null, "me.bag");
         Check("missing or null bag remains compatible with older v1 servers", true);
 
-        const string horseJson = "{\"id\":\"horse-77\",\"name\":\"Сивка\",\"stam\":85,\"mounted\":true,\"here\":true,\"bag\":{\"hay\":2,\"fish\":1},\"bag_load\":3,\"bag_cap\":40}";
+        const string horseJson = "{\"id\":\"horse-77\",\"name\":\"Сивка\",\"stam\":85,\"mounted\":true,\"here\":true,\"active\":true,\"settlement_id\":\"settlement-1\",\"settlement_name\":\"Усть-Ворон\",\"realm_name\":\"Святоборская земля\",\"bag\":{\"hay\":2,\"fish\":1},\"bag_load\":3,\"bag_cap\":40}";
         var horseToken = JToken.Parse(horseJson);
         HorseFrameParser.Validate(horseToken, "me.horse");
         var horse = horseToken.ToObject<HorseFrame>();
         Check("maps horse and separate saddle bag", horse != null && horse.Id == "horse-77" &&
             horse.Name == "Сивка" && horse.Stamina == 85d && horse.Mounted && horse.Here &&
             horse.Bag != null && horse.Bag["hay"] == 2d && horse.Bag["fish"] == 1d &&
-            horse.BagLoad == 3d && horse.BagCapacity == 40d);
+            horse.BagLoad == 3d && horse.BagCapacity == 40d && horse.Active &&
+            horse.SettlementId == "settlement-1" && horse.SettlementName == "Усть-Ворон" &&
+            horse.RealmName == "Святоборская земля");
         HorseFrameParser.Validate(JValue.CreateNull(), "me.horse");
-        Check("null horse represents no owned horse", true);
+        Check("null horse represents no active horse", true);
+        var roster = JArray.Parse("[" + horseJson + "," +
+            horseJson.Replace("horse-77", "horse-88").Replace("Сивка", "Ворон") +
+            "]");
+        HorseFrameParser.ValidateArray(roster, "me.horses");
+        Check("validates and maps a multi-horse roster", roster.Count == 2 &&
+            roster[0].ToObject<HorseFrame>().Active && roster[1].ToObject<HorseFrame>().Id == "horse-88");
+        HorseFrameParser.ValidateArray(JArray.Parse("[]"), "me.horses");
+        HorseFrameParser.ValidateArray(null, "me.horses");
+        Check("empty or omitted roster remains backward compatible", true);
+        ExpectFormat("non-array horse roster rejected", () =>
+            HorseFrameParser.ValidateArray(JObject.Parse("{\"id\":\"horse-77\"}"), "me.horses"));
 
         ExpectFormat("missing stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\"will\":10", "")), "me.stats"));
