@@ -1633,7 +1633,9 @@ namespace Pogranichye.Client
         private static readonly string[] MapPoiOrder =
         {
             "tavern", "smithy", "granary", "market", "well",
-            "hearth", "garden", "river", "woods", "mine"
+            "hearth", "garden", "river", "woods", "mine",
+            "hall", "bazaar", "weaver", "tannery", "bakery",
+            "carpenter", "potter", "guard", "caravanserai", "inn"
         };
 
         private void DrawExpandedMapOverlay()
@@ -2453,12 +2455,23 @@ namespace Pogranichye.Client
 
         private bool ShouldShowMapPoi(string poiId)
         {
+            if (poiId == "river")
+            {
+                var hasPond = false;
+                if (_layout?.Zones != null)
+                    foreach (var zone in _layout.Zones)
+                        if (zone != null && zone.Kind == "pond") { hasPond = true; break; }
+                if (!WorldLandFrameParser.HasFishableWater(_layout?.Land, _layout?.RiverPresent == true, hasPond))
+                    return false;
+                if (_layout?.Land?.Water == "pond") return true;
+                if (_core == null) return _layout == null || _layout.RiverPresent;
+                return _layout != null && _layout.RiverPresent && _core.SupportsFeature("river");
+            }
             if (_core == null) return true;
             switch (poiId)
             {
-                case "river": return _layout != null && _layout.RiverPresent && _core.SupportsFeature("river");
                 case "mine": return _core.SupportsFeature("mine");
-                case "garden": return true; // a meadow/pasture still exists even when no cultivated field is available
+                case "garden": return true;
                 case "tavern": return _frame?.Place?.Tavern == true;
                 default: return true;
             }
@@ -2466,6 +2479,19 @@ namespace Pogranichye.Client
 
         private string MapPoiDisplayName(string poiId)
         {
+            if (poiId == "river")
+            {
+                if (_layout?.Land?.Water == "pond") return "Пруд";
+                if (_layout?.Land?.Water == "well") return "Колодец";
+            }
+            if (poiId == "woods" && _layout?.Land?.Forest == "none") return "Редколесье";
+            if (poiId == "woods" && _layout?.Land?.Forest == "copse") return "Рощица";
+            if (poiId == "garden")
+            {
+                if (_layout?.Land?.Fields == "yards") return "Огородцы";
+                if (_layout?.Land?.Fields == "strip") return "Поле";
+                if (_layout?.Land?.Fields == "none") return "Луг / выгон";
+            }
             if (_core != null && poiId == "woods" && !_core.SupportsFeature("woods"))
                 return "Рощица";
             if (_core != null && poiId == "garden" && !_core.SupportsFeature("garden"))
