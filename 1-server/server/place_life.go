@@ -42,7 +42,7 @@ func (s *Server) placeLife(se *core.Entity) map[string]any {
         case "sleep", "rest_idle": category = "rest"
         case "visit_neighbors": category = "social"
         case "meal": category = "eating"
-        case "work": category, productive = "other", true
+        case "work", "trade_stall", "guard_patrol", "carpentry", "tanning", "pottery", "bake_bread", "scribe_desk", "jewel_work": category, productive = "other", true
         default: return // unknown and blocked/no-op codes are not counted
         }
         activities[category]++

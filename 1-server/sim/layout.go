@@ -26,11 +26,19 @@ type Zone struct {
 	Y1   float64 `json:"y1"`
 }
 
+// LandStyle — облик окрестностей села (v1.33): у каждого свой.
+type LandStyle struct {
+	Water  string `json:"water"`  // river | pond | well — река, пруд или только колодец
+	Fields string `json:"fields"` // strip | yards | none — поля полосой за селом, огороды у домов, без полей
+	Forest string `json:"forest"` // side | ring | copse | none — лес сбоку, кругом, роща, нет леса
+}
+
 func (z Zone) contains(x, y float64) bool { return x >= z.X0 && x <= z.X1 && y >= z.Y0 && y <= z.Y1 }
 
 // Layout — раскладка одного поселения.
 type Layout struct {
-	Plan        string // starter | ring | street | cross | scatter
+	Plan        string // starter | ring | street | cross | scatter | grid (большой город)
+	Land        LandStyle // v1.33: облик окрестностей — где вода, поля и лес
 	Half        float64
 	VillageHalf float64
 	Buildings   []Rect
@@ -363,6 +371,7 @@ func (l *Layout) JSON() map[string]any {
 		"pois":         pois,
 		// v1.19, аддитивно:
 		"plan":      l.Plan,
+		"land":      l.Land, // v1.33: облик окрестностей
 		"has_river": l.HasRiver,
 		"zones":     zones,
 		"roads":     roads,
@@ -496,7 +505,11 @@ func LayoutOf(w *core.World, settlement core.ID) *Layout {
 		if en.rank == 0 {
 			en.l = StarterLayout()
 		} else {
-			en.l = generateLayout(w.Seed, settlement, s.Tier, terrain, site, planFor(w.Seed, settlement, en.rank, terrain))
+			plan := planFor(w.Seed, settlement, en.rank, terrain)
+			if IsMetropolis(se) {
+				plan = "grid" // v1.33: большой город — кварталы
+			}
+			en.l = generateLayout(w.Seed, settlement, s.Tier, terrain, site, plan)
 		}
 	}
 	if open := Seamless(w); en.l.Open != open {

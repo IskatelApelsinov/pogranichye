@@ -127,6 +127,22 @@ func DescFor(role string) string {
 		return "дровосек"
 	case "mage":
 		return "маг"
+	case "merchant":
+		return "торговец"
+	case "guard":
+		return "стражник"
+	case "carpenter":
+		return "плотник"
+	case "tanner":
+		return "кожевник"
+	case "potter":
+		return "гончар"
+	case "baker":
+		return "пекарь"
+	case "scribe":
+		return "писарь"
+	case "jeweler":
+		return "ювелир"
 	case "bandit":
 		return "лихой человек"
 	case "idler":

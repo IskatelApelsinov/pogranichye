@@ -32,6 +32,9 @@ type Rect struct {
 	Room       string  `json:"room,omitempty"`
 	InteriorID string  `json:"interior_id,omitempty"`
 	Door       *Door   `json:"door,omitempty"`
+	// v1.33: этажей над землёй (0/1 — одноэтажный) и высота до карниза, м — для многоэтажных городов
+	Storeys int     `json:"storeys,omitempty"`
+	HeightM float64 `json:"height_m,omitempty"`
 }
 
 // Door — дверной проём в стене здания (comms 0217). X,Y — точка на самой стене (не порог снаружи);
