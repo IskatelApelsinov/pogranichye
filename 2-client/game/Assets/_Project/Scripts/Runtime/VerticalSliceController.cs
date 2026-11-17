@@ -1415,7 +1415,7 @@ namespace Pogranichye.Client
                     foreach (var path in chunk.Roads)
                     {
                         if (path == null || path.Points == null || path.Points.Count < 2) continue;
-                        if (!string.IsNullOrWhiteSpace(path.Id)) detailedPathIds.Add(path.Id);
+                        var hasUsableSegment = false;
                         var isTrail = string.Equals(path.Kind, "trail", StringComparison.OrdinalIgnoreCase);
                         var isBridge = string.Equals(path.Kind, "bridge", StringComparison.OrdinalIgnoreCase);
                         var color = isBridge
@@ -1435,11 +1435,18 @@ namespace Pogranichye.Client
                                 double.IsNaN(a.Z) || double.IsInfinity(a.Z) ||
                                 double.IsNaN(b.X) || double.IsInfinity(b.X) ||
                                 double.IsNaN(b.Z) || double.IsInfinity(b.Z)) continue;
-                            DrawMapLine(
+                            var deltaEast = b.X - a.X;
+                            var deltaNorth = b.Z - a.Z;
+                            if (deltaEast * deltaEast + deltaNorth * deltaNorth < 0.000001d) continue;
+                            hasUsableSegment = true;
+                            DrawMapLineClipped(
                                 ProjectGlobal(chunk.Origin.East + a.X, chunk.Origin.North + a.Z),
                                 ProjectGlobal(chunk.Origin.East + b.X, chunk.Origin.North + b.Z),
-                                width, color);
+                                width, color, rect);
                         }
+                        // A malformed/degenerate chunk path must not hide the manifest fallback.
+                        if (hasUsableSegment && !string.IsNullOrWhiteSpace(path.Id))
+                            detailedPathIds.Add(path.Id);
                     }
                 }
             }
@@ -1461,8 +1468,8 @@ namespace Pogranichye.Client
                     var mapLineColor = isTract
                         ? new Color(0.78f, 0.61f, 0.35f, 0.92f)
                         : new Color(0.55f, 0.48f, 0.34f, 0.82f);
-                    DrawMapLine(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
-                        mapLineWidth, mapLineColor);
+                    DrawMapLineClipped(ProjectGlobal(from.East, from.North), ProjectGlobal(to.East, to.North),
+                        mapLineWidth, mapLineColor, rect);
                 }
             }
 
@@ -2007,6 +2014,24 @@ namespace Pogranichye.Client
             var bottom = Mathf.Min(viewport.yMax, projected.yMax);
             return right <= left || bottom <= top ? new Rect(0f, 0f, 0f, 0f) :
                 Rect.MinMaxRect(left, top, right, bottom);
+        }
+
+        private static void DrawMapLineClipped(Vector2 start, Vector2 end, float thickness,
+            Color color, Rect viewport)
+        {
+            if (viewport.width <= 0f || viewport.height <= 0f) return;
+            // Keep the full stroke inside the map, not just its centerline.
+            var inset = Mathf.Min(Mathf.Max(0.5f, thickness * 0.5f),
+                Mathf.Min(viewport.width, viewport.height) * 0.5f);
+            var x0 = (double)start.x;
+            var y0 = (double)start.y;
+            var x1 = (double)end.x;
+            var y1 = (double)end.y;
+            if (!WorldMapLineClipper.TryClip(ref x0, ref y0, ref x1, ref y1,
+                viewport.xMin + inset, viewport.yMin + inset,
+                viewport.xMax - inset, viewport.yMax - inset)) return;
+            DrawMapLine(new Vector2((float)x0, (float)y0), new Vector2((float)x1, (float)y1),
+                thickness, color);
         }
 
         private static void DrawMapLine(Vector2 start, Vector2 end, float thickness, Color color)
