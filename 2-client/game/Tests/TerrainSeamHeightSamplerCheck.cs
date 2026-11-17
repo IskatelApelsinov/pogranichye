@@ -44,7 +44,7 @@ internal static class TerrainSeamHeightSamplerCheck
             side, 2, -1, out below), "south edge sample must come from adjacent chunk");
         Assert(TerrainSeamHeightSampler.TryGetHeight(center, west, east, south, north,
             side, 2, 1, out above), "northward sample must exist");
-        Assert(Math.Abs((center[2]) - 3d) < 0.000001d,
+        Assert(Math.Abs((center[2] - below) - 3d) < 0.000001d,
             "south boundary derivative must match plane");
         Assert(Math.Abs((above - center[2]) - 3d) < 0.000001d,
             "northward derivative must match plane");
