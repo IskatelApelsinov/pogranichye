@@ -71,6 +71,9 @@ namespace Pogranichye.Client.Networking
                 NormalizeStatsForClient(me);
                 CarryBagFrameParser.Validate(me["bag"], "me.bag");
                 HorseFrameParser.Validate(me["horse"], "me.horse");
+                HorseFrameParser.ValidateArray(me["horses"], "me.horses");
+                CharacterModeFrameParser.Validate(me["mode"], "me.mode");
+                CharacterVigorFrameParser.Validate(me["vigor"], "me.vigor");
                 // v1.32: validate each owned horse without requiring the collection on older v1 servers.
                 var horses = me["horses"];
                 if (horses != null && horses.Type != JTokenType.Null)
