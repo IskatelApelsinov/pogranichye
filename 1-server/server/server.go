@@ -922,7 +922,7 @@ func (s *Server) applyCore(cid core.ID, op string, in coreIntent) {
 			ok, why = sim.QuestDrop(w, e, in.Quest)
 		}
 	case "horse":
-		ok, why = sim.Horse(w, e, in.Action, in.Good, in.Qty, in.ReqID)
+		ok, why = sim.Horse(w, e, in.Action, in.Good, in.Qty, in.ReqID, parseID(in.Target)) // target — какая из своих лошадей (v1.32)
 	case "room": // комната над корчмой: аренда/вход/выход/сундук (v1.20)
 		switch in.Action {
 		case "rent":
@@ -1078,6 +1078,7 @@ func (s *Server) stateJSON(cid core.ID) string {
 			"quests":    sim.QuestsView(s.world, e, s.runner.Clock.Day()),                                     // просьбы из нужд мира
 			"recipes":   sim.RecipesView(s.world, e),                                                          // ремесло: рецепты и хватает ли сырья
 			"journey":   sim.JourneyView(s.world, e, s.runner.Clock.Hour(), s.runner.Clock.Season().String()), // путь (null — не в дороге)
+			"horses":    sim.HorsesView(s.world, e),                                                           // v1.32: все свои лошади и где каждая осталась (село, держава)
 			"horse":     sim.HorseView(s.world, e),                                                            // лошадь и седельная сумка (v1.13; null — нет)
 			"bag":       sim.BagView(e),                                                                       // сума: загрузка/вместимость от силы (v1.13)
 			"stats":     sim.StatsView(e),                                                                     // характеристики (v1.12)

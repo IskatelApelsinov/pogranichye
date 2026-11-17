@@ -143,7 +143,10 @@ function drawStats(s){
   const bag = me.bag, hz = me.horse, stb = (s.place||{}).stable, stash = me.stash||{};
   if(bag) h += `<div class="sub" style="margin-top:6px">🎒 сума: ${bag.load} из ${bag.cap}${bag.over?' — <b style="color:#c96b58">перегруз: идёшь медленно, сложи лишнее на лошадь или продай</b>':''}</div>`;
   if(hz){
-    h += `<div style="margin-top:6px">🐴 <b>${esc(hz.name)}</b> <span class="sub">· силы ${hz.stam}${hz.mounted?' · ты в седле':''}${hz.here?'':' · осталась в другом селе'} · седельная сумка ${hz.bag_load}/${hz.bag_cap}</span></div>`;
+    const where = h0 => h0.here ? 'здесь' : ('осталась: '+(h0.settlement_name||'в другом селе')+(h0.realm_name?' ('+h0.realm_name+')':''));
+    h += `<div style="margin-top:6px">🐴 <b>${esc(hz.name)}</b> <span class="sub">· силы ${hz.stam}${hz.mounted?' · ты в седле':''} · ${esc(where(hz))} · седельная сумка ${hz.bag_load}/${hz.bag_cap}</span></div>`;
+    const herd = Array.isArray(me.horses) ? me.horses.filter(x => x && x.id !== hz.id) : [];
+    herd.forEach(x => { h += `<div class="sub">🐎 ${esc(x.name)} · силы ${esc(x.stam)} · ${esc(where(x))} `+(hz.mounted?'':sbtn('вести эту', `send({op:'horse',action:'choose',target:'${esc(x.id)}'})`))+'</div>'; });
     h += '<div>' + Object.entries(hz.bag||{}).map(([g,v]) => `<span class="tag">${ru(g)} ×${v}</span>`).join('') + '</div><div class="acts" style="grid-template-columns:1fr 1fr 1fr">';
     if(hz.here){
       h += sbtn(hz.mounted?'⬇ Слезть':'⬆ В седло', `send({op:'horse',action:'${hz.mounted?'dismount':'mount'}'})`) + sbtn('🌾 Покормить', `send({op:'horse',action:'feed'})`);
@@ -151,8 +154,9 @@ function drawStats(s){
       Object.keys(hz.bag||{}).slice(0,5).forEach(g => { h += sbtn('с лошади: '+ru(g), `send({op:'horse',action:'unstow',good:'${g}',qty:1})`); });
     }
     h += '</div>';
-  } else if(stb && typeof curLoc!=='undefined' && curLoc==='granary'){
-    h += '<div class="acts">' + sbtn(`🐴 Купить лошадь у конюха (${stb.price}⌾, в конюшне ${stb.horses})`, `send({op:'horse',action:'buy'})`, stb.horses<1 || (me.coins||0)<stb.price) + '</div>';
+  }
+  if(stb && typeof curLoc!=='undefined' && curLoc==='granary' && !(hz&&hz.mounted) && (!Array.isArray(me.horses) || me.horses.length<5)){
+    h += '<div class="acts">' + sbtn(`🐴 Купить ${hz?'ещё ':''}лошадь у конюха (${stb.price}⌾, в конюшне ${stb.horses})`, `send({op:'horse',action:'buy'})`, stb.horses<1 || (me.coins||0)<stb.price) + '</div>';
   }
   if(wv.can_learn) h += '<div class="acts">' + sbtn('🧘 Созерцать ману (учиться)', `send({op:'act',action:'meditate'})`) + '</div>';
   setHTML('statcard', h);
@@ -386,7 +390,8 @@ function drawQuests(s){
   let h = `<div class="row between"><b>📜 Просьбы</b><span class="sub">выполнено ${q.done||0} · слава здесь ${q.rep||0}</span></div>`;
   (q.active||[]).forEach(a => {
     const prog = a.kind==='deliver'||a.kind==='cull' ? ` <span class="sub">(${Math.min(a.have,a.qty)}/${a.qty})</span>` : '';
-    h += `<div class="nb"><span>${a.ready?'✅':'⏳'} ${esc(a.text)}${prog}${a.coins?` <span class="gold">· ${a.coins}⌾</span>`:''}</span><span>` +
+    const from = a.settlement_name ? ` <span class="sub">· выдано: ${esc(a.settlement_name)}${a.realm_name?' ('+esc(a.realm_name)+')':''}</span>` : '';
+    h += `<div class="nb"><span>${a.ready?'✅':'⏳'} ${esc(a.text)}${prog}${a.coins?` <span class="gold">· ${a.coins}⌾</span>`:''}${from}</span><span>` +
          sbtn('сдать', `send({op:'quest',action:'turnin',quest:'${a.id}'})`, !a.ready, 'primary') + ' ' +
          sbtn('✕', `send({op:'quest',action:'drop',quest:'${a.id}'})`) + '</span></div>';
   });

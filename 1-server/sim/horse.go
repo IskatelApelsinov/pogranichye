@@ -28,7 +28,8 @@ type HorseC struct {
 
 func (c *HorseC) Kind() string { return "horse" }
 
-// RiderC — у кого какая лошадь и в седле ли он.
+// RiderC — какую из своих лошадей всадник сейчас ведёт (выбранная) и в седле ли он. Своих лошадей
+// может быть несколько (v1.32) — хозяин записан в самой лошади (HorseC.Owner).
 type RiderC struct {
 	Horse   core.ID `json:"horse"`
 	Mounted bool    `json:"mounted"`
@@ -38,6 +39,7 @@ func (c *RiderC) Kind() string { return "rider" }
 
 const (
 	HorsePrice   = 40.0
+	MaxHorses    = 5 // своих лошадей у одного хозяина, не больше (v1.32)
 	horseGood    = "horse"
 	saddleCap    = 40.0
 	stablePOI    = "granary" // конюшня — у амбара (сено и овёс там же)
@@ -117,8 +119,29 @@ func UpdateBurden(w *core.World, dt float64) {
 	})
 }
 
-// Horse — намерение op:"horse": buy | mount | dismount | stow | unstow | feed.
-func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid string) (bool, string) {
+// ownedHorses — все лошади хозяина, по id.
+func ownedHorses(w *core.World, e *core.Entity) []*core.Entity {
+	var out []*core.Entity
+	w.Each("horse", func(he *core.Entity) {
+		if h, _ := he.Get("horse").(*HorseC); h != nil && h.Owner == e.ID {
+			out = append(out, he)
+		}
+	})
+	return out
+}
+
+// selectHorse — сделать лошадь ведомой (в седле с другой не пересаживаются).
+func selectHorse(w *core.World, e *core.Entity, he *core.Entity) {
+	if r := riderOf(e); r != nil {
+		r.Horse, r.Mounted = he.ID, false
+		return
+	}
+	w.Attach(e, &RiderC{Horse: he.ID})
+}
+
+// Horse — намерение op:"horse": buy | choose | mount | dismount | stow | unstow | feed.
+// target — id лошади для choose (и для любого действия: сначала выбрать её).
+func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid string, target ...core.ID) (bool, string) {
 	pc := EnsurePlayer(w, e)
 	if reqid == "" {
 		return false, "нужен reqid"
@@ -131,13 +154,40 @@ func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid st
 	}
 	se := settlementEnt(w, e)
 	s := core.Settle(se)
+	if len(target) > 0 && target[0] != 0 { // v1.32: действие над выбранной своей лошадью
+		th := w.Get(target[0])
+		if hc, _ := th.Get("horse").(*HorseC); th == nil || hc == nil || hc.Owner != e.ID {
+			return false, "это не твоя лошадь"
+		}
+		if Mounted(e) && riderOf(e).Horse != th.ID {
+			return false, "сначала спешься"
+		}
+		selectHorse(w, e, th)
+	} else if action == "mount" && se != nil { // ведомая осталась в другом селе — садимся на ту, что здесь
+		if _, cur := horseOf(w, e); cur == nil || cur.Settlement != se.ID {
+			for _, oh := range ownedHorses(w, e) {
+				if hc := oh.Get("horse").(*HorseC); hc.Settlement == se.ID {
+					selectHorse(w, e, oh)
+					break
+				}
+			}
+		}
+	}
 	he, h := horseOf(w, e)
 	ok := func() (bool, string) { pc.markDone(reqid); return true, "" }
 	here := h != nil && se != nil && h.Settlement == se.ID
 	switch action {
+	case "choose":
+		if h == nil {
+			return false, "выбери, какую из своих лошадей вести"
+		}
+		return ok()
 	case "buy":
-		if h != nil {
-			return false, "у тебя уже есть лошадь"
+		if len(ownedHorses(w, e)) >= MaxHorses {
+			return false, "больше лошадей тебе не прокормить"
+		}
+		if Mounted(e) {
+			return false, "сначала спешься"
 		}
 		if s == nil || !atPoi(w, e, stablePOI) {
 			return false, "лошадей продают у конюшни возле амбара"
@@ -156,8 +206,15 @@ func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid st
 		}
 		nh := w.Spawn(&HorseC{Owner: e.ID, Settlement: se.ID, Stam: 100, Bag: map[string]float64{},
 			Name: horseNames[int(hashReq(reqid)%uint64(len(horseNames)))]})
-		w.Attach(e, &RiderC{Horse: nh.ID})
-		say(w, e, "loot", "Теперь у тебя есть лошадь.")
+		first := h == nil
+		if first || h.Settlement != se.ID {
+			selectHorse(w, e, nh) // новая — ведомая, если своей рядом нет
+		}
+		if first {
+			say(w, e, "loot", "Теперь у тебя есть лошадь.")
+		} else {
+			say(w, e, "loot", "В твоём табуне прибыло: "+core.Settle(se).Name+" — ещё одна лошадь.")
+		}
 		return ok()
 	case "mount":
 		if h == nil {
@@ -228,12 +285,8 @@ func Horse(w *core.World, e *core.Entity, action, good string, qty int, reqid st
 	return false, "нет такого действия"
 }
 
-// HorseView — лошадь и сума для кадра (me.horse — null, если лошади нет; me.bag).
-func HorseView(w *core.World, e *core.Entity) any {
-	he, h := horseOf(w, e)
-	if h == nil {
-		return nil
-	}
+// horseEntry — лошадь для кадра: где она стоит (село и держава) и в каком она состоянии.
+func horseEntry(w *core.World, e, he *core.Entity, h *HorseC) map[string]any {
 	bag := map[string]float64{}
 	load := 0.0
 	for g, v := range h.Bag {
@@ -243,11 +296,38 @@ func HorseView(w *core.World, e *core.Entity) any {
 		}
 	}
 	pl := core.Place(e)
-	return map[string]any{"id": eidStr(he.ID), "name": h.Name, "stam": math.Round(h.Stam), "mounted": Mounted(e),
-		"here": pl != nil && h.Settlement == pl.Settlement, "bag": bag, "bag_load": math.Round(load), "bag_cap": saddleCap}
+	r := riderOf(e)
+	active := r != nil && r.Horse == he.ID
+	return map[string]any{"id": eidStr(he.ID), "name": h.Name, "stam": math.Round(h.Stam), "mounted": active && Mounted(e),
+		"active": active, "here": pl != nil && h.Settlement == pl.Settlement, "bag": bag, "bag_load": math.Round(load), "bag_cap": saddleCap,
+		// v1.32: где лошадь осталась — село и держава ("" — вольная земля)
+		"settlement_id": eidStr(h.Settlement), "settlement_name": settleName(w, h.Settlement), "realm_name": realmNameOf(w, h.Settlement)}
 }
 
-// BagView — сума всадника: загрузка и вместимость.
+// HorseView — ведомая лошадь (me.horse — null, если лошадей нет). Если ведомой нет, а свои есть —
+// показываем первую.
+func HorseView(w *core.World, e *core.Entity) any {
+	he, h := horseOf(w, e)
+	if h == nil {
+		owned := ownedHorses(w, e)
+		if len(owned) == 0 {
+			return nil
+		}
+		he = owned[0]
+		h = he.Get("horse").(*HorseC)
+	}
+	return horseEntry(w, e, he, h)
+}
+
+// HorsesView — me.horses: все свои лошади (v1.32), где каждая стоит; [] — лошадей нет.
+func HorsesView(w *core.World, e *core.Entity) []map[string]any {
+	out := []map[string]any{}
+	for _, he := range ownedHorses(w, e) {
+		out = append(out, horseEntry(w, e, he, he.Get("horse").(*HorseC)))
+	}
+	return out
+}
+
 func BagView(e *core.Entity) map[string]any {
 	pack := ""
 	if inv := Inv(e); inv != nil {
