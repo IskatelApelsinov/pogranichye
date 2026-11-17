@@ -160,10 +160,20 @@ namespace Pogranichye.Client.Presentation
                 // meadow starter map. The latter is synchronized into Resources/Grok by the
                 // editor importer; without this lookup the streamed frontier kept using only
                 // the synthetic 64px fallback even after the texture pack was imported.
-                _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
-                if (_groundTexture == null)
-                    _groundTexture = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow");
-                if (_groundTexture == null) _groundTexture = CreateSeamlessGroundTexture();
+                var authoredGround = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_albedo");
+                var grokGround = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow");
+                switch (TerrainTextureSourcePolicy.Select(authoredGround != null, grokGround != null))
+                {
+                    case TerrainTextureSourcePolicy.Source.Authored:
+                        _groundTexture = authoredGround;
+                        break;
+                    case TerrainTextureSourcePolicy.Source.Grok:
+                        _groundTexture = grokGround;
+                        break;
+                    default:
+                        _groundTexture = CreateSeamlessGroundTexture();
+                        break;
+                }
                 _groundTexture.wrapMode = TextureWrapMode.Repeat;
                 _material.mainTexture = _groundTexture;
                 if (_material.HasProperty("_BaseMap")) _material.SetTexture("_BaseMap", _groundTexture);
@@ -171,9 +181,10 @@ namespace Pogranichye.Client.Presentation
                 if (_material.HasProperty("_BaseColor")) _material.SetColor("_BaseColor", Color.white);
                 else if (_material.HasProperty("_Color")) _material.color = Color.white;
 
-                var normal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
-                if (normal == null)
-                    normal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
+                var authoredNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/meadow_soil_normal");
+                var grokNormal = Resources.Load<Texture2D>("WorldMaterials/Textures/Grok/grass_meadow_n");
+                var normal = TerrainTextureSourcePolicy.Select(authoredNormal != null, grokNormal != null) ==
+                    TerrainTextureSourcePolicy.Source.Authored ? authoredNormal : grokNormal;
                 if (normal != null && _material.HasProperty("_BumpMap"))
                 {
                     _material.SetTexture("_BumpMap", normal);
