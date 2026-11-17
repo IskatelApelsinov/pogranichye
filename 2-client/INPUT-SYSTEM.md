@@ -42,6 +42,8 @@ The project currently does not version-control a full ProjectSettings/ProjectSet
 | Road event choice | 1–9 |
 | Card games at tavern | 1–2 to start/choose in Очко; 1–6 cards, 7 take, 8 finish in Durak |
 
+F3 diagnostics show the physically held keyboard/mouse buttons, the latest semantic action and (while the overlay is open) raw Input System event traffic by device: bytes, event count, largest event and the configured per-update budget. This helps identify a noisy HID device when Unity reports that it is discarding input events. The counters cover events delivered to the Input System event callback; they are diagnostic, not a guarantee that events discarded before callback delivery are counted. The configured budget is not raised automatically beyond the existing 1 MiB default.
+
 Opening a modal menu, chat, or minigame releases mouse capture and blocks character movement/jump input until the overlay is closed.
 ## Implementation
 
@@ -50,5 +52,6 @@ Opening a modal menu, chat, or minigame releases mouse capture and blocks charac
 - Mouse look remains independent of RMB. RMB remains a contextual guard/gesture input.
 - No wire contract, server movement, request IDs, or gameplay resolution changed.
 - Context-specific Action Maps, rebinding UI, gamepad presets, accessibility and per-minigame maps are follow-up work. Do not duplicate input polling in gameplay scripts; add semantic actions to ClientInput.
+- Device-level raw event diagnostics subscribe to `InputSystem.onEvent` only while F3 is visible, aggregate the most recent processed frame in a bounded six-device summary, and unsubscribe on destruction. They do not change the input budget or filter device events.
 
 Unity Editor/PlayMode validation is still required after the owner pulls the branch.
