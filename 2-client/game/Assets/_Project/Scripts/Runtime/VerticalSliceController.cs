@@ -2439,6 +2439,14 @@ namespace Pogranichye.Client
                 if (_layout?.Land?.Water == "pond") return "Пруд";
                 if (_layout?.Land?.Water == "well") return "Колодец";
             }
+            if (poiId == "woods" && _layout?.Land?.Forest == "none") return "Редколесье";
+            if (poiId == "woods" && _layout?.Land?.Forest == "copse") return "Рощица";
+            if (poiId == "garden")
+            {
+                if (_layout?.Land?.Fields == "yards") return "Огородцы";
+                if (_layout?.Land?.Fields == "strip") return "Поле";
+                if (_layout?.Land?.Fields == "none") return "Луг / выгон";
+            }
             if (_core != null && poiId == "woods" && !_core.SupportsFeature("woods"))
                 return "Рощица";
             if (_core != null && poiId == "garden" && !_core.SupportsFeature("garden"))
