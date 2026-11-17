@@ -5674,7 +5674,6 @@ namespace Pogranichye.Client
                 position.x = flat.x;
                 position.z = flat.y;
             }
-            }
         }
 
         private float ResolveMovementTerrainMultiplier(Vector3 localPosition, Vector2 direction,
