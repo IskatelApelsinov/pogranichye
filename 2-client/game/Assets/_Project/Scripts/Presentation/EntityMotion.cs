@@ -20,6 +20,9 @@ namespace Pogranichye.Client.Presentation
         private bool _suppressActivityTool;
         private Transform _leftLeg;
         private Transform _rightLeg;
+        private bool _firstPersonViewModel;
+        private Vector3 _leftArmViewModelHome;
+        private Vector3 _rightArmViewModelHome;
         private float _phase;
         private float _idleRate = 1.7f;
         private float _walkRate = 1f;
@@ -117,6 +120,15 @@ namespace Pogranichye.Client.Presentation
         public void SetLocomotion(float normalizedSpeed)
         {
             _locomotionTarget = Mathf.Clamp01(normalizedSpeed);
+        }
+
+        /// <summary>Enables subtle camera-space arm movement for the first-person viewmodel.</summary>
+        public void SetFirstPersonViewModel(bool enabled)
+        {
+            _firstPersonViewModel = enabled;
+            if (!enabled || _leftArm == null || _rightArm == null) return;
+            _leftArmViewModelHome = _leftArm.localPosition;
+            _rightArmViewModelHome = _rightArm.localPosition;
         }
 
         /// <summary>
@@ -506,8 +518,8 @@ namespace Pogranichye.Client.Presentation
 
             var swing = Mathf.Sin(_phase * 1.4f);
             var idleSway = Mathf.Sin(_phase * 0.72f) * 2.2f;
-            var leftArmAngle = walking ? swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : idleSway;
-            var rightArmAngle = walking ? -swing * Mathf.Lerp(24f, 34f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : -idleSway;
+            var leftArmAngle = walking ? swing * Mathf.Lerp(32f, 42f, _locomotion) : working ? swing * 32f : social ? Mathf.Sin(_phase * 2f) * 24f : idleSway;
+            var rightArmAngle = walking ? -swing * Mathf.Lerp(32f, 42f, _locomotion) : working ? -swing * 38f : social ? Mathf.Cos(_phase * 2f) * 26f : -idleSway;
 
             // Stable server activity codes drive distinct silhouettes instead of one generic work loop.
             if (!walking)
@@ -748,8 +760,14 @@ namespace Pogranichye.Client.Presentation
                 rightArmYaw = wave * 28f;
             }
 
-            var legSwing = walking ? swing * Mathf.Lerp(24f, 38f, _locomotion) : swing * 2f;
+            var legSwing = walking ? swing * Mathf.Lerp(30f, 46f, _locomotion) : swing * 2f;
 
+            if (_firstPersonViewModel)
+            {
+                var viewmodelBob = walking ? Mathf.Sin(_phase * 1.4f) * 0.025f * _locomotion : 0f;
+                if (_leftArm != null) _leftArm.localPosition = _leftArmViewModelHome + new Vector3(0f, viewmodelBob, -Mathf.Abs(viewmodelBob) * 0.45f);
+                if (_rightArm != null) _rightArm.localPosition = _rightArmViewModelHome + new Vector3(0f, -viewmodelBob, -Mathf.Abs(viewmodelBob) * 0.45f);
+            }
             if (_leftArm != null) _leftArm.localRotation = Quaternion.Euler(leftArmAngle, 0, -7f);
             if (_rightArm != null) _rightArm.localRotation = Quaternion.Euler(rightArmAngle, rightArmYaw, 7f);
             if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(legSwing, 0, 0);
