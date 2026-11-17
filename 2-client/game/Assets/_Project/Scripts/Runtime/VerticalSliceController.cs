@@ -1320,6 +1320,75 @@ namespace Pogranichye.Client
             SendCorePayload(payload);
         }
 
+        private void DrawLifeModePanel(CharacterFrame me)
+        {
+            if (me == null) return;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("РЕЖИМ ЖИЗНИ · ПРИОРИТЕТ ПЕРСОНАЖА");
+            var vigor = me.Vigor;
+            if (vigor != null)
+            {
+                var rate = vigor.PerHour > 0.0001d ? "+" : string.Empty;
+                GUILayout.Label("Силы: " + vigor.Energy.ToString("0", CultureInfo.InvariantCulture) +
+                    " / 100 · " + rate + vigor.PerHour.ToString("0.0", CultureInfo.InvariantCulture) + " в час");
+                if (!string.IsNullOrWhiteSpace(vigor.Why)) GUILayout.Label(vigor.Why);
+                if (vigor.FullInHours.HasValue)
+                    GUILayout.Label("До полного восстановления: " + vigor.FullInHours.Value.ToString("0.#", CultureInfo.InvariantCulture) + " игровых ч.");
+                if (vigor.EmptyInHours.HasValue)
+                    GUILayout.Label("До истощения: " + vigor.EmptyInHours.Value.ToString("0.#", CultureInfo.InvariantCulture) + " игровых ч.");
+                if (!string.IsNullOrWhiteSpace(vigor.Warning)) GUILayout.Label("Внимание: " + vigor.Warning);
+                if (vigor.Tips != null)
+                    foreach (var tip in vigor.Tips)
+                        if (!string.IsNullOrWhiteSpace(tip)) GUILayout.Label("• " + tip);
+                if (vigor.Stamina != null)
+                    GUILayout.Label("Запал: " + (vigor.Stamina.Now * 100d).ToString("0", CultureInfo.InvariantCulture) +
+                        "% · восстановление " + vigor.Stamina.RegenPerSecond.ToString("0.###", CultureInfo.InvariantCulture) +
+                        "/с · расход " + vigor.Stamina.DrainPerSecond.ToString("0.###", CultureInfo.InvariantCulture) + "/с");
+            }
+            else GUILayout.Label("Сведения о восстановлении сил пока не получены от сервера.");
+
+            var mode = me.Mode;
+            if (mode == null) GUILayout.Label("Сервер пока не прислал доступные режимы жизни.");
+            else
+            {
+                GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected) ? "не задано" : mode.Selected) +
+                    (mode.Deviates ? " · сейчас разумно отступает от приоритета" : string.Empty));
+                if (!string.IsNullOrWhiteSpace(mode.Goal) && mode.Goal != mode.Selected)
+                    GUILayout.Label("Цель: " + mode.Goal);
+                if (!string.IsNullOrWhiteSpace(mode.Activity)) GUILayout.Label("Сейчас: " + mode.Activity);
+                if (mode.Options == null || mode.Options.Count == 0)
+                    GUILayout.Label("Сервер не перечислил варианты режима.");
+                else
+                {
+                    foreach (var option in mode.Options)
+                    {
+                        if (option == null || string.IsNullOrWhiteSpace(option.Id)) continue;
+                        var selected = string.Equals(option.Id, mode.Selected, StringComparison.Ordinal);
+                        var previous = GUI.enabled;
+                        GUI.enabled = previous && !selected;
+                        if (GUILayout.Button((selected ? "✓ " : string.Empty) + option.Name))
+                            QueueLifeModeGoal(option.Id, option.Name);
+                        GUI.enabled = previous;
+                        if (!string.IsNullOrWhiteSpace(option.Hint)) GUILayout.Label(option.Hint);
+                    }
+                }
+            }
+            GUILayout.Label("Это долгосрочный приоритет, действующий онлайн и офлайн. Он не запускает действие в конкретной точке.");
+            GUILayout.EndVertical();
+        }
+
+        private void QueueLifeModeGoal(string goal, string label)
+        {
+            if (string.IsNullOrWhiteSpace(goal) || _core == null ||
+                !_core.QueueRequest(WorldActionLabelPrefix + " Режим жизни " + label,
+                    "goal", "goal", goal))
+            {
+                _status = "Не удалось отправить режим жизни. Дождитесь ответа на предыдущее действие.";
+                return;
+            }
+            _status = "Ожидаю подтверждения сервера: режим жизни «" + label + "»…";
+        }
+
         private void DrawInventoryTab()
         {
             if (_frame?.Me?.Inventory == null)
