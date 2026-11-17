@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - '.github/workflows/unity-independent-csharp-checks.yml'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/art-source/textures/validate_plaster_fallback.py'
+      - 'grok/textures/grok/plaster_wall.png'
+      - 'grok/textures/grok/plaster_wall_n.png'
       - '2-client/game/Assets/_Project/Editor/ProtocolFixtureValidator.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/FastFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/HttpAuthClient.cs'
@@ -111,6 +115,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Grok plaster fallback assets and wiring
+        run: python3 2-client/art-source/textures/validate_plaster_fallback.py
       - name: Install Mono compiler and Newtonsoft.Json
         run: |
           sudo apt-get update
