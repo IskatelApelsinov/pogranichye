@@ -1451,14 +1451,58 @@ namespace Pogranichye.Client
             foreach (var settlement in manifest.Settlements)
                 if (settlement != null && settlement.Frame == anchor.Frame && !string.IsNullOrWhiteSpace(settlement.Id))
                     settlementsById[settlement.Id] = settlement;
+            // At settlement/region zoom, prefer the actual server-authored chunk polylines.
+            // Manifest edges are only a schematic connection between settlements; they are
+            // deliberately retained at world zoom where local terrain chunks are not loaded.
+            var detailedPathIds = new HashSet<string>(StringComparer.Ordinal);
+            var drawDetailedPaths = mapHalf <= 1800d;
+            if (drawDetailedPaths)
+            {
+                foreach (var chunk in _terrainChunks.Values)
+                {
+                    if (chunk == null || chunk.Frame != anchor.Frame || chunk.Origin == null || chunk.Roads == null)
+                        continue;
+                    foreach (var path in chunk.Roads)
+                    {
+                        if (path == null || path.Points == null || path.Points.Count < 2) continue;
+                        if (!string.IsNullOrWhiteSpace(path.Id)) detailedPathIds.Add(path.Id);
+                        var isTrail = string.Equals(path.Kind, "trail", StringComparison.OrdinalIgnoreCase);
+                        var isBridge = string.Equals(path.Kind, "bridge", StringComparison.OrdinalIgnoreCase);
+                        var color = isBridge
+                            ? new Color(0.68f, 0.61f, 0.43f, 0.98f)
+                            : isTrail
+                                ? new Color(0.66f, 0.52f, 0.34f, 0.96f)
+                                : new Color(0.84f, 0.68f, 0.43f, 0.98f);
+                        var metersToPixels = rect.width / Math.Max(1d, mapHalf * 2d);
+                        var width = Mathf.Clamp((float)(Math.Max(1d, path.WidthMeters) * metersToPixels),
+                            isTrail ? 1.1f : 1.5f, isTrail ? 2.6f : 4.2f);
+                        for (var i = 1; i < path.Points.Count; i++)
+                        {
+                            var a = path.Points[i - 1];
+                            var b = path.Points[i];
+                            if (a == null || b == null ||
+                                double.IsNaN(a.X) || double.IsInfinity(a.X) ||
+                                double.IsNaN(a.Z) || double.IsInfinity(a.Z) ||
+                                double.IsNaN(b.X) || double.IsInfinity(b.X) ||
+                                double.IsNaN(b.Z) || double.IsInfinity(b.Z)) continue;
+                            DrawMapLine(
+                                ProjectGlobal(chunk.Origin.East + a.X, chunk.Origin.North + a.Z),
+                                ProjectGlobal(chunk.Origin.East + b.X, chunk.Origin.North + b.Z),
+                                width, color);
+                        }
+                    }
+                }
+            }
+
             if (manifest.Roads != null)
             {
                 foreach (var road in manifest.Roads)
                 {
                     if (road == null || !settlementsById.TryGetValue(road.From, out var from) ||
                         !settlementsById.TryGetValue(road.To, out var to)) continue;
-                    // Manifest edges describe the connection between settlements; the actual
-                    // winding trail geometry is rendered from /api/terrain chunk polylines.
+                    // Never draw a misleading straight chord over a loaded detailed route.
+                    if (drawDetailedPaths && !string.IsNullOrWhiteSpace(road.Id) &&
+                        detailedPathIds.Contains(road.Id)) continue;
                     var isTract = string.Equals(road.Kind, "road", StringComparison.OrdinalIgnoreCase);
                     var pathWidth = road.WidthMeters > 0d
                         ? Mathf.Clamp((float)(1.0d + road.WidthMeters * 0.32d), 1.2f, 3.2f)
@@ -1561,7 +1605,9 @@ namespace Pogranichye.Client
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
-            GUILayout.Label("★ Вы · ◆ город · ● поселение · ━ связь поселений (тип и ширина пути от сервера); точная извилистая нитка видна на местности.");
+            GUILayout.Label(drawDetailedPaths
+                ? "★ Вы · ◆ город · ● поселение · дороги и тропы показаны по серверным линиям загруженных чанков; между ними остаются схематические связи."
+                : "★ Вы · ◆ город · ● поселение · ━ схематическая связь поселений (тип и ширина пути от сервера); точная трасса раскрывается при приближении.");
         }
 
         private static string CompassDirection(float yaw)
