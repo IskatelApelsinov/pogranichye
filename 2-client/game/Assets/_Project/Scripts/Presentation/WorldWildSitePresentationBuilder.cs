@@ -45,7 +45,7 @@ namespace Pogranichye.Client.Presentation
             _manifest = manifest;
             _root = new GameObject("WorldWildSites").transform;
             _root.SetParent(parent, false);
-            if (manifest.WildSites == null) return;
+            if (manifest?.WildSites == null) return;
             foreach (var site in manifest.WildSites)
             {
                 if (site == null || string.IsNullOrEmpty(site.Id) || Views.ContainsKey(site.Id))
@@ -109,11 +109,10 @@ namespace Pogranichye.Client.Presentation
                 }
                 view.Root.localPosition = new Vector3((float)east, (float)up, (float)north);
             }
-            UpdateNearbySites(parent, frame, origin, scene);
+            UpdateNearbySites(frame, origin);
         }
 
-        private static void UpdateNearbySites(Transform parent, WorldFrame frame,
-            WorldPositionFrame origin, ScenePositionFrame scene)
+        private static void UpdateNearbySites(WorldFrame frame, WorldPositionFrame origin)
         {
             var sites = frame?.Place?.Sites;
             var activeIds = new HashSet<string>(StringComparer.Ordinal);
