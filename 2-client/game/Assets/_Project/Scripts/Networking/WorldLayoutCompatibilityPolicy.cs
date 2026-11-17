@@ -16,9 +16,9 @@ namespace Pogranichye.Client.Networking
 
         public static bool HasRequiredPois(string plan, ICollection<string> poiIds)
         {
-            if (poiIds == null || !poiIds.Contains("tavern") || !poiIds.Contains("well")) return false;
+            if (poiIds == null || !poiIds.Contains("tavern")) return false;
             if (string.Equals(plan, "grid", StringComparison.Ordinal))
-                return poiIds.Contains("hall");
+                return poiIds.Contains("well") && poiIds.Contains("hall");
             foreach (var id in RuralPois)
                 if (!poiIds.Contains(id)) return false;
             return true;
