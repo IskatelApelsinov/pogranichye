@@ -2031,16 +2031,35 @@ namespace Pogranichye.Client.Presentation
                 Create("Tavern hanging sign bracket", PrimitiveType.Cube, root,
                     signPosition, signSize, _iron, false);
             }
-            else if (kind == "hall")
+            else if (kind == "hall" && doorWidth > 0.05f)
             {
-                // Civic portico distinguishes the server town hall from ordinary housing.
+                // Civic portico follows the server door side and offset rather than assuming a south-facing entrance.
+                var horizontal = doorSide == 0 || doorSide == 1;
+                var axisLimit = horizontal ? width : depth;
+                var postOffset = Mathf.Min(doorWidth * 0.5f + 0.52f, axisLimit * 0.5f - 0.32f);
+                var axisCenter = doorOffset;
                 for (var post = -1; post <= 1; post += 2)
+                {
+                    var position = doorSide == 0
+                        ? new Vector3(axisCenter + post * postOffset, 1.65f, -depth * 0.5f - 0.16f)
+                        : doorSide == 1
+                            ? new Vector3(axisCenter + post * postOffset, 1.65f, depth * 0.5f + 0.16f)
+                            : doorSide == 2
+                                ? new Vector3(-width * 0.5f - 0.16f, 1.65f, axisCenter + post * postOffset)
+                                : new Vector3(width * 0.5f + 0.16f, 1.65f, axisCenter + post * postOffset);
                     Create("Town hall portico column", PrimitiveType.Cube, root,
-                        new Vector3(post * width * 0.24f, 1.65f, -depth * 0.5f - 0.16f),
-                        new Vector3(0.34f, 3.3f, 0.34f), _stone, false);
+                        position, new Vector3(0.34f, 3.3f, 0.34f), _stone, false);
+                }
+                var lintelPosition = doorSide == 0
+                    ? new Vector3(axisCenter, 3.28f, -depth * 0.5f - 0.16f)
+                    : doorSide == 1
+                        ? new Vector3(axisCenter, 3.28f, depth * 0.5f + 0.16f)
+                        : doorSide == 2
+                            ? new Vector3(-width * 0.5f - 0.16f, 3.28f, axisCenter)
+                            : new Vector3(width * 0.5f + 0.16f, 3.28f, axisCenter);
                 Create("Town hall portico lintel", PrimitiveType.Cube, root,
-                    new Vector3(0f, 3.28f, -depth * 0.5f - 0.16f),
-                    new Vector3(width * 0.58f, 0.30f, 0.42f), _trunk, false);
+                    lintelPosition, horizontal ? new Vector3(doorWidth + 1.1f, 0.30f, 0.42f) :
+                        new Vector3(0.42f, 0.30f, doorWidth + 1.1f), _trunk, false);
             }
             else if (kind == "guard")
             {
