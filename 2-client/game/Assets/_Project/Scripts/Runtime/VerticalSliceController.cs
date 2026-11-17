@@ -2452,6 +2452,16 @@ namespace Pogranichye.Client
                 case "river": return "Река";
                 case "woods": return "Лес";
                 case "mine": return "Рудник";
+                case "hall": return "Ратуша";
+                case "bazaar": return "Базар";
+                case "weaver": return "Ткацкая";
+                case "tannery": return "Кожевня";
+                case "bakery": return "Пекарня";
+                case "carpenter": return "Плотницкая";
+                case "potter": return "Гончарная";
+                case "guard": return "Караулка";
+                case "caravanserai": return "Караван-сарай";
+                case "inn": return "Постоялый двор";
                 default: return poiId;
             }
         }
@@ -2470,6 +2480,16 @@ namespace Pogranichye.Client
                 case "river": return "Рк";
                 case "woods": return "Л";
                 case "mine": return "Ш";
+                case "hall": return "Рт";
+                case "bazaar": return "Б";
+                case "weaver": return "Тк";
+                case "tannery": return "Кж";
+                case "bakery": return "П";
+                case "carpenter": return "Пл";
+                case "potter": return "Г";
+                case "guard": return "Ст";
+                case "caravanserai": return "Кс";
+                case "inn": return "Пд";
                 default: return "·";
             }
         }
@@ -2499,6 +2519,14 @@ namespace Pogranichye.Client
                 case "herd_graze": return "пасёт скот";
                 case "herd_barn": return "ухаживает за скотом";
                 case "keep_tavern": return "за стойкой";
+                case "trade_stall": return "торгует в рядах";
+                case "guard_patrol": return "в дозоре";
+                case "carpentry": return "плотничает";
+                case "tanning": return "выделывает кожи";
+                case "pottery": return "лепит горшки";
+                case "bake_bread": return "печёт хлеб";
+                case "scribe_desk": return "пишет грамоты";
+                case "jewel_work": return "обрабатывает камни";
                 case "study_mana": return "изучает плетения";
                 case "fisher_mend": return "чинит сети";
                 case "farm_mend": return "чинит снасти";
