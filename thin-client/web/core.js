@@ -36,8 +36,8 @@ const sbtn = (label, js, dis, cls) =>
 // Часы мира (task_ai/014 B): только серверные день и час, не часы устройства.
 function clockText(day, hour){
   if(typeof hour!=='number' || hour<0 || hour>23) return '🕰 время мира неизвестно';
-  const part = hour<5?'ночь':hour<9?'утро':hour<17?'день':hour<21?'вечер':'ночь';
-  return `${hour<5||hour>=21?'🌙':'☀️'} ${day!=null?'День '+day+' · ':''}${String(hour).padStart(2,'0')}:00 · ${part}`;
+  const part = hour<6?'ночь':hour<10?'утро':hour<17?'день':hour<22?'вечер':'ночь';
+  return `${hour<6||hour>=22?'🌙':'☀️'} ${day!=null?'День '+day+' · ':''}${String(hour).padStart(2,'0')}:00 · ${part}`;
 }
 function drawClock(s){
   if(s.fast) return; // в быстрых кадрах часов нет — держим последнее известное
