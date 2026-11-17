@@ -64,6 +64,8 @@ internal static class HorseStatsFrameParserCheck
         Check("empty or omitted roster remains backward compatible", true);
         ExpectFormat("non-array horse roster rejected", () =>
             HorseFrameParser.ValidateArray(JObject.Parse("{\"id\":\"horse-77\"}"), "me.horses"));
+        ExpectFormat("null horse roster entry rejected", () =>
+            HorseFrameParser.ValidateArray(JArray.Parse("[null]"), "me.horses"));
 
         ExpectFormat("missing stat rejected", () =>
             StatsFrameParser.Validate(JToken.Parse(statsJson.Replace(",\"will\":10", "")), "me.stats"));
