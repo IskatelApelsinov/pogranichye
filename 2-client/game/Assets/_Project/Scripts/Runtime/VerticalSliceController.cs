@@ -5888,8 +5888,8 @@ namespace Pogranichye.Client
                 light.transform.rotation = Quaternion.Euler(48, -32, 0);
             }
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.55f, 0.58f, 0.62f);
+            // WorldEnvironmentBuilder owns ambient/fog/sky and restores prior settings on teardown.
+            // Do not seed a flat ambient fill here: it erases the directional sky/horizon/ground balance.
             RenderSettings.fog = true;
             RenderSettings.fogColor = new Color(0.58f, 0.68f, 0.70f);
             RenderSettings.fogMode = FogMode.Linear;

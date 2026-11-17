@@ -45,6 +45,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
+      - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
@@ -281,6 +283,12 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
+
+      - name: World ambient lighting palette regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
+          mono /tmp/world-ambient-palette.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
