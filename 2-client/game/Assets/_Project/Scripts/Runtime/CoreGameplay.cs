@@ -186,6 +186,8 @@ namespace Pogranichye.Client
 
         private Action<Dictionary<string, object>> _send;
         private bool _active;
+        private bool _tavernPanelOpen;
+        private TavernPanelScreen _tavernPanelScreen = TavernPanelScreen.Home;
         private bool _firstPerson;
         private bool _hudCollapsed;
         private Transform _player;
@@ -1045,6 +1047,12 @@ namespace Pogranichye.Client
             _rig = rig;
         }
 
+        public void SetTavernPanelInputState(bool open, TavernPanelScreen screen)
+        {
+            _tavernPanelOpen = open;
+            _tavernPanelScreen = screen;
+        }
+
         /// <summary>Uses the current server Layout v2 POIs for local affordances; never changes server validation.</summary>
         public void SetLayout(WorldLayoutFrame layout, bool allowLegacyPoiFallback)
         {
@@ -1734,6 +1742,8 @@ namespace Pogranichye.Client
 
             if (_externalModalMenuOpen)
             {
+                if (_tavernPanelOpen && !talking && Application.isFocused)
+                    UpdateCardGameHotkeys();
                 _menuOpen = false;
                 _holding = false;
                 _holdStart = 0f;
@@ -1779,9 +1789,6 @@ namespace Pogranichye.Client
                 _menuOpen = false;
                 CloseWeave(false);
             }
-
-            if ((_menuOpen || _externalCharacterMenuOpen) && !talking)
-                UpdateCardGameHotkeys();
 
             if (!_menuOpen && !_externalCharacterMenuOpen && !talking)
             {
@@ -3360,7 +3367,6 @@ namespace Pogranichye.Client
                 }
             }
 
-            DrawCardGames();
             var buildButtonEnabled = GUI.enabled;
             GUI.enabled = buildButtonEnabled && _place != null && Count(stash, "wood") >= 2f && Num(_me, "energy") >= 10f;
             if (GUILayout.Button("🪚 Помочь в строительстве · 2 дерева"))
@@ -3652,11 +3658,11 @@ namespace Pogranichye.Client
             if (_input == null || _me == null || _place == null) return;
             var game = _cardGame;
             var gameName = game?.Game;
-            var done = game == null || game.Done;
+            var gameInProgress = game != null && !string.IsNullOrEmpty(game.Game) && !game.Done;
             var atTable = Flag(_place, "tavern") && Near("tavern", 12f);
             if (!atTable) return;
 
-            if (game == null || done)
+            if (TavernPanelNavigationPolicy.CanStartGame(_tavernPanelOpen, _tavernPanelScreen, gameInProgress))
             {
                 if (_input.JourneyChoicePressed(0) && Num(_me, "coins") >= 10f)
                     Ask("Очко", "card_game", "game", "ochko", "action", "start");
@@ -3664,6 +3670,10 @@ namespace Pogranichye.Client
                     Ask("Дурак", "card_game", "game", "durak", "action", "start");
                 return;
             }
+
+            if (!TavernPanelNavigationPolicy.CanUseGameControls(
+                _tavernPanelOpen, _tavernPanelScreen, gameInProgress))
+                return;
 
             if (gameName == "ochko")
             {
