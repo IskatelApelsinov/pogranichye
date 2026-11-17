@@ -47,7 +47,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainWaterSurfacePolicy.cs'
       - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
+      - '2-client/game/Tests/TerrainWaterSurfacePolicyCheck.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
@@ -297,6 +299,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
+
+      - name: Terrain water surface elevation regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-water-surface.exe Tests/TerrainWaterSurfacePolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainWaterSurfacePolicy.cs
+          mono /tmp/terrain-water-surface.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
