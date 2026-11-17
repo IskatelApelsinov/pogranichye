@@ -5365,7 +5365,7 @@ namespace Pogranichye.Client
                 _terrainCenterZ = centerZ;
                 // A moved window gets a fresh retry budget; old chunk failures must not accumulate.
                 _terrainChunkRetryAfter.Clear();
-                var stale = new List<TerrainChunkFrame>();
+                var stale = new List<KeyValuePair<string, TerrainChunkFrame>>();
                 foreach (var pair in _terrainChunks)
                 {
                     var candidate = new WorldChunkCoordinate(pair.Value.Frame,
@@ -5373,11 +5373,12 @@ namespace Pogranichye.Client
                     if (!WorldChunkStreamingPolicy.IsWithinRetention(
                         new WorldChunkCoordinate(position.Frame, centerX, centerZ),
                         candidate, TerrainChunkRetentionRadius))
-                        stale.Add(pair.Value);
+                        stale.Add(pair);
                 }
-                foreach (var staleChunk in stale)
+                foreach (var stalePair in stale)
                 {
-                    var id = staleChunk.Id;
+                    var id = stalePair.Key;
+                    var staleChunk = stalePair.Value;
                     _terrainChunks.Remove(id);
                     if (_spaceChunks.TryGetValue(id, out var staleSpaces))
                     {
