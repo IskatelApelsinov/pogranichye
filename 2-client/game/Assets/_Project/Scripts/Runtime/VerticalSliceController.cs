@@ -1458,6 +1458,47 @@ namespace Pogranichye.Client
             var drawDetailedPaths = mapHalf <= 1800d;
             if (drawDetailedPaths)
             {
+                // Waterways are server-authored terrain geometry. Draw them before roads
+                // so bridges and crossings remain legible above the water.
+                foreach (var chunk in _terrainChunks.Values)
+                {
+                    if (chunk == null || chunk.Frame != anchor.Frame || chunk.Origin == null || chunk.Water == null)
+                        continue;
+                    foreach (var water in chunk.Water)
+                    {
+                        if (water == null || water.Points == null || water.Points.Count < 2 ||
+                            double.IsNaN(water.WidthMeters) || double.IsInfinity(water.WidthMeters) ||
+                            water.WidthMeters <= 0d) continue;
+                        var kind = (water.Kind ?? string.Empty).ToLowerInvariant();
+                        var color = kind == "waterfall"
+                            ? new Color(0.58f, 0.78f, 0.84f, 0.96f)
+                            : kind == "coast" || kind == "lake" || kind == "pond"
+                                ? new Color(0.30f, 0.58f, 0.68f, 0.88f)
+                                : new Color(0.34f, 0.67f, 0.78f, 0.92f);
+                        var metersToPixels = rect.width / Math.Max(1d, mapHalf * 2d);
+                        var width = Mathf.Clamp((float)(water.WidthMeters * metersToPixels), 1.2f, 5.5f);
+                        for (var i = 1; i < water.Points.Count; i++)
+                        {
+                            var a = water.Points[i - 1];
+                            var b = water.Points[i];
+                            if (a == null || b == null ||
+                                double.IsNaN(a.X) || double.IsInfinity(a.X) ||
+                                double.IsNaN(a.Z) || double.IsInfinity(a.Z) ||
+                                double.IsNaN(b.X) || double.IsInfinity(b.X) ||
+                                double.IsNaN(b.Z) || double.IsInfinity(b.Z)) continue;
+                            var dx = b.X - a.X;
+                            var dz = b.Z - a.Z;
+                            if (dx * dx + dz * dz < 0.000001d) continue;
+                            DrawMapLineClipped(
+                                ProjectGlobal(chunk.Origin.East + a.X, chunk.Origin.North + a.Z),
+                                ProjectGlobal(chunk.Origin.East + b.X, chunk.Origin.North + b.Z),
+                                width, color, rect);
+                        }
+                    }
+                }
+            }
+            if (drawDetailedPaths)
+            {
                 foreach (var chunk in _terrainChunks.Values)
                 {
                     if (chunk == null || chunk.Frame != anchor.Frame || chunk.Origin == null || chunk.Roads == null)
@@ -1613,7 +1654,7 @@ namespace Pogranichye.Client
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
                     : "Масштаб поселения: здания и места из серверной планировки.");
             GUILayout.Label(drawDetailedPaths
-                ? "★ Вы · ◆ город · ● поселение · дороги и тропы показаны по серверным линиям загруженных чанков; между ними остаются схематические связи."
+                ? "★ Вы · ◆ город · ● поселение · дороги, тропы и водотоки показаны по серверным линиям загруженных чанков."
                 : "★ Вы · ◆ город · ● поселение · ━ схематическая связь поселений (тип и ширина пути от сервера); точная трасса раскрывается при приближении.");
         }
 
