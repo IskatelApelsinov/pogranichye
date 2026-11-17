@@ -176,7 +176,7 @@ func pickWorker(res []*core.Entity, count map[string]int) *core.Entity {
 	}
 	best, bn := "", 2
 	for role, n := range count {
-		if role == "tavernkeeper" || role == "mage" || role == "idler" {
+		if role == "tavernkeeper" || role == "mage" || role == "idler" || role == "guard" {
 			continue
 		}
 		if n > bn || (n == bn && best != "" && role < best) {

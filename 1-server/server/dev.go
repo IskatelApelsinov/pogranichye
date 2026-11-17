@@ -205,3 +205,11 @@ func (s *Server) devView(cid core.ID) any {
 }
 
 var _ = sim.SetResult
+
+// ExpandWorld — добавить новые края (три державы с большими городами и 50 деревень), если в мире их
+// ещё нет. Безопасно звать на каждом старте: второй раз ничего не делает.
+func (s *Server) ExpandWorld() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return sim.ExpandWorld(s.world, int64(s.runner.Clock.Day()))
+}

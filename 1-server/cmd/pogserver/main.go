@@ -40,6 +40,7 @@ func main() {
 	savePath := flag.String("save", "world.sav", "файл сохранения мира (\"\" — не сохранять)")
 	saveEvery := flag.Int("save-every", 120, "автосохранение мира, секунд (0 — только при остановке)")
 	seamless := flag.String("seamless", "on", "бесшовный мир: on — между сёлами ходят ногами (по умолчанию); off — по-старому; keep — как записано в сохранении")
+	expand := flag.Bool("expand-world", true, "добавить новые края: три державы с большими городами и 50 деревень (один раз; в -starter не действует)")
 	uniform := flag.Bool("uniform-layouts", false, "предохранитель: все сёла со стартовой раскладкой, как до v1.19")
 	flag.Parse()
 
@@ -93,6 +94,11 @@ func main() {
 			log.Printf("мир сохранён в %s", *savePath)
 			os.Exit(0)
 		}()
+	}
+	if *expand && !*starter {
+		if n := srv.ExpandWorld(); n > 0 {
+			log.Printf("мир расширен: +%d поселений (три державы с большими городами)", n)
+		}
 	}
 	log.Fatal(srv.Run(*addr))
 }

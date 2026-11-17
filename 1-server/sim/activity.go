@@ -153,6 +153,23 @@ func workActivity(role string, season core.Season, r localResources) activity {
 		return activity{"herd_graze", "пасёт стадо"}
 	case "tavernkeeper":
 		return activity{"keep_tavern", "за стойкой корчмы"}
+	// v1.33: ремёсла большого города
+	case "merchant":
+		return activity{"trade_stall", "торгует в рядах"}
+	case "guard":
+		return activity{"guard_patrol", "в дозоре на улицах"}
+	case "carpenter":
+		return activity{"carpentry", "плотничает"}
+	case "tanner":
+		return activity{"tanning", "выделывает кожи"}
+	case "potter":
+		return activity{"pottery", "лепит горшки"}
+	case "baker":
+		return activity{"bake_bread", "печёт хлеб"}
+	case "scribe":
+		return activity{"scribe_desk", "пишет грамоты"}
+	case "jeweler":
+		return activity{"jewel_work", "гранит камни"}
 	case "mage":
 		// расход маны/плетение решает MagicSystem и сам ставит честную подпись; здесь — занятость
 		return activity{"study_mana", "упражняется в плетениях"}

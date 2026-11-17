@@ -22,6 +22,29 @@ import (
 // вокруг ядра всегда свободны от построек, от каждого порога есть прямая свободная тропа к улице.
 // Поэтому житель из любой точки дойдёт до любой другой по графу дорог, не упираясь в стены.
 
+// Большой город (v1.33): плотные кварталы многоэтажных домов вокруг площади, без полей и реки.
+const (
+	cityCore      = 118.0 // полуширина застройки, м (у деревни — 50)
+	cityBlock     = 22.0  // шаг кварталов
+	cityHouses    = 70    // жилых домов (на деле встанет столько, сколько уместится)
+	cityLotMargin = 2.0   // зазор между домами
+)
+
+var cityLots = []lotKind{
+	{"Ратуша", "hall", 16, 18, 13, 15, "hall"},
+	{"Торговые ряды", "market", 16, 18, 10, 12, "bazaar"},
+	{"Мастерская ткача", "workshop", 11, 13, 9, 11, "weaver"},
+	{"Кожевня", "workshop", 11, 13, 9, 11, "tannery"},
+	{"Пекарня", "workshop", 10, 12, 9, 10, "bakery"},
+	{"Плотницкая", "workshop", 11, 13, 9, 11, "carpenter"},
+	{"Гончарня", "workshop", 10, 12, 9, 10, "potter"},
+	{"Караульня", "guard", 11, 13, 9, 11, "guard"},
+	{"Склад караванов", "granary", 16, 18, 11, 13, "caravanserai"},
+	{"Вторая корчма", "inn", 13, 15, 11, 12, "inn"},
+}
+
+var cityHouseLot = lotKind{"Дом", "house", 10, 13, 9, 11, ""}
+
 const (
 	laneHalf   = 4.5 // полуширина свободной полосы вдоль осей-улиц
 	squareR    = 9.0 // радиус свободной площади у колодца
@@ -110,6 +133,39 @@ func rectHitsSegment(r Rect, s segment, m float64) bool {
 	return false
 }
 
+// yardPlots — огороды за избами: по грядке за каждым жилым домом, наружу от центра села, если там
+// не стена и не улица.
+func yardPlots(l *Layout, V float64) []Zone {
+	var out []Zone
+	for _, b := range l.Buildings {
+		if b.Kind != "house" || len(out) >= 10 {
+			continue
+		}
+		cx, cy := b.cx(), b.cy()
+		d := math.Hypot(cx, cy)
+		if d < 1 {
+			continue
+		}
+		ux, uy := cx/d, cy/d
+		px, py := cx+ux*((b.X1-b.X0)/2+7), cy+uy*((b.Y1-b.Y0)/2+7)
+		z := Zone{"field", math.Round(px - 5), math.Round(py - 4), math.Round(px + 5), math.Round(py + 4)}
+		if (z.X0 < laneHalf && z.X1 > -laneHalf) || (z.Y0 < laneHalf && z.Y1 > -laneHalf) {
+			continue
+		}
+		clear := true
+		for _, o := range l.Buildings {
+			if rectsOverlap(Rect{X0: z.X0, Y0: z.Y0, X1: z.X1, Y1: z.Y1}, o, 1) {
+				clear = false
+				break
+			}
+		}
+		if clear {
+			out = append(out, z)
+		}
+	}
+	return out
+}
+
 // generateLayout строит раскладку. Детерминирована: одни и те же входы — та же раскладка.
 func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, plan string) *Layout {
 	gb := dice.NewStream(dice.Seed64(seed, "layout-build", sid(id))) // дворы
@@ -117,13 +173,24 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 	has := func(f string) bool { return site != nil && site.Features[f] }
 
 	V := coreFor(tier)
+	grid := plan == "grid" // v1.33: большой город — плотная застройка кварталами, без полей и реки
+	if grid {
+		V = cityCore
+	}
 	R := V + ringMargin
 	l := &Layout{Plan: plan, Half: WorldHalf, VillageHalf: V, POIs: map[string][2]float64{}}
 
 	// --- дворы ---
 	lots := append([]lotKind{}, publicLots...)
-	for i, n := 0, housesFor(tier, gb); i < n; i++ {
-		lots = append(lots, houseLot)
+	if grid {
+		lots = append(lots, cityLots...)
+		for i := 0; i < cityHouses; i++ {
+			lots = append(lots, cityHouseLot)
+		}
+	} else {
+		for i, n := 0, housesFor(tier, gb); i < n; i++ {
+			lots = append(lots, houseLot)
+		}
 	}
 	var keep []segment // тропы от порогов к улице: их нельзя застраивать
 	type door struct {
@@ -145,6 +212,10 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 			}
 		}
 		switch p {
+		case "grid": // кварталы: дома по сетке через каждые cityBlock метров, улицы между ними
+			bx := float64(gb.Intn(int(2*V/cityBlock))) - math.Floor(V/cityBlock)
+			by := float64(gb.Intn(int(2*V/cityBlock))) - math.Floor(V/cityBlock)
+			return bx*cityBlock + cityBlock/2, by*cityBlock + cityBlock/2
 		case "street":
 			side := 1.0
 			if gb.Chance(0.5) {
@@ -188,8 +259,12 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 				continue
 			}
 			ok := true
+			margin := lotMargin
+			if grid {
+				margin = cityLotMargin // в городе дома стоят теснее
+			}
 			for _, b := range l.Buildings {
-				if rectsOverlap(r, b, lotMargin) {
+				if rectsOverlap(r, b, margin) {
 					ok = false
 					break
 				}
@@ -229,6 +304,16 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 			if !ok {
 				continue
 			}
+			if grid { // этажность: жилые дома в 3–5 ярусов, мастерские и лавки — в 2–3
+				r.Storeys = 2 + gb.Intn(2)
+				if lk.kind == "house" {
+					r.Storeys = 3 + gb.Intn(3)
+				}
+				if lk.kind == "tavern" {
+					r.Storeys = 2 // корчма — тот же дом с комнатами наверху, что и в /api/spaces
+				}
+				r.HeightM = float64(r.Storeys) * 3.2
+			}
 			l.Buildings = append(l.Buildings, r)
 			keep = append(keep, path)
 			doors = append(doors, dr)
@@ -257,114 +342,176 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 	l.POIs["well"] = [2]float64{0, 0}
 
 	// --- окрестности: вода, лес, поля, рудник — каждому своя сторона ---
+	// v1.33: облик выбирается своим потоком костей (layout-style), чтобы дворы сёл не сдвинулись.
+	gs := dice.NewStream(dice.Seed64(seed, "layout-style", sid(id)))
 	type side struct{ dx, dy float64 }
-	sides := []side{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} // север, восток, юг, запад
 	riverSide := side{0, -1}
-	if ge.Chance(0.5) {
-		riverSide = side{0, 1}
-	}
-	var rest []side
-	for _, s := range sides {
-		if s != riverSide {
-			rest = append(rest, s)
-		}
-	}
-	ge.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
-	woodsSide, fieldSide, mineSide := rest[0], rest[1], rest[2]
-
-	bandNear := R + ge.Uniform(12, 30)
-	bandW := ge.Uniform(9, 15)
-	bridgeX := math.Round(ge.Uniform(-34, 34))
-	if has("river") {
-		l.HasRiver = true
-		if riverSide.dy < 0 {
-			l.RiverY1, l.RiverY0 = -bandNear, -bandNear-bandW
-		} else {
-			l.RiverY0, l.RiverY1 = bandNear, bandNear+bandW
-		}
-		l.RiverY0, l.RiverY1 = math.Round(l.RiverY0), math.Round(l.RiverY1)
-		l.BridgeX0, l.BridgeX1 = bridgeX-6, bridgeX+6
-		bank := l.RiverY1 + 4
-		if riverSide.dy > 0 {
-			bank = l.RiverY0 - 4
-		}
-		l.POIs["river"] = [2]float64{bridgeX, bank}
-	} else {
-		// реки нет: полоса вынесена за край земли (поля v2 остаются осмысленными), а воду даёт пруд
-		l.RiverY0, l.RiverY1, l.BridgeX0, l.BridgeX1 = -WorldHalf-40, -WorldHalf-30, -6, 6
-		px, py := riverSide.dx*(R+22), riverSide.dy*(R+22)
-		px += ge.Uniform(-30, 30)
-		l.Zones = append(l.Zones, Zone{"pond", math.Round(px - 9), math.Round(py - 6), math.Round(px + 9), math.Round(py + 6)})
-		l.POIs["river"] = [2]float64{math.Round(px), math.Round(py - riverSide.dy*10)}
-	}
-
-	// прямоугольник угодья на стороне s: от inner до outer от центра, поперёк — от a до b
-	strip := func(s side, inner, outer, a, b float64) (x0, y0, x1, y1 float64) {
-		if s.dx != 0 {
-			x0, x1 = s.dx*inner, s.dx*outer
-			y0, y1 = a, b
-		} else {
-			y0, y1 = s.dy*inner, s.dy*outer
-			x0, x1 = a, b
-		}
-		return math.Round(math.Min(x0, x1)), math.Round(math.Min(y0, y1)), math.Round(math.Max(x0, x1)), math.Round(math.Max(y0, y1))
-	}
+	var wz Zone
 	H := WorldHalf
-	// лес
-	wInner := R + ge.Uniform(10, 24)
-	if has("woods") {
-		x0, y0, x1, y1 := strip(woodsSide, wInner, H, -H, H)
-		l.Zones = append(l.Zones, Zone{"forest", x0, y0, x1, y1})
+	bridgeX := 0.0
+	if grid {
+		// город: ни реки, ни полей, ни леса — камень и кварталы; вода из колодцев на площадях
+		l.Land = LandStyle{Water: "well", Fields: "none", Forest: "none"}
+		l.RiverY0, l.RiverY1, l.BridgeX0, l.BridgeX1 = -WorldHalf-40, -WorldHalf-30, -6, 6
+		wz = Zone{"copse", H - 20, H - 20, H - 6, H - 6}
 	} else {
-		c := ge.Uniform(-50, 50)
-		x0, y0, x1, y1 := strip(woodsSide, wInner, wInner+26, c-16, c+16)
-		l.Zones = append(l.Zones, Zone{"copse", x0, y0, x1, y1})
-	}
-	wz := l.Zones[len(l.Zones)-1]
-	l.POIs["woods"] = [2]float64{math.Round((wz.X0+wz.X1)/2*math.Abs(woodsSide.dy) + woodsSide.dx*(wInner+5)),
-		math.Round((wz.Y0+wz.Y1)/2*math.Abs(woodsSide.dx) + woodsSide.dy*(wInner+5))}
-	if has("woods") { // у сплошного леса опушка напротив села, со сдвигом
-		c := ge.Uniform(-40, 40)
-		l.POIs["woods"] = [2]float64{math.Round(woodsSide.dx*(wInner+5) + math.Abs(woodsSide.dy)*c),
-			math.Round(woodsSide.dy*(wInner+5) + math.Abs(woodsSide.dx)*c)}
-	}
-	// поля или выгон
-	fInner := R + ge.Uniform(6, 14)
-	fa := ge.Uniform(-70, -20)
-	fb := fa + ge.Uniform(80, 130)
-	fx0, fy0, fx1, fy1 := strip(fieldSide, fInner, math.Min(H-4, fInner+ge.Uniform(50, 80)), fa, math.Min(fb, H-4))
-	fk := "meadow"
-	if has("garden") {
-		fk = "field"
-	}
-	l.Zones = append(l.Zones, Zone{fk, fx0, fy0, fx1, fy1})
-	l.POIs["garden"] = [2]float64{math.Round(fieldSide.dx*(fInner+12) + math.Abs(fieldSide.dy)*(fa+fb)/2*0.5),
-		math.Round(fieldSide.dy*(fInner+12) + math.Abs(fieldSide.dx)*(fa+fb)/2*0.5)}
-	// рудник: в холмах близко, иначе дальше; смещён к углу
-	mDist := R + ge.Uniform(40, 62)
-	if terrain == "hills" {
-		mDist = R + ge.Uniform(18, 30)
-	}
-	mOff := ge.Uniform(30, 60)
-	if ge.Chance(0.5) {
-		mOff = -mOff
-	}
-	mx := math.Round(mineSide.dx*mDist + math.Abs(mineSide.dy)*mOff)
-	my := math.Round(mineSide.dy*mDist + math.Abs(mineSide.dx)*mOff)
-	mx, my = clampf(mx, -H+14, H-14), clampf(my, -H+14, H-14)
-	l.POIs["mine"] = [2]float64{mx, my}
-	if has("mine") {
-		l.Zones = append(l.Zones, Zone{"rock", mx - 12, my - 12, mx + 12, my + 12})
-	}
-	// точки угодий не должны оказаться в воде
-	for _, k := range []string{"woods", "garden", "mine"} {
-		p := l.POIs[k]
-		if l.Blocked(p[0], p[1]) {
-			x, y := l.Free(p[0], p[1])
-			l.POIs[k] = [2]float64{math.Round(x), math.Round(y)}
+		sides := []side{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} // север, восток, юг, запад
+		riverSide = side{0, -1}
+		if ge.Chance(0.5) {
+			riverSide = side{0, 1}
 		}
-	}
+		var rest []side
+		for _, s := range sides {
+			if s != riverSide {
+				rest = append(rest, s)
+			}
+		}
+		ge.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
+		woodsSide, fieldSide, mineSide := rest[0], rest[1], rest[2]
 
+		bandNear := R + ge.Uniform(12, 30)
+		bandW := ge.Uniform(9, 15)
+		bridgeX = math.Round(ge.Uniform(-34, 34))
+		if has("river") {
+			l.HasRiver = true
+			if riverSide.dy < 0 {
+				l.RiverY1, l.RiverY0 = -bandNear, -bandNear-bandW
+			} else {
+				l.RiverY0, l.RiverY1 = bandNear, bandNear+bandW
+			}
+			l.RiverY0, l.RiverY1 = math.Round(l.RiverY0), math.Round(l.RiverY1)
+			l.BridgeX0, l.BridgeX1 = bridgeX-6, bridgeX+6
+			bank := l.RiverY1 + 4
+			if riverSide.dy > 0 {
+				bank = l.RiverY0 - 4
+			}
+			l.POIs["river"] = [2]float64{bridgeX, bank}
+		} else {
+			// реки нет: полоса вынесена за край земли (поля v2 остаются осмысленными), а воду даёт пруд
+			l.RiverY0, l.RiverY1, l.BridgeX0, l.BridgeX1 = -WorldHalf-40, -WorldHalf-30, -6, 6
+			px, py := riverSide.dx*(R+22), riverSide.dy*(R+22)
+			px += ge.Uniform(-30, 30)
+			if gs.Chance(0.3) { // v1.33: сухое место — ни реки, ни пруда, воду берут из колодца
+				l.Land.Water = "well"
+				l.POIs["river"] = [2]float64{math.Round(riverSide.dx * 12), math.Round(riverSide.dy * 12)}
+			} else {
+				l.Land.Water = "pond"
+				l.Zones = append(l.Zones, Zone{"pond", math.Round(px - 9), math.Round(py - 6), math.Round(px + 9), math.Round(py + 6)})
+				l.POIs["river"] = [2]float64{math.Round(px), math.Round(py - riverSide.dy*10)}
+			}
+		}
+		if l.HasRiver {
+			l.Land.Water = "river"
+		}
+
+		// прямоугольник угодья на стороне s: от inner до outer от центра, поперёк — от a до b
+		strip := func(s side, inner, outer, a, b float64) (x0, y0, x1, y1 float64) {
+			if s.dx != 0 {
+				x0, x1 = s.dx*inner, s.dx*outer
+				y0, y1 = a, b
+			} else {
+				y0, y1 = s.dy*inner, s.dy*outer
+				x0, x1 = a, b
+			}
+			return math.Round(math.Min(x0, x1)), math.Round(math.Min(y0, y1)), math.Round(math.Max(x0, x1)), math.Round(math.Max(y0, y1))
+		}
+		// лес
+		wInner := R + ge.Uniform(10, 24)
+		if has("woods") {
+			x0, y0, x1, y1 := strip(woodsSide, wInner, H, -H, H)
+			l.Zones = append(l.Zones, Zone{"forest", x0, y0, x1, y1})
+		} else {
+			c := ge.Uniform(-50, 50)
+			x0, y0, x1, y1 := strip(woodsSide, wInner, wInner+26, c-16, c+16)
+			l.Zones = append(l.Zones, Zone{"copse", x0, y0, x1, y1})
+		}
+		wz = l.Zones[len(l.Zones)-1]
+		l.POIs["woods"] = [2]float64{math.Round((wz.X0+wz.X1)/2*math.Abs(woodsSide.dy) + woodsSide.dx*(wInner+5)),
+			math.Round((wz.Y0+wz.Y1)/2*math.Abs(woodsSide.dx) + woodsSide.dy*(wInner+5))}
+		if has("woods") { // у сплошного леса опушка напротив села, со сдвигом
+			c := ge.Uniform(-40, 40)
+			l.POIs["woods"] = [2]float64{math.Round(woodsSide.dx*(wInner+5) + math.Abs(woodsSide.dy)*c),
+				math.Round(woodsSide.dy*(wInner+5) + math.Abs(woodsSide.dx)*c)}
+		}
+		l.Land.Forest = "side"
+		if !has("woods") {
+			l.Land.Forest = "copse"
+		}
+		switch {
+		case has("woods") && gs.Chance(0.35): // v1.33: лес кругом села — дороги просекают его по осям
+			l.Zones = l.Zones[:len(l.Zones)-1]
+			in, out := R+18, math.Min(H-4, R+18+gs.Uniform(24, 40))
+			gap := laneHalf + 3
+			for _, z := range [][4]float64{
+				{-out, in, -gap, out}, {gap, in, out, out}, // север, по обе стороны дороги
+				{-out, -out, -gap, -in}, {gap, -out, out, -in}, // юг
+				{in, -in, out, -gap}, {in, gap, out, in}, // восток
+				{-out, -in, -in, -gap}, {-out, gap, -in, in}, // запад
+			} {
+				l.Zones = append(l.Zones, Zone{"forest", math.Round(z[0]), math.Round(z[1]), math.Round(z[2]), math.Round(z[3])})
+			}
+			wz = l.Zones[len(l.Zones)-1]
+			l.POIs["woods"] = [2]float64{math.Round(-in - 4), math.Round(gap + 6)}
+			l.Land.Forest = "ring"
+		case !has("woods") && gs.Chance(0.4): // v1.33: голое место — леса нет, лишь сухостой у края земли
+			l.Zones = l.Zones[:len(l.Zones)-1]
+			ex, ey := woodsSide.dx*(H-12), woodsSide.dy*(H-12)
+			wz = Zone{"copse", math.Round(ex - 6), math.Round(ey - 6), math.Round(ex + 6), math.Round(ey + 6)}
+			l.Zones = append(l.Zones, wz) // сухостой — крохотная роща у края земли: хворост и дрова всё же есть
+			l.POIs["woods"] = [2]float64{math.Round(ex - woodsSide.dx*3), math.Round(ey - woodsSide.dy*3)}
+			l.Land.Forest = "none"
+		}
+		// поля или выгон
+		fInner := R + ge.Uniform(6, 14)
+		fa := ge.Uniform(-70, -20)
+		fb := fa + ge.Uniform(80, 130)
+		fx0, fy0, fx1, fy1 := strip(fieldSide, fInner, math.Min(H-4, fInner+ge.Uniform(50, 80)), fa, math.Min(fb, H-4))
+		fk := "meadow"
+		if has("garden") {
+			fk = "field"
+		}
+		l.Zones = append(l.Zones, Zone{fk, fx0, fy0, fx1, fy1})
+		l.POIs["garden"] = [2]float64{math.Round(fieldSide.dx*(fInner+12) + math.Abs(fieldSide.dy)*(fa+fb)/2*0.5),
+			math.Round(fieldSide.dy*(fInner+12) + math.Abs(fieldSide.dx)*(fa+fb)/2*0.5)}
+		l.Land.Fields = "none"
+		if fk == "field" {
+			l.Land.Fields = "strip"
+			if gs.Chance(0.4) { // v1.33: огороды у самых домов вместо поля за селом
+				if plots := yardPlots(l, V); len(plots) >= 3 {
+					l.Zones = l.Zones[:len(l.Zones)-1]
+					l.Zones = append(l.Zones, plots...)
+					p := plots[0]
+					l.POIs["garden"] = [2]float64{math.Round((p.X0 + p.X1) / 2), math.Round((p.Y0 + p.Y1) / 2)}
+					l.Land.Fields = "yards"
+				}
+			}
+		}
+		// рудник: в холмах близко, иначе дальше; смещён к углу
+		mDist := R + ge.Uniform(40, 62)
+		if terrain == "hills" {
+			mDist = R + ge.Uniform(18, 30)
+		}
+		mOff := ge.Uniform(30, 60)
+		if ge.Chance(0.5) {
+			mOff = -mOff
+		}
+		mx := math.Round(mineSide.dx*mDist + math.Abs(mineSide.dy)*mOff)
+		my := math.Round(mineSide.dy*mDist + math.Abs(mineSide.dx)*mOff)
+		mx, my = clampf(mx, -H+14, H-14), clampf(my, -H+14, H-14)
+		l.POIs["mine"] = [2]float64{mx, my}
+		if has("mine") {
+			l.Zones = append(l.Zones, Zone{"rock", mx - 12, my - 12, mx + 12, my + 12})
+		}
+		// точки угодий не должны оказаться в воде
+		for _, k := range []string{"woods", "garden", "mine"} {
+			p := l.POIs[k]
+			if l.Blocked(p[0], p[1]) {
+				x, y := l.Free(p[0], p[1])
+				l.POIs[k] = [2]float64{math.Round(x), math.Round(y)}
+			}
+		}
+
+	}
 	// --- дороги: две оси-улицы, объездная, тропы к порогам и угодьям ---
 	well := l.addNode("well", 0, 0)
 	axis := func(alongX bool) {
