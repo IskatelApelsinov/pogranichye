@@ -49,13 +49,20 @@ namespace Pogranichye.Client.Networking
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
                     layout.Buildings == null || layout.River == null || layout.Pois == null ||
                     layout.Buildings.Count < 1 || !layout.Pois.ContainsKey("tavern") ||
-                    !layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
-                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river") ||
+                    !layout.Pois.ContainsKey("well") ||
                     !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||
                     !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
                     !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
                     layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
                     throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
+
+                var isGridCity = string.Equals(layout.Plan, "grid", StringComparison.Ordinal);
+                if (!isGridCity && (!layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
+                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river")))
+                    throw new InvalidOperationException("Сельская раскладка не содержит обязательные угодья.");
+                if (isGridCity && !layout.Pois.ContainsKey("hall"))
+                    throw new InvalidOperationException("Городская раскладка не содержит ратушу.");
+                WorldLandFrameParser.Validate(layout.Land);
 
                 if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
                     !string.Equals(settlementId, layout.Settlement, StringComparison.Ordinal))
@@ -68,7 +75,7 @@ namespace Pogranichye.Client.Networking
 
                 if (!string.IsNullOrEmpty(layout.Plan) && layout.Plan != "starter" &&
                     layout.Plan != "street" && layout.Plan != "cross" &&
-                    layout.Plan != "ring" && layout.Plan != "scatter")
+                    layout.Plan != "ring" && layout.Plan != "scatter" && layout.Plan != "grid")
                     throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
 
                 foreach (var building in layout.Buildings)
@@ -77,8 +84,11 @@ namespace Pogranichye.Client.Networking
                         !IsFinite(building.X1) || !IsFinite(building.Y1) ||
                         building.X0 >= building.X1 || building.Y0 >= building.Y1 ||
                         building.X0 < -layout.WorldHalf || building.X1 > layout.WorldHalf ||
-                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf)
-                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint здания.");
+                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf ||
+                        building.Storeys < 0 || building.Storeys > 8 ||
+                        !IsFinite(building.HeightMeters) || building.HeightMeters < 0d || building.HeightMeters > 30d ||
+                        (isGridCity && (building.Storeys < 2 || building.HeightMeters <= 0d)))
+                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint/этажность здания.");
                 }
 
                 if (layout.Zones != null)
