@@ -899,7 +899,8 @@ namespace Pogranichye.Client.Presentation
 
         private static Light FindSun()
         {
-            if (RenderSettings.sun != null && RenderSettings.sun.type == LightType.Directional)
+            if (RenderSettings.sun != null && RenderSettings.sun.enabled &&
+                RenderSettings.sun.type == LightType.Directional)
                 return RenderSettings.sun;
             var lights = UnityEngine.Object.FindObjectsByType<Light>();
             foreach (var light in lights)
@@ -937,6 +938,12 @@ namespace Pogranichye.Client.Presentation
         private static float _previousFogDensity, _previousFogStart, _previousFogEnd;
         private static Material _previousSkybox;
         private static Light _previousSun;
+        private static bool _previousSunEnabled;
+        private static Quaternion _previousSunRotation;
+        private static Color _previousSunColor;
+        private static float _previousSunIntensity, _previousSunShadowStrength, _previousSunShadowBias, _previousSunShadowNormalBias;
+        private static LightShadows _previousSunShadows;
+        private static LightRenderMode _previousSunRenderMode;
 
         private static void CaptureRenderSettings()
         {
@@ -954,6 +961,18 @@ namespace Pogranichye.Client.Presentation
             _previousFogEnd = RenderSettings.fogEndDistance;
             _previousSkybox = RenderSettings.skybox;
             _previousSun = RenderSettings.sun;
+            if (_previousSun != null)
+            {
+                _previousSunEnabled = _previousSun.enabled;
+                _previousSunRotation = _previousSun.transform.rotation;
+                _previousSunColor = _previousSun.color;
+                _previousSunIntensity = _previousSun.intensity;
+                _previousSunShadows = _previousSun.shadows;
+                _previousSunShadowStrength = _previousSun.shadowStrength;
+                _previousSunShadowBias = _previousSun.shadowBias;
+                _previousSunShadowNormalBias = _previousSun.shadowNormalBias;
+                _previousSunRenderMode = _previousSun.renderMode;
+            }
             _hasRenderSettingsSnapshot = true;
         }
 
@@ -973,6 +992,18 @@ namespace Pogranichye.Client.Presentation
                 RenderSettings.fogStartDistance = _previousFogStart;
                 RenderSettings.fogEndDistance = _previousFogEnd;
                 RenderSettings.skybox = _previousSkybox;
+                if (_previousSun != null)
+                {
+                    _previousSun.enabled = _previousSunEnabled;
+                    _previousSun.transform.rotation = _previousSunRotation;
+                    _previousSun.color = _previousSunColor;
+                    _previousSun.intensity = _previousSunIntensity;
+                    _previousSun.shadows = _previousSunShadows;
+                    _previousSun.shadowStrength = _previousSunShadowStrength;
+                    _previousSun.shadowBias = _previousSunShadowBias;
+                    _previousSun.shadowNormalBias = _previousSunShadowNormalBias;
+                    _previousSun.renderMode = _previousSunRenderMode;
+                }
                 RenderSettings.sun = _previousSun;
                 _hasRenderSettingsSnapshot = false;
             }
