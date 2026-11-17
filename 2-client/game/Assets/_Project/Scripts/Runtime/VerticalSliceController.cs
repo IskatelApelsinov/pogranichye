@@ -1414,17 +1414,17 @@ namespace Pogranichye.Client
                 GUILayout.Label("Интерфейс действий инвентаря ещё загружается.");
                 return;
             }
-            _core.DrawInventoryTab();
             if (_frame.Me.Mug)
             {
-                GUILayout.Space(8f);
                 GUILayout.BeginVertical(GUI.skin.box);
                 GUILayout.Label("ПРЕДМЕТ · ПИВО");
                 GUILayout.Label("У тебя есть кружка. Выпить её можно в любом месте.");
                 if (GUILayout.Button("🍺 Выпить пиво"))
                     QueueContextItemAction("consume", "beer", "Выпить пиво");
                 GUILayout.EndVertical();
+                GUILayout.Space(8f);
             }
+            _core.DrawInventoryTab();
         }
 
         private void DrawJournalTab()
