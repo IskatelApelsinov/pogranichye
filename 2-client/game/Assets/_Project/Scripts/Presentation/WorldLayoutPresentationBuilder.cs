@@ -1569,6 +1569,25 @@ namespace Pogranichye.Client.Presentation
                 -axisLength * 0.5f + left * 0.5f);
             AddTavernDoorColliderSegment(parent, "Server door wall right", side, centerX, centerZ, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f);
+
+            // Keep the wall above the actual door opening solid, including on multi-storey facades.
+            var doorHeight = Mathf.Min(2.4f, wallHeight);
+            var lintelHeight = wallHeight - doorHeight;
+            if (lintelHeight > 0.05f)
+            {
+                var lintelY = doorHeight + lintelHeight * 0.5f;
+                var lintelPosition = side == 0
+                    ? new Vector3(centerX + offset, lintelY, centerZ - depth * 0.5f + 0.12f)
+                    : side == 1
+                        ? new Vector3(centerX + offset, lintelY, centerZ + depth * 0.5f - 0.12f)
+                        : side == 2
+                            ? new Vector3(centerX - width * 0.5f + 0.12f, lintelY, centerZ + offset)
+                            : new Vector3(centerX + width * 0.5f - 0.12f, lintelY, centerZ + offset);
+                var lintelSize = horizontal
+                    ? new Vector3(opening, lintelHeight, 0.24f)
+                    : new Vector3(0.24f, lintelHeight, opening);
+                AddWallCollider(parent, "Server door lintel", lintelPosition, lintelSize);
+            }
         }
 
         private static void AddTavernDoorColliderSegment(Transform parent, string name, int side,
