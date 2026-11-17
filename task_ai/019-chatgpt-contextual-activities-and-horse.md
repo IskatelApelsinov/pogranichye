@@ -51,3 +51,10 @@ CI source checks do not constitute Unity Editor/PlayMode acceptance.
 
 
 Additional action audit: `act:build`, `act:hunt` and `act:fight` were accepted by the server but had no obvious thick-client affordance. Build is now in the general work menu; hunt/fight are exposed from the woodland E panel. Server still resolves fauna, energy, equipment modifiers and outcome.
+
+
+## Follow-up clarification — character goals vs immediate actions
+
+- `op:"goal"` is a long-lived character priority configured from the character UI (work/eat/rest/socialize), intended to guide the character while the player is offline. It is not a one-shot action and must not be triggered by E at a POI.
+- E at tavern/market opens the corresponding panel only; E at workstations/woods/river/mine opens or sends the immediate server-supported action.
+- The current server handler stores the goal with a long `GoalUntil` and has no correlated acknowledgement. Client status must say “request sent”, not “saved/confirmed”. Confirm with Claude whether the exact offline semantics are fully implemented and whether the goal also affects the embodied character while connected.
