@@ -55,6 +55,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("stats")] public StatsFrame Stats { get; set; }
         [JsonProperty("bag")] public CarryBagFrame Bag { get; set; }
         [JsonProperty("horse")] public HorseFrame Horse { get; set; }
+        // v1.32: every owned horse, including those left in other settlements.
+        [JsonProperty("horses")] public List<HorseFrame> Horses { get; set; }
         [JsonProperty("region")] public RegionFrame Region { get; set; }
         [JsonProperty("talk")] public TalkFrame Talk { get; set; }
         [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
@@ -84,6 +86,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("movement")] public CharacterMovementFrame Movement { get; set; }
         // Developer capability is server-authored and omitted entirely for ordinary accounts.
         [JsonProperty("dev")] public DeveloperModeFrame Dev { get; set; }
+        // v1.29: server-selected long-term life priority and explanatory vigor state.
+        [JsonProperty("mode")] public CharacterModeFrame Mode { get; set; }
+        [JsonProperty("vigor")] public CharacterVigorFrame Vigor { get; set; }
     }
 
     [Serializable]
@@ -843,6 +848,9 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("y0")] public double Y0 { get; set; }
         [JsonProperty("x1")] public double X1 { get; set; }
         [JsonProperty("y1")] public double Y1 { get; set; }
+        // v1.33: server-authored multi-storey city building mass.
+        [JsonProperty("storeys")] public int Storeys { get; set; }
+        [JsonProperty("height_m")] public double HeightMeters { get; set; }
     }
 
     [Serializable]
