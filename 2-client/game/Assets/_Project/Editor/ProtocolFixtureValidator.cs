@@ -334,7 +334,7 @@ namespace Pogranichye.Client.Editor
             var layout = Newtonsoft.Json.JsonConvert.DeserializeObject<Pogranichye.Client.Networking.Protocol.WorldLayoutFrame>(layoutJson);
             if (layout == null || layout.Plan != "cross" || layout.HasRiver != false ||
                 layout.Land == null || layout.Land.Water != "pond" || layout.Land.Fields != "yards" ||
-                layout.Buildings == null || layout.Buildings[0].Storeys != 3 ||
+                layout.Buildings == null || layout.Buildings.Count == 0 || layout.Buildings[0].Storeys != 3 ||
                 Math.Abs(layout.Buildings[0].HeightMeters - 9.6d) > 0.001d ||
                 layout.Settlement != "7" || layout.Anchor == null || layout.Anchor.Frame != 0 ||
                 layout.Zones == null || layout.Zones.Count != 1 || layout.Roads == null ||
