@@ -1,51 +1,34 @@
-# Client DTO coverage — stats, carry bag and horse
+# Client DTO coverage — stats, carry bag and multi-horse roster
 
-Date: 2026-11-14  
-Current status: server view audit complete; Unity DTO scaffolding exists but is not wired into WorldFrame/CoreGameplay.
+Date: 2026-11-18  
+Status: typed snapshot integration and Unity UI are implemented; Unity Editor/runtime acceptance remains required.
 
 ## Server-owned public wire views
 
-| Wire path | Server builder | Shape | Notes |
+| Wire path | Server view | Shape | Client handling |
 |---|---|---|---|
-| `me.stats` | `sim.StatsView(e)` | object with `strength/agility/endurance/intellect/perception/will:number` | All six values rounded to one decimal; server derives and persists progression |
-| `me.bag` | `sim.BagView(e)` | `{load:number, cap:number, over:boolean}` | This is the player's bulk-goods burden summary, not a physical backpack/container |
-| `me.horse` | `sim.HorseView(w,e)` | null or `{id:string,name:string,stam:number,mounted:boolean,here:boolean,bag:map<string,number>,bag_load:number,bag_cap:number}` | Horse is a server entity; saddlebag is distinct from player stash and carried inventory |
+| `me.stats` | `sim.StatsView(e)` | six numeric attributes | typed `StatsFrame` |
+| `me.bag` | `sim.BagView(e)` | `load/cap/over` | typed carry-bag summary |
+| `me.horse` | active horse compatibility view | nullable horse object | typed `HorseFrame`, drives current mount/rider presentation |
+| `me.horses[]` | v1.32 owned-horse roster | array of horse objects with active/location metadata | typed `List<HorseFrame>`, stable UI and target-specific actions |
 
-## Existing client scaffold — not yet complete
+Each horse has a stable string `id`, name, stamina, mounted/here flags, separate saddlebag contents/load/capacity, and additive `active`, `settlement_id`, `settlement_name`, `realm_name` fields. Older v:1 servers may omit `me.horses`; the client keeps `me.horse` as a one-horse fallback.
 
-`2-client/game/Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs` currently defines:
-- `StatsFrame` and `StatsFrameParser`;
-- `CarryBagFrame` and `CarryBagFrameParser`;
-- `HorseFrame` and `HorseFrameParser`.
+## Client integration
 
-However, at this audit:
-- `CharacterFrame` does not expose these properties;
-- `WorldFrameParser` does not call these validators;
-- `CoreGameplay` still reads stats, bag and horse through JObject selectors;
-- there is no dedicated pure C# regression runner for these parsers. The dedicated parser regression suite passed in run #43638732127; wire integration and parser behavior remain unverified.
+- `CharacterFrame` exposes `Stats`, `Bag`, `Horse` and `Horses`.
+- `WorldFrameParser` validates the active horse and each optional roster entry. Malformed roster containers/entries are rejected; absent/null roster remains backward-compatible.
+- Character panel lists owned horses and can select a stable horse by server ID.
+- Stable panel lists the complete owned herd, location/realm and saddlebag state; it can choose, mount/dismount, feed and stow/unstow items using the stable ID as `target`. All actions use the shared RequestGate and server `reqid/me.result`.
+- `me.horse` remains the active horse used by existing mount/rider presentation and inventory compatibility view.
+- `HorseStatsFrameParserCheck` covers multiple horses, stable IDs, location metadata, missing/null compatibility and malformed roster values.
 
-Therefore these classes are scaffolding only; do not count these wire sections as migrated or runtime-verified. In particular, `CarryBagFrameParser.Validate` currently expects an object; integration must handle absent/null old-v1 fields deliberately.
+## Semantic constraints
 
-## Current CoreGameplay consumers
+`me.bag` is not a physical backpack. It is the player's bulk-goods burden summary. `me.horse.bag` is a separate saddlebag map on the server horse entity. Do not conflate either with `InventoryC.Items`, worn equipment, room chest `ContainerC`, or a future physical backpack.
 
-- Character sheet and character menu read all six `me.stats` values.
-- Inventory panel reads `me.bag.load/cap` and `me.horse.bag` quantities.
-- Horse menu reads `id/name/stam/mounted/here/bag_load/bag_cap`.
-- `UpdateMount` and `ApplyRiderPose` use `me.horse.mounted` to drive presentation.
+Unity must never locally change horse ownership, stamina, location, saddlebag quantities or movement speed. Every horse operation uses the shared RequestGate and server `reqid/me.result`.
 
-## Critical semantic distinction
+## Validation boundary
 
-`me.bag` is not a physical backpack. It is `BagView` over `StashC.Goods`: load is the sum of bulk-goods quantities and capacity derives from strength. `me.horse.bag` is a separate saddlebag map on the server horse entity. Do not conflate either with `InventoryC.Items`, worn equipment, room chest `ContainerC`, or a future physical backpack.
-
-The server already owns purchase/mount/dismount/feed/stow/unstow outcomes. Unity must display confirmed values and send existing `op:"horse"` intentions only. Do not locally change horse ownership, stamina, bag quantities or movement speed.
-
-## Next safe implementation slice
-
-1. Add `StatsFrame`, `CarryBagFrame`, `HorseFrame` properties to `CharacterFrame`.
-2. Wire validators into full `WorldFrameParser`; these sections are absent from current fastJSON, so do not invent fast patch fields.
-3. Preserve missing/null semantics for old v1 frames.
-4. Migrate one bounded read-only consumer at a time: stats display, then bag/horse menu, then mount presentation.
-5. Add pure C# tests for numeric bounds, null/absent horse, saddlebag maps and overloaded burden.
-6. Keep physical backpack/container work separate; it requires a server contract and migration plan, not reinterpretation of `me.bag`.
-
-No server change is requested by this DTO slice.
+The pure-C# horse parser regression suite is part of Unity-independent CI. Unity Editor compilation, actual stable interaction, horse switching, mounting, reconnect and multi-client runtime behavior still require testing in Unity 6000.6.7f1 against the server.
