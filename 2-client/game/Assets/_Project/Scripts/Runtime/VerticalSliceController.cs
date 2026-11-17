@@ -6197,8 +6197,14 @@ namespace Pogranichye.Client
 
         }
 
+        private void OnDisable()
+        {
+            _input?.SetDiagnosticsEnabled(false);
+        }
+
         private void OnDestroy()
         {
+            _input?.SetDiagnosticsEnabled(false);
             WorldPoi.Selected -= OnPoiSelected;
             WorldNpc.Selected -= OnNpcSelected;
             _voiceChat?.StopVoice();
