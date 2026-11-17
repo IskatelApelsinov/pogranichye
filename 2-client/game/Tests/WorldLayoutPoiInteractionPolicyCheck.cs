@@ -15,15 +15,15 @@ internal static class WorldLayoutPoiInteractionPolicyCheck
     public static int Main()
     {
         WorldLayoutPoiInteraction interaction;
-        Check("tavern maps to existing socialize goal",
+        Check("tavern opens its context without changing character priority",
             WorldLayoutPoiInteractionPolicy.TryResolve("tavern", out interaction) &&
-            interaction.Goal == "socialize" && interaction.ActionIntent == null);
+            interaction.Goal == null && interaction.ActionIntent == null);
         Check("smithy maps to server forge action on E",
             WorldLayoutPoiInteractionPolicy.TryResolve("smithy", out interaction) &&
             interaction.Goal == null && interaction.ActionIntent == "forge");
-        Check("market maps to existing eat goal",
+        Check("market opens its context without changing character priority",
             WorldLayoutPoiInteractionPolicy.TryResolve("market", out interaction) &&
-            interaction.Goal == "eat" && interaction.ActionIntent == null);
+            interaction.Goal == null && interaction.ActionIntent == null);
         Check("garden maps to server gather action on E",
             WorldLayoutPoiInteractionPolicy.TryResolve("garden", out interaction) &&
             interaction.Goal == null && interaction.ActionIntent == "gather");
