@@ -259,7 +259,7 @@ func MarketView(se *core.Entity, e *core.Entity) []map[string]any {
 	}
 	seen := map[string]bool{}
 	row := func(g string) {
-		if seen[g] || g == BeerGood {
+		if seen[g] || g == BeerGood || g == horseGood { // лошадь — живая сущность, её продаёт конюх, а не рынок
 			return
 		}
 		seen[g] = true

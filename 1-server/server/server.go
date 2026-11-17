@@ -190,6 +190,9 @@ func (s *Server) LoadFrom(path string) (bool, error) {
 	s.mu.Lock()
 	s.world = w
 	s.runner = core.NewRunnerWith(hub, clock, sim.Default()...)
+	if n := sim.FixHorseGoods(s.world); n > 0 { // старые сохранения: «лошадь»-вещь с рынка → настоящая лошадь
+		log.Printf("починка сохранения: %d лошадей-вещей превращено в настоящих или возвращено в конюшни", n)
+	}
 	s.ctl = map[core.ID]uint64{}
 	s.mu.Unlock()
 	return true, nil

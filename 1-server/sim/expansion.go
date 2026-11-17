@@ -220,6 +220,9 @@ func Trade(w *core.World, e *core.Entity, good, side string, qty int, reqid stri
 	if s == nil || pu == nil {
 		return false, "нет рынка"
 	}
+	if good == horseGood {
+		return false, "лошадей продаёт конюх у конюшни, не рынок"
+	}
 	price := econ.Price(se, good)
 	if price <= 0 {
 		price = 1
