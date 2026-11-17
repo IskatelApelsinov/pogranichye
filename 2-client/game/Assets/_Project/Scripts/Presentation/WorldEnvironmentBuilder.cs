@@ -34,7 +34,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (root == null || root.Find("WorldEnvironment") != null) return;
 
-            CaptureRenderSettings();
+            CaptureRenderSettings(camera);
             var environment = new GameObject("WorldEnvironment").transform;
             environment.SetParent(root, false);
             EnsureSun(environment);
@@ -944,8 +944,10 @@ namespace Pogranichye.Client.Presentation
         private static float _previousSunIntensity, _previousSunShadowStrength, _previousSunShadowBias, _previousSunShadowNormalBias;
         private static LightShadows _previousSunShadows;
         private static LightRenderMode _previousSunRenderMode;
+        private static Camera _previousCamera;
+        private static CameraClearFlags _previousCameraClearFlags;
 
-        private static void CaptureRenderSettings()
+        private static void CaptureRenderSettings(Camera camera)
         {
             if (_hasRenderSettingsSnapshot) return;
             _previousAmbientMode = RenderSettings.ambientMode;
@@ -961,6 +963,8 @@ namespace Pogranichye.Client.Presentation
             _previousFogEnd = RenderSettings.fogEndDistance;
             _previousSkybox = RenderSettings.skybox;
             _previousSun = RenderSettings.sun;
+            _previousCamera = camera;
+            if (_previousCamera != null) _previousCameraClearFlags = _previousCamera.clearFlags;
             if (_previousSun != null)
             {
                 _previousSunEnabled = _previousSun.enabled;
@@ -1005,6 +1009,8 @@ namespace Pogranichye.Client.Presentation
                     _previousSun.renderMode = _previousSunRenderMode;
                 }
                 RenderSettings.sun = _previousSun;
+                if (_previousCamera != null) _previousCamera.clearFlags = _previousCameraClearFlags;
+                _previousCamera = null;
                 _hasRenderSettingsSnapshot = false;
             }
             DestroyAsset(_postProcessingProfile);
