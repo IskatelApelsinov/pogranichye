@@ -1,0 +1,48 @@
+{
+  "generator": "generate_tavern_props.py",
+  "blender_version": "4.2.0",
+  "units": "metres",
+  "texture_size": [128, 128],
+  "assets": [
+    {
+      "root": "PROP_Tankard_OakBeer",
+      "triangle_count": 1328,
+      "triangle_budget": [300, 2000],
+      "within_triangle_budget": true,
+      "origin": "ground-centred",
+      "materials": ["Amber ale", "Forged iron hoops", "Oak • dark seams", "Oak • warm aged timber", "Tavern foam"],
+      "exports": ["fbx", "glb"],
+      "export_warnings": []
+    },
+    {
+      "root": "PROP_Barrel_Oak",
+      "triangle_count": 1208,
+      "triangle_budget": [300, 2000],
+      "within_triangle_budget": true,
+      "origin": "ground-centred",
+      "materials": ["Forged iron hoops", "Oak • dark seams", "Oak • warm aged timber"],
+      "exports": ["fbx", "glb"],
+      "export_warnings": []
+    },
+    {
+      "root": "PROP_Basket_WickerMarket",
+      "triangle_count": 1748,
+      "triangle_budget": [300, 2000],
+      "within_triangle_budget": true,
+      "origin": "ground-centred",
+      "materials": ["Apple • orchard green", "Apple • russet red", "Bread • crust", "Bread • pale scoring", "Oak • dark seams", "Wicker • pale weave", "Wicker • reed core"],
+      "exports": ["fbx", "glb"],
+      "export_warnings": []
+    },
+    {
+      "root": "PROP_Bench_Rustic",
+      "triangle_count": 484,
+      "triangle_budget": [300, 2000],
+      "within_triangle_budget": true,
+      "origin": "ground-centred",
+      "materials": ["Oak • dark seams", "Oak • warm aged timber"],
+      "exports": ["fbx", "glb"],
+      "export_warnings": []
+    }
+  ]
+}

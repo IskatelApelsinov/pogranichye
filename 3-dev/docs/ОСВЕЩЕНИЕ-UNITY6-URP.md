@@ -15,6 +15,8 @@
 - Server-authored layout/terrain строятся в runtime. Наличие MeshRenderer.isStatic не создаёт lightmap и не означает baked GI.
 - В репозитории не найден подтверждённый URP Asset/Quality/LightingSettings asset. Следовательно, включение shadow maps, HDR, MSAA и renderer features пока не доказано.
 
+Это source audit, не визуальная приёмка.
+
 ## 2. Рекомендуемая архитектура света
 
 ### Главный свет
@@ -33,7 +35,7 @@ URP runtime-generated spaces не имеют заранее запечённых
 Не создавать realtime Reflection Probe на каждый дом. Начать с skybox/environment reflections. Для ключевой таверны допустим один baked/custom cubemap probe после проверки. Металл, вода и мокрая грязь требуют согласованного roughness/smoothness, иначе мир станет пластиковым/зеркальным.
 
 ### Fog
-Текущий ExponentialSquared — distance fog, не height fog и не volumetric fog. Он смягчает дальний план, но не должен скрывать NPC, POI и ориентиры. Не добавлять тяжёлый volumetric fog или прозрачные туманные плоскости глобально; ранее были URP артефакты белых пятен. Погодные частицы держать локальными и bounded.
+Текущий ExponentialSquared — distance fog, не height fog и не volumetric fog. Он смягчает дальний план, но не должен скрывать NPC, POI и ориентиры. Не добавлять тяжёлый volumetric fog или прозрачные туманные плоскости глобально; ранее уже были URP артефакты белых пятен. Погодные частицы держать локальными и bounded.
 
 ### Volume / exposure
 Global Volume — grading/tonemapping, не источник света. ACES оставить как старт. Сохранять детали дерева, кожи, земли и лица; Bloom пока выключен, vignette минимальна. Local volumes для помещений — только после проверки blending и Volume Mask; экспозиция не должна прыгать в дверном проёме.

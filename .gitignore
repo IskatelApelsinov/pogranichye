@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.json
+!docker-compose*.json
+!3-dev/contract/fixtures/*.json
+!3-dev/contract/fixtures/
+.godot/
+*.import
+/tmp/
+
+# Собираемые/рантайм-файлы сервера
+1-server/accounts.json
+1-server/pogserver
+*.snapshot.json

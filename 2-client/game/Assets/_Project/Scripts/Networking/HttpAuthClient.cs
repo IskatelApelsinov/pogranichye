@@ -1,0 +1,396 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Pogranichye.Client.Networking.Protocol;
+using UnityEngine.Networking;
+
+namespace Pogranichye.Client.Networking
+{
+    public sealed class HttpAuthClient
+    {
+        private readonly string _baseUrl;
+
+        public HttpAuthClient(string baseUrl)
+        {
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                throw new ArgumentException("Адрес сервера не задан.", nameof(baseUrl));
+
+            _baseUrl = baseUrl.TrimEnd('/');
+        }
+
+        /// <summary>
+        /// Fetches settlement geometry. Without an id the server returns the tutorial village (pre-v1.19
+        /// behaviour); with <paramref name="settlementId"/> (place.id) it returns that settlement's own layout.
+        /// </summary>
+        public async Task<WorldLayoutFrame> GetLayoutAsync(string settlementId = null,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var url = _baseUrl + "/api/layout";
+            if (!string.IsNullOrEmpty(settlementId))
+                url += "?settlement=" + UnityWebRequest.EscapeURL(settlementId);
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/layout: " + request.error);
+                var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
+                if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
+                    layout.Buildings == null || layout.River == null || layout.Pois == null ||
+                    layout.Buildings.Count < 1 || !layout.Pois.ContainsKey("tavern") ||
+                    !layout.Pois.ContainsKey("woods") || !layout.Pois.ContainsKey("garden") ||
+                    !layout.Pois.ContainsKey("mine") || !layout.Pois.ContainsKey("river") ||
+                    !IsFinite(layout.WorldHalf) || !IsFinite(layout.VillageHalf) ||
+                    !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
+                    !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
+                    layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
+
+                if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
+                    !string.Equals(settlementId, layout.Settlement, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Сервер вернул раскладку другого поселения.");
+
+                if (layout.Anchor != null &&
+                    (layout.Anchor.Frame < 0 || !IsFinite(layout.Anchor.East) ||
+                     !IsFinite(layout.Anchor.North) || !IsFinite(layout.Anchor.Up)))
+                    throw new InvalidOperationException("Layout v2 содержит некорректный глобальный anchor.");
+
+                if (!string.IsNullOrEmpty(layout.Plan) && layout.Plan != "starter" &&
+                    layout.Plan != "street" && layout.Plan != "cross" &&
+                    layout.Plan != "ring" && layout.Plan != "scatter")
+                    throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
+
+                foreach (var building in layout.Buildings)
+                {
+                    if (building == null || !IsFinite(building.X0) || !IsFinite(building.Y0) ||
+                        !IsFinite(building.X1) || !IsFinite(building.Y1) ||
+                        building.X0 >= building.X1 || building.Y0 >= building.Y1 ||
+                        building.X0 < -layout.WorldHalf || building.X1 > layout.WorldHalf ||
+                        building.Y0 < -layout.WorldHalf || building.Y1 > layout.WorldHalf)
+                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint здания.");
+                }
+
+                if (layout.Zones != null)
+                {
+                    foreach (var zone in layout.Zones)
+                    {
+                        if (zone == null || (zone.Kind != "forest" && zone.Kind != "copse" &&
+                            zone.Kind != "field" && zone.Kind != "meadow" && zone.Kind != "rock" && zone.Kind != "pond") ||
+                            !IsFinite(zone.X0) || !IsFinite(zone.Y0) || !IsFinite(zone.X1) || !IsFinite(zone.Y1) ||
+                            zone.X0 >= zone.X1 || zone.Y0 >= zone.Y1 ||
+                            zone.X0 < -layout.WorldHalf || zone.X1 > layout.WorldHalf ||
+                            zone.Y0 < -layout.WorldHalf || zone.Y1 > layout.WorldHalf)
+                            throw new InvalidOperationException("Layout v2 содержит некорректную природную зону.");
+                    }
+                }
+
+                if (layout.Roads != null)
+                {
+                    foreach (var road in layout.Roads)
+                    {
+                        if (road == null || road.Length != 4 ||
+                            !IsFinite(road[0]) || !IsFinite(road[1]) ||
+                            !IsFinite(road[2]) || !IsFinite(road[3]) ||
+                            Math.Abs(road[0]) > layout.WorldHalf || Math.Abs(road[1]) > layout.WorldHalf ||
+                            Math.Abs(road[2]) > layout.WorldHalf || Math.Abs(road[3]) > layout.WorldHalf ||
+                            (Math.Abs(road[0] - road[2]) < 0.001 && Math.Abs(road[1] - road[3]) < 0.001))
+                            throw new InvalidOperationException("Layout v2 содержит некорректный сегмент дороги.");
+                    }
+                }
+
+                if (layout.Homes != null)
+                    foreach (var home in layout.Homes)
+                        if (home == null || !IsFinite(home.X) || !IsFinite(home.Y) ||
+                            Math.Abs(home.X) > layout.WorldHalf || Math.Abs(home.Y) > layout.WorldHalf)
+                            throw new InvalidOperationException("Layout v2 содержит некорректную точку дома.");
+
+                if (layout.Entry != null &&
+                    (!IsFinite(layout.Entry.X) || !IsFinite(layout.Entry.Y) ||
+                     Math.Abs(layout.Entry.X) > layout.WorldHalf || Math.Abs(layout.Entry.Y) > layout.WorldHalf))
+                    throw new InvalidOperationException("Layout v2 содержит некорректную точку входа.");
+
+                foreach (var poi in layout.Pois)
+                    if (string.IsNullOrWhiteSpace(poi.Key) || poi.Value == null ||
+                        !IsFinite(poi.Value.X) || !IsFinite(poi.Value.Y) ||
+                        Math.Abs(poi.Value.X) > layout.WorldHalf || Math.Abs(poi.Value.Y) > layout.WorldHalf)
+                        throw new InvalidOperationException("Layout v2 содержит некорректную точку интереса.");
+
+                return layout;
+            }
+        }
+
+        /// <summary>Loads the additive v1 world manifest. Geography/realms/caravans are metadata, not character knowledge.</summary>
+        public async Task<WorldManifestFrame> GetWorldManifestAsync()
+        {
+            using (var request = UnityWebRequest.Get(_baseUrl + "/api/world"))
+            {
+                request.timeout = 15;
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/world: " + request.error);
+                var manifest = JsonConvert.DeserializeObject<WorldManifestFrame>(request.downloadHandler.text);
+                if (manifest == null || manifest.Scheme != "yof-tangent" || manifest.Version != 1 ||
+                    manifest.Units != "m" || manifest.ChunkMeters != 256 || manifest.LayerMeters != 64 ||
+                    manifest.Frames == null || manifest.Settlements == null || manifest.Roads == null)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую карту мира v1.19.");
+                var frameIds = new HashSet<int>();
+                foreach (var frame in manifest.Frames)
+                {
+                    if (frame == null || frame.Id < 0 || string.IsNullOrWhiteSpace(frame.Projection) ||
+                        !IsFinite(frame.OriginLatitude) || !IsFinite(frame.OriginLongitude) ||
+                        !IsFinite(frame.RadiusMeters) || frame.RadiusMeters <= 0)
+                        throw new InvalidOperationException("Карта мира содержит некорректный кадр координат.");
+                    if (!frameIds.Add(frame.Id))
+                        throw new InvalidOperationException("Карта мира содержит повторный frame id.");
+                }
+                if (!frameIds.Contains(0) || !IsFinite(manifest.RimRadiusMeters) || manifest.RimRadiusMeters <= 0)
+                    throw new InvalidOperationException("Карта мира не содержит корректный основной frame 0 или радиус котла.");
+
+                var settlementIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var settlement in manifest.Settlements)
+                {
+                    if (settlement == null || string.IsNullOrWhiteSpace(settlement.Id) ||
+                        !frameIds.Contains(settlement.Frame) ||
+                        !IsFinite(settlement.East) || !IsFinite(settlement.North) ||
+                        !IsFinite(settlement.Up) || !IsFinite(settlement.Half) || settlement.Half <= 0)
+                        throw new InvalidOperationException("Карта мира содержит некорректное поселение.");
+                    if (!settlementIds.Add(settlement.Id))
+                        throw new InvalidOperationException("Карта мира содержит повторный settlement id.");
+                }
+                foreach (var road in manifest.Roads)
+                    if (road == null || string.IsNullOrWhiteSpace(road.From) ||
+                        string.IsNullOrWhiteSpace(road.To) || road.From == road.To)
+                        throw new InvalidOperationException("Карта мира содержит некорректную дорогу.");
+
+                // v1.24–v1.26 are additive: validate these fields when present, but keep older
+                // v1 manifests readable. The server remains authoritative for all movement.
+                if (manifest.Realms != null)
+                {
+                    var realmIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var realm in manifest.Realms)
+                    {
+                        if (realm == null || string.IsNullOrWhiteSpace(realm.Id) ||
+                            string.IsNullOrWhiteSpace(realm.Name) || !realmIds.Add(realm.Id) ||
+                            realm.Size < 0 || realm.Territory == null)
+                            throw new InvalidOperationException("Карта мира содержит некорректную державу.");
+                    }
+                }
+                if (manifest.Caravans != null)
+                {
+                    var caravanIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var caravan in manifest.Caravans)
+                    {
+                        if (caravan == null || string.IsNullOrWhiteSpace(caravan.Id) ||
+                            !caravanIds.Add(caravan.Id) || !frameIds.Contains(caravan.Frame) ||
+                            !IsFinite(caravan.East) || !IsFinite(caravan.North) || !IsFinite(caravan.Up) ||
+                            !IsFinite(caravan.Amount) || !IsFinite(caravan.Progress) ||
+                            caravan.Progress < 0d || caravan.Progress > 1d)
+                            throw new InvalidOperationException("Карта мира содержит некорректный обоз.");
+                    }
+                }
+                if (manifest.Movement != null)
+                {
+                    var movement = manifest.Movement;
+                    var slope = movement.Slope;
+                    if (!IsFinite(movement.WalkMetersPerSecond) || movement.WalkMetersPerSecond <= 0d ||
+                        !IsFinite(movement.JogMetersPerSecond) || movement.JogMetersPerSecond <= 0d ||
+                        !IsFinite(movement.RunMetersPerSecond) || movement.RunMetersPerSecond <= 0d ||
+                        slope == null || !IsFinite(slope.ProbeMeters) || slope.ProbeMeters <= 0d ||
+                        !IsFinite(slope.UphillFactor) || slope.UphillFactor < 0d ||
+                        !IsFinite(slope.DownhillFactor) || slope.DownhillFactor < 0d ||
+                        !IsFinite(slope.EasyDownGrade) || slope.EasyDownGrade <= 0d ||
+                        !IsFinite(slope.EasyDownBoost) || slope.EasyDownBoost < 1d ||
+                        !IsFinite(slope.CliffGrade) || slope.CliffGrade <= 0d ||
+                        !IsFinite(slope.FlatRadiusMeters) || slope.FlatRadiusMeters < 0d)
+                        throw new InvalidOperationException("Карта мира содержит некорректный профиль движения.");
+                }
+
+                // Older v1.19 manifests may omit wildsites. When present, validate them strictly:
+                // invalid wilderness data must not leak NaN/Infinity or unknown landmark types into rendering.
+                if (manifest.WildSites != null)
+                {
+                    var wildSiteIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var site in manifest.WildSites)
+                    {
+                        if (site == null || string.IsNullOrWhiteSpace(site.Id) ||
+                            string.IsNullOrWhiteSpace(site.Name) || string.IsNullOrWhiteSpace(site.RegionId) ||
+                            !wildSiteIds.Add(site.Id) || !frameIds.Contains(site.Frame) ||
+                            (site.Type != "cave" && site.Type != "tower" && site.Type != "ruins" &&
+                             site.Type != "grove" && site.Type != "spring") ||
+                            !IsFinite(site.East) || !IsFinite(site.North) || !IsFinite(site.Up) ||
+                            !IsFinite(site.Ground) || !IsFinite(site.Mana) || !IsFinite(site.Danger) ||
+                            site.Mana < 0.1 || site.Mana > 3.0 || site.Danger < 0.0 || site.Danger > 1.0 ||
+                            site.Up < site.Ground - 30.0 || site.Up > site.Ground + 45.0)
+                            throw new InvalidOperationException("Карта мира содержит некорректное дикое место.");
+                    }
+                }
+                return manifest;
+            }
+        }
+
+        /// <summary>
+        /// Loads one deterministic 256 m terrain chunk. Heights are south-to-north rows,
+        /// west-to-east within each row; shared border samples make adjacent chunks seamless.
+        /// </summary>
+        public async Task<TerrainChunkFrame> GetTerrainChunkAsync(long chunkX, long chunkZ, int stepMeters = 16,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (stepMeters != 8 && stepMeters != 16 && stepMeters != 32 && stepMeters != 64)
+                throw new ArgumentOutOfRangeException(nameof(stepMeters), "Шаг рельефа: 8, 16, 32 или 64 м.");
+            var url = _baseUrl + "/api/terrain?cx=" +
+                chunkX.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&cz=" + chunkZ.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&step=" + stepMeters.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/terrain: " + request.error);
+                var chunk = JsonConvert.DeserializeObject<TerrainChunkFrame>(request.downloadHandler.text);
+                if (chunk == null || !chunk.IsValid || chunk.Chunk[0] != chunkX ||
+                    chunk.Chunk[1] != chunkZ || chunk.StepMeters != stepMeters)
+                    throw new InvalidOperationException("Сервер вернул некорректный или неожиданный чанк рельефа.");
+                return chunk;
+            }
+        }
+
+        /// <summary>
+        /// Fetches server-authored multi-level spaces intersecting a world chunk.
+        /// A 404 remains a legacy-server fallback; the returned geometry never authorizes movement.
+        /// </summary>
+        public async Task<WorldSpaceChunkFrame> GetWorldSpacesAsync(long chunkX, long chunkZ,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var url = _baseUrl + "/api/spaces?cx=" +
+                chunkX.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "&cz=" + chunkZ.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 15;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                // Multi-level spaces are optional until the server endpoint is deployed.
+                // A 404 is a supported legacy response; other transport errors remain visible.
+                if (request.responseCode == 404) return null;
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/spaces: " + request.error);
+                var spaces = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(request.downloadHandler.text);
+                if (!WorldSpaceDescriptorValidator.IsValid(spaces) ||
+                    spaces.Chunk[0] != chunkX || spaces.Chunk[1] != chunkZ)
+                    throw new InvalidOperationException("Сервер вернул некорректные пространственные дескрипторы.");
+                return spaces;
+            }
+        }
+
+        /// <summary>
+        /// Loads the static v1.22 item/recipe/weave catalogue. This is reference data only;
+        /// all purchases, crafting, equipment and spell outcomes remain server-authoritative.
+        /// </summary>
+        public async Task<JObject> GetCatalogAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            using (var request = UnityWebRequest.Get(_baseUrl + "/api/catalog"))
+            {
+                request.timeout = 15;
+                using (cancellationToken.Register(() => request.Abort()))
+                {
+                    var operation = request.SendWebRequest();
+                    var completion = new TaskCompletionSource<bool>();
+                    operation.completed += _ => completion.TrySetResult(true);
+                    await completion.Task;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (request.result != UnityWebRequest.Result.Success)
+                    throw new InvalidOperationException("Не удалось получить /api/catalog: " + request.error);
+                JObject catalog;
+                try { catalog = JObject.Parse(request.downloadHandler.text); }
+                catch (JsonException ex) { throw new InvalidOperationException("Каталог предметов повреждён.", ex); }
+                if (catalog["v"]?.Value<int>() != 1 ||
+                    catalog["items"]?.Type != JTokenType.Array ||
+                    catalog["recipes"]?.Type != JTokenType.Array ||
+                    catalog["names"]?.Type != JTokenType.Object ||
+                    catalog["weave_nodes"]?.Type != JTokenType.Array ||
+                    catalog["weave_schemas"]?.Type != JTokenType.Array)
+                    throw new InvalidOperationException("Сервер вернул неподдерживаемую форму /api/catalog v1.");
+                return catalog;
+            }
+        }
+
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+        public Task<AuthResponse> RegisterAsync(string login, string password)
+        {
+            return PostAsync("/api/register", login, password);
+        }
+
+        public Task<AuthResponse> LoginAsync(string login, string password)
+        {
+            return PostAsync("/api/login", login, password);
+        }
+
+        private async Task<AuthResponse> PostAsync(string path, string login, string password)
+        {
+            var body = JsonConvert.SerializeObject(new AuthRequest
+            {
+                Login = login,
+                Password = password
+            });
+
+            using (var request = new UnityWebRequest(_baseUrl + path, UnityWebRequest.kHttpVerbPOST))
+            {
+                request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json; charset=utf-8");
+                request.timeout = 15;
+
+                var operation = request.SendWebRequest();
+                var completion = new TaskCompletionSource<bool>();
+                operation.completed += _ => completion.TrySetResult(true);
+                await completion.Task;
+
+                var responseText = request.downloadHandler?.text;
+                if (string.IsNullOrWhiteSpace(responseText))
+                    throw new InvalidOperationException(
+                        $"Сервер вернул пустой ответ ({request.responseCode}): {request.error}");
+
+                AuthResponse response;
+                try
+                {
+                    response = JsonConvert.DeserializeObject<AuthResponse>(responseText);
+                }
+                catch (JsonException ex)
+                {
+                    throw new InvalidOperationException("Ответ авторизации не является корректным JSON.", ex);
+                }
+
+                if (request.result != UnityWebRequest.Result.Success && response?.Ok != true)
+                    throw new InvalidOperationException(response?.Message ?? request.error ?? "Ошибка HTTP.");
+
+                return response ?? throw new InvalidOperationException("Пустой ответ авторизации.");
+            }
+        }
+    }
+}

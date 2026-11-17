@@ -1,0 +1,850 @@
+using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Pogranichye.Client.Networking;
+using UnityEngine;
+
+namespace Pogranichye.Client.Networking.Protocol
+{
+    [Serializable]
+    public sealed class WorldFrame
+    {
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("alive")] public bool Alive { get; set; }
+        [JsonProperty("msg")] public string Message { get; set; }
+        [JsonProperty("day")] public int Day { get; set; }
+        [JsonProperty("year")] public int Year { get; set; }
+        [JsonProperty("season")] public string Season { get; set; }
+        // Optional additive v1 field: older servers may omit the authoritative hour.
+        [JsonProperty("hour")] public int? Hour { get; set; }
+        [JsonProperty("me")] public CharacterFrame Me { get; set; }
+        [JsonProperty("place")] public PlaceFrame Place { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CharacterFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("surname")] public string Surname { get; set; }
+        [JsonProperty("nick")] public string Nick { get; set; }
+        [JsonProperty("trait")] public string Trait { get; set; }
+        [JsonProperty("origin")] public string Origin { get; set; }
+        [JsonProperty("skills")] public Dictionary<string, double> Skills { get; set; }
+        [JsonProperty("desire")] public string Desire { get; set; }
+        [JsonProperty("inv")] public InventoryFrame Inventory { get; set; }
+        [JsonProperty("world")] public List<SettlementFrame> World { get; set; }
+        [JsonProperty("known_places")] public List<KnownPlaceFrame> KnownPlaces { get; set; }
+        [JsonProperty("role")] public string Role { get; set; }
+        [JsonProperty("sex")] public string Sex { get; set; }
+        [JsonProperty("age")] public double Age { get; set; }
+        [JsonProperty("health")] public double Health { get; set; }
+        [JsonProperty("hunger")] public double Hunger { get; set; }
+        [JsonProperty("energy")] public double Energy { get; set; }
+        [JsonProperty("morale")] public double Morale { get; set; }
+        [JsonProperty("goal")] public string Goal { get; set; }
+        [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("mug")] public bool Mug { get; set; }
+        [JsonProperty("mana")] public double Mana { get; set; }
+        // v1.12 full-frame intoxication level; omitted by the current fast-frame shape.
+        [JsonProperty("drunk")] public double Drunk { get; set; }
+        [JsonProperty("weave")] public WeaveFrame Weave { get; set; }
+        [JsonProperty("combat")] public CombatFrame Combat { get; set; }
+        [JsonProperty("journey")] public JourneyFrame Journey { get; set; }
+        [JsonProperty("quests")] public QuestsFrame Quests { get; set; }
+        [JsonProperty("stats")] public StatsFrame Stats { get; set; }
+        [JsonProperty("bag")] public CarryBagFrame Bag { get; set; }
+        [JsonProperty("horse")] public HorseFrame Horse { get; set; }
+        [JsonProperty("region")] public RegionFrame Region { get; set; }
+        [JsonProperty("talk")] public TalkFrame Talk { get; set; }
+        [JsonProperty("invite_from")] public InviteFromFrame InviteFrom { get; set; }
+        [JsonProperty("social_event")] public SocialEventFrame SocialEvent { get; set; }
+        [JsonProperty("result")] public ActionResultFrame Result { get; set; }
+        // Server-confirmed events; validated once and consumed as typed entries.
+        [JsonProperty("feed")] public List<FeedEntryFrame> Feed { get; set; }
+        [JsonProperty("task")] public OpeningTaskFrame Task { get; set; }
+        [JsonProperty("journal")] public List<JournalEntryFrame> Journal { get; set; }
+        [JsonProperty("last")] public string Last { get; set; }
+        [JsonProperty("home")] public string Home { get; set; }
+        [JsonProperty("coins")] public double Coins { get; set; }
+        [JsonProperty("debt")] public double Debt { get; set; }
+        [JsonProperty("wounds")] public Dictionary<string, double> Wounds { get; set; }
+        [JsonProperty("bleeding")] public double Bleeding { get; set; }
+        [JsonProperty("stash")] public Dictionary<string, double> Stash { get; set; }
+        [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        // v1.19 canonical global position; null on older servers or while outside the world.
+        [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
+        // v1.27: server-confirmed overland path under the character, null in fields/settlement grounds/journeys.
+        [JsonProperty("trail")] public CharacterTrailFrame Trail { get; set; }
+        // v1.20 room lease and private chest state; absent/null on older servers or non-tenants.
+        [JsonProperty("room")] public RoomFrame Room { get; set; }
+        // Server-authoritative tavern card game state; dealer hidden cards are never sent.
+        [JsonProperty("card_game")] public CardGameFrame CardGame { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CharacterTrailFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("a")] public string FromSettlement { get; set; }
+        [JsonProperty("b")] public string ToSettlement { get; set; }
+        [JsonProperty("boost")] public double Boost { get; set; }
+    }
+
+    [Serializable]
+    public sealed class RoomFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("settlement")] public string Settlement { get; set; }
+        [JsonProperty("door_poi")] public string DoorPoi { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        [JsonProperty("paid_through_day")] public long PaidThroughDay { get; set; }
+        [JsonProperty("grace_until_day")] public long GraceUntilDay { get; set; }
+        [JsonProperty("lease_state")] public string LeaseState { get; set; }
+        [JsonProperty("indoor")] public bool Indoor { get; set; }
+        [JsonProperty("chest_cap")] public double ChestCapacity { get; set; }
+        [JsonProperty("chest_load")] public double ChestLoad { get; set; }
+        [JsonProperty("chest_items")] public Dictionary<string, int> ChestItems { get; set; }
+    }
+
+    [Serializable]
+    public sealed class InventoryFrame
+    {
+        [JsonProperty("items")] public Dictionary<string, int> Items { get; set; }
+        [JsonProperty("hand")] public string Hand { get; set; }
+        [JsonProperty("worn")] public Dictionary<string, string> Worn { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("outer")] public bool Outer { get; set; }
+    }
+
+    [Serializable]
+    public sealed class KnownPlaceFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("visited")] public bool Visited { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveFrame
+    {
+        [JsonProperty("nodes")] public List<WeaveNodeFrame> Nodes { get; set; }
+        [JsonProperty("capacity")] public double Capacity { get; set; }
+        [JsonProperty("max_len")] public int MaxLength { get; set; }
+        [JsonProperty("known")] public List<WeaveSchemaFrame> Known { get; set; }
+        [JsonProperty("gift")] public bool Gift { get; set; }
+        [JsonProperty("limit")] public double Limit { get; set; }
+        [JsonProperty("can_learn")] public bool CanLearn { get; set; }
+        [JsonProperty("can_study")] public bool CanStudy { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveNodeFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("hint")] public string Hint { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WeaveSchemaFrame
+    {
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("nodes")] public List<string> Nodes { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldPositionFrame
+    {
+        [JsonProperty("scheme")] public string Scheme { get; set; }
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("ground")] public double Ground { get; set; }
+        [JsonProperty("z")] public double HeightAboveGround { get; set; }
+        [JsonProperty("chunk")] public long[] Chunk { get; set; }
+        [JsonProperty("layer")] public long Layer { get; set; }
+        // Optional semantic location inside a building/cave; not a replacement for global E/N/U.
+        [JsonProperty("space_id")] public string SpaceId { get; set; }
+        [JsonProperty("level_id")] public string LevelId { get; set; }
+        [JsonProperty("lat")] public double Latitude { get; set; }
+        [JsonProperty("lon")] public double Longitude { get; set; }
+        public bool IsValid
+        {
+            get
+            {
+                if (Scheme != "yof-tangent" || Version != 1 || Frame < 0 || Chunk == null || Chunk.Length != 2 ||
+                    !IsFinite(East) || !IsFinite(North) || !IsFinite(Up) || !IsFinite(Ground) ||
+                    !IsFinite(HeightAboveGround) || !IsFinite(Latitude) || !IsFinite(Longitude) ||
+                    Math.Abs(East) > 1000000000d || Math.Abs(North) > 1000000000d ||
+                    Math.Abs(Up) > 1000000000d || Math.Abs(Ground) > 1000000000d ||
+                    Math.Abs(HeightAboveGround) > 1000000000d)
+                    return false;
+                // WorldPos uses floor division: negative coordinates just west/south of zero
+                // must belong to chunk -1, not chunk 0.
+                var expectedX = Math.Floor(East / 256d);
+                var expectedZ = Math.Floor(North / 256d);
+                var expectedLayer = Math.Floor(Up / 64d);
+                return expectedX >= long.MinValue && expectedX <= long.MaxValue &&
+                    expectedZ >= long.MinValue && expectedZ <= long.MaxValue &&
+                    expectedLayer >= long.MinValue && expectedLayer <= long.MaxValue &&
+                    Chunk[0] == (long)expectedX && Chunk[1] == (long)expectedZ &&
+                    Layer == (long)expectedLayer && Ground <= Up + 0.001 &&
+                    HeightAboveGround >= -0.001 &&
+                    Math.Abs((Ground + HeightAboveGround) - Up) <= 0.01;
+            }
+        }
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    [Serializable]
+    public sealed class WorldAnchorFrame
+    {
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+    }
+
+    [Serializable]
+    public sealed class ScenePositionFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("facing")] public double Facing { get; set; }
+        [JsonProperty("stam")] public double Stamina { get; set; }
+        [JsonProperty("seq")] public long Sequence { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        /// <summary>v1.19: settlement plan ("starter", "street", "cross", "ring", "scatter").</summary>
+        [JsonProperty("plan")] public string Plan { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("food")] public double Food { get; set; }
+        [JsonProperty("bread")] public double Bread { get; set; }
+        [JsonProperty("bread_price")] public double BreadPrice { get; set; }
+        [JsonProperty("tavern")] public bool Tavern { get; set; }
+        [JsonProperty("beer")] public double Beer { get; set; }
+        [JsonProperty("beer_price")] public double BeerPrice { get; set; }
+        // Server-computed location and serving state for the physical tavern counter.
+        [JsonProperty("tavern_counter")] public TavernCounterFrame TavernCounter { get; set; }
+        [JsonProperty("neighbors")] public List<NeighborFrame> Neighbors { get; set; }
+        [JsonProperty("foes")] public List<FoeFrame> Foes { get; set; }
+        [JsonProperty("life")] public SettlementLifeFrame Life { get; set; }
+        // v1.19 global anchor. Local pos remains settlement-relative.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
+        // v1.20 public vacancy/price summary; intentionally contains no tenant or chest data.
+        [JsonProperty("rooms")] public PlaceRoomsFrame Rooms { get; set; }
+        // Public stable stock and price; purchase remains a server-authoritative horse intent.
+        [JsonProperty("stable")] public StableFrame Stable { get; set; }
+        // v1.22 nearby wilderness places; actions and proximity are server-authored.
+        [JsonProperty("sites")] public List<WildPlaceFrame> Sites { get; set; }
+        // v1.25: current settlement's sovereign realm and nearby moving caravans.
+        [JsonProperty("realm")] public PlaceRealmFrame Realm { get; set; }
+        [JsonProperty("caravans")] public List<NearbyCaravanFrame> Caravans { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRealmFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("capital")] public string Capital { get; set; }
+        [JsonProperty("is_capital")] public bool IsCapital { get; set; }
+        [JsonProperty("tax")] public double Tax { get; set; }
+        [JsonProperty("size")] public int Size { get; set; }
+        [JsonProperty("war_with")] public string WarWith { get; set; }
+        [JsonProperty("allies")] public List<string> Allies { get; set; }
+        [JsonProperty("rivals")] public List<string> Rivals { get; set; }
+    }
+
+    [Serializable]
+    public sealed class NearbyCaravanFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("good_name")] public string GoodName { get; set; }
+        [JsonProperty("amount")] public double Amount { get; set; }
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("to")] public string To { get; set; }
+        [JsonProperty("seller")] public string Seller { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        // Near-caravan distance is already metres (unlike JourneyC's 250 m map units).
+        [JsonProperty("dist")] public double DistanceMeters { get; set; }
+        [JsonProperty("dir")] public string Direction { get; set; }
+    }
+
+    [Serializable]
+    public sealed class StableFrame
+    {
+        [JsonProperty("horses")] public double Horses { get; set; }
+        [JsonProperty("price")] public double Price { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WildPlaceFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("dist")] public double DistanceMeters { get; set; }
+        [JsonProperty("dir")] public string Direction { get; set; }
+        [JsonProperty("acts")] public List<string> Actions { get; set; }
+        [JsonProperty("here")] public bool Here { get; set; }
+        [JsonProperty("gives")] public string Gives { get; set; }
+        [JsonProperty("left")] public double Remaining { get; set; }
+        // v1.26: short server-authored description of this wilderness site.
+        [JsonProperty("note")] public string Note { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRoomsFrame
+    {
+        [JsonProperty("total")] public int Total { get; set; }
+        [JsonProperty("vacant")] public int Vacant { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        // Optional public room descriptors; no tenant identity or chest contents.
+        [JsonProperty("items")] public List<PlaceRoomEntryFrame> Items { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlaceRoomEntryFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("lease_state")] public string LeaseState { get; set; }
+        [JsonProperty("rent_price")] public double RentPrice { get; set; }
+        [JsonProperty("available")] public bool Available { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementLifeFrame
+    {
+        [JsonProperty("population")] public int Population { get; set; }
+        [JsonProperty("working")] public int Working { get; set; }
+        [JsonProperty("activities")] public SettlementActivityCountsFrame Activities { get; set; }
+        [JsonProperty("stock")] public SettlementStockFrame Stock { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementActivityCountsFrame
+    {
+        [JsonProperty("field")] public int Field { get; set; }
+        [JsonProperty("maintenance")] public int Maintenance { get; set; }
+        [JsonProperty("wood")] public int Wood { get; set; }
+        [JsonProperty("forge")] public int Forge { get; set; }
+        [JsonProperty("mine")] public int Mine { get; set; }
+        [JsonProperty("fish")] public int Fish { get; set; }
+        [JsonProperty("hunt")] public int Hunt { get; set; }
+        [JsonProperty("herb")] public int Herb { get; set; }
+        [JsonProperty("cook")] public int Cook { get; set; }
+        [JsonProperty("herd")] public int Herd { get; set; }
+        [JsonProperty("magic")] public int Magic { get; set; }
+        [JsonProperty("tavern")] public int Tavern { get; set; }
+        [JsonProperty("rest")] public int Rest { get; set; }
+        [JsonProperty("social")] public int Social { get; set; }
+        [JsonProperty("eating")] public int Eating { get; set; }
+        [JsonProperty("other")] public int Other { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SettlementStockFrame
+    {
+        [JsonProperty("wood")] public double Wood { get; set; }
+        [JsonProperty("ore")] public double Ore { get; set; }
+        [JsonProperty("metal")] public double Metal { get; set; }
+        [JsonProperty("herb")] public double Herb { get; set; }
+    }
+
+    [Serializable]
+    public sealed class NeighborFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("desc")] public string Description { get; set; }
+        [JsonProperty("player")] public bool Controlled { get; set; }
+        [JsonProperty("trait")] public string Trait { get; set; }
+        [JsonProperty("want")] public string Want { get; set; }
+        [JsonProperty("role")] public string Role { get; set; }
+        [JsonProperty("act")] public string Act { get; set; }
+        [JsonProperty("act_code")] public string ActivityCode { get; set; }
+        [JsonProperty("casting")] public string Casting { get; set; }
+        [JsonProperty("pos")] public ScenePositionFrame Position { get; set; }
+        // v1.20 canonical global position; local pos remains authoritative for same-settlement movement.
+        [JsonProperty("wpos")] public WorldPositionFrame WorldPosition { get; set; }
+        [JsonProperty("gear")] public NeighborGearFrame Gear { get; set; }
+    }
+
+    [Serializable]
+    public sealed class NeighborGearFrame
+    {
+        [JsonProperty("hand")] public string Hand { get; set; }
+        [JsonProperty("worn")] public Dictionary<string, string> Worn { get; set; }
+    }
+
+    [Serializable]
+    public sealed class IssuedErrandFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("giver")] public string Giver { get; set; }
+        [JsonProperty("giver_name")] public string GiverName { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("qty")] public int Quantity { get; set; }
+        [JsonProperty("have")] public int Have { get; set; }
+        [JsonProperty("ready")] public bool Ready { get; set; }
+        [JsonProperty("coins")] public double Coins { get; set; }
+        [JsonProperty("accepted")] public bool Accepted { get; set; }
+        // Optional additive provenance: where this errand was accepted, not the giver's current location.
+        [JsonProperty("settlement_id")] public string SettlementId { get; set; }
+        [JsonProperty("settlement_name")] public string SettlementName { get; set; }
+    }
+
+    [Serializable]
+    public sealed class OpeningTaskFrame
+    {
+        [JsonProperty("stage")] public int Stage { get; set; }
+        [JsonProperty("met")] public bool Met { get; set; }
+        [JsonProperty("worked")] public bool Worked { get; set; }
+        [JsonProperty("drank")] public bool Drank { get; set; }
+        [JsonProperty("done")] public bool Done { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+        [JsonProperty("errand_done")] public bool ErrandDone { get; set; }
+        [JsonProperty("issued")] public IssuedErrandFrame Issued { get; set; }
+    }
+
+    [Serializable]
+    public sealed class JournalEntryFrame
+    {
+        [JsonProperty("seq")] public long Sequence { get; set; }
+        [JsonProperty("day")] public long Day { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkFrame
+    {
+        [JsonProperty("with")] public string With { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
+        [JsonProperty("known")] public bool Known { get; set; }
+        [JsonProperty("line")] public string Line { get; set; }
+        [JsonProperty("options")] public List<TalkOptionFrame> Options { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TalkOptionFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("text")] public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class InviteFromFrame
+    {
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("who")] public string Who { get; set; }
+    }
+
+    [Serializable]
+    public sealed class SocialEventFrame
+    {
+        [JsonProperty("seq")] public long Sequence { get; set; }
+        [JsonProperty("type")] public string Type { get; set; }
+        [JsonProperty("with")] public string With { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldManifestFrame
+    {
+        [JsonProperty("scheme")] public string Scheme { get; set; }
+        [JsonProperty("v")] public int Version { get; set; }
+        [JsonProperty("units")] public string Units { get; set; }
+        [JsonProperty("chunk_m")] public int ChunkMeters { get; set; }
+        [JsonProperty("layer_m")] public int LayerMeters { get; set; }
+        [JsonProperty("seamless")] public bool Seamless { get; set; }
+        [JsonProperty("frames")] public List<WorldMapFrame> Frames { get; set; }
+        [JsonProperty("rim_radius_m")] public double RimRadiusMeters { get; set; }
+        // Optional server-authored low-detail cauldron mountain profile for the distant horizon.
+        [JsonProperty("rim")] public CauldronRimFrame Rim { get; set; }
+        [JsonProperty("settlements")] public List<WorldSettlementFrame> Settlements { get; set; }
+        [JsonProperty("roads")] public List<WorldRoadFrame> Roads { get; set; }
+        // v1.21: deterministic wilderness landmarks outside settlement layouts.
+        [JsonProperty("wildsites")] public List<WorldWildSiteFrame> WildSites { get; set; }
+        // v1.24–v1.26: server world metadata; optional for older compatible servers.
+        [JsonProperty("realms")] public List<WorldRealmFrame> Realms { get; set; }
+        [JsonProperty("caravans")] public List<WorldCaravanFrame> Caravans { get; set; }
+        [JsonProperty("movement")] public WorldMovementFrame Movement { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRealmFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("capital")] public string Capital { get; set; }
+        [JsonProperty("size")] public int Size { get; set; }
+        [JsonProperty("territory")] public List<string> Territory { get; set; }
+        [JsonProperty("war_with")] public string WarWith { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldCaravanFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("good")] public string Good { get; set; }
+        [JsonProperty("amount")] public double Amount { get; set; }
+        [JsonProperty("from")] public string From { get; set; }
+        [JsonProperty("to")] public string To { get; set; }
+        [JsonProperty("seller")] public string Seller { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("progress")] public double Progress { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldMovementFrame
+    {
+        [JsonProperty("walk_mps")] public double WalkMetersPerSecond { get; set; }
+        [JsonProperty("jog_mps")] public double JogMetersPerSecond { get; set; }
+        [JsonProperty("run_mps")] public double RunMetersPerSecond { get; set; }
+        [JsonProperty("slope")] public WorldSlopeFrame Slope { get; set; }
+        // v1.27: multipliers and corridor reach used by authoritative trail movement.
+        [JsonProperty("trail")] public WorldTrailMovementFrame Trail { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldTrailMovementFrame
+    {
+        [JsonProperty("trail_boost")] public double TrailBoost { get; set; }
+        [JsonProperty("road_boost")] public double RoadBoost { get; set; }
+        [JsonProperty("trail_width_m")] public double TrailWidthMeters { get; set; }
+        [JsonProperty("road_width_m")] public double RoadWidthMeters { get; set; }
+        [JsonProperty("reach_m")] public double ReachMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldSlopeFrame
+    {
+        [JsonProperty("probe_m")] public double ProbeMeters { get; set; }
+        [JsonProperty("up_k")] public double UphillFactor { get; set; }
+        [JsonProperty("down_k")] public double DownhillFactor { get; set; }
+        [JsonProperty("easy_down")] public double EasyDownGrade { get; set; }
+        [JsonProperty("easy_boost")] public double EasyDownBoost { get; set; }
+        [JsonProperty("cliff")] public double CliffGrade { get; set; }
+        [JsonProperty("flat_radius_m")] public double FlatRadiusMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CauldronRimFrame
+    {
+        [JsonProperty("center_e")] public double CenterEast { get; set; }
+        [JsonProperty("center_n")] public double CenterNorth { get; set; }
+        [JsonProperty("samples")] public List<CauldronRimSampleFrame> Samples { get; set; }
+    }
+
+    [Serializable]
+    public sealed class CauldronRimSampleFrame
+    {
+        // Degrees from +East, counter-clockwise toward +North.
+        [JsonProperty("angle_deg")] public double AngleDegrees { get; set; }
+        [JsonProperty("inner_radius_m")] public double InnerRadiusMeters { get; set; }
+        [JsonProperty("crest_radius_m")] public double CrestRadiusMeters { get; set; }
+        [JsonProperty("outer_radius_m")] public double OuterRadiusMeters { get; set; }
+        [JsonProperty("inner_ground_m")] public double InnerGroundMeters { get; set; }
+        [JsonProperty("crest_m")] public double CrestMeters { get; set; }
+        [JsonProperty("outer_ground_m")] public double OuterGroundMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldWildSiteFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("wild_type")] public string Type { get; set; }
+        [JsonProperty("region")] public string RegionId { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("ground")] public double Ground { get; set; }
+        [JsonProperty("mana")] public double Mana { get; set; }
+        [JsonProperty("danger")] public double Danger { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldMapFrame
+    {
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("projection")] public string Projection { get; set; }
+        [JsonProperty("origin_lat")] public double OriginLatitude { get; set; }
+        [JsonProperty("origin_lon")] public double OriginLongitude { get; set; }
+        [JsonProperty("radius_m")] public double RadiusMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldSettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+        [JsonProperty("u")] public double Up { get; set; }
+        [JsonProperty("tier")] public string Tier { get; set; }
+        [JsonProperty("terrain")] public string Terrain { get; set; }
+        [JsonProperty("plan")] public string Plan { get; set; }
+        [JsonProperty("cauldron")] public bool Cauldron { get; set; }
+        [JsonProperty("half")] public double Half { get; set; }
+        [JsonProperty("layout")] public string LayoutPath { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRoadFrame
+    {
+        [JsonProperty("a")] public string From { get; set; }
+        [JsonProperty("b")] public string To { get; set; }
+        // v1.27: display metadata for the same server-authored inter-settlement trail.
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("width_m")] public double WidthMeters { get; set; }
+        [JsonProperty("len_m")] public double LengthMeters { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TerrainChunkFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("frame")] public int Frame { get; set; }
+        [JsonProperty("chunk")] public long[] Chunk { get; set; }
+        [JsonProperty("origin")] public TerrainOriginFrame Origin { get; set; }
+        [JsonProperty("size_m")] public int SizeMeters { get; set; }
+        [JsonProperty("step_m")] public int StepMeters { get; set; }
+        [JsonProperty("side")] public int Side { get; set; }
+        [JsonProperty("heights")] public List<double> Heights { get; set; }
+        [JsonProperty("settlements")] public List<TerrainSettlementFrame> Settlements { get; set; }
+        // Optional additive terrain presentation descriptors. Missing values preserve the legacy heightfield.
+        [JsonProperty("seed")] public long? Seed { get; set; }
+        [JsonProperty("gen")] public int? GeneratorVersion { get; set; }
+        [JsonProperty("biome")] public string Biome { get; set; }
+        [JsonProperty("cover")] public TerrainCoverFrame Cover { get; set; }
+        [JsonProperty("water")] public List<TerrainWaterFeatureFrame> Water { get; set; }
+        [JsonProperty("roads")] public List<TerrainPathFeatureFrame> Roads { get; set; }
+        [JsonProperty("resources")] public List<TerrainResourceHintFrame> Resources { get; set; }
+        [JsonProperty("wild")] public List<TerrainWildHintFrame> Wild { get; set; }
+        public bool IsValid
+        {
+            get
+            {
+                if (Frame < 0 || Chunk == null || Chunk.Length != 2 || Origin == null ||
+                    !IsFinite(Origin.East) || !IsFinite(Origin.North) ||
+                    SizeMeters != 256 || (StepMeters != 8 && StepMeters != 16 && StepMeters != 32 && StepMeters != 64) ||
+                    Side != SizeMeters / StepMeters + 1 || Heights == null || Heights.Count != Side * Side ||
+                    !Heights.TrueForAll(IsFinite))
+                    return false;
+                var expectedEast = (double)Chunk[0] * SizeMeters;
+                var expectedNorth = (double)Chunk[1] * SizeMeters;
+                return Math.Abs(Origin.East - expectedEast) <= 0.001 &&
+                    Math.Abs(Origin.North - expectedNorth) <= 0.001;
+            }
+        }
+        private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    [Serializable]
+    public sealed class TerrainOriginFrame
+    {
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+    }
+
+    [Serializable]
+    public sealed class TerrainSettlementFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("e")] public double East { get; set; }
+        [JsonProperty("n")] public double North { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldLayoutFrame
+    {
+        [JsonProperty("version")] public int Version { get; set; }
+        [JsonProperty("world_half")] public double WorldHalf { get; set; }
+        [JsonProperty("village_half")] public double VillageHalf { get; set; }
+        [JsonProperty("buildings")] public List<WorldRectFrame> Buildings { get; set; }
+        [JsonProperty("river")] public WorldRiverFrame River { get; set; }
+        [JsonProperty("pois")] public Dictionary<string, WorldPointFrame> Pois { get; set; }
+        // Optional server-authored E interactions: points, workstations, counters and interior objects.
+        [JsonProperty("interactions")] public List<WorldInteractionDescriptorFrame> Interactions { get; set; }
+
+        // v1.19 (additive): every settlement has its own layout, fetched with ?settlement=<place.id>.
+        /// <summary>"starter" for the hand-made tutorial village; otherwise a generated plan.</summary>
+        [JsonProperty("plan")] public string Plan { get; set; }
+        /// <summary>Null on pre-v1.19 servers, where the river always exists.</summary>
+        [JsonProperty("has_river")] public bool? HasRiver { get; set; }
+        [JsonProperty("zones")] public List<WorldZoneFrame> Zones { get; set; }
+        /// <summary>Road graph edges as [x0, y0, x1, y1] in settlement-local metres.</summary>
+        [JsonProperty("roads")] public List<double[]> Roads { get; set; }
+        [JsonProperty("homes")] public List<WorldPointFrame> Homes { get; set; }
+        [JsonProperty("entry")] public WorldPointFrame Entry { get; set; }
+        /// <summary>Seamless world: land beyond world_half is open ground, not a wall.</summary>
+        [JsonProperty("open")] public bool Open { get; set; }
+        [JsonProperty("settlement")] public string Settlement { get; set; }
+        // v1.19: settlement-local layout origin in the same global frame as place.anchor.
+        [JsonProperty("anchor")] public WorldAnchorFrame Anchor { get; set; }
+
+        /// <summary>True when the layout was generated for a non-tutorial settlement.</summary>
+        public bool IsGenerated => !string.IsNullOrEmpty(Plan) && Plan != "starter";
+
+        /// <summary>True when the river band is real geometry inside the settlement land.</summary>
+        public bool RiverPresent => River != null && (HasRiver ?? true);
+
+        public bool IsBlocked(double x, double y) => IsBlocked(x, y, false);
+
+        private bool IsBlocked(double x, double y, bool allowOutsideSettlement)
+        {
+            var inside = x >= -WorldHalf && x <= WorldHalf && y >= -WorldHalf && y <= WorldHalf;
+            if (!inside && !Open && !allowOutsideSettlement) return true;
+            if (Buildings != null)
+                foreach (var b in Buildings)
+                {
+                    if (b == null || x < b.X0 || x > b.X1 || y < b.Y0 || y > b.Y1) continue;
+                    if (b.Door == null) return true;
+                    const double wall = 1.2;
+                    if (x > b.X0 + wall && x < b.X1 - wall && y > b.Y0 + wall && y < b.Y1 - wall)
+                        continue; // walkable floor behind the wall shell
+                    var half = b.Door.Width * 0.5;
+                    var south = Math.Abs(b.Door.Y - b.Y0) < 0.5 && y <= b.Y0 + wall &&
+                        Math.Abs(x - b.Door.X) <= half;
+                    var north = Math.Abs(b.Door.Y - b.Y1) < 0.5 && y >= b.Y1 - wall &&
+                        Math.Abs(x - b.Door.X) <= half;
+                    var west = Math.Abs(b.Door.X - b.X0) < 0.5 && x <= b.X0 + wall &&
+                        Math.Abs(y - b.Door.Y) <= half;
+                    var east = Math.Abs(b.Door.X - b.X1) < 0.5 && x >= b.X1 - wall &&
+                        Math.Abs(y - b.Door.Y) <= half;
+                    if (!(south || north || west || east)) return true;
+                }
+            return inside && RiverPresent && y >= River.Y0 && y <= River.Y1 &&
+                (x < River.BridgeX0 || x > River.BridgeX1);
+        }
+
+        public Vector2 ResolveMove(Vector2 origin, Vector2 desired) => ResolveMove(origin, desired, false);
+
+        /// <summary>
+        /// Seamless-world prediction may leave the current settlement layout. The server remains
+        /// authoritative for the handover and terrain; this only stops stale settlement bounds
+        /// from acting as an invisible wall on the client.
+        /// </summary>
+        public Vector2 ResolveMove(Vector2 origin, Vector2 desired, bool allowOutsideSettlement)
+        {
+            if (!IsBlocked(desired.x, desired.y, allowOutsideSettlement)) return desired;
+            if (!IsBlocked(desired.x, origin.y, allowOutsideSettlement)) return new Vector2(desired.x, origin.y);
+            if (!IsBlocked(origin.x, desired.y, allowOutsideSettlement)) return new Vector2(origin.x, desired.y);
+            return origin;
+        }
+    }
+
+    [Serializable]
+    public sealed class WorldInteractionDescriptorFrame
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("target_type")] public string TargetType { get; set; }
+        [JsonProperty("target_id")] public string TargetId { get; set; }
+        [JsonProperty("title")] public string Title { get; set; }
+        [JsonProperty("hint")] public string Hint { get; set; }
+        [JsonProperty("available")] public bool Available { get; set; }
+        [JsonProperty("reason")] public string Reason { get; set; }
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("radius")] public double Radius { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldDoorFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+        [JsonProperty("facing")] public double Facing { get; set; }
+        [JsonProperty("width")] public double Width { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRectFrame
+    {
+        [JsonProperty("building_id")] public string BuildingId { get; set; }
+        [JsonProperty("room")] public string Room { get; set; }
+        [JsonProperty("interior_id")] public string InteriorId { get; set; }
+        [JsonProperty("door")] public WorldDoorFrame Door { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("x0")] public double X0 { get; set; }
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("x1")] public double X1 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldZoneFrame
+    {
+        /// <summary>forest | copse | field | meadow | rock | pond</summary>
+        [JsonProperty("kind")] public string Kind { get; set; }
+        [JsonProperty("x0")] public double X0 { get; set; }
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("x1")] public double X1 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldRiverFrame
+    {
+        [JsonProperty("y0")] public double Y0 { get; set; }
+        [JsonProperty("y1")] public double Y1 { get; set; }
+        [JsonProperty("bridge_x0")] public double BridgeX0 { get; set; }
+        [JsonProperty("bridge_x1")] public double BridgeX1 { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldPointFrame
+    {
+        [JsonProperty("x")] public double X { get; set; }
+        [JsonProperty("y")] public double Y { get; set; }
+    }
+
+    [Serializable]
+    public sealed class AuthRequest
+    {
+        [JsonProperty("login")] public string Login { get; set; }
+        [JsonProperty("pass")] public string Password { get; set; }
+    }
+
+    [Serializable]
+    public sealed class AuthResponse
+    {
+        [JsonProperty("ok")] public bool Ok { get; set; }
+        [JsonProperty("token")] public string Token { get; set; }
+        [JsonProperty("msg")] public string Message { get; set; }
+    }
+}

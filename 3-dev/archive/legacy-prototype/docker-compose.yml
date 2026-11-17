@@ -1,0 +1,35 @@
+# Чистая установка: игровой сервер + PostgreSQL. `docker compose up -d`.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: game
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: game
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U game -d game"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      GAME_HOST: 0.0.0.0
+      GAME_PORT: 8090
+      GAME_ENV: ${GAME_ENV:-prod}          # prod = без гостевого входа
+      GAME_STORAGE: postgres
+      GAME_SECURE: ${GAME_SECURE:-0}        # 1, когда сервер за TLS/обратным прокси
+      DATABASE_URL: postgresql://game:${DB_PASSWORD:-changeme}@db:5432/game
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8090}:8090"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

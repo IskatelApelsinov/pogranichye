@@ -1,0 +1,14 @@
+# Приграничье — запуск сервера живого мира одной командой: docker compose up -d --build
+# Открой http://localhost:8090/ — регистрируйся и вселяйся в жителя мира.
+services:
+  pogranichye:
+    build: .
+    container_name: pogranichye
+    ports:
+      - "8090:8090"
+    environment:
+      # ключ подписи токенов входа. Задай свой секрет в проде (иначе токены живут до перезапуска).
+      POG_SECRET: "${POG_SECRET:-}"
+    volumes:
+      - ./data:/data        # аккаунты и будущие снимки мира переживают перезапуск
+    restart: unless-stopped

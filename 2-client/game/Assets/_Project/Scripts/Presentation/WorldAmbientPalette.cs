@@ -11,14 +11,12 @@ namespace Pogranichye.Client.Presentation
                 from.G + (to.G - from.G) * t, from.B + (to.B - from.B) * t);
         }
     }
-
     public struct WorldAmbientSample
     {
         public readonly AmbientRgb Sky, Horizon, Ground;
         public WorldAmbientSample(AmbientRgb sky, AmbientRgb horizon, AmbientRgb ground)
         { Sky = sky; Horizon = horizon; Ground = ground; }
     }
-
     /// <summary>Cheap directional ambient approximation for runtime-generated settlements; not GI.</summary>
     public static class WorldAmbientPalette
     {
@@ -31,7 +29,6 @@ namespace Pogranichye.Client.Presentation
         private static readonly AmbientRgb DuskSky = new AmbientRgb(0.38f, 0.22f, 0.19f);
         private static readonly AmbientRgb DuskHorizon = new AmbientRgb(0.34f, 0.19f, 0.15f);
         private static readonly AmbientRgb DuskGround = new AmbientRgb(0.105f, 0.070f, 0.060f);
-
         public static WorldAmbientSample Evaluate(float daylight, float dusk)
         {
             var day = Clamp01(daylight);
