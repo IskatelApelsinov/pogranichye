@@ -55,6 +55,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
       - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
       - '2-client/art-source/textures/**'
