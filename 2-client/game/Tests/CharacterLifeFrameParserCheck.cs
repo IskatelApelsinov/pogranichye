@@ -48,7 +48,7 @@ internal static class CharacterLifeFrameParserCheck
             {
                 System.Threading.Thread.CurrentThread.CurrentCulture =
                     System.Globalization.CultureInfo.GetCultureInfo(cultureName);
-                var cultureToken = JToken.Parse("{\\\"energy\\\":72,\\\"stamina\\\":{\\\"now\\\":1,\\\"regen_per_s\\\":0.1,\\\"drain_per_s\\\":0.1}}");
+                var cultureToken = JToken.Parse("{\"energy\":72,\"stamina\":{\"now\":1,\"regen_per_s\":0.1,\"drain_per_s\":0.1}}");
                 CharacterVigorFrameParser.Validate(cultureToken, "me.vigor");
                 var cultureVigor = cultureToken.ToObject<CharacterVigorFrame>();
                 Check("accepts JSON decimal stamina rates under " + cultureName,
