@@ -1710,7 +1710,7 @@ namespace Pogranichye.Client.Presentation
                         bandStart, bottom, thickness, wall);
                     bandStart = top;
 
-                    var jambHeight = windowHeight + 0.10f;
+                    var jambHeight = (top - bottom) + 0.10f;
                     for (var edge = -1; edge <= 1; edge += 2)
                     {
                         var jambAxis = center + edge * (halfWindow - 0.045f);
