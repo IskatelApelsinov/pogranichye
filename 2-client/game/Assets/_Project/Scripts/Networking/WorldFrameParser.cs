@@ -275,8 +275,7 @@ namespace Pogranichye.Client.Networking
                 double value;
                 if (token == null ||
                     (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                    !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                    double.IsNaN(value) || double.IsInfinity(value))
+                    !JsonNumberReader.TryReadFiniteDouble(token, out value))
                     value = 0d;
 
                 normalized[key] = value;
