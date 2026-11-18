@@ -85,6 +85,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
+      - '2-client/game/Assets/_Project/Scripts/Diagnostics/ClientDiagnosticDumps.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/SettlementLayoutCache.cs'
+      - '2-client/game/Tests/test_english_client_diagnostics.py'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
       - '2-client/game/Tests/GatherNodePresentationPolicyCheck.cs'
@@ -162,6 +165,9 @@ jobs:
           unzip -q "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg" -d "$RUNNER_TEMP/newtonsoft"
           test -f "$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           echo "MONO_PATH=$RUNNER_TEMP/newtonsoft/lib/net45" >> "$GITHUB_ENV"
+      - name: English client diagnostics regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_english_client_diagnostics.py'
       - name: Localization catalog regression checks
         working-directory: 2-client/game
         run: |
