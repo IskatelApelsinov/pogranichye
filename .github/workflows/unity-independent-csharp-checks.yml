@@ -118,6 +118,8 @@ on:
       - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/ActivityAnimationPolicy.cs'
+      - '2-client/game/Tests/ActivityAnimationPolicyCheck.cs'
       - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
       - '2-client/game/Tests/RegionFrameParserCheck.cs'
       - '2-client/game/Tests/RequestGateCheck.cs'
@@ -177,6 +179,12 @@ jobs:
         run: |
           mcs -out:/tmp/gameplay-input-capture.exe Tests/GameplayInputCapturePolicyCheck.cs Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs
           mono /tmp/gameplay-input-capture.exe
+      - name: Server activity animation mapping regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/activity-animation-policy.exe Tests/ActivityAnimationPolicyCheck.cs Assets/_Project/Scripts/Presentation/ActivityAnimationPolicy.cs
+          mono /tmp/activity-animation-policy.exe
+
       - name: NPC activity sound mapping regression checks
         working-directory: 2-client/game
         run: |
