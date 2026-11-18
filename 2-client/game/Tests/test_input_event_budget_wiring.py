@@ -21,7 +21,7 @@ class InputEventBudgetWiringChecks(unittest.TestCase):
 
     def test_unlimited_setting_is_not_replaced_by_a_finite_cap(self):
         source = CLIENT_INPUT.read_text(encoding="utf-8")
-        self.assertIn("InputEventBudgetPolicy.Resolve(currentBudget, maxInputEventBytes)", source)
+        self.assertIn("InputEventBudgetPolicy.Resolve(currentBudget, _maxInputEventBytes)", source)
         self.assertNotIn("maxEventBytesPerUpdate < maxInputEventBytes", source)
 
 
