@@ -112,7 +112,7 @@ namespace Pogranichye.Client.Networking
                         {
                             var neighbor = neighborArray[i];
                             if (neighbor == null || neighbor.Type != JTokenType.Object)
-                                throw new FormatException($"place.neighbors[{i}] должен быть объектом.");
+                                throw new FormatException($"place.neighbors[{i}] must be an object.");
                             RequireStringId(neighbor["id"], $"place.neighbors[{i}].id");
                             ValidatePosition(neighbor["pos"], $"place.neighbors[{i}].pos", false);
                             ValidateWorldPosition(neighbor["wpos"], $"place.neighbors[{i}].wpos");
@@ -324,7 +324,7 @@ namespace Pogranichye.Client.Networking
             // Optional additive v1.20 field: null for players without a room and on old servers.
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Object)
-                throw new FormatException(fieldName + " должен быть объектом или null.");
+                throw new FormatException(fieldName + " must be an object or null.");
             RequireStringId(token["id"], fieldName + ".id");
             RequireStringId(token["settlement"], fieldName + ".settlement");
             if (token["door_poi"]?.Type != JTokenType.String ||
@@ -392,7 +392,7 @@ namespace Pogranichye.Client.Networking
             // Optional additive v1 field: old servers may omit it or send null.
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Array)
-                throw new FormatException(fieldName + " должен быть массивом.");
+                throw new FormatException(fieldName + " must be an array.");
 
             var entries = (JArray)token;
             long previousSequence = 0;
@@ -429,7 +429,7 @@ namespace Pogranichye.Client.Networking
         {
             if (token == null || token.Type == JTokenType.Null) return; // v1.0 compatibility
             if (token.Type != JTokenType.Object)
-                throw new FormatException(fieldName + " должен быть объектом.");
+                throw new FormatException(fieldName + " must be an object.");
 
             if (!IsNumber(token["x"]) || !IsNumber(token["y"]) || !IsNumber(token["facing"]))
                 throw new FormatException(fieldName + " must contain numeric x, y, and facing values.");
