@@ -5276,6 +5276,7 @@ namespace Pogranichye.Client
                     if (frame.Hour.HasValue) WorldEnvironmentBuilder.SetServerHour(frame.Hour.Value);
                     EnsureLayoutForPlace(frame);
                     EnsureTerrainChunkForFrame(frame);
+                    RefreshGatherNodePresentation(frame);
                     if (frame.Me != null) _voiceChat?.Bind(socket, frame.Me.Id, _lifetime.Token);
                     CaptureSessionJournal(frame);
                     UpdateTalkConfirmation(frame);
@@ -6206,6 +6207,15 @@ namespace Pogranichye.Client
                 if (dx + dz > 1) continue;
                 WorldTerrainChunkBuilder.Apply(_presentationRoot, candidate, anchor, _terrainChunks.Values);
             }
+            RefreshGatherNodePresentation(_frame);
+        }
+
+        private void RefreshGatherNodePresentation(WorldFrame frame)
+        {
+            var nearby = frame?.Place?.Gather;
+            if (_presentationRoot == null || nearby == null || nearby.Count == 0) return;
+            foreach (var pair in _terrainChunks)
+                WorldGatherNodePresentationBuilder.Refresh(_presentationRoot, pair.Key, nearby);
         }
 
         private void TryRequestTerrainChunk(long chunkX, long chunkZ, int frame)

@@ -263,3 +263,10 @@ The character journal shows up to six server-authored `place.gather[]` nodes. `g
 - F3 input diagnostics now show the effective event budget (`8 MiB`, a larger finite value, or `unlimited`) beside the last physical input event.
 - This is burst tolerance, not a fix for main-thread stalls or a guarantee against faulty device state. Verify with the affected HID hardware in Unity 6000.6.7f1; see `task_human/012-unity-input-event-budget-acceptance.md`.
 - The pure budget policy is covered by `InputEventBudgetPolicyCheck.cs` in the Unity-independent C# workflow. Unity Editor/Play Mode is not covered by that check.
+
+## v1.30 server-authored terrain gather props — 2026-11-18
+
+- `/api/terrain.gather[]` is parsed as optional chunk-local data `{id, kind, good, x, z, left}`. Malformed entries are discarded individually; legacy terrain responses without the field remain valid.
+- Seven low-poly, collider-free props (herb, mushroom, berries, hive, deadwood, nest and flax) are placed only at server-provided IDs/coordinates. Ground height is sampled from the same authoritative terrain heightfield and vertices are rebased against the current world anchor.
+- Nearby `place.gather[]` snapshots update the visible/depleted state of matching props. The client does not create loot, predict stock, or make the props interactable; collection still uses the existing server `goto`/`pick` flow.
+- These are first-pass procedural proxy meshes built from shared Unity primitives, not the final authored Blender prop pack; replace them with the existing CC0 pipeline exports when those binaries are imported into Unity.

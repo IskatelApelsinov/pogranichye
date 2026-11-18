@@ -307,6 +307,9 @@ namespace Pogranichye.Client.Presentation
         private static void ApplyTerrainFeatures(Transform root, TerrainChunkFrame chunk, WorldAnchorFrame anchor)
         {
             AddResourceMarkers(root, chunk, anchor);
+            // Harvestable nodes are distinct from decorative resources[] hints. Their IDs,
+            // positions and stock come from the server; this builder adds visuals only.
+            WorldGatherNodePresentationBuilder.Apply(root, chunk, anchor);
             if (chunk.Water != null)
                 foreach (var water in chunk.Water)
                 {
