@@ -268,7 +268,11 @@ namespace Pogranichye.Client.Networking
                 await completion.Task;
                 if (request.result != UnityWebRequest.Result.Success)
                     throw new InvalidOperationException("Не удалось получить /api/terrain: " + request.error);
-                var chunk = JsonConvert.DeserializeObject<TerrainChunkFrame>(request.downloadHandler.text);
+                // /api/terrain.gather is optional presentation data. Normalize it separately so
+                // malformed nodes never invalidate the authoritative heightfield or other features.
+                var terrainDocument = JObject.Parse(request.downloadHandler.text);
+                terrainDocument["gather"] = TerrainGatherNodeFrameParser.Normalize(terrainDocument["gather"]);
+                var chunk = terrainDocument.ToObject<TerrainChunkFrame>();
                 if (chunk == null || !chunk.IsValid || chunk.Chunk[0] != chunkX ||
                     chunk.Chunk[1] != chunkZ || chunk.StepMeters != stepMeters)
                     throw new InvalidOperationException("Сервер вернул некорректный или неожиданный чанк рельефа.");
