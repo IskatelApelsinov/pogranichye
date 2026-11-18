@@ -48,10 +48,12 @@ namespace Pogranichye.Client.Presentation
 
                 // The server counter is a separate interior interaction point. It is derived
                 // from the server tavern footprint using the same centre geometry as BuyBeer.
-                BuildTavernCounterTarget(root, layout);
-
                 // A partial/unknown descriptor list must not disable known legacy POIs.
-                if (descriptorTargetsBuilt > 0) return;
+                if (descriptorTargetsBuilt > 0)
+                {
+                    BuildTavernCounterTarget(root, layout);
+                    return;
+                }
             }
 
             // Compatibility path for older servers: coordinates still come from server Layout POIs.
