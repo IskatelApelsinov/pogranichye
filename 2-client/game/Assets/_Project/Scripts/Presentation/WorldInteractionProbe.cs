@@ -1,3 +1,4 @@
+using UnityEngine.Serialization;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -9,8 +10,10 @@ namespace Pogranichye.Client.Presentation
     [RequireComponent(typeof(Camera))]
     public sealed class WorldInteractionProbe : MonoBehaviour
     {
-        [SerializeField] private float interactRange = 3.2f;
-        [SerializeField] private float aimAssistRadius = 0.18f;
+        [FormerlySerializedAs("_interactRange")]
+        [SerializeField] private float _interactRange = 3.2f;
+        [FormerlySerializedAs("_aimAssistRadius")]
+        [SerializeField] private float _aimAssistRadius = 0.18f;
         private const int HitCapacity = 32;
         private readonly RaycastHit[] _hits = new RaycastHit[HitCapacity];
         // Building shells and tavern wall segments intentionally use Unity's Ignore Raycast layer (2)
@@ -74,7 +77,7 @@ namespace Pogranichye.Client.Presentation
             var ray = _camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             // Include non-blocking POI/NPC trigger volumes. FindTargetBeforeObstacle skips
             // unrelated triggers but still stops at the first solid wall/door collider.
-            var count = Physics.RaycastNonAlloc(ray, _hits, interactRange,
+            var count = Physics.RaycastNonAlloc(ray, _hits, _interactRange,
                 InteractionRaycastMask, QueryTriggerInteraction.Collide);
 
             // Unity may return an arbitrary subset when a NonAlloc buffer is full. If
@@ -86,8 +89,8 @@ namespace Pogranichye.Client.Presentation
 
             // A small, bounded sphere sweep makes E interaction forgiving for narrow NPC
             // colliders and low-poly POI meshes. Solid world geometry still occludes targets.
-            if (aimAssistRadius <= 0f) return;
-            count = Physics.SphereCastNonAlloc(ray, aimAssistRadius, _hits, interactRange,
+            if (_aimAssistRadius <= 0f) return;
+            count = Physics.SphereCastNonAlloc(ray, _aimAssistRadius, _hits, _interactRange,
                 InteractionRaycastMask, QueryTriggerInteraction.Collide);
             if (count >= _hits.Length) return;
             SortHits(count);
