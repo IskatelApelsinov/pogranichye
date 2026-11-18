@@ -10,6 +10,7 @@ using Pogranichye.Client.Diagnostics;
 using Pogranichye.Client.Networking.Protocol;
 using Pogranichye.Client.Presentation;
 using Pogranichye.Client.World;
+using UnityEngine.Serialization;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -35,7 +36,8 @@ namespace Pogranichye.Client
             Developer
         }
 
-        [SerializeField] private string serverUrl = "http://127.0.0.1:8090";
+        [FormerlySerializedAs("serverUrl")]
+        [SerializeField] private string _serverUrl = "http://127.0.0.1:8090";
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private WorldSocketClient _socket;
@@ -71,6 +73,7 @@ namespace Pogranichye.Client
         private int _targetFrameRate = 60;
         private WorldAudioDirector _audioDirector;
         private VillageSoundscape _villageSoundscape;
+        // Имена полей намеренно совпадают с ключами JSON: JsonUtility не поддерживает JsonProperty.
         [Serializable] private sealed class ChatEventData
         {
             public string type;
@@ -224,7 +227,8 @@ namespace Pogranichye.Client
         private string _lastJournalAction;
         private string _lastJournalTaskSignature;
         private string _lastJournalResultId;
-        [SerializeField] private float moveSendInterval = 0.05f;
+        [FormerlySerializedAs("moveSendInterval")]
+        [SerializeField] private float _moveSendInterval = 0.05f;
         private float _moveSendAccumulator;
         private float _lastMoveSentAt;
         private long _moveSequence;
@@ -236,7 +240,7 @@ namespace Pogranichye.Client
         private int _discardedMoveIntentCount;
         private static readonly Func<PendingMoveIntent, long> MoveIntentSequence = intent => intent.Sequence;
         private static readonly Func<PendingMoveIntent, bool> MoveIntentHasMovement =
-            intent => intent.Mx * intent.Mx + intent.My * intent.My > 0.000001f;
+            intent => intent.MoveX * intent.MoveX + intent.MoveZ * intent.MoveZ > 0.000001f;
         private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
         private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
         private Vector3 _movementCorrection;
@@ -251,12 +255,12 @@ namespace Pogranichye.Client
         private struct PendingMoveIntent
         {
             public long Sequence;
-            public float Mx;
-            public float My;
+            public float MoveX;
+            public float MoveZ;
             public bool Run;
             public bool Fast;
-            public float Face;
-            public float DeltaTime;
+            public float FacingDegrees;
+            public float DeltaSeconds;
         }
 
         private void Awake()
@@ -682,7 +686,7 @@ namespace Pogranichye.Client
                 GUILayout.Label(_connectionState == WorldConnectionState.Active && _frame != null && _frame.Alive ? "СИСТЕМНОЕ МЕНЮ" : "ПОДКЛЮЧЕНИЕ К МИРУ");
                 GUILayout.Label("Адрес сервера");
                 GUI.enabled = _connectionState == WorldConnectionState.Closed && !_busy;
-                serverUrl = GUILayout.TextField(serverUrl, GUILayout.Height(32f));
+                _serverUrl = GUILayout.TextField(_serverUrl, GUILayout.Height(32f));
                 GUI.enabled = previousEnabled;
                 if (string.IsNullOrEmpty(_token))
                 {
@@ -703,7 +707,7 @@ namespace Pogranichye.Client
                     GUILayout.Label("Аккаунт: " + _login);
                     GUILayout.Label("Состояние: в мире");
                     GUILayout.Label("Место: " + (_frame.Place != null ? _frame.Place.Name : "не определено"));
-                    GUILayout.Label("Сервер: " + serverUrl);
+                    GUILayout.Label("Сервер: " + _serverUrl);
                     if (GUILayout.Button("Продолжить [F1 / Esc]", GUILayout.Height(42f)))
                         SetSystemMenuOpen(false);
                     if (GUILayout.Button("Отключиться от мира", GUILayout.Height(34f)))
@@ -5025,7 +5029,7 @@ namespace Pogranichye.Client
             _busy = true;
             try
             {
-                var response = await new HttpAuthClient(serverUrl).RegisterAsync(_login, _password);
+                var response = await new HttpAuthClient(_serverUrl).RegisterAsync(_login, _password);
                 Enqueue(() => _status = response.Ok ? "Учётная запись создана. Теперь войдите." : response.Message);
             }
             catch (Exception ex) { Enqueue(() => _status = ex.Message); }
@@ -5038,7 +5042,7 @@ namespace Pogranichye.Client
             _busy = true;
             try
             {
-                var response = await new HttpAuthClient(serverUrl).LoginAsync(_login, _password);
+                var response = await new HttpAuthClient(_serverUrl).LoginAsync(_login, _password);
                 if (!response.Ok || string.IsNullOrEmpty(response.Token))
                     throw new InvalidOperationException(response.Message ?? "Вход не выполнен.");
                 Enqueue(() => { _token = response.Token; _status = "Вход выполнен. Подключитесь к миру."; });
@@ -5105,7 +5109,7 @@ namespace Pogranichye.Client
             try
             {
                 // Layout v2 is required before enabling prediction: local geometry must match the server.
-                var http = new HttpAuthClient(serverUrl);
+                var http = new HttpAuthClient(_serverUrl);
                 var layout = await http.GetLayoutAsync();
                 // v1.22 static catalogue: optional for backward-compatible world entry.
                 try
@@ -5168,7 +5172,7 @@ namespace Pogranichye.Client
                     ? _cameraRig.GetComponent<Camera>() : Camera.main;
                 RuralHorizonBackdrop.Build(_presentationRoot, presentationCamera, (float)layout.WorldHalf);
                 _initialFullFrameBuffer.Begin(socket, DateTime.UtcNow.AddSeconds(5));
-                await socket.ConnectAsync(serverUrl, _token, _lifetime.Token);
+                await socket.ConnectAsync(_serverUrl, _token, _lifetime.Token);
                 Enqueue(() =>
                 {
                     if (!ReferenceEquals(_socket, socket) || _connectionState != WorldConnectionState.Connecting)
@@ -5446,7 +5450,7 @@ namespace Pogranichye.Client
                     ["unity_version"] = Application.unityVersion,
                     ["platform"] = Application.platform.ToString(),
                     ["device_model"] = SystemInfo.deviceModel,
-                    ["server"] = ClientDiagnosticDumps.SafeServerAddress(serverUrl),
+                    ["server"] = ClientDiagnosticDumps.SafeServerAddress(_serverUrl),
                     ["connection_state"] = _connectionState.ToString(),
                     ["socket_connected"] = _socket != null && _socket.IsConnected,
                     ["place_id"] = _frame?.Place?.Id,
@@ -5642,7 +5646,7 @@ namespace Pogranichye.Client
                 _audioDirector?.Footsteps(canRun);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
-            if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
+            if (_moveSendAccumulator < Mathf.Max(0.02f, _moveSendInterval))
                 return;
 
             var elapsed = _lastMoveSentAt <= 0f
@@ -5656,12 +5660,12 @@ namespace Pogranichye.Client
             var intent = new PendingMoveIntent
             {
                 Sequence = _moveSequence,
-                Mx = worldMove.x,
-                My = worldMove.z,
+                MoveX = worldMove.x,
+                MoveZ = worldMove.z,
                 Run = runRequested,
                 Fast = fastRequested,
-                Face = facingDegrees,
-                DeltaTime = elapsed
+                FacingDegrees = facingDegrees,
+                DeltaSeconds = elapsed
             };
             _pendingMoveIntents.Add(intent);
             _moveSendQueue.Enqueue(intent);
@@ -5759,7 +5763,7 @@ namespace Pogranichye.Client
                 var intent = _pendingMoveIntents[i];
                 PredictServerMove(ref replayedPosition, ref replayedStamina, intent,
                     activeLayout, allowSeamlessExit);
-                replayedFacing = intent.Face;
+                replayedFacing = intent.FacingDegrees;
             }
 
             var error = replayedPosition - _views.PlayerTransform.position;
@@ -5785,8 +5789,8 @@ namespace Pogranichye.Client
         private void PredictServerMove(ref Vector3 position, ref float stamina,
             PendingMoveIntent intent, WorldLayoutFrame layout, bool allowOutsideSettlement)
         {
-            var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
-            var direction = new Vector2(intent.Mx, intent.My);
+            var dt = Mathf.Clamp(intent.DeltaSeconds, 0f, 0.25f);
+            var direction = new Vector2(intent.MoveX, intent.MoveZ);
             var length = direction.magnitude;
             if (length > 0.000001f)
             {
@@ -5981,8 +5985,8 @@ namespace Pogranichye.Client
             Exception failure = null;
             try
             {
-                await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Fast, intent.Face,
-                    intent.DeltaTime, intent.Sequence, _lifetime.Token);
+                await socket.SendMoveAsync(intent.MoveX, intent.MoveZ, intent.Run, intent.Fast, intent.FacingDegrees,
+                    intent.DeltaSeconds, intent.Sequence, _lifetime.Token);
             }
             catch (Exception ex)
             {
@@ -6256,7 +6260,7 @@ namespace Pogranichye.Client
         {
             try
             {
-                var http = new HttpAuthClient(serverUrl);
+                var http = new HttpAuthClient(_serverUrl);
                 var chunk = await http.GetTerrainChunkAsync(chunkX, chunkZ, 8, cancellation.Token);
                 if (chunk.Frame != expectedFrame || chunk.Id != chunkId || !chunk.IsValid)
                     throw new InvalidOperationException("Сервер вернул чанк не того кадра, индекса или начала координат.");
@@ -6383,7 +6387,7 @@ namespace Pogranichye.Client
         {
             WorldManifestFrame manifest = null;
             Exception failure = null;
-            try { manifest = await new HttpAuthClient(serverUrl).GetWorldManifestAsync(); }
+            try { manifest = await new HttpAuthClient(_serverUrl).GetWorldManifestAsync(); }
             catch (Exception exception) { failure = exception; }
 
             Enqueue(() =>
@@ -6456,7 +6460,7 @@ namespace Pogranichye.Client
         {
             WorldLayoutFrame layout = null;
             Exception failure = null;
-            try { layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(settlement.Id, _lifetime.Token); }
+            try { layout = await new HttpAuthClient(_serverUrl).GetLayoutAsync(settlement.Id, _lifetime.Token); }
             catch (Exception exception) { failure = exception; }
 
             Enqueue(() =>
@@ -6552,7 +6556,7 @@ namespace Pogranichye.Client
         {
             try
             {
-                var layout = await new HttpAuthClient(serverUrl).GetLayoutAsync(placeId);
+                var layout = await new HttpAuthClient(_serverUrl).GetLayoutAsync(placeId);
                 Enqueue(() =>
                 {
                     if (generation != _layoutRequestGeneration || _layoutRequestedFor != placeId ||

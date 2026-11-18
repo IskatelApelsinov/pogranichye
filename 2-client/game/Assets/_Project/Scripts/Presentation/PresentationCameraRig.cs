@@ -1,3 +1,4 @@
+using UnityEngine.Serialization;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -5,23 +6,37 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Presentation-only hybrid camera. It never changes authoritative world position.</summary>
     public sealed class PresentationCameraRig : MonoBehaviour
     {
-        [SerializeField] private Vector3 offset = new Vector3(0, 22, -28);
-        [SerializeField] private float followSharpness = 5f;
+        [FormerlySerializedAs("offset")]
+        [SerializeField] private Vector3 _offset = new Vector3(0, 22, -28);
+        [FormerlySerializedAs("followSharpness")]
+        [SerializeField] private float _followSharpness = 5f;
         // Raw mouse delta is measured in pixels per frame; a restrained default avoids
         // excessive rotation on high-DPI mice.
-        [SerializeField] private float mouseSensitivity = 0.035f;
-        [SerializeField] private float thirdPersonMinPitch = 18f;
-        [SerializeField] private float thirdPersonMaxPitch = 62f;
-        [SerializeField] private float zoomSpeed = 5f;
-        [SerializeField] private float minZoomDistance = 8f;
-        [SerializeField] private float maxZoomDistance = 110f;
-        [SerializeField] private float collisionRadius = 0.22f;
+        [FormerlySerializedAs("mouseSensitivity")]
+        [SerializeField] private float _mouseSensitivity = 0.035f;
+        [FormerlySerializedAs("thirdPersonMinPitch")]
+        [SerializeField] private float _thirdPersonMinPitch = 18f;
+        [FormerlySerializedAs("thirdPersonMaxPitch")]
+        [SerializeField] private float _thirdPersonMaxPitch = 62f;
+        [FormerlySerializedAs("zoomSpeed")]
+        [SerializeField] private float _zoomSpeed = 5f;
+        [FormerlySerializedAs("minZoomDistance")]
+        [SerializeField] private float _minZoomDistance = 8f;
+        [FormerlySerializedAs("maxZoomDistance")]
+        [SerializeField] private float _maxZoomDistance = 110f;
+        [FormerlySerializedAs("collisionRadius")]
+        [SerializeField] private float _collisionRadius = 0.22f;
         [Header("First-person feel")]
-        [SerializeField] private float headBobAmplitude = 0.035f;
-        [SerializeField] private float headBobSideAmplitude = 0.012f;
-        [SerializeField] private float headBobFrequency = 9f;
-        [SerializeField] private float sprintFieldOfViewBoost = 3f;
-        [SerializeField] private float fieldOfViewSharpness = 7f;
+        [FormerlySerializedAs("headBobAmplitude")]
+        [SerializeField] private float _headBobAmplitude = 0.035f;
+        [FormerlySerializedAs("headBobSideAmplitude")]
+        [SerializeField] private float _headBobSideAmplitude = 0.012f;
+        [FormerlySerializedAs("headBobFrequency")]
+        [SerializeField] private float _headBobFrequency = 9f;
+        [FormerlySerializedAs("sprintFieldOfViewBoost")]
+        [SerializeField] private float _sprintFieldOfViewBoost = 3f;
+        [FormerlySerializedAs("fieldOfViewSharpness")]
+        [SerializeField] private float _fieldOfViewSharpness = 7f;
         private Camera _camera;
         private float _baseFarClipPlane = 1000f;
         private Pogranichye.Client.ClientInput _input;
@@ -61,13 +76,13 @@ namespace Pogranichye.Client.Presentation
 
         public void SetLookSettings(float sensitivity, bool invertY)
         {
-            mouseSensitivity = Mathf.Clamp(sensitivity, 0.008f, 0.09f);
+            _mouseSensitivity = Mathf.Clamp(sensitivity, 0.008f, 0.09f);
             _invertMouseY = invertY;
         }
 
         private void Awake()
         {
-            _zoomDistance = offset.magnitude;
+            _zoomDistance = _offset.magnitude;
             _camera = GetComponent<Camera>();
             if (_camera != null)
             {
@@ -105,8 +120,8 @@ namespace Pogranichye.Client.Presentation
             var sprintBlend = _firstPerson ? Mathf.InverseLerp(0.58f, 1f, gait) : 0f;
             if (_camera != null)
             {
-                var targetFov = _defaultFieldOfView + sprintFieldOfViewBoost * sprintBlend;
-                var blend = 1f - Mathf.Exp(-fieldOfViewSharpness * Time.unscaledDeltaTime);
+                var targetFov = _defaultFieldOfView + _sprintFieldOfViewBoost * sprintBlend;
+                var blend = 1f - Mathf.Exp(-_fieldOfViewSharpness * Time.unscaledDeltaTime);
                 _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, blend);
             }
 
@@ -139,14 +154,14 @@ namespace Pogranichye.Client.Presentation
                 if (!_captureMouseForGesture)
                 {
                     var look = _input != null ? _input.LookDelta : Vector2.zero;
-                    _yaw += look.x * mouseSensitivity;
-                    _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f), -75f, 75f);
+                    _yaw += look.x * _mouseSensitivity;
+                    _pitch = Mathf.Clamp(_pitch + look.y * _mouseSensitivity * (_invertMouseY ? 1f : -1f), -75f, 75f);
                 }
                 if (!_captureMouseForGesture)
                     _target.rotation = Quaternion.Euler(0f, _yaw, 0f);
-                _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, headBobFrequency, gait);
-                var walkBob = Mathf.Sin(_headBobPhase * 2f) * headBobAmplitude * gait;
-                var sideBob = Mathf.Sin(_headBobPhase) * headBobSideAmplitude * gait;
+                _headBobPhase += Time.unscaledDeltaTime * Mathf.Lerp(1.35f, _headBobFrequency, gait);
+                var walkBob = Mathf.Sin(_headBobPhase * 2f) * _headBobAmplitude * gait;
+                var sideBob = Mathf.Sin(_headBobPhase) * _headBobSideAmplitude * gait;
                 var idleBreath = Mathf.Sin(Time.unscaledTime * 1.15f) * 0.006f;
                 transform.position = _target.position + Vector3.up * (1.62f + walkBob + idleBreath + _jumpOffset)
                     + _target.right * sideBob;
@@ -156,14 +171,14 @@ namespace Pogranichye.Client.Presentation
 
             var scroll = _input != null ? _input.Zoom : 0f;
             if (Mathf.Abs(scroll) > 0.001f)
-                _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * zoomSpeed * 10f,
-                    minZoomDistance, maxZoomDistance);
+                _zoomDistance = Mathf.Clamp(_zoomDistance - scroll * _zoomSpeed * 10f,
+                    _minZoomDistance, _maxZoomDistance);
             if (!_captureMouseForGesture)
             {
                 var look = _input != null ? _input.LookDelta : Vector2.zero;
-                _yaw += look.x * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch + look.y * mouseSensitivity * (_invertMouseY ? 1f : -1f),
-                    thirdPersonMinPitch, thirdPersonMaxPitch);
+                _yaw += look.x * _mouseSensitivity;
+                _pitch = Mathf.Clamp(_pitch + look.y * _mouseSensitivity * (_invertMouseY ? 1f : -1f),
+                    _thirdPersonMinPitch, _thirdPersonMaxPitch);
             }
 
             var focus = _target.position + Vector3.up * (1.25f + _jumpOffset);
@@ -171,11 +186,11 @@ namespace Pogranichye.Client.Presentation
             var desired = focus + direction * _zoomDistance;
             var ray = desired - focus;
             var distance = ray.magnitude;
-            if (distance > 0.001f && Physics.SphereCast(focus, collisionRadius, ray.normalized,
+            if (distance > 0.001f && Physics.SphereCast(focus, _collisionRadius, ray.normalized,
                 out var hit, distance, 1 << 2, QueryTriggerInteraction.Ignore))
                 desired = focus + ray.normalized * Mathf.Max(0.35f, hit.distance - 0.18f);
             transform.position = Vector3.Lerp(transform.position, desired,
-                1f - Mathf.Exp(-followSharpness * Time.deltaTime));
+                1f - Mathf.Exp(-_followSharpness * Time.deltaTime));
             transform.rotation = Quaternion.LookRotation(focus - transform.position, Vector3.up);
         }
     }

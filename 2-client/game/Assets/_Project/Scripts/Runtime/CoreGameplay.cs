@@ -96,11 +96,11 @@ namespace Pogranichye.Client
             public CoreFoeView View;
             public Vector3 Target;
             public float Yaw;
-            public float Hp;
-            public float Max;
+            public float Health;
+            public float MaxHealth;
             public bool Aware;
             public string State;
-            public float Punch; // seconds of the "got hit" squash
+            public float HitReactionRemaining; // seconds of the "got hit" squash
             public ProceduralGait Gait;
             public Transform Telegraph;
         }
@@ -1378,8 +1378,8 @@ namespace Pogranichye.Client
                     }
                     rec.Target = new Vector3((float)foe.X, 0f, (float)foe.Y);
                     rec.Yaw = EntityViewRegistry.FacingToUnityYaw((float)foe.Facing);
-                    rec.Hp = (float)foe.Hp;
-                    rec.Max = Mathf.Max(1f, (float)foe.Max);
+                    rec.Health = (float)foe.Health;
+                    rec.MaxHealth = Mathf.Max(1f, (float)foe.Max);
                     rec.Aware = foe.Aware;
                     rec.State = foe.State ?? string.Empty;
                     if (rec.Telegraph != null) rec.Telegraph.gameObject.SetActive(rec.State == "windup");
@@ -1668,7 +1668,7 @@ namespace Pogranichye.Client
                         OwnerRoot = hurtsMe ? _player : struck.Root.transform });
                     if (!hurtsMe)
                     {
-                        struck.Punch = 0.2f;
+                        struck.HitReactionRemaining = 0.2f;
                         if (struck.Gait != null) struck.Gait.HitReact(); // server-confirmed damage to this foe
                     }
                     else if (struck.Gait != null) struck.Gait.Lunge(); // the server confirmed this foe's hit
@@ -1697,13 +1697,13 @@ namespace Pogranichye.Client
                     ? Quaternion.Euler(0f, rec.Yaw, 90f)
                     : Quaternion.Euler(0f, rec.Yaw, 0f);
                 t.rotation = Quaternion.Slerp(t.rotation, target, blend);
-                rec.Punch = Mathf.Max(0f, rec.Punch - Time.deltaTime);
+                rec.HitReactionRemaining = Mathf.Max(0f, rec.HitReactionRemaining - Time.deltaTime);
                 if (rec.Telegraph != null && rec.Telegraph.gameObject.activeSelf)
                 {
                     var pulse = 1f + Mathf.Sin(Time.unscaledTime * 15f) * 0.12f;
                     rec.Telegraph.localScale = new Vector3(1.35f * pulse, 0.018f, 1.35f * pulse);
                 }
-                var squash = 1f - Mathf.Sin(Mathf.Clamp01(rec.Punch / 0.2f) * Mathf.PI) * 0.18f;
+                var squash = 1f - Mathf.Sin(Mathf.Clamp01(rec.HitReactionRemaining / 0.2f) * Mathf.PI) * 0.18f;
                 t.localScale = new Vector3(1f / squash, squash, 1f / squash);
             }
             while (_floaters.Count > 0 && Time.unscaledTime - _floaters[0].At > 1.1f) _floaters.RemoveAt(0);
@@ -2744,7 +2744,7 @@ namespace Pogranichye.Client
             {
                 var rec = pair.Value;
                 if (rec.Root == null || rec.View.Dead) continue;
-                if (!rec.Aware && rec.Hp >= rec.Max) continue;
+                if (!rec.Aware && rec.Health >= rec.MaxHealth) continue;
                 var labelPoint = rec.Root.transform.position + Vector3.up * (rec.View.Height + 0.35f);
                 if (IsWorldPointOccluded(cam, labelPoint, rec.Root.transform)) continue;
                 var screen = cam.WorldToScreenPoint(labelPoint);
@@ -2755,7 +2755,7 @@ namespace Pogranichye.Client
                 GUI.color = Color.black;
                 GUI.DrawTexture(new Rect(rect.x, rect.y + 20f, 100f, 6f), Texture2D.whiteTexture);
                 GUI.color = new Color(0.79f, 0.42f, 0.35f);
-                GUI.DrawTexture(new Rect(rect.x + 1f, rect.y + 21f, 98f * Mathf.Clamp01(rec.Hp / rec.Max), 4f), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(rect.x + 1f, rect.y + 21f, 98f * Mathf.Clamp01(rec.Health / rec.MaxHealth), 4f), Texture2D.whiteTexture);
                 GUI.color = previous;
             }
         }
