@@ -137,7 +137,7 @@ namespace Pogranichye.Client.Diagnostics
                 if (i >= MaxDumpFiles || total > MaxDumpBytes)
                 {
                     try { files[i].Delete(); total -= fileLength; }
-                    catch (Exception ex) { Debug.LogWarning("[Pogranichye] Не удалось удалить старый дамп: " + ex.Message); }
+                    catch (Exception ex) { Debug.LogWarning("[Pogranichye] Failed to delete an old diagnostic dump: " + ex.Message); }
                 }
             }
         }
