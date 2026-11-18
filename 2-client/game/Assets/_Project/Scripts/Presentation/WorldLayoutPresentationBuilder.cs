@@ -1665,19 +1665,104 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(right, 0.16f, 0.32f), _trunk, false);
         }
 
+        /// <summary>
+        /// Builds a wall from solid piers and lintel/sill bands around actual window gaps.
+        /// Window openings are presentation only: no new entrance or movement permission is created.
+        /// </summary>
+        private static void BuildWindowedWall(Transform root, int side, float width, float depth,
+            float wallHeight, Material wall)
+        {
+            var horizontal = side == 0 || side == 1;
+            var axisLength = horizontal ? width : depth;
+            var halfAxis = axisLength * 0.5f;
+            var face = side == 0 ? -depth * 0.5f + 0.12f :
+                side == 1 ? depth * 0.5f - 0.12f :
+                side == 2 ? -width * 0.5f + 0.12f : width * 0.5f - 0.12f;
+            const float thickness = 0.24f;
+            var windowCount = WorldWindowAperturePolicy.ResolveWindowCount(axisLength);
+            var windowWidth = (float)WorldWindowAperturePolicy.ResolveWindowWidth(axisLength);
+            var halfWindow = windowWidth * 0.5f;
+            var centers = new float[windowCount];
+            for (var i = 0; i < centers.Length; i++)
+                centers[i] = (float)WorldWindowAperturePolicy.ResolveWindowCenter(axisLength, windowCount, i);
+
+            var cursor = -halfAxis;
+            for (var i = 0; i < centers.Length; i++)
+            {
+                var center = Mathf.Clamp(centers[i], cursor + halfWindow + 0.08f,
+                    halfAxis - halfWindow - 0.08f);
+                var left = center - halfWindow;
+                AddWindowWallPanel(root, side, face, (cursor + left) * 0.5f,
+                    left - cursor, 0f, wallHeight, thickness, wall);
+                cursor = center + halfWindow;
+            }
+            AddWindowWallPanel(root, side, face, (cursor + halfAxis) * 0.5f,
+                halfAxis - cursor, 0f, wallHeight, thickness, wall);
+
+            var storeys = WorldBuildingPresentationPolicy.ResolveStoreyCount(wallHeight);
+            for (var i = 0; i < centers.Length; i++)
+            {
+                var center = Mathf.Clamp(centers[i], -halfAxis + halfWindow + 0.08f,
+                    halfAxis - halfWindow - 0.08f);
+                var bandStart = 0f;
+                for (var floor = 0; floor < storeys; floor++)
+                {
+                    if (!WorldWindowAperturePolicy.FitsWall(wallHeight, floor)) break;
+                    var bottom = (float)WorldWindowAperturePolicy.ResolveWindowBottom(floor);
+                    var top = (float)WorldWindowAperturePolicy.ResolveWindowTop(floor);
+                    AddWindowWallPanel(root, side, face, center, windowWidth,
+                        bandStart, bottom, thickness, wall);
+                    bandStart = top;
+                    var jambHeight = top - bottom + 0.10f;
+                    for (var edge = -1; edge <= 1; edge += 2)
+                        AddWindowFramePiece(root, side, face, center + edge * (halfWindow - 0.045f),
+                            (bottom + top) * 0.5f, 0.09f, jambHeight, thickness + 0.06f);
+                    AddWindowFramePiece(root, side, face, center, bottom + 0.015f,
+                        windowWidth, 0.09f, thickness + 0.06f);
+                    AddWindowFramePiece(root, side, face, center, top - 0.015f,
+                        windowWidth, 0.09f, thickness + 0.06f);
+                }
+                AddWindowWallPanel(root, side, face, center, windowWidth,
+                    bandStart, wallHeight, thickness, wall);
+            }
+        }
+
+        private static void AddWindowWallPanel(Transform root, int side, float face,
+            float axisCenter, float axisLength, float y0, float y1, float thickness, Material material)
+        {
+            if (axisLength <= 0.08f || y1 - y0 <= 0.08f) return;
+            var horizontal = side == 0 || side == 1;
+            var position = horizontal
+                ? new Vector3(axisCenter, (y0 + y1) * 0.5f, face)
+                : new Vector3(face, (y0 + y1) * 0.5f, axisCenter);
+            var size = horizontal
+                ? new Vector3(axisLength, y1 - y0, thickness)
+                : new Vector3(thickness, y1 - y0, axisLength);
+            Create("Windowed wall panel", PrimitiveType.Cube, root, position, size, material, false);
+        }
+
+        private static void AddWindowFramePiece(Transform root, int side, float face,
+            float axisCenter, float yCenter, float axisLength, float height, float thickness)
+        {
+            var horizontal = side == 0 || side == 1;
+            var position = horizontal
+                ? new Vector3(axisCenter, yCenter, face)
+                : new Vector3(face, yCenter, axisCenter);
+            var size = horizontal
+                ? new Vector3(axisLength, height, thickness)
+                : new Vector3(thickness, height, axisLength);
+            Create("Window timber frame", PrimitiveType.Cube, root, position, size, _trunk, false);
+        }
+
         private static void BuildServerDoorFacade(Transform root, float width, float depth, float wallHeight,
             int side, float offset, float opening, Material wall)
         {
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
-            if (side != 0) Create("Server building south wall", PrimitiveType.Cube, root,
-                new Vector3(0f, wallHeight * 0.5f, -depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 1) Create("Server building north wall", PrimitiveType.Cube, root,
-                new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 2) Create("Server building west wall", PrimitiveType.Cube, root,
-                new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
-            if (side != 3) Create("Server building east wall", PrimitiveType.Cube, root,
-                new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
+            if (side != 0) BuildWindowedWall(root, 0, width, depth, wallHeight, wall);
+            if (side != 1) BuildWindowedWall(root, 1, width, depth, wallHeight, wall);
+            if (side != 2) BuildWindowedWall(root, 2, width, depth, wallHeight, wall);
+            if (side != 3) BuildWindowedWall(root, 3, width, depth, wallHeight, wall);
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
@@ -1786,29 +1871,11 @@ namespace Pogranichye.Client.Presentation
             }
             else
             {
-                // Generic buildings retain the open south display facade used by the village shell.
-                Create("Rear timber wall", PrimitiveType.Cube, root,
-                    new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f),
-                    new Vector3(width - 0.35f, wallHeight, 0.24f), wall, false);
-                Create("West timber wall", PrimitiveType.Cube, root,
-                    new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f),
-                    new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
-                Create("East timber wall", PrimitiveType.Cube, root,
-                    new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f),
-                    new Vector3(0.24f, wallHeight, depth - 0.25f), wall, false);
-                var leftWidth = width * 0.5f - opening * 0.5f;
-                var rightWidth = leftWidth;
-                Create("South facade left", PrimitiveType.Cube, root,
-                    new Vector3(-width * 0.5f + leftWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                    new Vector3(leftWidth, wallHeight, 0.24f), wall, false);
-                Create("South facade right", PrimitiveType.Cube, root,
-                    new Vector3(opening * 0.5f + rightWidth * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                    new Vector3(rightWidth, wallHeight, 0.24f), wall, false);
-                if (opening > 0.05f)
-                    for (var post = -1; post <= 1; post += 2)
-                        Create("Facade timber post", PrimitiveType.Cube, root,
-                            new Vector3(post * opening * 0.5f, wallHeight * 0.5f, -depth * 0.5f + 0.12f),
-                            new Vector3(0.34f, wallHeight + 0.15f, 0.34f), _trunk, false);
+                // Four enclosed walls with real daylight apertures; no synthetic entrance.
+                BuildWindowedWall(root, 0, width, depth, wallHeight, wall);
+                BuildWindowedWall(root, 1, width, depth, wallHeight, wall);
+                BuildWindowedWall(root, 2, width, depth, wallHeight, wall);
+                BuildWindowedWall(root, 3, width, depth, wallHeight, wall);
             }
 
             // Exposed structural framing breaks up the large flat wall planes.
@@ -1824,35 +1891,7 @@ namespace Pogranichye.Client.Presentation
 
             // Server-authored doors are rendered at their actual side/offset; no synthetic entrance is created.
 
-            if (!isMarket)
-            {
-                // Repeat windows on each server-authored floor so 3–5 storey blocks read as buildings.
-                for (var floor = 0; floor < facadeStoreys; floor++)
-                for (var side = -1; side <= 1; side += 2)
-                {
-                    var windowX = side * width * 0.31f;
-                    var windowY = Mathf.Min(wallHeight - 0.65f, 1.95f + floor * 3.2f);
-                    if (building.Storeys > 1 || building.HeightMeters > 5d)
-                    {
-                        // Dense grid cities use one shutter mesh per opening to keep facade GameObjects bounded.
-                        Create("City storey window • floor " + floor, PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.045f),
-                            new Vector3(0.82f, 0.88f, 0.08f), _roof, false);
-                    }
-                    else
-                    {
-                        Create("Window dark recess • floor " + floor, PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.015f),
-                            new Vector3(0.82f, 0.92f, 0.07f), _trunk, false);
-                        Create("Window shutter • floor " + floor, PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.065f),
-                            new Vector3(0.66f, 0.76f, 0.05f), _roof, false);
-                        Create("Window crossbar • floor " + floor, PrimitiveType.Cube, root,
-                            new Vector3(windowX, windowY, -depth * 0.5f - 0.105f),
-                            new Vector3(0.72f, 0.07f, 0.04f), _trunk, false);
-                    }
-                }
-            }
+            // Window openings are now part of wall geometry; do not cover them with opaque facade cubes.
 
             if (isMarket)
             {
