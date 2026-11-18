@@ -175,7 +175,7 @@ namespace Pogranichye.Client.Presentation
         }
 
         private static void BuildInteriorLight(Transform parent, WorldSpaceRoomFrame room,
-            WorldSpaceBoundsFrame bounds, WorldSpacePointFrame origin)
+            WorldSpaceBoundsFrame bounds, WorldSpaceOriginFrame origin)
         {
             if (!WorldInteriorLightingPolicy.TryResolve(room.Kind,
                 bounds.MinEast, bounds.MinNorth, bounds.MinUp,
