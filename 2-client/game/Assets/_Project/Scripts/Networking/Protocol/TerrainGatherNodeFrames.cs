@@ -76,21 +76,7 @@ namespace Pogranichye.Client.Networking.Protocol
 
         private static bool TryFiniteNumber(JToken token, out double value)
         {
-            value = 0d;
-            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
-                return false;
-            try
-            {
-                // Read the numeric token itself. Converting it to text first can use the
-                // current culture and turn a JSON decimal point into a locale-specific comma.
-                value = token.Value<double>();
-                return IsFinite(value);
-            }
-            catch (Exception)
-            {
-                value = 0d;
-                return false;
-            }
+            return JsonNumberReader.TryReadFiniteDouble(token, out value);
         }
 
         private static bool IsFinite(double value)
