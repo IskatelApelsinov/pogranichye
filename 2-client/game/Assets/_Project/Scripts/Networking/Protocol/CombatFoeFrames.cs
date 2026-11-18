@@ -97,8 +97,8 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 throw new FormatException(path + "." + key + " должен быть числом.");
-            var value = token.Value<double>();
-            if (double.IsNaN(value) || double.IsInfinity(value) || (nonNegative && value < 0d))
+            double value;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value) || (nonNegative && value < 0d))
                 throw new FormatException(path + "." + key + " должен быть конечным неотрицательным числом.");
         }
 
