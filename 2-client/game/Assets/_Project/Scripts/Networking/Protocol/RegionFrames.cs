@@ -97,7 +97,8 @@ namespace Pogranichye.Client.Networking.Protocol
                 var edgeKey = string.CompareOrdinal(a, b) < 0 ? a + "|" + b : b + "|" + a;
                 if (!edgeKeys.Add(edgeKey)) throw new FormatException(itemPath + " дублирует дорогу.");
                 RequireNumber(road["len"], itemPath + ".len");
-                if (road["len"].Value<double>() < 0d)
+                double length;
+                if (!JsonNumberReader.TryReadFiniteDouble(road["len"], out length) || length < 0d)
                     throw new FormatException(itemPath + ".len не может быть отрицательной.");
             }
         }
