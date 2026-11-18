@@ -239,7 +239,7 @@ namespace Pogranichye.Client
         private int _discardedMoveIntentCount;
         private static readonly Func<PendingMoveIntent, long> MoveIntentSequence = intent => intent.Sequence;
         private static readonly Func<PendingMoveIntent, bool> MoveIntentHasMovement =
-            intent => intent.Mx * intent.Mx + intent.My * intent.My > 0.000001f;
+            intent => intent.MoveX * intent.MoveX + intent.MoveZ * intent.MoveZ > 0.000001f;
         private readonly List<PendingMoveIntent> _pendingMoveIntents = new List<PendingMoveIntent>();
         private readonly Queue<PendingMoveIntent> _moveSendQueue = new Queue<PendingMoveIntent>();
         private Vector3 _movementCorrection;
@@ -254,12 +254,12 @@ namespace Pogranichye.Client
         private struct PendingMoveIntent
         {
             public long Sequence;
-            public float Mx;
-            public float My;
+            public float MoveX;
+            public float MoveZ;
             public bool Run;
             public bool Fast;
-            public float Face;
-            public float DeltaTime;
+            public float FacingDegrees;
+            public float DeltaSeconds;
         }
 
         private void Awake()
@@ -5659,12 +5659,12 @@ namespace Pogranichye.Client
             var intent = new PendingMoveIntent
             {
                 Sequence = _moveSequence,
-                Mx = worldMove.x,
-                My = worldMove.z,
+                MoveX = worldMove.x,
+                MoveZ = worldMove.z,
                 Run = runRequested,
                 Fast = fastRequested,
-                Face = facingDegrees,
-                DeltaTime = elapsed
+                FacingDegrees = facingDegrees,
+                DeltaSeconds = elapsed
             };
             _pendingMoveIntents.Add(intent);
             _moveSendQueue.Enqueue(intent);
@@ -5762,7 +5762,7 @@ namespace Pogranichye.Client
                 var intent = _pendingMoveIntents[i];
                 PredictServerMove(ref replayedPosition, ref replayedStamina, intent,
                     activeLayout, allowSeamlessExit);
-                replayedFacing = intent.Face;
+                replayedFacing = intent.FacingDegrees;
             }
 
             var error = replayedPosition - _views.PlayerTransform.position;
@@ -5788,8 +5788,8 @@ namespace Pogranichye.Client
         private void PredictServerMove(ref Vector3 position, ref float stamina,
             PendingMoveIntent intent, WorldLayoutFrame layout, bool allowOutsideSettlement)
         {
-            var dt = Mathf.Clamp(intent.DeltaTime, 0f, 0.25f);
-            var direction = new Vector2(intent.Mx, intent.My);
+            var dt = Mathf.Clamp(intent.DeltaSeconds, 0f, 0.25f);
+            var direction = new Vector2(intent.MoveX, intent.MoveZ);
             var length = direction.magnitude;
             if (length > 0.000001f)
             {
@@ -5984,8 +5984,8 @@ namespace Pogranichye.Client
             Exception failure = null;
             try
             {
-                await socket.SendMoveAsync(intent.Mx, intent.My, intent.Run, intent.Fast, intent.Face,
-                    intent.DeltaTime, intent.Sequence, _lifetime.Token);
+                await socket.SendMoveAsync(intent.MoveX, intent.MoveZ, intent.Run, intent.Fast, intent.FacingDegrees,
+                    intent.DeltaSeconds, intent.Sequence, _lifetime.Token);
             }
             catch (Exception ex)
             {
