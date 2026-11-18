@@ -75,6 +75,8 @@ on:
       - '2-client/game/Tests/TerrainResourceVisualPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
       - '2-client/game/Tests/WorldAmbientPaletteCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs'
+      - '2-client/game/Tests/WorldInteriorLightingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPoi.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
@@ -394,6 +396,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
+
+      - name: Server-authored tavern interior light placement regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-interior-lighting.exe Tests/WorldInteriorLightingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs
+          mono /tmp/world-interior-lighting.exe
 
       - name: World clock smoothing regression checks
         working-directory: 2-client/game
