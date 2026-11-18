@@ -544,7 +544,7 @@ namespace Pogranichye.Client
                 GUILayout.BeginVertical();
                 GUILayout.Label("Нагрузка");
                 var load = (float)_bag.Load;
-                var cap = Mathf.MaxHealth(1f, (float)_bag.Capacity);
+                var cap = Mathf.Max(1f, (float)_bag.Capacity);
                 var old = GUI.color;
                 GUI.color = _bag.Overloaded ? new Color(0.82f, 0.39f, 0.28f) : new Color(0.62f, 0.69f, 0.48f);
                 var bar = GUILayoutUtility.GetRect(130f, 9f, GUILayout.Width(130f));
@@ -802,8 +802,8 @@ namespace Pogranichye.Client
                     if (!string.IsNullOrWhiteSpace(quest.SettlementName))
                         GUILayout.Label("Место: " + quest.SettlementName +
                             (string.IsNullOrWhiteSpace(quest.RealmName) ? string.Empty : " · " + quest.RealmName));
-                    var have = Mathf.MaxHealth(0, quest.Have ?? 0);
-                    var quantity = Mathf.MaxHealth(1, quest.Quantity);
+                    var have = Mathf.Max(0, quest.Have ?? 0);
+                    var quantity = Mathf.Max(1, quest.Quantity);
                     GUILayout.Label(have + " / " + quantity);
                     var progress = GUILayoutUtility.GetRect(1f, 8f, GUILayout.ExpandWidth(true));
                     var oldColor = GUI.color;
@@ -1394,7 +1394,7 @@ namespace Pogranichye.Client
                     rec.Target = new Vector3((float)foe.X, 0f, (float)foe.Y);
                     rec.Yaw = EntityViewRegistry.FacingToUnityYaw((float)foe.Facing);
                     rec.Health = (float)foe.Health;
-                    rec.MaxHealth = Mathf.MaxHealth(1f, (float)foe.MaxHealth);
+                    rec.MaxHealth = Mathf.Max(1f, (float)foe.Max);
                     rec.Aware = foe.Aware;
                     rec.State = foe.State ?? string.Empty;
                     if (rec.Telegraph != null) rec.Telegraph.gameObject.SetActive(rec.State == "windup");
@@ -1712,7 +1712,7 @@ namespace Pogranichye.Client
                     ? Quaternion.Euler(0f, rec.Yaw, 90f)
                     : Quaternion.Euler(0f, rec.Yaw, 0f);
                 t.rotation = Quaternion.Slerp(t.rotation, target, blend);
-                rec.HitReactionRemaining = Mathf.MaxHealth(0f, rec.HitReactionRemaining - Time.deltaTime);
+                rec.HitReactionRemaining = Mathf.Max(0f, rec.HitReactionRemaining - Time.deltaTime);
                 if (rec.Telegraph != null && rec.Telegraph.gameObject.activeSelf)
                 {
                     var pulse = 1f + Mathf.Sin(Time.unscaledTime * 15f) * 0.12f;
@@ -1735,8 +1735,8 @@ namespace Pogranichye.Client
                 Toast("Ушла…", 1.2f);
             }
 
-            _hurtFlash = Mathf.MaxHealth(0f, _hurtFlash - Time.unscaledDeltaTime);
-            _hitMarker = Mathf.MaxHealth(0f, _hitMarker - Time.unscaledDeltaTime);
+            _hurtFlash = Mathf.Max(0f, _hurtFlash - Time.unscaledDeltaTime);
+            _hitMarker = Mathf.Max(0f, _hitMarker - Time.unscaledDeltaTime);
             while (_feed.Count > 0 && Time.unscaledTime - _feed[0].At > 10f) _feed.RemoveAt(0);
 
             var journey = _journey;
@@ -1923,7 +1923,7 @@ namespace Pogranichye.Client
                 var direction = toFoe / distance;
                 var dot = Vector3.Dot(forward, direction);
                 if (dot < 0.35f) continue;
-                var point = rec.Root.transform.position + Vector3.up * Mathf.MaxHealth(0.8f, rec.View.Height * 0.55f);
+                var point = rec.Root.transform.position + Vector3.up * Mathf.Max(0.8f, rec.View.Height * 0.55f);
                 if (cam != null && IsWorldPointOccluded(cam, point, rec.Root.transform)) continue;
                 var score = distance * (1.25f - dot);
                 if (score >= bestScore) continue;
@@ -1965,7 +1965,7 @@ namespace Pogranichye.Client
                 if (_foes.TryGetValue(_lockedFoeId, out locked) && locked.Root != null &&
                     locked.View != null && !locked.View.Dead)
                 {
-                    var lockedPoint = locked.Root.transform.position + Vector3.up * Mathf.MaxHealth(0.8f, locked.View.Height * 0.55f);
+                    var lockedPoint = locked.Root.transform.position + Vector3.up * Mathf.Max(0.8f, locked.View.Height * 0.55f);
                     if (IsWorldPointOccluded(cam, lockedPoint, locked.Root.transform))
                         return false;
                     var origin = _player != null ? _player.position : cam.transform.position;
@@ -2024,7 +2024,7 @@ namespace Pogranichye.Client
                 }
                 else
                 {
-                    half = Mathf.MaxHealth(0.1f, foe.Length * 0.3f);
+                    half = Mathf.Max(0.1f, foe.Length * 0.3f);
                     if (local.z > foe.Length * 0.42f) part = "head";
                     else if (local.y < foe.LegHeight) part = "leg";
                 }
@@ -2628,10 +2628,10 @@ namespace Pogranichye.Client
                 _toastStyle.normal.textColor = new Color(0.98f, 0.93f, 0.83f, 1f);
             }
 
-            var width = Mathf.Min(620f, Mathf.MaxHealth(180f, Screen.width - 32f));
+            var width = Mathf.Min(620f, Mathf.Max(180f, Screen.width - 32f));
             var content = new GUIContent(_toast);
-            var height = Mathf.MaxHealth(38f, _toastStyle.CalcHeight(content, width - 24f) + 12f);
-            var maxHeight = Mathf.MaxHealth(56f, Screen.height * 0.28f);
+            var height = Mathf.Max(38f, _toastStyle.CalcHeight(content, width - 24f) + 12f);
+            var maxHeight = Mathf.Max(56f, Screen.height * 0.28f);
             height = Mathf.Min(height, maxHeight);
             var rect = new Rect((Screen.width - width) * 0.5f, Screen.height * 0.58f, width, height);
             var previous = GUI.color;
@@ -2738,7 +2738,7 @@ namespace Pogranichye.Client
                 return;
             var cam = Camera.main;
             if (cam == null) return;
-            var point = rec.Root.transform.position + Vector3.up * Mathf.MaxHealth(0.8f, rec.View.Height * 0.55f);
+            var point = rec.Root.transform.position + Vector3.up * Mathf.Max(0.8f, rec.View.Height * 0.55f);
             if (IsWorldPointOccluded(cam, point, rec.Root.transform)) return;
             var screen = cam.WorldToScreenPoint(point);
             if (screen.z <= 0f) return;
@@ -2917,8 +2917,8 @@ namespace Pogranichye.Client
             if (issued != null && !Flag(task, "errand_done"))
             {
                 var good = Str(issued, "good");
-                var have = Mathf.MaxHealth(0f, Num(issued, "have"));
-                var qty = Mathf.MaxHealth(0f, Num(issued, "qty"));
+                var have = Mathf.Max(0f, Num(issued, "have"));
+                var qty = Mathf.Max(0f, Num(issued, "qty"));
                 ready = Flag(issued, "ready");
                 var giver = Str(issued, "giver_name");
                 title = string.IsNullOrEmpty(giver) ? "ПОРУЧЕНИЕ" : "ПОРУЧЕНИЕ · " + giver;
@@ -3196,7 +3196,7 @@ namespace Pogranichye.Client
             GUILayout.Label("ЛАВКА · МОНЕТЫ: " + coins.ToString("0.#", CultureInfo.InvariantCulture));
             GUILayout.Label("Полный ассортимент из place.market. Покупка кладёт товар в поклажу; продажа забирает его из поклажи. Каждая операция подтверждается сервером.");
             _marketRowsScroll = GUILayout.BeginScrollView(_marketRowsScroll,
-                GUILayout.Height(Mathf.Min(300f, Mathf.MaxHealth(120f, Screen.height * 0.34f))));
+                GUILayout.Height(Mathf.Min(300f, Mathf.Max(120f, Screen.height * 0.34f))));
             foreach (var row in market)
             {
                 var good = Str(row, "good");
@@ -4063,7 +4063,7 @@ namespace Pogranichye.Client
             var previousGuiEnabled = GUI.enabled;
             GUI.enabled = previousGuiEnabled && _regionMapZoom > 1f;
             if (GUILayout.Button("−", GUILayout.Width(34f)))
-                _regionMapZoom = Mathf.MaxHealth(1f, _regionMapZoom - 0.5f);
+                _regionMapZoom = Mathf.Max(1f, _regionMapZoom - 0.5f);
             GUI.enabled = previousGuiEnabled && _regionMapZoom < 4f;
             if (GUILayout.Button("+", GUILayout.Width(34f)))
                 _regionMapZoom = Mathf.Min(4f, _regionMapZoom + 0.5f);
@@ -4124,17 +4124,17 @@ namespace Pogranichye.Client
                 var x = (float)node.X;
                 var y = (float)node.Y;
                 points[id] = new Vector2(x, y);
-                minX = Mathf.Min(minX, x); maxX = Mathf.MaxHealth(maxX, x);
-                minY = Mathf.Min(minY, y); maxY = Mathf.MaxHealth(maxY, y);
+                minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
+                minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
             }
             if (points.Count == 0) return;
 
             const float pad = 18f;
-            var spanX = Mathf.MaxHealth(1f, maxX - minX);
-            var spanY = Mathf.MaxHealth(1f, maxY - minY);
+            var spanX = Mathf.Max(1f, maxX - minX);
+            var spanY = Mathf.Max(1f, maxY - minY);
             var fitScale = Mathf.Min(
-                Mathf.MaxHealth(1f, inner.width - pad * 2f) / spanX,
-                Mathf.MaxHealth(1f, inner.height - pad * 2f) / spanY);
+                Mathf.Max(1f, inner.width - pad * 2f) / spanX,
+                Mathf.Max(1f, inner.height - pad * 2f) / spanY);
             var boundsCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
             var mapCenter = boundsCenter;
             if (_regionMapZoom > 1f)
