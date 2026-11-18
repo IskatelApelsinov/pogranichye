@@ -165,7 +165,7 @@ namespace Pogranichye.Client.Presentation
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * _headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * _headBobSideAmplitude * gait;
                 var idleBreath = Mathf.Sin(Time.unscaledTime * 1.15f) * 0.006f;
-                var eyeHeight = _mounted ? 2.55f : 1.62f;
+                var eyeHeight = _mounted ? 2.78f : 1.62f;
                 var mountForwardOffset = _mounted ? 0.12f : 0f;
                 transform.position = _target.position + Vector3.up * (eyeHeight + walkBob + idleBreath + _jumpOffset)
                     + _target.right * sideBob + _target.forward * mountForwardOffset;
