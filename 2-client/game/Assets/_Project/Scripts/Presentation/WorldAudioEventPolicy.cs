@@ -5,6 +5,13 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Maps result-gate outcomes to one-shot presentation sounds.</summary>
     public static class WorldAudioEventPolicy
     {
+        public static bool ShouldPlayFootstep(float horizontalDistanceSquared)
+        {
+            return !float.IsNaN(horizontalDistanceSquared) &&
+                !float.IsInfinity(horizontalDistanceSquared) &&
+                horizontalDistanceSquared >= 0.0004f;
+        }
+
         public static bool ShouldPlayMagic(string label, bool accepted)
         {
             if (!accepted || string.IsNullOrEmpty(label)) return false;
