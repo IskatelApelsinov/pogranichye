@@ -146,18 +146,7 @@ namespace Pogranichye.Client.Networking.Protocol
 
         private static bool TryReadFiniteNumber(JToken token, out double value)
         {
-            value = 0d;
-            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
-                return false;
-            try
-            {
-                value = token.Value<double>();
-                return !double.IsNaN(value) && !double.IsInfinity(value);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            return JsonNumberReader.TryReadFiniteDouble(token, out value);
         }
 
         private static void RequireFiniteNumber(JToken token, string path)

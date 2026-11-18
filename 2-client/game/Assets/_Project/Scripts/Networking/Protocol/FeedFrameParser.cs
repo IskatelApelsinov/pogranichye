@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Pogranichye.Client.Networking.Protocol;
 
 namespace Pogranichye.Client.Networking
 {
@@ -41,7 +42,7 @@ namespace Pogranichye.Client.Networking
                 var sequenceToken = item["seq"];
                 long sequence;
                 if (sequenceToken == null || sequenceToken.Type != JTokenType.Integer ||
-                    !long.TryParse(sequenceToken.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sequence) ||
+                    !JsonNumberReader.TryReadInt64(sequenceToken, out sequence) ||
                     sequence <= previousSequence)
                     throw new FormatException(itemPath + ".seq должен быть положительным строго возрастающим int64.");
                 previousSequence = sequence;
@@ -61,8 +62,8 @@ namespace Pogranichye.Client.Networking
                 {
                     if (damageToken.Type != JTokenType.Integer && damageToken.Type != JTokenType.Float)
                         throw new FormatException(itemPath + ".dmg должен быть числом.");
-                    var damage = damageToken.Value<double>();
-                    if (double.IsNaN(damage) || double.IsInfinity(damage) ||
+                    double damage;
+                    if (!JsonNumberReader.TryReadFiniteDouble(damageToken, out damage) ||
                         damage < 0d || damage > float.MaxValue)
                         throw new FormatException(itemPath + ".dmg должен быть конечным неотрицательным числом в диапазоне float.");
                 }

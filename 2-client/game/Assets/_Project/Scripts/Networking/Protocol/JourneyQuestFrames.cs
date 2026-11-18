@@ -120,7 +120,9 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 throw new FormatException(path + "." + key + " должен быть числом.");
-            var value = token.Value<double>();
+            double value;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value))
+                throw new FormatException(path + "." + key + " должен быть конечным числом.");
             if (double.IsNaN(value) || double.IsInfinity(value) || value < min || value > max)
                 throw new FormatException(path + "." + key + " вне допустимого диапазона.");
         }
@@ -221,7 +223,9 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 throw new FormatException(path + "." + key + " должен быть числом.");
-            var value = token.Value<double>();
+            double value;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value))
+                throw new FormatException(path + "." + key + " должен быть конечным числом.");
             if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
                 throw new FormatException(path + "." + key + " должен быть конечным неотрицательным числом.");
         }
@@ -231,7 +235,7 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             long value;
             if (token == null || token.Type != JTokenType.Integer ||
-                !long.TryParse(token.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
+                !JsonNumberReader.TryReadInt64(token, out value) ||
                 value < int.MinValue || value > int.MaxValue || (nonNegative && value < 0))
                 throw new FormatException(path + "." + key + " должен быть целым числом в диапазоне int32.");
         }

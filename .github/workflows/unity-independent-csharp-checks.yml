@@ -21,6 +21,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs'
+      - '2-client/game/Tests/JsonNumberReaderCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldLandFrame.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldLandFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldLayoutCompatibilityPolicy.cs'
@@ -332,70 +334,70 @@ jobs:
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/feed-frame-parser.exe Tests/FeedFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/feed-frame-parser.exe
       - name: Typed action result parser regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/action-result-parser.exe Tests/ActionResultFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/action-result-parser.exe
       - name: Typed combat and foe frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/combat-foe-frame.exe Tests/CombatFoeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/combat-foe-frame.exe Tests/CombatFoeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/CombatFoeFrames.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrame.cs Assets/_Project/Scripts/Networking/Protocol/ActionResultFrameParser.cs Assets/_Project/Scripts/Networking/Protocol/FeedFrameParser.cs Assets/_Project/Scripts/Networking/FastFrameParser.cs Assets/_Project/Scripts/Runtime/GameplayStatusView.cs
           mono /tmp/combat-foe-frame.exe
       - name: Typed journey and quest frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/journey-quest-frame.exe Tests/JourneyQuestFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/JourneyQuestFrames.cs
           mono /tmp/journey-quest-frame.exe
       - name: Typed horse, stats and carried bag frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/horse-stats-frame.exe Tests/HorseStatsFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/HorseStatsFrames.cs
           mono /tmp/horse-stats-frame.exe
       - name: Typed card game frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/card-game-frame.exe Tests/CardGameFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/card-game-frame.exe Tests/CardGameFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/CardGameFrames.cs
           mono /tmp/card-game-frame.exe
       - name: Typed regional map frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/region-frame.exe Tests/RegionFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/region-frame.exe Tests/RegionFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/RegionFrames.cs
           mono /tmp/region-frame.exe
       - name: Typed tavern counter frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/tavern-counter-frame.exe Tests/TavernCounterFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/TavernCounterFrame.cs
           mono /tmp/tavern-counter-frame.exe
       - name: Nearby gather-node frame normalization regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/gather-node-frame.exe Tests/GatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/gather-node-frame.exe Tests/GatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs
           mono /tmp/gather-node-frame.exe
       - name: Terrain gather-node descriptor normalization regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -f "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/terrain-gather-frame.exe Tests/TerrainGatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TerrainGatherNodeFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/terrain-gather-frame.exe Tests/TerrainGatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs Assets/_Project/Scripts/Networking/Protocol/TerrainGatherNodeFrames.cs
           mono /tmp/terrain-gather-frame.exe
       - name: Terrain gather-node visual policy regression checks
         working-directory: 2-client/game
@@ -502,12 +504,19 @@ jobs:
           mcs -out:/tmp/terrain-resource-visual.exe Tests/TerrainResourceVisualPolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs
           mono /tmp/terrain-resource-visual.exe
 
+      - name: JSON numeric culture regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -n "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/json-number-reader.exe Tests/JsonNumberReaderCheck.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs
+          mono /tmp/json-number-reader.exe
       - name: Typed life mode and vigor frame regression checks
         working-directory: 2-client/game
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs
           mono /tmp/character-life-frame.exe
       - name: Typed v1.33 land style regression checks
         working-directory: 2-client/game

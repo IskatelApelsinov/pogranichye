@@ -199,8 +199,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > 1000000000d)
+                !JsonNumberReader.TryReadFiniteDouble(token, out value) || value < 0d || value > 1000000000d)
                 throw new FormatException(path + " должен быть конечным неотрицательным числом.");
         }
     }

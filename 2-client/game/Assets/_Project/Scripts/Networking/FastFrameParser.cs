@@ -168,8 +168,8 @@ namespace Pogranichye.Client.Networking
             if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
                 throw new FormatException(field + " должен быть числом или null.");
 
-            var number = token.Value<double>();
-            if (double.IsNaN(number) || double.IsInfinity(number) ||
+            double number;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out number) ||
                 number > float.MaxValue || number < -float.MaxValue)
                 throw new FormatException(field + " выходит за диапазон конечного float.");
             value = (float)number;
