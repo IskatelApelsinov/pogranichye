@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.InputSystem;
 
 namespace Pogranichye.Client
@@ -15,7 +16,8 @@ namespace Pogranichye.Client
         // High-polling HID devices can enqueue more than 5 MiB in one update on this project.
         // Enforce an 8 MiB minimum while preserving the Input System's zero = unlimited setting.
         // This absorbs event bursts; it does not replace fixing main-thread stalls.
-        [SerializeField, Min(65536)] private int maxInputEventBytes = InputEventBudgetPolicy.MinimumSafeBytesPerUpdate;
+        [FormerlySerializedAs("maxInputEventBytes")]
+        [SerializeField, Min(65536)] private int _maxInputEventBytes = InputEventBudgetPolicy.MinimumSafeBytesPerUpdate;
 
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
@@ -80,7 +82,7 @@ namespace Pogranichye.Client
             if (inputSettings != null)
             {
                 var currentBudget = inputSettings.maxEventBytesPerUpdate;
-                var resolvedBudget = InputEventBudgetPolicy.Resolve(currentBudget, maxInputEventBytes);
+                var resolvedBudget = InputEventBudgetPolicy.Resolve(currentBudget, _maxInputEventBytes);
                 if (resolvedBudget != currentBudget)
                     inputSettings.maxEventBytesPerUpdate = resolvedBudget;
             }
