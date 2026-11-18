@@ -54,7 +54,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
 
             var game = RequireString(obj["game"], path + ".game");
             var phase = RequireString(obj["phase"], path + ".phase");
@@ -79,15 +79,15 @@ namespace Pogranichye.Client.Networking.Protocol
             ValidateCards(obj["dealer"], path + ".dealer", "ochko");
             var dealer = (JArray)obj["dealer"];
             if (!done && dealer.Count > 1)
-                throw new FormatException(path + ".dealer раскрывает скрытые карты корчмаря.");
+                throw new FormatException(path + ".dealer exposes the bartender's hidden cards.");
             var hidden = RequireNonNegativeInteger(obj["hidden"], path + ".hidden");
             if (done && hidden != 0)
-                throw new FormatException(path + ".hidden должен быть равен нулю после завершения.");
+                throw new FormatException(path + ".hidden must be zero after the game is complete.");
             var total = obj["dtotal"];
             if (total != null && total.Type != JTokenType.Null)
                 RequireNonNegativeInteger(total, path + ".dtotal");
             if (done && (total == null || total.Type == JTokenType.Null))
-                throw new FormatException(path + ".dtotal должен быть известен после завершения.");
+                throw new FormatException(path + ".dtotal must be known after the game is complete.");
         }
 
         private static void ValidateDurak(JObject obj, string path, string phase)
@@ -99,7 +99,7 @@ namespace Pogranichye.Client.Networking.Protocol
             var dealer = obj["dealer"];
             if (dealer != null && dealer.Type != JTokenType.Null &&
                 (dealer.Type != JTokenType.Array || ((JArray)dealer).Count > 0))
-                throw new FormatException(path + ".dealer не должен раскрывать руку корчмаря в Дураке.");
+                throw new FormatException(path + ".dealer must not expose the dealer's hand in Durak.");
 
             RequireNonNegativeInteger(obj["dealer_cards"], path + ".dealer_cards");
             RequireNonNegativeInteger(obj["deck"], path + ".deck");
@@ -127,12 +127,12 @@ namespace Pogranichye.Client.Networking.Protocol
 
             var tableToken = obj["table"];
             if (tableToken == null || tableToken.Type != JTokenType.Array)
-                throw new FormatException(path + ".table должен быть массивом.");
+                throw new FormatException(path + ".table must be an array.");
             var table = (JArray)tableToken;
             for (var i = 0; i < table.Count; i++)
             {
                 var pair = table[i] as JObject;
-                if (pair == null) throw new FormatException(path + ".table[" + i + "] должен быть объектом.");
+                if (pair == null) throw new FormatException(path + ".table[" + i + "] must be an object.");
                 ValidateCard(pair["a"], path + ".table[" + i + "].a", "durak");
                 var defence = pair["d"];
                 if (defence != null && defence.Type != JTokenType.Null)
@@ -143,7 +143,7 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void ValidateCards(JToken token, string path, string game)
         {
             if (token == null || token.Type != JTokenType.Array)
-                throw new FormatException(path + " должен быть массивом.");
+                throw new FormatException(path + " must be an array.");
             var cards = (JArray)token;
             for (var i = 0; i < cards.Count; i++)
                 ValidateCard(cards[i], path + "[" + i + "]", game);
@@ -152,7 +152,7 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void ValidateCard(JToken token, string path, string game)
         {
             var card = token as JObject;
-            if (card == null) throw new FormatException(path + " должен быть объектом.");
+            if (card == null) throw new FormatException(path + " must be an object.");
             RequireString(card["c"], path + ".c");
             if (game == "ochko")
                 RequireNonNegativeInteger(card["v"], path + ".v");
@@ -160,7 +160,7 @@ namespace Pogranichye.Client.Networking.Protocol
             {
                 var rank = RequireNonNegativeInteger(card["rank"], path + ".rank");
                 if (rank < 6 || rank > 14)
-                    throw new FormatException(path + ".rank должен быть от 6 до 14.");
+                    throw new FormatException(path + ".rank must be between 6 and 14.");
                 RequireString(card["suit"], path + ".suit");
             }
         }
@@ -168,27 +168,27 @@ namespace Pogranichye.Client.Networking.Protocol
         private static string RequireString(JToken token, string path)
         {
             if (token == null || token.Type != JTokenType.String || string.IsNullOrWhiteSpace(token.Value<string>()))
-                throw new FormatException(path + " должен быть непустой строкой.");
+                throw new FormatException(path + " must be a non-empty string.");
             return token.Value<string>();
         }
 
         private static void RequireOptionalString(JToken token, string path)
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
-                throw new FormatException(path + " должен быть строкой или null.");
+                throw new FormatException(path + " must be a string or null.");
         }
 
         private static bool RequireBoolean(JToken token, string path)
         {
             if (token == null || token.Type != JTokenType.Boolean)
-                throw new FormatException(path + " должен быть boolean.");
+                throw new FormatException(path + " must be a boolean.");
             return token.Value<bool>();
         }
 
         private static int RequireNonNegativeInteger(JToken token, string path)
         {
             if (token == null || token.Type != JTokenType.Integer)
-                throw new FormatException(path + " должен быть целым неотрицательным числом.");
+                throw new FormatException(path + " must be a non-negative integer.");
             var value = token.Value<long>();
             if (value < 0 || value > int.MaxValue)
                 throw new FormatException(path + " вне допустимого диапазона.");
