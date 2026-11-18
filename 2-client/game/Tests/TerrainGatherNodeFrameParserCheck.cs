@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Newtonsoft.Json.Linq;
 using Pogranichye.Client.Networking.Protocol;
 
@@ -78,6 +79,27 @@ internal static class TerrainGatherNodeFrameParserCheck
         unknownKind["kind"] = "future_kind";
         Check("unknown future kinds remain parseable",
             TerrainGatherNodeFrameParser.Normalize(new JArray(unknownKind)).Count == 1);
+
+
+        var previousCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (var cultureName in new[] { "ru-RU", "en-US" })
+            {
+                CultureInfo.CurrentCulture = new CultureInfo(cultureName);
+                var decimalNode = JObject.Parse(validJson);
+                var cultureParsed = TerrainGatherNodeFrameParser.Normalize(new JArray(decimalNode));
+                var cultureTyped = cultureParsed.Count == 1
+                    ? cultureParsed[0].ToObject<TerrainGatherNodeFrame>() : null;
+                Check("decimal coordinates parse under " + cultureName,
+                    cultureTyped != null && Math.Abs(cultureTyped.X - 12.3d) < 0.0001d &&
+                    Math.Abs(cultureTyped.Z - 34.5d) < 0.0001d);
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previousCulture;
+        }
 
         var missingGood = new JObject(valid);
         missingGood.Remove("good");
