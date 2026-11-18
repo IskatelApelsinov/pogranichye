@@ -95,6 +95,10 @@ namespace Pogranichye.Client.Networking.Protocol
             var obj = token as JObject;
             if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
             RequireFiniteNumber(obj["energy"], path + ".energy");
+            // Older/mixed server builds may send per_hour as JSON null. The rate is
+            // presentation metadata; default to a neutral rate instead of rejecting the whole frame.
+            if (obj["per_hour"] == null || obj["per_hour"].Type == JTokenType.Null)
+                obj["per_hour"] = 0d;
             RequireFiniteNumber(obj["per_hour"], path + ".per_hour");
             ValidateOptionalString(obj["why"], path + ".why");
             ValidateStringArray(obj["tips"], path + ".tips");

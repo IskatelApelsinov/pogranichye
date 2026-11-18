@@ -40,6 +40,10 @@ internal static class CharacterLifeFrameParserCheck
             vigor.Stamina.Now == 0.65d && vigor.Stamina.DrainPerSecond == 0.05d &&
             vigor.Stamina.FullInSeconds == 17.5d);
         CharacterVigorFrameParser.Validate(JValue.CreateNull(), "me.vigor");
+        var legacyVigorToken = JToken.Parse(vigorJson.Replace("\\"per_hour\\":-2.2", "\\"per_hour\\":null"));
+        CharacterVigorFrameParser.Validate(legacyVigorToken, "me.vigor");
+        Check("vigor tolerates null legacy per_hour as neutral rate",
+            legacyVigorToken.ToObject<CharacterVigorFrame>().PerHour == 0d);
 
         ExpectFormat("mode options reject malformed ids", () =>
             CharacterModeFrameParser.Validate(JToken.Parse(modeJson.Replace("\"id\":\"auto\"", "\"id\":7")), "me.mode"));
