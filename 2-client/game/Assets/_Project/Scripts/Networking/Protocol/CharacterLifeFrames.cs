@@ -53,21 +53,21 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
             ValidateOptionalString(obj["selected"], path + ".selected");
             ValidateOptionalString(obj["goal"], path + ".goal");
             ValidateOptionalString(obj["act"], path + ".act");
             ValidateOptionalString(obj["act_code"], path + ".act_code");
             if (obj["deviates"] != null && obj["deviates"].Type != JTokenType.Boolean)
-                throw new FormatException(path + ".deviates должен быть boolean.");
+                throw new FormatException(path + ".deviates must be a boolean.");
             var options = obj["options"];
             if (options == null || options.Type == JTokenType.Null) return;
             var array = options as JArray;
-            if (array == null) throw new FormatException(path + ".options должен быть массивом.");
+            if (array == null) throw new FormatException(path + ".options must be an array.");
             for (var i = 0; i < array.Count; i++)
             {
                 var option = array[i] as JObject;
-                if (option == null) throw new FormatException(path + ".options[" + i + "] должен быть объектом.");
+                if (option == null) throw new FormatException(path + ".options[" + i + "] must be an object.");
                 RequireString(option["id"], path + ".options[" + i + "].id");
                 RequireString(option["name"], path + ".options[" + i + "].name");
                 ValidateOptionalString(option["hint"], path + ".options[" + i + "].hint");
@@ -77,13 +77,13 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void RequireString(JToken token, string path)
         {
             if (token == null || token.Type != JTokenType.String || string.IsNullOrWhiteSpace(token.Value<string>()))
-                throw new FormatException(path + " должен быть непустой строкой.");
+                throw new FormatException(path + " must be a non-empty string.");
         }
 
         private static void ValidateOptionalString(JToken token, string path)
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
-                throw new FormatException(path + " должен быть строкой или null.");
+                throw new FormatException(path + " must be a string or null.");
         }
     }
 
@@ -93,7 +93,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
             RequireFiniteNumber(obj["energy"], path + ".energy");
             // per_hour is presentation-only metadata. Mixed/older server builds may
             // send null, NaN/Infinity, or a non-numeric value; never discard the whole
@@ -108,7 +108,7 @@ namespace Pogranichye.Client.Networking.Protocol
             var stamina = obj["stamina"];
             if (stamina == null || stamina.Type == JTokenType.Null) return;
             var st = stamina as JObject;
-            if (st == null) throw new FormatException(path + ".stamina должен быть объектом или null.");
+            if (st == null) throw new FormatException(path + ".stamina must be an object or null.");
             RequireFiniteNumber(st["now"], path + ".stamina.now");
             RequireFiniteNumber(st["regen_per_s"], path + ".stamina.regen_per_s");
             RequireFiniteNumber(st["drain_per_s"], path + ".stamina.drain_per_s");
@@ -119,16 +119,28 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var array = token as JArray;
-            if (array == null) throw new FormatException(path + " должен быть массивом строк.");
+            if (array == null) throw new FormatException(path + " must be an array of strings.");
             foreach (var item in array)
                 if (item == null || item.Type != JTokenType.String)
-                    throw new FormatException(path + " должен содержать только строки.");
+                    throw new FormatException(path + " must contain only strings.");
         }
 
         private static void ValidateOptionalString(JToken token, string path)
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
-                throw new FormatException(path + " должен быть строкой или null.");
+                throw new FormatException(path + " must be a string or null.");
+        }
+
+        private static bool TryReadFiniteNumber(JToken token, out double value)
+        {
+            value = 0d;
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)) return false;
+            try
+            {
+                value = token.Value<double>();
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+            catch (Exception) { return false; }
         }
 
         private static bool IsFiniteNumber(JToken token)
@@ -136,7 +148,7 @@ namespace Pogranichye.Client.Networking.Protocol
             double value;
             return token != null &&
                 (token.Type == JTokenType.Integer || token.Type == JTokenType.Float) &&
-                double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
+                TryReadFiniteNumber(token, out value) &&
                 !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
@@ -150,9 +162,9 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                !TryReadFiniteNumber(token, out value) ||
                 double.IsNaN(value) || double.IsInfinity(value))
-                throw new FormatException(path + " должно быть конечным числом.");
+                throw new FormatException(path + " must be a finite number.");
         }
     }
 }
