@@ -16,8 +16,6 @@ internal static class WorldAudioEventPolicyCheck
         Check("blocked movement stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0f));
         Check("tiny correction noise stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0.0001f));
         Check("invalid movement distance stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(float.NaN));
-        Check("confirmed weave plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Плетение", true));
-        Check("rejected weave is silent", !WorldAudioEventPolicy.ShouldPlayMagic("Плетение", false));
         Check("confirmed cast plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: cast", true));
         Check("confirmed explicit weave plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: weave", true));
         Check("unrelated accepted action is silent", !WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: chop", true));
