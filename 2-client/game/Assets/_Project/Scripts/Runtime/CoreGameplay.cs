@@ -1156,6 +1156,8 @@ namespace Pogranichye.Client
             _stats = null;
             _bag = null;
             _horse = null;
+            _horseInteractPending = false;
+            if (_rig != null) _rig.SetMounted(false);
             _region = null;
             _tavernCounter = null;
             _riderVisualRoot = null;
@@ -2338,7 +2340,7 @@ namespace Pogranichye.Client
 
         private void UpdateHorseInteractionInput()
         {
-            if (_input == null || _horse == null || !_horse.Mounted)
+            if (_input == null || _horse == null || !_horse.Mounted || CapturesInput)
             {
                 _horseInteractPending = false;
                 return;
