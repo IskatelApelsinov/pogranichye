@@ -62,7 +62,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "Введите учётные данные." },
                         { "status.waiting_server", "Ожидаем ответа…" },
                         { "status.server_confirmed", "Подтверждено." },
-                        { "status.server_rejected", "Не удалось выполнить действие." }
+                        { "status.server_rejected", "Не удалось выполнить действие." },
+                        { "status.action_ok", "Готово." },
+                        { "status.action_failed", "Не получилось." },
+                        { "status.action_wait", "Ответа пока нет. Попробуй ещё раз." }
                     }
                 },
                 { English, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -83,7 +86,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "Enter your credentials." },
                         { "status.waiting_server", "Waiting for a response…" },
                         { "status.server_confirmed", "Confirmed." },
-                        { "status.server_rejected", "The action could not be completed." }
+                        { "status.server_rejected", "The action could not be completed." },
+                        { "status.action_ok", "Done." },
+                        { "status.action_failed", "That did not work." },
+                        { "status.action_wait", "No response yet. Please try again." }
                     }
                 },
                 { ChineseSimplified, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -104,7 +110,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "请输入账号信息。" },
                         { "status.waiting_server", "正在等待回应…" },
                         { "status.server_confirmed", "已确认。" },
-                        { "status.server_rejected", "无法完成此操作。" }
+                        { "status.server_rejected", "无法完成此操作。" },
+                        { "status.action_ok", "完成。" },
+                        { "status.action_failed", "未能完成。" },
+                        { "status.action_wait", "暂时没有收到回应，请再试一次。" }
                     }
                 },
                 { Arabic, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -125,7 +134,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "أدخل بيانات الدخول." },
                         { "status.waiting_server", "بانتظار الرد…" },
                         { "status.server_confirmed", "تم التأكيد." },
-                        { "status.server_rejected", "تعذر إكمال الإجراء." }
+                        { "status.server_rejected", "تعذر إكمال الإجراء." },
+                        { "status.action_ok", "تم." },
+                        { "status.action_failed", "لم ينجح الأمر." },
+                        { "status.action_wait", "لم يصل رد بعد. حاول مرة أخرى." }
                     }
                 },
                 { French, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -146,7 +158,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "Saisissez vos identifiants." },
                         { "status.waiting_server", "En attente d’une réponse…" },
                         { "status.server_confirmed", "Confirmé." },
-                        { "status.server_rejected", "L’action n’a pas pu être effectuée." }
+                        { "status.server_rejected", "L’action n’a pas pu être effectuée." },
+                        { "status.action_ok", "C’est fait." },
+                        { "status.action_failed", "Cela n’a pas fonctionné." },
+                        { "status.action_wait", "Aucune réponse pour le moment. Réessayez." }
                     }
                 },
                 { German, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -167,7 +182,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "Zugangsdaten eingeben." },
                         { "status.waiting_server", "Warte auf Antwort…" },
                         { "status.server_confirmed", "Bestätigt." },
-                        { "status.server_rejected", "Die Aktion konnte nicht ausgeführt werden." }
+                        { "status.server_rejected", "Die Aktion konnte nicht ausgeführt werden." },
+                        { "status.action_ok", "Erledigt." },
+                        { "status.action_failed", "Das hat nicht geklappt." },
+                        { "status.action_wait", "Noch keine Antwort. Bitte versuche es erneut." }
                     }
                 },
                 { Hindi, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -188,7 +206,10 @@ namespace Pogranichye.Client.Presentation
                         { "login.credentials", "अपना लॉगिन विवरण दर्ज करें।" },
                         { "status.waiting_server", "उत्तर की प्रतीक्षा है…" },
                         { "status.server_confirmed", "पुष्टि हो गई।" },
-                        { "status.server_rejected", "यह कार्रवाई पूरी नहीं हो सकी।" }
+                        { "status.server_rejected", "यह कार्रवाई पूरी नहीं हो सकी।" },
+                        { "status.action_ok", "हो गया।" },
+                        { "status.action_failed", "यह काम नहीं हुआ।" },
+                        { "status.action_wait", "अभी कोई जवाब नहीं मिला। फिर से कोशिश करें।" }
                     }
                 }
             };
