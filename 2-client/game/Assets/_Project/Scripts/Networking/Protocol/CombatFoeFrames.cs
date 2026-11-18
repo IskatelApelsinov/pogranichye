@@ -151,7 +151,8 @@ namespace Pogranichye.Client.Networking
                 RequireNumber(obj, "facing", path, false);
                 RequireNumber(obj, "hp", path, true);
                 RequireNumber(obj, "max", path, true);
-                if (obj["max"].Value<double>() <= 0d)
+                double maximum;
+                if (!JsonNumberReader.TryReadFiniteDouble(obj["max"], out maximum) || maximum <= 0d)
                     throw new FormatException(path + ".max должен быть больше нуля.");
                 ValidateOptionalBool(obj, "slow", path);
                 ValidateOptionalBool(obj, "weak", path);
@@ -190,8 +191,8 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 throw new FormatException(path + "." + key + " должен быть числом.");
-            var value = token.Value<double>();
-            if (double.IsNaN(value) || double.IsInfinity(value) || (nonNegative && value < 0d))
+            double value;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value) || (nonNegative && value < 0d))
                 throw new FormatException(path + "." + key + " должен быть конечным числом в допустимом диапазоне.");
         }
 
@@ -208,8 +209,8 @@ namespace Pogranichye.Client.Networking
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
                 throw new FormatException(path + "." + key + " должен быть числом или null.");
-            var value = token.Value<double>();
-            if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
+            double value;
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value) || value < 0d)
                 throw new FormatException(path + "." + key + " должен быть конечным неотрицательным числом.");
         }
     }
