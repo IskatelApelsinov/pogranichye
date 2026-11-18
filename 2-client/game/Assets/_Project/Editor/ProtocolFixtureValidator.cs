@@ -441,7 +441,7 @@ namespace Pogranichye.Client.Editor
             if (layout == null || layout.Plan != "grid" || layout.Land == null ||
                 layout.Land.Water != "well" || layout.Land.Fields != "none" ||
                 layout.Buildings == null || layout.Buildings.Count != 1 ||
-                layout.Buildings[0].Storeys != 4 || Math.Abs(layout.Buildings[0].HeightMeters - 12.8d) > 0.001d)
+                layout.Buildings[0].Storeys != 4 || Math.Abs(layout.Buildings[0].HeightMeters - 12.8d) > 0.001d || layout.Buildings[0].Door != null)
                 throw new FormatException("v1.33 grid plan, land profile and multi-storey building DTO mapping failed.");
             Pogranichye.Client.Networking.WorldLandFrameParser.Validate(layout.Land);
             var cityPoiIds = new HashSet<string>(StringComparer.Ordinal)
@@ -469,6 +469,14 @@ namespace Pogranichye.Client.Editor
                 if (building.BuildingId != null || building.Room != null || building.InteriorId != null)
                     throw new FormatException("A public v1.34 door must not imply building/room/interior identity.");
             }
+
+            var fallbackDoor = new WorldRectFrame
+            {
+                X0 = 0d, Y0 = 0d, X1 = 10d, Y1 = 10d,
+                Door = new WorldDoorFrame { X = 0d, Y = 5d, Facing = 45d, Width = 1.5d }
+            };
+            if (WorldLayoutPresentationBuilder.ResolveServerDoorSide(fallbackDoor) != 2)
+                throw new FormatException("Non-cardinal legacy door facing must fall back to its wall coordinates.");
 
             const string worldJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":0,\"n\":0,\"u\":0,\"bandit_lair\":true}]}";
             var world = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldManifestFrame>(worldJson);
