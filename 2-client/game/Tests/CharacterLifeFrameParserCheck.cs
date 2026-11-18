@@ -40,6 +40,27 @@ internal static class CharacterLifeFrameParserCheck
             vigor.Stamina.Now == 0.65d && vigor.Stamina.DrainPerSecond == 0.05d &&
             vigor.Stamina.FullInSeconds == 17.5d);
         CharacterVigorFrameParser.Validate(JValue.CreateNull(), "me.vigor");
+
+        var originalCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            foreach (var cultureName in new[] { "ru-RU", "en-US" })
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture =
+                    System.Globalization.CultureInfo.GetCultureInfo(cultureName);
+                var cultureToken = JToken.Parse("{\\\"energy\\\":72,\\\"stamina\\\":{\\\"now\\\":1,\\\"regen_per_s\\\":0.1,\\\"drain_per_s\\\":0.1}}");
+                CharacterVigorFrameParser.Validate(cultureToken, "me.vigor");
+                var cultureVigor = cultureToken.ToObject<CharacterVigorFrame>();
+                Check("accepts JSON decimal stamina rates under " + cultureName,
+                    cultureVigor.Stamina != null &&
+                    Math.Abs(cultureVigor.Stamina.RegenPerSecond - 0.1d) < 0.0000001d &&
+                    Math.Abs(cultureVigor.Stamina.DrainPerSecond - 0.1d) < 0.0000001d);
+            }
+        }
+        finally
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = originalCulture;
+        }
         var legacyVigorToken = JToken.Parse(vigorJson.Replace("\"per_hour\":-2.2", "\"per_hour\":null"));
         CharacterVigorFrameParser.Validate(legacyVigorToken, "me.vigor");
         Check("vigor tolerates null legacy per_hour as neutral rate",
