@@ -55,7 +55,7 @@ namespace Pogranichye.Client.Networking
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(fieldName + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(fieldName + " must be an object or null.");
 
             RequireString(obj, "stance", fieldName, false);
             RequireBool(obj, "guard", fieldName);
@@ -75,7 +75,7 @@ namespace Pogranichye.Client.Networking
             Validate(token, fieldName);
             if (token == null || token.Type == JTokenType.Null) return null;
             try { return token.ToObject<CombatFrame>(); }
-            catch (JsonException ex) { throw new FormatException("Не удалось преобразовать " + fieldName + ".", ex); }
+            catch (JsonException ex) { throw new FormatException("Failed to convert " + fieldName + ".", ex); }
         }
 
         private static void RequireString(JObject obj, string key, string path, bool allowEmpty)
@@ -83,23 +83,23 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || token.Type != JTokenType.String ||
                 (!allowEmpty && string.IsNullOrEmpty(token.Value<string>())))
-                throw new FormatException(path + "." + key + " должен быть строкой.");
+                throw new FormatException(path + "." + key + " must be a string.");
         }
 
         private static void RequireBool(JObject obj, string key, string path)
         {
             if (obj[key] == null || obj[key].Type != JTokenType.Boolean)
-                throw new FormatException(path + "." + key + " должен быть boolean.");
+                throw new FormatException(path + "." + key + " must be a boolean.");
         }
 
         private static void RequireNumber(JObject obj, string key, string path, bool nonNegative)
         {
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
-                throw new FormatException(path + "." + key + " должен быть числом.");
+                throw new FormatException(path + "." + key + " must be a number.");
             var value = token.Value<double>();
             if (double.IsNaN(value) || double.IsInfinity(value) || (nonNegative && value < 0d))
-                throw new FormatException(path + "." + key + " должен быть конечным неотрицательным числом.");
+                throw new FormatException(path + "." + key + " must be a finite non-negative number.");
         }
 
         private static void RequireInteger(JObject obj, string key, string path)
@@ -109,20 +109,20 @@ namespace Pogranichye.Client.Networking
             if (token == null || token.Type != JTokenType.Integer ||
                 !long.TryParse(token.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
                 value < 0 || value > int.MaxValue)
-                throw new FormatException(path + "." + key + " должен быть неотрицательным int32.");
+                throw new FormatException(path + "." + key + " must be a non-negative int32.");
         }
 
         private static void RequireIntegerMap(JObject obj, string key, string path)
         {
             var map = obj[key] as JObject;
-            if (map == null) throw new FormatException(path + "." + key + " должен быть объектом счётчиков.");
+            if (map == null) throw new FormatException(path + "." + key + " must be a counter object.");
             foreach (var property in map.Properties())
             {
                 long value;
                 if (property.Value.Type != JTokenType.Integer ||
                     !long.TryParse(property.Value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
                     value < 0 || value > int.MaxValue)
-                    throw new FormatException(path + "." + key + "." + property.Name + " должен быть неотрицательным int32.");
+                    throw new FormatException(path + "." + key + "." + property.Name + " must be a non-negative int32.");
             }
         }
     }
@@ -134,13 +134,13 @@ namespace Pogranichye.Client.Networking
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var items = token as JArray;
-            if (items == null) throw new FormatException(fieldName + " должен быть массивом или null.");
+            if (items == null) throw new FormatException(fieldName + " must be an array or null.");
             var ids = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < items.Count; i++)
             {
                 var obj = items[i] as JObject;
                 var path = fieldName + "[" + i + "]";
-                if (obj == null) throw new FormatException(path + " должен быть объектом.");
+                if (obj == null) throw new FormatException(path + " must be an object.");
                 var id = RequireString(obj, "id", path, false);
                 RequireString(obj, "kind", path, false);
                 RequireString(obj, "name", path, true);
@@ -152,13 +152,13 @@ namespace Pogranichye.Client.Networking
                 RequireNumber(obj, "hp", path, true);
                 RequireNumber(obj, "max", path, true);
                 if (obj["max"].Value<double>() <= 0d)
-                    throw new FormatException(path + ".max должен быть больше нуля.");
+                    throw new FormatException(path + ".max must be greater than zero.");
                 ValidateOptionalBool(obj, "slow", path);
                 ValidateOptionalBool(obj, "weak", path);
                 ValidateOptionalBool(obj, "blind", path);
                 ValidateOptionalBool(obj, "stun", path);
                 ValidateOptionalNumber(obj, "windup", path);
-                if (!ids.Add(id)) throw new FormatException(path + ".id дублирует ID другого врага.");
+                if (!ids.Add(id)) throw new FormatException(path + ".id duplicates another foe ID.");
             }
         }
 
@@ -167,7 +167,7 @@ namespace Pogranichye.Client.Networking
             Validate(token, fieldName);
             if (token == null || token.Type == JTokenType.Null) return null;
             try { return token.ToObject<List<FoeFrame>>(); }
-            catch (JsonException ex) { throw new FormatException("Не удалось преобразовать " + fieldName + ".", ex); }
+            catch (JsonException ex) { throw new FormatException("Failed to convert " + fieldName + ".", ex); }
         }
 
         private static string RequireString(JObject obj, string key, string path, bool allowEmpty)
@@ -175,31 +175,31 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || token.Type != JTokenType.String ||
                 (!allowEmpty && string.IsNullOrEmpty(token.Value<string>())))
-                throw new FormatException(path + "." + key + " должен быть строкой.");
+                throw new FormatException(path + "." + key + " must be a string.");
             return token.Value<string>();
         }
 
         private static void RequireBool(JObject obj, string key, string path)
         {
             if (obj[key] == null || obj[key].Type != JTokenType.Boolean)
-                throw new FormatException(path + "." + key + " должен быть boolean.");
+                throw new FormatException(path + "." + key + " must be a boolean.");
         }
 
         private static void RequireNumber(JObject obj, string key, string path, bool nonNegative)
         {
             var token = obj[key];
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
-                throw new FormatException(path + "." + key + " должен быть числом.");
+                throw new FormatException(path + "." + key + " must be a number.");
             var value = token.Value<double>();
             if (double.IsNaN(value) || double.IsInfinity(value) || (nonNegative && value < 0d))
-                throw new FormatException(path + "." + key + " должен быть конечным числом в допустимом диапазоне.");
+                throw new FormatException(path + "." + key + " must be a finite number in the supported range.");
         }
 
         private static void ValidateOptionalBool(JObject obj, string key, string path)
         {
             var token = obj[key];
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.Boolean)
-                throw new FormatException(path + "." + key + " должен быть boolean или null.");
+                throw new FormatException(path + "." + key + " must be a boolean or null.");
         }
 
         private static void ValidateOptionalNumber(JObject obj, string key, string path)
@@ -207,10 +207,10 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
-                throw new FormatException(path + "." + key + " должен быть числом или null.");
+                throw new FormatException(path + "." + key + " must be a number or null.");
             var value = token.Value<double>();
             if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
-                throw new FormatException(path + "." + key + " должен быть конечным неотрицательным числом.");
+                throw new FormatException(path + "." + key + " must be a finite non-negative number.");
         }
     }
 }
