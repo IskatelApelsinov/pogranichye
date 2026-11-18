@@ -2886,7 +2886,7 @@ namespace Pogranichye.Client
             GUILayout.Label(ClientLocalization.Get("settings.title", "НАСТРОЙКИ"));
             DrawOptionsControls();
             GUILayout.Space(8f);
-            if (GUILayout.Button("Сбросить настройки", GUILayout.Height(32f)))
+            if (GUILayout.Button(ClientLocalization.Get("settings.reset", "Сбросить настройки"), GUILayout.Height(32f)))
                 ResetSettingsToDefaults();
         }
 
@@ -2985,7 +2985,7 @@ namespace Pogranichye.Client
 
             if (_settingsTab == 0)
             {
-                GUILayout.Label("ЗВУК");
+                GUILayout.Label(ClientLocalization.Get("settings.sound", "ЗВУК"));
                 DrawVolumeSlider(ClientLocalization.Get("settings.master_volume", "Общая громкость"), ref _masterVolume, "Pogranichye.MasterVolume");
                 DrawVolumeSlider(ClientLocalization.Get("settings.effects_volume", "Эффекты: шаги, бой, магия"), ref _sfxVolume, "Pogranichye.SfxVolume");
                 DrawVolumeSlider(ClientLocalization.Get("settings.ambience_volume", "Окружение: ветер, птицы, вода, костёр"), ref _ambienceVolume, "Pogranichye.AmbienceVolume");
@@ -2995,7 +2995,7 @@ namespace Pogranichye.Client
             else if (_settingsTab == 1)
             {
                 GUILayout.Space(8f);
-                GUILayout.Label("ГРАФИКА");
+                GUILayout.Label(ClientLocalization.Get("settings.graphics", "ГРАФИКА"));
                 var qualityNames = QualitySettings.names;
                 if (qualityNames != null && qualityNames.Length > 0)
                 {
@@ -3056,15 +3056,15 @@ namespace Pogranichye.Client
                     SaveInt("Pogranichye.TargetFrameRate", _targetFrameRate);
                 }
                 GUILayout.Label("Режим экрана");
-                if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(32f)))
+                if (GUILayout.Button(Screen.fullScreen ? ClientLocalization.Get("settings.windowed", "Перейти в оконный режим") : ClientLocalization.Get("settings.fullscreen", "Полноэкранный режим"), GUILayout.Height(32f)))
                     ToggleFullscreen();
                 GUILayout.Label($"{Screen.width}×{Screen.height} · {(Screen.fullScreen ? "полный экран" : "окно")}");
             }
             else
             {
                 GUILayout.Space(8f);
-                GUILayout.Label("УПРАВЛЕНИЕ");
-                GUILayout.Label("Чувствительность мыши: " + _mouseSensitivity.ToString("0.000"));
+                GUILayout.Label(ClientLocalization.Get("settings.controls", "УПРАВЛЕНИЕ"));
+                GUILayout.Label(ClientLocalization.Get("settings.mouse_sensitivity", "Чувствительность мыши") + ": " + _mouseSensitivity.ToString("0.000"));
                 var sensitivity = GUILayout.HorizontalSlider(_mouseSensitivity, 0.008f, 0.09f);
                 if (!Mathf.Approximately(sensitivity, _mouseSensitivity))
                 {
@@ -3072,7 +3072,7 @@ namespace Pogranichye.Client
                     _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
                     SaveFloat("Pogranichye.MouseSensitivity", sensitivity);
                 }
-                var invert = GUILayout.Toggle(_invertMouseY, "Инвертировать вертикальный обзор");
+                var invert = GUILayout.Toggle(_invertMouseY, ClientLocalization.Get("settings.invert_mouse", "Инвертировать вертикальный обзор"));
                 if (invert != _invertMouseY)
                 {
                     _invertMouseY = invert;
