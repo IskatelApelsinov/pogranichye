@@ -98,15 +98,14 @@ func checkLayout(t *testing.T, name string, l *Layout) {
 	}
 	// comms 0217/0218 п.3 — дверь корчмы: стабильные building_id/room/interior_id, дверь на самой
 	// стене (не внутри и не снаружи неё), проём проходим, стена рядом с проёмом — нет.
+	doorCount := 0
 	for i := range l.Buildings {
 		b := &l.Buildings[i]
-		if b.Kind != "tavern" {
+		if b.Door == nil {
 			continue
 		}
-		if b.Door == nil {
-			t.Fatalf("%s: у корчмы нет двери", name)
-		}
-		if b.BuildingID == "" || b.Room == "" || b.InteriorID == "" {
+		doorCount++
+		if b.Kind == "tavern" && (b.BuildingID == "" || b.Room == "" || b.InteriorID == "") {
 			t.Fatalf("%s: у корчмы не проставлены building_id/room/interior_id: %+v", name, b)
 		}
 		d := b.Door
@@ -150,6 +149,13 @@ func checkLayout(t *testing.T, name string, l *Layout) {
 				t.Fatalf("%s: стена корчмы в стороне от двери должна быть сплошной: %+v", name, b)
 			}
 		}
+	}
+	// comms 0292 п.5: корчма + рыночная лавка/кузница/амбар/изба старосты (публичные дворы, всегда
+	// есть) должны получить дверь — минимум 5. Для городских раскладок (plan:"grid") дверей больше
+	// (добавляются ратуша/торговые ряды/мастерские/караульня/склад/вторая корчма), но нижний порог
+	// общий для всех планов застройки, не только grid.
+	if doorCount < 5 {
+		t.Fatalf("%s: слишком мало дверей у общественных зданий: %d", name, doorCount)
 	}
 }
 
