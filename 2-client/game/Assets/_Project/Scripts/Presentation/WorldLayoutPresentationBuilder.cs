@@ -1670,20 +1670,20 @@ namespace Pogranichye.Client.Presentation
         {
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
-            if (side != 0) Create("Tavern south wall", PrimitiveType.Cube, root,
+            if (side != 0) Create("Server building south wall", PrimitiveType.Cube, root,
                 new Vector3(0f, wallHeight * 0.5f, -depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 1) Create("Tavern north wall", PrimitiveType.Cube, root,
+            if (side != 1) Create("Server building north wall", PrimitiveType.Cube, root,
                 new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 2) Create("Tavern west wall", PrimitiveType.Cube, root,
+            if (side != 2) Create("Server building west wall", PrimitiveType.Cube, root,
                 new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
-            if (side != 3) Create("Tavern east wall", PrimitiveType.Cube, root,
+            if (side != 3) Create("Server building east wall", PrimitiveType.Cube, root,
                 new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
-            AddTavernDoorVisualSegment(root, "Tavern door wall left", side, width, depth, wallHeight, left,
+            AddServerDoorVisualSegment(root, "Server building door wall left", side, width, depth, wallHeight, left,
                 -axisLength * 0.5f + left * 0.5f, wall);
-            AddTavernDoorVisualSegment(root, "Tavern door wall right", side, width, depth, wallHeight, right,
+            AddServerDoorVisualSegment(root, "Server building door wall right", side, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f, wall);
 
             for (var end = -1; end <= 1; end += 2)
@@ -1696,7 +1696,7 @@ namespace Pogranichye.Client.Presentation
                         : side == 2
                             ? new Vector3(-width * 0.5f + 0.12f, 1.12f, axisPosition)
                             : new Vector3(width * 0.5f - 0.12f, 1.12f, axisPosition);
-                Create("Tavern door jamb", PrimitiveType.Cube, root, jambPosition,
+                Create("Server building door jamb", PrimitiveType.Cube, root, jambPosition,
                     horizontal ? new Vector3(0.16f, 2.24f, 0.28f) : new Vector3(0.28f, 2.24f, 0.16f), _trunk, false);
             }
             var lintelPosition = side == 0
@@ -1707,14 +1707,14 @@ namespace Pogranichye.Client.Presentation
                         ? new Vector3(-width * 0.5f + 0.12f, wallHeight - 0.16f, offset)
                         : new Vector3(width * 0.5f - 0.12f, wallHeight - 0.16f, offset);
             var infillHeight = Mathf.Max(0.1f, wallHeight - 2.24f);
-            Create("Tavern door upper infill", PrimitiveType.Cube, root,
+            Create("Server building door upper infill", PrimitiveType.Cube, root,
                 new Vector3(lintelPosition.x, 2.24f + infillHeight * 0.5f, lintelPosition.z),
                 horizontal ? new Vector3(opening, infillHeight, 0.24f) : new Vector3(0.24f, infillHeight, opening), wall, false);
-            Create("Tavern doorway lintel", PrimitiveType.Cube, root, lintelPosition,
+            Create("Server building doorway lintel", PrimitiveType.Cube, root, lintelPosition,
                 horizontal ? new Vector3(opening + 0.25f, 0.32f, 0.28f) : new Vector3(0.28f, 0.32f, opening + 0.25f), _trunk, false);
         }
 
-        private static void AddTavernDoorVisualSegment(Transform root, string name, int side, float width,
+        private static void AddServerDoorVisualSegment(Transform root, string name, int side, float width,
             float depth, float wallHeight, float segmentLength, float axisPosition, Material wall)
         {
             if (segmentLength <= 0.05f) return;
