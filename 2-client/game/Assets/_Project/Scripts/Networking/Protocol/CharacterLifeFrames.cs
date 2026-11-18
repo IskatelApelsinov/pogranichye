@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -136,8 +135,7 @@ namespace Pogranichye.Client.Networking.Protocol
             double value;
             return token != null &&
                 (token.Type == JTokenType.Integer || token.Type == JTokenType.Float) &&
-                double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
-                !double.IsNaN(value) && !double.IsInfinity(value);
+                TryReadFiniteNumber(token, out value);
         }
 
         private static void ValidateOptionalNumber(JToken token, string path)
@@ -146,12 +144,27 @@ namespace Pogranichye.Client.Networking.Protocol
             RequireFiniteNumber(token, path);
         }
 
+        private static bool TryReadFiniteNumber(JToken token, out double value)
+        {
+            value = 0d;
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
+                return false;
+            try
+            {
+                value = token.Value<double>();
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         private static void RequireFiniteNumber(JToken token, string path)
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value))
+                !TryReadFiniteNumber(token, out value))
                 throw new FormatException(path + " должно быть конечным числом.");
         }
     }
