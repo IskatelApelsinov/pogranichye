@@ -123,8 +123,8 @@ namespace Pogranichye.Client
             public float At;
         }
 
-        // Mirror of Layout v2 POI anchors (metres, server x/y). Only used to decide which actions the
-        // The activity window offers intents; the server validates the actual position for every intent.
+        // Mirror of Layout v2 POI anchors (metres, server x/y).
+        // Used only to decide which actions the activity window offers; the server validates every intent.
         // Legacy starter-layout anchors are used only when no server POI map is available.
         private static readonly Dictionary<string, PoiCoordinate> Poi = new Dictionary<string, PoiCoordinate>
         {
