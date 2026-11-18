@@ -20,8 +20,9 @@ class HorseRiderInteractionWiringTests(unittest.TestCase):
         self.assertIn('_riderVisualRoot.localPosition = Vector3.zero;', self.core)
 
     def test_mounted_first_person_camera_clears_horse_body(self):
-        self.assertIn('var eyeHeight = _mounted ? 2.78f : 1.62f;', self.camera)
+        self.assertIn('var eyeHeight = _mounted ? 2.55f : 1.62f;', self.camera)
         self.assertIn('public void SetMounted(bool mounted)', self.camera)
+        self.assertIn('(_mounted ? 9f : 0f)', self.camera)
         self.assertIn('if (_rig != null) _rig.SetMounted(true);', self.core)
         self.assertIn('if (_rig != null) _rig.SetMounted(false);', self.core)
 
