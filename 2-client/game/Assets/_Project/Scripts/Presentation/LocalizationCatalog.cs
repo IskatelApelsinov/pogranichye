@@ -59,7 +59,7 @@ namespace Pogranichye.Client.Presentation
                         { "settings.invert_mouse", "Инвертировать вертикальный обзор" },
                         { "settings.fullscreen", "Полноэкранный режим" },
                         { "settings.windowed", "Перейти в оконный режим" },
-                        { "login.credentials", "Введите учётные данные." },
+                        { "login.credentials", "Введите данные для входа." },
                         { "status.waiting_server", "Ожидаем ответа…" },
                         { "status.server_confirmed", "Подтверждено." },
                         { "status.server_rejected", "Не удалось выполнить действие." },
