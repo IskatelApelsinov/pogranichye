@@ -44,6 +44,13 @@ internal static class CharacterLifeFrameParserCheck
         CharacterVigorFrameParser.Validate(legacyVigorToken, "me.vigor");
         Check("vigor tolerates null legacy per_hour as neutral rate",
             legacyVigorToken.ToObject<CharacterVigorFrame>().PerHour == 0d);
+        foreach (var badRate in new[] { "\"bad\"", "{\"unexpected\":1}", "NaN", "Infinity" })
+        {
+            var malformedRate = JToken.Parse(vigorJson.Replace("\"per_hour\":-2.2", "\"per_hour\":" + badRate));
+            CharacterVigorFrameParser.Validate(malformedRate, "me.vigor");
+            Check("vigor falls back for malformed per_hour " + badRate,
+                malformedRate.ToObject<CharacterVigorFrame>().PerHour == 0d);
+        }
 
         ExpectFormat("mode options reject malformed ids", () =>
             CharacterModeFrameParser.Validate(JToken.Parse(modeJson.Replace("\"id\":\"auto\"", "\"id\":7")), "me.mode"));
