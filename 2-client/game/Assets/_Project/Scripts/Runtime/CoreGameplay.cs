@@ -141,21 +141,6 @@ namespace Pogranichye.Client
         private bool _hasLayoutPois;
         private bool _allowLegacyPoiFallback;
 
-        private static readonly Dictionary<string, string> TakeAt = new Dictionary<string, string>
-        {
-            { "axe", "woods" }, { "rod", "river" }, { "sword", "smithy" }, { "bow", "smithy" },
-            { "torch", "market" }, { "lantern", "market" }, { "cloak", "granary" }, { "boots", "granary" },
-            { "hat", "granary" }
-        };
-
-        // Keep presentation prices aligned with the server's itemPrice table.
-        // The server remains authoritative and revalidates every purchase.
-        private static readonly Dictionary<string, int> TakePrice = new Dictionary<string, int>
-        {
-            { "axe", 8 }, { "rod", 6 }, { "sword", 18 }, { "bow", 15 },
-            { "torch", 2 }, { "lantern", 6 }, { "cloak", 8 }, { "boots", 6 }, { "hat", 3 }
-        };
-
         private static readonly Dictionary<string, string> Ru = new Dictionary<string, string>
         {
             { "axe", "топор" }, { "sword", "меч" }, { "bow", "лук" }, { "rod", "удочка" }, { "torch", "факел" },
@@ -3406,15 +3391,9 @@ namespace Pogranichye.Client
             }
             else
             {
-                foreach (var pair in TakeAt)
-                {
-                    if (!Near(pair.Value, 10f) || Count(items, pair.Key) >= 1f) continue;
-                    var price = TakePrice.TryGetValue(pair.Key, out var itemPrice) ? itemPrice : int.MaxValue;
-                    GUI.enabled = price != int.MaxValue && coins >= price;
-                    if (GUILayout.Button("Купить: " + Name(pair.Key) + " · " + (price == int.MaxValue ? "цена не задана" : price + " мон.")))
-                        Ask("Покупка", "take", "item", pair.Key);
-                    GUI.enabled = true;
-                }
+                // Fail closed: without the server catalogue we do not invent a local shop,
+                // its assortment, or its prices. The server remains the sole source of truth.
+                GUILayout.Label("Ассортимент пока неизвестен. Попробуй заглянуть сюда позже.");
             }
 
             var recipes = Arr(_me, "recipes");
