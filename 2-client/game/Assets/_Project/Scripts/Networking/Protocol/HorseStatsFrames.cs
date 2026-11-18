@@ -76,8 +76,7 @@ namespace Pogranichye.Client.Networking.Protocol
             // never reject an otherwise usable world frame because of a stat range.
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value))
+                !JsonNumberReader.TryReadFiniteDouble(token, out value))
                 throw new FormatException(path + " должно быть конечным числом.");
         }
     }
@@ -100,8 +99,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > 1000000000d)
+                !JsonNumberReader.TryReadFiniteDouble(token, out value) || value < 0d || value > 1000000000d)
                 throw new FormatException(path + " должен быть конечным неотрицательным числом.");
         }
     }
@@ -169,8 +167,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < min || value > max)
+                !JsonNumberReader.TryReadFiniteDouble(token, out value) || value < min || value > max)
                 throw new FormatException(path + " содержит некорректное число.");
         }
     }
