@@ -24,27 +24,35 @@ namespace Pogranichye.Client.Networking.Protocol
 
             var obj = token as JObject;
             if (obj == null)
-                throw new FormatException(path + " должен быть объектом или null.");
+                throw new FormatException(path + " must be an object or null.");
 
             RequireFiniteNumber(obj["x"], path + ".x");
             RequireFiniteNumber(obj["y"], path + ".y");
             var radius = RequireFiniteNumber(obj["radius"], path + ".radius");
             if (radius <= 0d || radius > 10d)
-                throw new FormatException(path + ".radius должен быть больше 0 и не больше 10.");
+                throw new FormatException(path + ".radius must be greater than 0 and no greater than 10.");
 
             var bartender = obj["bartender_present"];
             if (bartender == null || bartender.Type != JTokenType.Boolean)
-                throw new FormatException(path + ".bartender_present должен быть boolean.");
+                throw new FormatException(path + ".bartender_present must be a boolean.");
         }
 
         private static double RequireFiniteNumber(JToken token, string path)
         {
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
-                throw new FormatException(path + " должен быть числом.");
+                throw new FormatException(path + " must be a number.");
             double value;
-            if (!double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value))
-                throw new FormatException(path + " должен быть конечным числом.");
+            try
+            {
+                value = token.Value<double>();
+            }
+            catch (Exception ex)
+            {
+                throw new FormatException(path + " must be a finite number.", ex);
+            }
+
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new FormatException(path + " must be a finite number.");
             return value;
         }
     }
