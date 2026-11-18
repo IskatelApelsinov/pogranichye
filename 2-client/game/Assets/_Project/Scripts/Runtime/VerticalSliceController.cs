@@ -5119,7 +5119,7 @@ namespace Pogranichye.Client
                 }
                 catch (Exception catalogError)
                 {
-                    Enqueue(() => Debug.LogWarning("Каталог v1.22 пока недоступен; игровые кадры продолжают работать: " + catalogError.Message));
+                    Enqueue(() => Debug.LogWarning("The v1.22 catalog is currently unavailable; gameplay frames remain active: " + catalogError.Message));
                 }
                 _layout = layout;
                 _starterLayout = SettlementLayoutSelectionPolicy.IsTutorialLayout(layout.Plan) ? layout : null;
@@ -5240,7 +5240,7 @@ namespace Pogranichye.Client
             {
                 ClientDiagnosticDumps.RecordFrame("rejected", json);
                 ClientDiagnosticDumps.RecordEvent("frame.rejected.fast", ex.Message);
-                Debug.LogWarning("[Pogranichye] Отклонён некорректный быстрый кадр: " + ex.Message);
+                Debug.LogWarning("[Pogranichye] Rejected invalid fast frame: " + ex.Message);
                 return;
             }
 
@@ -5496,7 +5496,7 @@ namespace Pogranichye.Client
             {
                 _lastDiagnosticDumpStatus = "Ошибка дампа: " + ex.Message;
                 ClientDiagnosticDumps.RecordEvent("dump.error", ex.GetType().Name + ": " + ex.Message);
-                Debug.LogError("[Pogranichye] Не удалось сохранить диагностический дамп: " + ex);
+                Debug.LogError("[Pogranichye] Failed to save diagnostic dump: " + ex);
             }
         }
 
@@ -6166,7 +6166,7 @@ namespace Pogranichye.Client
                     }
                     catch (Exception spaceError)
                     {
-                        Debug.LogWarning("Не удалось перестроить серверное пространство " + pair.Key +
+                        Debug.LogWarning("Failed to rebuild server space " + pair.Key +
                             ": " + spaceError.Message);
                     }
                 }
@@ -6327,7 +6327,7 @@ namespace Pogranichye.Client
                             new WorldChunkCoordinate(expectedFrame, chunkX, chunkZ), TerrainChunkRetentionRadius))
                     {
                         _terrainChunkRetryAfter[chunkId] = Time.unscaledTime + TerrainChunkRetryDelaySeconds;
-                        Debug.LogWarning("Не удалось загрузить чанк рельефа " + chunkId + "; повтор через " +
+                        Debug.LogWarning("Failed to load terrain chunk " + chunkId + "; повтор через " +
                             TerrainChunkRetryDelaySeconds.ToString("0") + " с: " + exception.Message);
                     }
                 });
