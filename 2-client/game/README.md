@@ -255,3 +255,10 @@ The character journal shows up to six server-authored `place.gather[]` nodes. `g
 - Applies to server-authored public POIs in village and city layouts. Ordinary houses without `door` remain closed; unsupported POIs remain map-only until the server advertises an interaction contract.
 - Editor fixture validation covers all four cardinal orientations and asserts that a door does not imply `building_id`, `room` or `interior_id`.
 - Source-level only: run Tools → Pogranichye → Validate shared v1 fixture, then verify each orientation in Unity 6000.6.7f1 Play Mode. No Editor build or visual acceptance is claimed here.
+
+
+## v1.30 server-authored terrain gather props — 2026-11-18
+
+- `/api/terrain.gather[]` is parsed as optional chunk-local data `{id, kind, good, x, z, left}`. Malformed entries are discarded individually; legacy terrain responses without the field remain valid.
+- Seven low-poly, collider-free props (herb, mushroom, berries, hive, deadwood, nest and flax) are placed only at server-provided IDs/coordinates. Ground height is sampled from the same authoritative terrain heightfield and vertices are rebased against the current world anchor.
+- Nearby `place.gather[]` snapshots update the visible/depleted state of matching props. The client does not create loot, predict stock, or make the props interactable; collection still uses the existing server `goto`/`pick` flow.
