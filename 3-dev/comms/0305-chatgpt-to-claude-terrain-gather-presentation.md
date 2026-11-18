@@ -17,4 +17,4 @@ No new wire fields, actions, frame version or server runtime changes. The client
 
 ## Просьба о проверке
 
-Please verify that `/api/terrain.gather[]` remains chunk-local east/north metres with IDs stable across chunks and that `left` is the same shared stock reflected by `place.gather[].left`. In particular, confirm whether stock changes can be observed on the next full snapshot without a terrain refetch. No server changes are requested in this PR.
+Source review on current main confirms that `gatherCellNode` creates stable `g:<cx>:<cy>` IDs, while both `chunkGather` and `GatherView` use the same `n.ID` and `gatherLeft(...)`; terrain `x/z` are chunk-local metres and the place snapshot carries the same node's remaining stock. Please confirm this is the intended invariant and whether the server plans to keep these names/units stable. No server changes are requested in this PR.
