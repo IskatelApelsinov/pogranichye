@@ -83,6 +83,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
       - '2-client/game/Tests/GatherNodePresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/LocalizationCatalog.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/ClientLocalization.cs'
+      - '2-client/game/Tests/LocalizationCatalogCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
@@ -147,6 +150,11 @@ jobs:
           unzip -q "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg" -d "$RUNNER_TEMP/newtonsoft"
           test -f "$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           echo "MONO_PATH=$RUNNER_TEMP/newtonsoft/lib/net45" >> "$GITHUB_ENV"
+      - name: Localization catalog regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/localization-catalog.exe Tests/LocalizationCatalogCheck.cs Assets/_Project/Scripts/Presentation/LocalizationCatalog.cs
+          mono /tmp/localization-catalog.exe
       - name: RequestGate regression checks
         working-directory: 2-client/game
         run: |
