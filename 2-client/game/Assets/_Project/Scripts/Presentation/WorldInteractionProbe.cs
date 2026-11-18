@@ -61,7 +61,7 @@ namespace Pogranichye.Client.Presentation
 
             // World focus is presentation-only. Do not let E leak through a character menu,
             // weave wheel or modal window that currently owns gameplay input.
-            if (_input != null && _input.InteractPressed && (_core == null || !_core.CapturesInput))
+            if (_input != null && _input.InteractPressed && (_core == null || (!_core.CapturesInput && !_core.ConsumesWorldInteraction)))
             {
                 if (_poi != null) _poi.RequestInteraction();
                 else if (_npc != null) _npc.RequestInteraction();
