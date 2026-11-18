@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Pogranichye.Client.Networking.Protocol;
 
 namespace Pogranichye.Client.Networking
 {
@@ -61,8 +62,8 @@ namespace Pogranichye.Client.Networking
                 {
                     if (damageToken.Type != JTokenType.Integer && damageToken.Type != JTokenType.Float)
                         throw new FormatException(itemPath + ".dmg должен быть числом.");
-                    var damage = damageToken.Value<double>();
-                    if (double.IsNaN(damage) || double.IsInfinity(damage) ||
+                    double damage;
+                    if (!JsonNumberReader.TryReadFiniteDouble(damageToken, out damage) ||
                         damage < 0d || damage > float.MaxValue)
                         throw new FormatException(itemPath + ".dmg должен быть конечным неотрицательным числом в диапазоне float.");
                 }
