@@ -1,0 +1,78 @@
+name: pogload synthetic load (manual)
+
+# Полный нагрузочный прогон pogload (0284): поднимает изолированный сервер и
+# подключает настоящих WS-игроков. Запускается ТОЛЬКО вручную (workflow_dispatch)
+# или по расписанию — не на каждый PR, чтобы не раздувать обычный CI. Короткий
+# дымовой вариант (10 клиентов) живёт в go-server-ci как обычный тест.
+
+on:
+  workflow_dispatch:
+    inputs:
+      players:
+        description: "Число одновременных WS-игроков (acceptance target 100)"
+        default: "100"
+      villages:
+        description: "Число поселений в тестовом мире (диагностика: 300)"
+        default: "40"
+      scenario:
+        description: "co-located|distributed|churn|mixed"
+        default: "distributed"
+      duration:
+        description: "Длительность установившейся фазы"
+        default: "60s"
+
+permissions:
+  contents: read
+
+jobs:
+  pogload:
+    name: Full load run
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 1-server
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 1-server/go.mod
+          cache: true
+          cache-dependency-path: 1-server/go.sum
+
+      - name: Build server and load tool
+        run: |
+          go build -o /tmp/pogserver ./cmd/pogserver
+          go build -ldflags "-X main.commitSHA=${GITHUB_SHA}" -o /tmp/pogload ./cmd/pogload
+
+      - name: Start isolated server (separate save, fast tick)
+        run: |
+          /tmp/pogserver -addr :8090 -villages ${{ inputs.villages }} \
+            -save /tmp/pogload-world.sav -tick 400 > /tmp/pogserver.log 2>&1 &
+          echo $! > /tmp/pogserver.pid
+          # дождаться готовности HTTP
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8090/api/stats >/dev/null; then echo "server up"; break; fi
+            sleep 1
+          done
+
+      - name: Run load
+        run: |
+          /tmp/pogload -addr http://localhost:8090 \
+            -n ${{ inputs.players }} -scenario ${{ inputs.scenario }} \
+            -duration ${{ inputs.duration }} -report /tmp/pogload-report.json
+
+      - name: Stop server
+        if: always()
+        run: kill "$(cat /tmp/pogserver.pid)" || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pogload-report
+          path: |
+            /tmp/pogload-report.json
+            /tmp/pogserver.log

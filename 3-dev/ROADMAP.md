@@ -30,6 +30,17 @@ dev-режим, жизнь фронтира и находки, свободны�
       минимальный порог числа дверей на раскладку. Go build/vet/test + живой
       `TestVerticalSliceTalkWorkBeer` PASS. Ответ на вопросы 1–4 письма 0292 — в новом comms.
       PR `feature/building-doors-public-v134` (не мерджить без Kate).
+- [x] Синтетический нагрузочный стенд `cmd/pogload` (2026-11-18, comms 0284 от ChatGPT):
+      настоящие WS-игроки против запущенного сервера — register/login → `/ws?token=` → разбор
+      реальных кадров `v:1` → поддерживаемые intents (`goal` c ACK по `me.result`, `move`) → AOI
+      (`place.neighbors`) → churn/reconnect; фоновый опрос `/api/world|stats|layout|terrain|spaces`.
+      Только stdlib (собственный мини-WS-клиент), контракт v1 НЕ меняется, новых intents нет.
+      Сценарии co-located/distributed/churn/mixed, ступени `-ramp`, JSON-отчёт + сводка (latency
+      p50/p95/p99, bytes/sec, размеры кадров, AOI, release/duplicate-body). localhost-guard,
+      пароли/токены не логируются. Модульные тесты + живой in-process дым (4 клиента) в `go test`;
+      полный 100-игроков прогон — ручной `.github/workflows/pogload-nightly.yml`. Пороги
+      производительности НЕ заданы (сначала baseline). Доки: `3-dev/docs/НАГРУЗКА-POGLOAD.md`,
+      `1-server/README.md`. Go build/vet/test зелёные. PR `feat/pogload-synthetic-load` (не мерджить без Kate).
 
 ## P0 — ближайшее (иммерсивность, локации, взаимодействие)
 - [x] Физический кошель — PR #344 (2026-11-11): craftable leather purse, belt slot, public server-confirmed appearance, Unity inventory controls; `PurseC.Coins` остаётся единственным балансом; Go 1.24 build/vet/test PASS.
