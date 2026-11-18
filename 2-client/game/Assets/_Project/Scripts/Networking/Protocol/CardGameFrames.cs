@@ -66,7 +66,7 @@ namespace Pogranichye.Client.Networking.Protocol
 
             if (game == "ochko") ValidateOchko(obj, path);
             else if (game == "durak") ValidateDurak(obj, path, phase);
-            else throw new FormatException(path + ".game содержит неизвестную игру.");
+            else throw new FormatException(path + ".game contains an unknown game.");
         }
 
         private static void ValidateOchko(JObject obj, string path)
@@ -74,7 +74,7 @@ namespace Pogranichye.Client.Networking.Protocol
             var phase = RequireString(obj["phase"], path + ".phase");
             var done = RequireBoolean(obj["done"], path + ".done");
             if (phase != (done ? "done" : "playing"))
-                throw new FormatException(path + ".phase не соответствует done.");
+                throw new FormatException(path + ".phase does not match the done state.");
 
             ValidateCards(obj["dealer"], path + ".dealer", "ochko");
             var dealer = (JArray)obj["dealer"];
@@ -93,7 +93,7 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void ValidateDurak(JObject obj, string path, string phase)
         {
             if (phase != "attack" && phase != "defend" && phase != "over")
-                throw new FormatException(path + ".phase содержит неизвестную фазу Дурака.");
+                throw new FormatException(path + ".phase contains an unknown Durak phase.");
 
             // DurakView intentionally sends only dealer_cards. A populated dealer array is a privacy leak.
             var dealer = obj["dealer"];
@@ -107,20 +107,20 @@ namespace Pogranichye.Client.Networking.Protocol
             RequireOptionalString(obj["trump_card"], path + ".trump_card");
             var attacker = RequireString(obj["attacker"], path + ".attacker");
             if (attacker != "player" && attacker != "dealer")
-                throw new FormatException(path + ".attacker содержит неизвестное место.");
+                throw new FormatException(path + ".attacker contains an unknown participant.");
             var role = RequireString(obj["role"], path + ".role");
             var expectedRole = attacker == "player" ? "attack" : "defend";
             if (role != expectedRole)
-                throw new FormatException(path + ".role не соответствует атакующему.");
+                throw new FormatException(path + ".role does not match the attacker.");
             var done = RequireBoolean(obj["done"], path + ".done");
             var yourTurn = RequireBoolean(obj["your_turn"], path + ".your_turn");
             if (done != (phase == "over"))
-                throw new FormatException(path + ".phase не соответствует done.");
+                throw new FormatException(path + ".phase does not match the done state.");
             var expectedTurn = !done &&
                 ((attacker == "player" && phase == "attack") ||
                  (attacker == "dealer" && phase == "defend"));
             if (yourTurn != expectedTurn)
-                throw new FormatException(path + ".your_turn не соответствует фазе и роли.");
+                throw new FormatException(path + ".your_turn does not match the phase and role.");
             var playerTotal = obj["ptotal"];
             if (playerTotal != null && playerTotal.Type != JTokenType.Null)
                 RequireNonNegativeInteger(playerTotal, path + ".ptotal");
@@ -191,7 +191,7 @@ namespace Pogranichye.Client.Networking.Protocol
                 throw new FormatException(path + " must be a non-negative integer.");
             var value = token.Value<long>();
             if (value < 0 || value > int.MaxValue)
-                throw new FormatException(path + " вне допустимого диапазона.");
+                throw new FormatException(path + " is outside the allowed range.");
             return (int)value;
         }
 
