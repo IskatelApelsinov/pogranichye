@@ -444,6 +444,11 @@ namespace Pogranichye.Client.Editor
                 layout.Buildings[0].Storeys != 4 || Math.Abs(layout.Buildings[0].HeightMeters - 12.8d) > 0.001d || layout.Buildings[0].Door != null)
                 throw new FormatException("v1.33 grid plan, land profile and multi-storey building DTO mapping failed.");
             Pogranichye.Client.Networking.WorldLandFrameParser.Validate(layout.Land);
+            // Legacy starter layouts can include a zero-valued land object.
+            var legacyLand = new WorldLandFrame { Water = "", Fields = "", Forest = "" };
+            Pogranichye.Client.Networking.WorldLandFrameParser.Validate(legacyLand);
+            if (!Pogranichye.Client.Networking.WorldLandFrameParser.HasFishableWater(legacyLand, true, false))
+                throw new FormatException("Legacy layout land metadata must fall back to river geometry.");
             var cityPoiIds = new HashSet<string>(StringComparer.Ordinal)
             { "tavern", "well", "hall", "bazaar", "weaver", "tannery", "bakery", "carpenter", "potter", "guard", "caravanserai", "inn" };
             if (!Pogranichye.Client.Networking.WorldLayoutCompatibilityPolicy.HasRequiredPois("grid", cityPoiIds))
