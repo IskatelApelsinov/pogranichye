@@ -706,9 +706,18 @@ namespace Pogranichye.Client
                     foreach (var skill in rows)
                     {
                         double value;
-                        if (skill.Value == null || !double.TryParse(skill.Value.ToString(),
-                            NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                            double.IsNaN(value) || double.IsInfinity(value)) continue;
+                        if (skill.Value == null ||
+                            (skill.Value.Type != JTokenType.Integer && skill.Value.Type != JTokenType.Float))
+                            continue;
+                        try
+                        {
+                            value = skill.Value.Value<double>();
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+                        if (double.IsNaN(value) || double.IsInfinity(value)) continue;
                         GUILayout.BeginHorizontal();
                         GUILayout.Label(Name(skill.Name));
                         GUILayout.FlexibleSpace();
