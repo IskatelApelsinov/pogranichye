@@ -51,6 +51,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPositionProjection.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldSpacePresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldRoomAcousticPolicy.cs'
+      - '2-client/game/Tests/WorldRoomAcousticPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs'
       - '2-client/game/Tests/WorldInteriorLightingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/VillageSoundscape.cs'
@@ -430,6 +432,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
+
+      - name: Exact server room-kind acoustic mapping regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-room-acoustic.exe Tests/WorldRoomAcousticPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldRoomAcousticPolicy.cs
+          mono /tmp/world-room-acoustic.exe
 
       - name: Server-authored tavern interior light placement regression checks
         working-directory: 2-client/game
