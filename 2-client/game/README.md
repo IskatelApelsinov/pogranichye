@@ -255,3 +255,11 @@ The character journal shows up to six server-authored `place.gather[]` nodes. `g
 - Applies to server-authored public POIs in village and city layouts. Ordinary houses without `door` remain closed; unsupported POIs remain map-only until the server advertises an interaction contract.
 - Editor fixture validation covers all four cardinal orientations and asserts that a door does not imply `building_id`, `room` or `interior_id`.
 - Source-level only: run Tools → Pogranichye → Validate shared v1 fixture, then verify each orientation in Unity 6000.6.7f1 Play Mode. No Editor build or visual acceptance is claimed here.
+
+## Input System event budget safety — 2026-11-18
+
+- `ClientInput` raises a finite `maxEventBytesPerUpdate` to at least 8 MiB. This covers the previously observed approximately 5.2 MiB high-polling HID burst with headroom; a larger project-level value is preserved.
+- Unity Input System's explicit `0` (unlimited) setting is preserved and is never replaced by a finite value.
+- F3 input diagnostics now show the effective event budget (`8 MiB`, a larger finite value, or `unlimited`) beside the last physical input event.
+- This is burst tolerance, not a fix for main-thread stalls or a guarantee against faulty device state. Verify with the affected HID hardware in Unity 6000.6.7f1; see `task_human/012-unity-input-event-budget-acceptance.md`.
+- The pure budget policy is covered by `InputEventBudgetPolicyCheck.cs` in the Unity-independent C# workflow. Unity Editor/Play Mode is not covered by that check.
