@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine.Serialization;
 using UnityEngine;
 
 namespace Pogranichye.Client.Presentation
@@ -16,10 +17,14 @@ namespace Pogranichye.Client.Presentation
             "South", "SouthWest", "West", "NorthWest"
         };
 
-        [SerializeField] private float radius = 178f;
-        [SerializeField] private float bottom = -8f;
-        [SerializeField] private float top = 48f;
-        [SerializeField] private float cameraFollowHeight = 0f;
+        [FormerlySerializedAs("_radius")]
+        [SerializeField] private float _radius = 178f;
+        [FormerlySerializedAs("_bottom")]
+        [SerializeField] private float _bottom = -8f;
+        [FormerlySerializedAs("_top")]
+        [SerializeField] private float _top = 48f;
+        [FormerlySerializedAs("_cameraFollowHeight")]
+        [SerializeField] private float _cameraFollowHeight = 0f;
         private Transform _cameraTransform;
         private Transform _ring;
         private readonly List<Mesh> _meshes = new List<Mesh>();
@@ -45,7 +50,7 @@ namespace Pogranichye.Client.Presentation
             var host = new GameObject("RuralHorizonBackdrop");
             host.transform.SetParent(worldRoot, false);
             var backdrop = host.AddComponent<RuralHorizonBackdrop>();
-            backdrop.radius = Mathf.Max(worldHalf + 24f, 178f);
+            backdrop._radius = Mathf.Max(worldHalf + 24f, 178f);
             backdrop._cameraTransform = camera.transform;
             backdrop.CreateRing(textures);
             return backdrop;
@@ -55,7 +60,7 @@ namespace Pogranichye.Client.Presentation
         {
             if (_cameraTransform == null || _ring == null) return;
             var p = _cameraTransform.position;
-            _ring.position = new Vector3(p.x, cameraFollowHeight, p.z);
+            _ring.position = new Vector3(p.x, _cameraFollowHeight, p.z);
         }
 
         private void OnDestroy()
@@ -80,16 +85,16 @@ namespace Pogranichye.Client.Presentation
 
                 var angle0 = (i * 45f - 22.5f) * Mathf.Deg2Rad;
                 var angle1 = ((i + 1) * 45f - 22.5f) * Mathf.Deg2Rad;
-                var a = new Vector3(Mathf.Sin(angle0) * radius, 0f, Mathf.Cos(angle0) * radius);
-                var b = new Vector3(Mathf.Sin(angle1) * radius, 0f, Mathf.Cos(angle1) * radius);
+                var a = new Vector3(Mathf.Sin(angle0) * _radius, 0f, Mathf.Cos(angle0) * _radius);
+                var b = new Vector3(Mathf.Sin(angle1) * _radius, 0f, Mathf.Cos(angle1) * _radius);
 
                 var mesh = new Mesh { name = "Horizon segment • " + Directions[i] };
                 mesh.vertices = new[]
                 {
-                    a + Vector3.up * bottom,
-                    b + Vector3.up * bottom,
-                    a + Vector3.up * top,
-                    b + Vector3.up * top
+                    a + Vector3.up * _bottom,
+                    b + Vector3.up * _bottom,
+                    a + Vector3.up * _top,
+                    b + Vector3.up * _top
                 };
                 // Double-sided material below; triangles face both directions via duplicated winding.
                 mesh.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
