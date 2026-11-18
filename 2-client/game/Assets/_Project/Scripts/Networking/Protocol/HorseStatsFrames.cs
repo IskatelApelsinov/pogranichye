@@ -65,8 +65,20 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
             foreach (var key in Keys) RequireFiniteNumber(obj[key], path + "." + key);
+        }
+
+        private static bool TryReadFiniteNumber(JToken token, out double value)
+        {
+            value = 0d;
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)) return false;
+            try
+            {
+                value = token.Value<double>();
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+            catch (Exception) { return false; }
         }
 
         private static void RequireFiniteNumber(JToken token, string path)
@@ -76,9 +88,9 @@ namespace Pogranichye.Client.Networking.Protocol
             // never reject an otherwise usable world frame because of a stat range.
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                !TryReadFiniteNumber(token, out value) ||
                 double.IsNaN(value) || double.IsInfinity(value))
-                throw new FormatException(path + " должно быть конечным числом.");
+                throw new FormatException(path + " must be a finite number.");
         }
     }
 
@@ -89,20 +101,20 @@ namespace Pogranichye.Client.Networking.Protocol
             // me.bag was added additively in v1.13; older v1 servers may omit it.
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
             RequireNumber(obj["load"], path + ".load");
             RequireNumber(obj["cap"], path + ".cap");
             if (obj["over"] == null || obj["over"].Type != JTokenType.Boolean)
-                throw new FormatException(path + ".over должен быть boolean.");
+                throw new FormatException(path + ".over must be a boolean.");
         }
 
         private static void RequireNumber(JToken token, string path)
         {
             double value;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                !TryReadFiniteNumber(token, out value) ||
                 double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > 1000000000d)
-                throw new FormatException(path + " должен быть конечным неотрицательным числом.");
+                throw new FormatException(path + " must be a finite non-negative number.");
         }
     }
 
@@ -113,11 +125,11 @@ namespace Pogranichye.Client.Networking.Protocol
             // v1.32 roster is additive; older servers may omit it.
             if (token == null || token.Type == JTokenType.Null) return;
             var array = token as JArray;
-            if (array == null) throw new FormatException(path + " должен быть массивом.");
+            if (array == null) throw new FormatException(path + " must be an array.");
             for (var i = 0; i < array.Count; i++)
             {
                 if (array[i] == null || array[i].Type == JTokenType.Null)
-                    throw new FormatException(path + "[" + i.ToString(CultureInfo.InvariantCulture) + "] должен быть объектом лошади.");
+                    throw new FormatException(path + "[" + i.ToString(CultureInfo.InvariantCulture) + "] must be a horse object.");
                 Validate(array[i], path + "[" + i.ToString(CultureInfo.InvariantCulture) + "]");
             }
         }
@@ -126,7 +138,7 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type == JTokenType.Null) return;
             var obj = token as JObject;
-            if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
+            if (obj == null) throw new FormatException(path + " must be an object or null.");
             RequireString(obj["id"], path + ".id", true);
             RequireString(obj["name"], path + ".name", true);
             RequireNumber(obj["stam"], path + ".stam", 0d, 100d);
@@ -134,14 +146,14 @@ namespace Pogranichye.Client.Networking.Protocol
             RequireBool(obj["here"], path + ".here");
             // v1.32 fields are optional on the legacy me.horse object, but strict when present.
             if (obj["active"] != null && obj["active"].Type != JTokenType.Boolean)
-                throw new FormatException(path + ".active должен быть boolean.");
+                throw new FormatException(path + ".active must be a boolean.");
             RequireOptionalString(obj["settlement_id"], path + ".settlement_id");
             RequireOptionalString(obj["settlement_name"], path + ".settlement_name");
             RequireOptionalString(obj["realm_name"], path + ".realm_name");
             RequireNumber(obj["bag_load"], path + ".bag_load", 0d, 1000000000d);
             RequireNumber(obj["bag_cap"], path + ".bag_cap", 0d, 1000000000d);
             var bag = obj["bag"] as JObject;
-            if (bag == null) throw new FormatException(path + ".bag должен быть объектом товаров.");
+            if (bag == null) throw new FormatException(path + ".bag must be an item object.");
             foreach (var property in bag.Properties())
                 RequireNumber(property.Value, path + ".bag." + property.Name, 0d, 1000000000d);
         }
@@ -150,19 +162,19 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token == null || token.Type != JTokenType.String ||
                 (nonEmpty && string.IsNullOrWhiteSpace(token.Value<string>())))
-                throw new FormatException(path + " должен быть строкой.");
+                throw new FormatException(path + " must be a string.");
         }
 
         private static void RequireOptionalString(JToken token, string path)
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
-                throw new FormatException(path + " должен быть строкой или null.");
+                throw new FormatException(path + " must be a string or null.");
         }
 
         private static void RequireBool(JToken token, string path)
         {
             if (token == null || token.Type != JTokenType.Boolean)
-                throw new FormatException(path + " должен быть boolean.");
+                throw new FormatException(path + " must be a boolean.");
         }
 
         private static void RequireNumber(JToken token, string path, double min, double max)
@@ -171,7 +183,7 @@ namespace Pogranichye.Client.Networking.Protocol
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
                 !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
                 double.IsNaN(value) || double.IsInfinity(value) || value < min || value > max)
-                throw new FormatException(path + " содержит некорректное число.");
+                throw new FormatException(path + " contains an invalid number.");
         }
     }
 }
