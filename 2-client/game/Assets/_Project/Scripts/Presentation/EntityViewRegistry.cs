@@ -185,21 +185,24 @@ namespace Pogranichye.Client.Presentation
                     var id = WorldFrameParser.ParseEntityId(neighbor.Id, $"neighbors[{i}].id");
                     if (id == playerId) continue;
 
-                    active.Add(id);
-                    _neighborLastSeenAt[id] = Time.unscaledTime;
-                    var angle = Mathf.PI * 2f * visibleCount / Mathf.Max(1, neighbors.Count);
                     Vector3 position;
                     var hasGlobalPosition = WorldPositionProjection.TryToUnityPosition(
                         neighbor.WorldPosition, worldAnchor, out position);
                     // Older servers may omit the place anchor; retain the previous wpos-relative
-                    // projection as a compatibility fallback, then same-settlement pos as last resort.
+                    // projection, then use the server-provided same-settlement position.
                     if (!hasGlobalPosition)
                         hasGlobalPosition = WorldPositionProjection.TryToUnityPosition(
                             neighbor.WorldPosition, frame.Me.WorldPosition, frame.Me.Position, out position);
                     if (!hasGlobalPosition)
-                        position = neighbor.Position != null
-                            ? ToUnityPosition(neighbor.Position)
-                            : new Vector3(Mathf.Cos(angle) * 2.65f, 0f, Mathf.Sin(angle) * 2.65f);
+                    {
+                        if (neighbor.Position == null) continue;
+                        position = ToUnityPosition(neighbor.Position);
+                    }
+
+                    // Never invent a presentation position for a server entity. Wait until
+                    // the authoritative snapshot provides usable coordinates.
+                    active.Add(id);
+                    _neighborLastSeenAt[id] = Time.unscaledTime;
 #if UNITY_EDITOR
                     _diagnosticNpcSamples++;
                     if (hasGlobalPosition)
