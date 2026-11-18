@@ -1258,23 +1258,29 @@ namespace Pogranichye.Client.Presentation
             if (string.IsNullOrEmpty(talk.Line) || eventKey == _lastTalkEvent) return;
             _lastTalkEvent = eventKey;
 
-            var npcDrink = talk.Line.IndexOf("поднимает кружку", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            // Social prose is localized presentation text, never a gameplay signal.
+            // Drinking gestures come only from the replicated act_code registry.
             var playerMotionForTalk = player.GetComponent<EntityMotion>();
             if (playerMotionForTalk != null)
             {
                 playerMotionForTalk.PlayTalkGesture(null);
-                if (npcDrink) playerMotionForTalk.PlayDrinkGesture();
+                if (playerMotionForTalk.IsServerDrinking)
+                    playerMotionForTalk.PlayDrinkGesture();
             }
 
             if (TryGetView(talk.With, out var partner))
             {
                 var partnerMotion = partner.GetComponent<EntityMotion>();
-                if (partnerMotion != null) partnerMotion.PlayTalkGesture(player.transform);
-                var partnerNpc = partner.GetComponent<WorldNpc>();
-                if (partnerNpc != null && npcDrink)
+                if (partnerMotion != null)
                 {
-                    SetMug(partner, true);
-                    partnerNpc.PlayServerDrink();
+                    partnerMotion.PlayTalkGesture(player.transform);
+                    if (partnerMotion.IsServerDrinking)
+                    {
+                        SetMug(partner, true);
+                        var partnerNpc = partner.GetComponent<WorldNpc>();
+                        if (partnerNpc != null) partnerNpc.PlayServerDrink();
+                        else partnerMotion.PlayDrinkGesture();
+                    }
                 }
             }
         }

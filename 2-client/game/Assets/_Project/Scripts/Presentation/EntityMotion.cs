@@ -28,6 +28,7 @@ namespace Pogranichye.Client.Presentation
         private float _walkRate = 1f;
         private bool _isPlayer;
         private string _activity = "";
+        private string _serverActivityCode = string.Empty;
         private bool _hasActivityBaseline;
         private float _locomotion;
         private float _locomotionTarget;
@@ -136,8 +137,11 @@ namespace Pogranichye.Client.Presentation
         /// Unknown or missing codes intentionally fall back to neutral idle.
         /// Never infer animation from goal text or localized outcome prose.
         /// </summary>
+        public bool IsServerDrinking => SocialActivityPresentationPolicy.IsDrinking(_serverActivityCode);
+
         public void SetActivityCode(string activityCode)
         {
+            _serverActivityCode = activityCode;
             var previousActivity = _activity;
             _activity = ActivityAnimationPolicy.Resolve(activityCode);
 

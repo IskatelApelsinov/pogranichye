@@ -3573,11 +3573,7 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
-            if (action == "cast" || action == "weave")
-            {
-                _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
-                _audioDirector?.Magic();
-            }
+            // Action SFX is played only after the matching server result is accepted.
             var gesture = action == "chop" ? "chop" : action == "fish" ? "fish_reel" : action;
             _views?.PlayPlayerActionGesture(gesture);
         }
@@ -4614,6 +4610,13 @@ namespace Pogranichye.Client
                         ? "Не удалось использовать вещь: " + reason
                         : "Ответа пока нет. Попробуй ещё раз.";
 
+            if (WorldAudioEventPolicy.ShouldPlayMagic(label, outcome == RequestGate.Outcome.Accepted))
+            {
+                _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null
+                    ? _views.PlayerTransform.position : transform.position);
+                _audioDirector?.Magic();
+            }
+
             if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
                     ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": готово."
@@ -5572,9 +5575,7 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            // Do not play a generic impact on raw mouse/key input. Weapon-specific SFX
-            // will be triggered only from a server-confirmed combat outcome.
-            if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
+            // Combat and weave sounds are driven by confirmed results, never raw input.
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var movementProfile = _worldManifest != null ? _worldManifest.Movement : null;
@@ -5599,7 +5600,7 @@ namespace Pogranichye.Client
             if (moving)
                 speed *= ResolveMovementTerrainMultiplier(player.position,
                     new Vector2(worldMove.x, worldMove.z), movementProfile);
-            if (moving) _audioDirector?.Footsteps(canRun);
+            var inputMoveDistanceSquared = 0f;
             var motion = player.GetComponent<EntityMotion>();
             if (motion != null)
                 motion.SetLocomotion(moving ? Mathf.Clamp01(speed / Mathf.Max(0.1f, runSpeed)) : 0f);
@@ -5633,6 +5634,10 @@ namespace Pogranichye.Client
 
             ApplyMovementCorrection(player);
             ApplyTerrainGrounding(player);
+            // Measure after collision resolution: blocked movement must stay silent.
+            inputMoveDistanceSquared = (new Vector2(player.position.x, player.position.z) - origin).sqrMagnitude;
+            if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared))
+                _audioDirector?.Footsteps(canRun);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
             if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
