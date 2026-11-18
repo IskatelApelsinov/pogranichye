@@ -52,7 +52,7 @@ internal static class CharacterLifeFrameParserCheck
                 var cultureVigor = cultureToken.ToObject<CharacterVigorFrame>();
                 Check("accepts JSON decimal stamina rates under " + cultureName,
                     cultureVigor.Stamina != null &&
-                    Math.Abs(cultureVigor.Stamina.RegenerationPerSecond - 0.1d) < 0.0000001d &&
+                    Math.Abs(cultureVigor.Stamina.RegenPerSecond - 0.1d) < 0.0000001d &&
                     Math.Abs(cultureVigor.Stamina.DrainPerSecond - 0.1d) < 0.0000001d);
             }
         }
