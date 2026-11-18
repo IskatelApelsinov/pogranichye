@@ -52,7 +52,7 @@ namespace Pogranichye.Client
         private SettlementLayoutCache _layoutCache;
         private string _login = "";
         private string _password = "";
-        private string _status = "Введите учётные данные сервера.";
+        private string _status = ClientLocalization.Get("login.credentials", "Введите данные для входа.");
         private bool _showMainSettings;
         private int _settingsTab = 2;
         private Vector2 _mainMenuScroll;
@@ -193,6 +193,10 @@ namespace Pogranichye.Client
         private string _lastDiagnosticDumpStatus = "Дамп ещё не сохранён";
         private GUIStyle _statusTextStyle;
         private GUIStyle _pendingActionStyle;
+        private GUIStyle _serverResponseStyle;
+        private string _serverResponseToast;
+        private float _serverResponseToastUntil;
+        private bool _serverResponseToastError;
         private GUIStyle _objectiveCardStyle;
         private Vector2 _movementInputDebug;
         private Vector2 _movementKeyboardDebug;
@@ -600,6 +604,7 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+            DrawServerResponseToast();
             DrawPendingActionIndicator();
             if (_hudCollapsed)
             {
@@ -697,7 +702,7 @@ namespace Pogranichye.Client
                     GUILayout.Label("Состояние: в мире");
                     GUILayout.Label("Место: " + (_frame.Place != null ? _frame.Place.Name : "не определено"));
                     GUILayout.Label("Сервер: " + serverUrl);
-                    if (GUILayout.Button("Продолжить игру [F1 / Esc]", GUILayout.Height(42f)))
+                    if (GUILayout.Button("Продолжить [F1 / Esc]", GUILayout.Height(42f)))
                         SetSystemMenuOpen(false);
                     if (GUILayout.Button("Отключиться от мира", GUILayout.Height(34f)))
                         DisconnectWorld("Отключено от мира. Можно подключиться снова.");
@@ -720,7 +725,7 @@ namespace Pogranichye.Client
                 if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(30f)))
                     ToggleFullscreen();
                 if (GUILayout.Button("Настройки", GUILayout.Height(34f))) _showMainSettings = true;
-                if (GUILayout.Button("Выход из игры", GUILayout.Height(34f))) Application.Quit();
+                if (GUILayout.Button("Выйти", GUILayout.Height(34f))) Application.Quit();
             }
             GUILayout.Space(8f);
             EnsureStatusTextStyle();
@@ -1019,7 +1024,7 @@ namespace Pogranichye.Client
             if (task == null || !task.Met)
                 return _tutorialStep == 0
                     ? "Подойдите к жителю, наведитесь и нажмите E. Выберите «Будем знакомы»."
-                    : "Ожидаем от сервера следующий шаг вводного маршрута.";
+                    : "Пока неясно, что делать дальше. Поговори с жителем.";
 
             if (task.Issued != null)
                 return !string.IsNullOrWhiteSpace(task.Text) ? task.Text : "Выполните принятое поручение жителя.";
@@ -1027,7 +1032,46 @@ namespace Pogranichye.Client
             if (task.ErrandDone)
                 return task.Done ? string.Empty : "Поручение сдано. Загляните в корчму и выпейте пива.";
 
-            return "Вы знакомы с жителем. Поговорите с ним и примите актуальное поручение в окне «Дела».";
+            return "Вы уже знакомы. Спроси, не найдётся ли для тебя работа.";
+        }
+
+        private void DrawServerResponseToast()
+        {
+            if (string.IsNullOrEmpty(_serverResponseToast) || Time.unscaledTime >= _serverResponseToastUntil)
+                return;
+
+            if (_serverResponseStyle == null)
+            {
+                _serverResponseStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = ClientUiTypography.HudSecondary,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = true,
+                    padding = new RectOffset(11, 10, 5, 5)
+                };
+            }
+
+            var top = 50f;
+            var neighbors = _frame != null && _frame.Place != null ? _frame.Place.Neighbors : null;
+            if (neighbors != null && IsAtTavern())
+            {
+                var inviteableCount = 0;
+                foreach (var neighbor in neighbors)
+                    if (neighbor != null && neighbor.Controlled) inviteableCount++;
+                if (inviteableCount > 0) top = 18f + 56f + inviteableCount * 34f + 8f;
+            }
+
+            var width = Mathf.Min(260f, Mathf.Max(170f, Screen.width - 24f));
+            var rect = new Rect(Screen.width - width - 12f, top, width, 36f);
+            var remaining = Mathf.Clamp01((_serverResponseToastUntil - Time.unscaledTime) / 0.45f);
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.08f, 0.075f, 0.065f, 0.76f * remaining);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = _serverResponseToastError
+                ? new Color(0.91f, 0.63f, 0.56f, remaining)
+                : new Color(0.89f, 0.80f, 0.61f, remaining);
+            GUI.Label(rect, _serverResponseToast, _serverResponseStyle);
+            GUI.color = previousColor;
         }
 
         private void DrawPendingActionIndicator()
@@ -1064,6 +1108,8 @@ namespace Pogranichye.Client
                     if (neighbor != null && neighbor.Controlled) inviteableCount++;
                 if (inviteableCount > 0) topOffset = 18f + 56f + inviteableCount * 34f + 8f;
             }
+            if (!string.IsNullOrEmpty(_serverResponseToast) && Time.unscaledTime < _serverResponseToastUntil)
+                topOffset += 42f;
             var rect = new Rect(Screen.width - width - 12f, topOffset, width, height);
             var previousColor = GUI.color;
             GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.94f);
@@ -1149,7 +1195,7 @@ namespace Pogranichye.Client
                     : "Не удалось выполнить: " + (me.Result.Reason ?? "попробуйте ещё раз."));
             GUILayout.Label(_tutorialStep == 0
                 ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы»."
-                : "Следующий шаг вводного маршрута отмечен в журнале. Дополнительные занятия необязательны.");
+                : "Первое знакомство позади. Дальше можно идти своей дорогой.");
             if (GUILayout.Button(_showAdvancedCharacterActions
                 ? "Скрыть приоритеты и дополнительные занятия"
                 : "Показать приоритеты и дополнительные занятия"))
@@ -1162,7 +1208,7 @@ namespace Pogranichye.Client
 
             GUILayout.Space(5f);
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
-            GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
+            GUILayout.Label("Подойди к жителю и нажми E, чтобы заговорить. Сначала познакомьтесь, а потом он назовёт своё имя. В корчме можно угостить знакомого; приглашения от спутников появятся здесь.", GUILayout.Height(54f));
             _core?.DrawPartyActions();
             _core?.DrawNearbyGatherables();
 
@@ -1171,8 +1217,8 @@ namespace Pogranichye.Client
                 GUILayout.Space(6f);
                 GUILayout.Label("ДРУГИЕ ЗАНЯТИЯ");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("🪓 Рубка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
-                if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
+                if (GUILayout.Button("🪓 Рубка")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+                if (GUILayout.Button("🎣 Рыбалка")) StartActivityMiniGame(ActivityMiniGame.Fishing);
                 if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
                 GUILayout.EndHorizontal();
                 GUILayout.Label("G — начать рубку у леса · K — начать рыбалку у воды. Нужен топор/удочка в руке.");
@@ -1345,10 +1391,10 @@ namespace Pogranichye.Client
                         "% · восстановление " + vigor.Stamina.RegenPerSecond.ToString("0.###", CultureInfo.InvariantCulture) +
                         "/с · расход " + vigor.Stamina.DrainPerSecond.ToString("0.###", CultureInfo.InvariantCulture) + "/с");
             }
-            else GUILayout.Label("Сведения о восстановлении сил пока не получены от сервера.");
+            else GUILayout.Label("Пока неизвестно, сколько времени понадобится на отдых.");
 
             var mode = me.Mode;
-            if (mode == null) GUILayout.Label("Сервер пока не прислал доступные режимы жизни.");
+            if (mode == null) GUILayout.Label("Пока нельзя выбрать занятие на будущее.");
             else
             {
                 GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected)
@@ -1360,7 +1406,7 @@ namespace Pogranichye.Client
                     ? MapActivityName(mode.ActivityCode) : mode.Activity;
                 if (!string.IsNullOrWhiteSpace(activityLabel)) GUILayout.Label("Сейчас: " + activityLabel);
                 if (mode.Options == null || mode.Options.Count == 0)
-                    GUILayout.Label("Сервер не перечислил варианты режима.");
+                    GUILayout.Label("Пока нет других занятий на выбор.");
                 else
                 {
                     foreach (var option in mode.Options)
@@ -1399,7 +1445,7 @@ namespace Pogranichye.Client
                 _status = "Не удалось отправить режим жизни. Дождитесь ответа на предыдущее действие.";
                 return;
             }
-            _status = "Ожидаю подтверждения сервера: режим жизни «" + label + "»…";
+            _status = "Выбираем занятие: «" + label + "»…";
         }
 
         private void DrawInventoryTab()
@@ -1447,7 +1493,7 @@ namespace Pogranichye.Client
             GUILayout.Label("АКТИВНЫЕ ЗАДАНИЯ");
             if (task == null)
             {
-                GUILayout.Label("Сервер пока не передал задания. Старые версии мира остаются совместимыми.");
+                GUILayout.Label("Пока новых поручений нет.");
             }
             else
             {
@@ -1540,7 +1586,7 @@ namespace Pogranichye.Client
                 GUILayout.Label("СЕГОДНЯ В ЭТОМ СЕАНСЕ");
                 foreach (var entry in _sessionJournal)
                     GUILayout.Label("• " + entry);
-                GUILayout.Label("Это заметки текущего подключения, не сохранённые сервером записи.");
+                GUILayout.Label("Это заметки только за нынешний день. Они не попадут в летопись.");
                 GUILayout.EndVertical();
             }
         }
@@ -1657,7 +1703,7 @@ namespace Pogranichye.Client
             GUI.Box(panel, "КАРТА МИРА · РАСШИРЕННЫЙ РЕЖИМ");
             GUILayout.BeginArea(new Rect(panel.x + 16f, panel.y + 30f, panel.width - 32f, panel.height - 44f));
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Карта мира · серверная география · Esc — закрыть");
+            GUILayout.Label("Карта мира · Esc — закрыть");
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Свернуть  ×", GUILayout.Width(116f), GUILayout.Height(32f)))
                 _mapExpanded = false;
@@ -1671,7 +1717,7 @@ namespace Pogranichye.Client
         private void DrawMapTab()
         {
             GUILayout.Label("КАРТА МИРА");
-            GUILayout.Label("Единая карта: от дорог и городов до улиц и зданий. География и положение поселений берутся из данных сервера; неизвестные персонажу места не подписываются.");
+            GUILayout.Label("На карте можно рассмотреть дороги, города, улицы и дома. Незнакомые места останутся без названий, пока ты о них не узнаешь.");
             var place = _frame?.Place;
             var anchor = place?.Anchor;
             var manifest = _worldManifest;
@@ -1690,7 +1736,7 @@ namespace Pogranichye.Client
             GUILayout.Label("Колесо — приблизить/отдалить · ЛКМ — двигать карту · Север ↑");
             if (manifest?.Settlements == null || place == null || anchor == null)
             {
-                GUILayout.Label("Карта мира ожидает серверный манифест и глобальное положение персонажа.");
+                GUILayout.Label("Карта откроется, когда станут известны дороги и окрестные места.");
                 return;
             }
 
@@ -1923,13 +1969,13 @@ namespace Pogranichye.Client
                         " · азимут " + Mathf.Repeat(mapCamera.transform.eulerAngles.y, 360f).ToString("0", CultureInfo.InvariantCulture) + "°");
             }
             GUILayout.Label(mapHalf > 1800d
-                ? "Масштаб мира: города, известные поселения и серверные дороги."
+                ? "Весь край: города, знакомые поселения и дороги."
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
-                    : "Масштаб поселения: здания и места из серверной планировки.");
+                    : "Поселение: улицы, дома и людные места.");
             GUILayout.Label(drawDetailedPaths
-                ? "★ Вы · ◆ город · ● поселение · дороги, тропы и водотоки показаны по серверным линиям загруженных чанков."
-                : "★ Вы · ◆ город · ● поселение · ━ схематическая связь поселений (тип и ширина пути от сервера); точная трасса раскрывается при приближении.");
+                ? "★ Вы · ◆ город · ● поселение · дороги, тропы и ручьи."
+                : "★ Вы · ◆ город · ● поселение · ━ путь между поселениями; подробности видны при приближении.");
         }
 
         private static string CompassDirection(float yaw)
@@ -2883,11 +2929,39 @@ namespace Pogranichye.Client
 
         private void DrawSettingsTab()
         {
-            GUILayout.Label("НАСТРОЙКИ");
+            GUILayout.Label(ClientLocalization.Get("settings.title", "НАСТРОЙКИ"));
             DrawOptionsControls();
             GUILayout.Space(8f);
-            if (GUILayout.Button("Сбросить настройки", GUILayout.Height(32f)))
+            if (GUILayout.Button(ClientLocalization.Get("settings.reset", "Сбросить настройки"), GUILayout.Height(32f)))
                 ResetSettingsToDefaults();
+        }
+
+        private void DrawLanguageSettings()
+        {
+            GUILayout.Label(ClientLocalization.Get("settings.language_title", "Язык текста"));
+            var locales = Pogranichye.Client.Presentation.LocalizationCatalog.SupportedLocales;
+            var labels = new string[locales.Length];
+            var selected = 0;
+            for (var i = 0; i < locales.Length; i++)
+            {
+                labels[i] = ClientLocalization.LocaleName(locales[i]);
+                if (string.Equals(locales[i], ClientLocalization.Locale, StringComparison.Ordinal))
+                    selected = i;
+            }
+
+            var next = GUILayout.SelectionGrid(selected, labels, 2, GUILayout.MinHeight(36f));
+            if (next >= 0 && next < locales.Length && next != selected)
+            {
+                ClientLocalization.SetLocale(locales[next]);
+                _status = ClientLocalization.Get("settings.language_changed", "Язык изменён.");
+                GUIUtility.ExitGUI();
+            }
+
+            GUILayout.Space(6f);
+            GUILayout.Label(ClientLocalization.Get("settings.language_hint", "Язык сохраняется на этом устройстве. Часть старых надписей пока остаётся на русском."));
+            if (ClientLocalization.IsRightToLeft)
+                GUILayout.Label(ClientLocalization.Get("settings.rtl_pending", "Для арабского письма ещё настраивается направление текста."));
+            GUILayout.Label(ClientLocalization.Get("settings.language_restart", "Некоторые изменения текста появятся после повторного открытия окна."));
         }
 
         private void ResetSettingsToDefaults()
@@ -2943,25 +3017,31 @@ namespace Pogranichye.Client
         private void DrawOptionsControls()
         {
             GUILayout.BeginHorizontal();
-            DrawSettingsTabButton("ЗВУК", 0);
-            DrawSettingsTabButton("ГРАФИКА", 1);
-            DrawSettingsTabButton("УПРАВЛЕНИЕ", 2);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.sound", "ЗВУК"), 0);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.graphics", "ГРАФИКА"), 1);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.controls", "УПРАВЛЕНИЕ"), 2);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.language", "ЯЗЫК"), 3);
             GUILayout.EndHorizontal();
             GUILayout.Space(8f);
+            if (_settingsTab == 3)
+            {
+                DrawLanguageSettings();
+                return;
+            }
 
             if (_settingsTab == 0)
             {
-                GUILayout.Label("ЗВУК");
-                DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
-                DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
-                DrawVolumeSlider("Окружение: ветер, птицы, вода, костёр", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
+                GUILayout.Label(ClientLocalization.Get("settings.sound", "ЗВУК"));
+                DrawVolumeSlider(ClientLocalization.Get("settings.master_volume", "Общая громкость"), ref _masterVolume, "Pogranichye.MasterVolume");
+                DrawVolumeSlider(ClientLocalization.Get("settings.effects_volume", "Эффекты: шаги, бой, магия"), ref _sfxVolume, "Pogranichye.SfxVolume");
+                DrawVolumeSlider(ClientLocalization.Get("settings.ambience_volume", "Окружение: ветер, птицы, вода, костёр"), ref _ambienceVolume, "Pogranichye.AmbienceVolume");
                 _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
                 _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
             }
             else if (_settingsTab == 1)
             {
                 GUILayout.Space(8f);
-                GUILayout.Label("ГРАФИКА");
+                GUILayout.Label(ClientLocalization.Get("settings.graphics", "ГРАФИКА"));
                 var qualityNames = QualitySettings.names;
                 if (qualityNames != null && qualityNames.Length > 0)
                 {
@@ -3022,15 +3102,15 @@ namespace Pogranichye.Client
                     SaveInt("Pogranichye.TargetFrameRate", _targetFrameRate);
                 }
                 GUILayout.Label("Режим экрана");
-                if (GUILayout.Button(Screen.fullScreen ? "Перейти в оконный режим" : "Полноэкранный режим", GUILayout.Height(32f)))
+                if (GUILayout.Button(Screen.fullScreen ? ClientLocalization.Get("settings.windowed", "Перейти в оконный режим") : ClientLocalization.Get("settings.fullscreen", "Полноэкранный режим"), GUILayout.Height(32f)))
                     ToggleFullscreen();
                 GUILayout.Label($"{Screen.width}×{Screen.height} · {(Screen.fullScreen ? "полный экран" : "окно")}");
             }
             else
             {
                 GUILayout.Space(8f);
-                GUILayout.Label("УПРАВЛЕНИЕ");
-                GUILayout.Label("Чувствительность мыши: " + _mouseSensitivity.ToString("0.000"));
+                GUILayout.Label(ClientLocalization.Get("settings.controls", "УПРАВЛЕНИЕ"));
+                GUILayout.Label(ClientLocalization.Get("settings.mouse_sensitivity", "Чувствительность мыши") + ": " + _mouseSensitivity.ToString("0.000"));
                 var sensitivity = GUILayout.HorizontalSlider(_mouseSensitivity, 0.008f, 0.09f);
                 if (!Mathf.Approximately(sensitivity, _mouseSensitivity))
                 {
@@ -3038,7 +3118,7 @@ namespace Pogranichye.Client
                     _cameraRig?.SetLookSettings(_mouseSensitivity, _invertMouseY);
                     SaveFloat("Pogranichye.MouseSensitivity", sensitivity);
                 }
-                var invert = GUILayout.Toggle(_invertMouseY, "Инвертировать вертикальный обзор");
+                var invert = GUILayout.Toggle(_invertMouseY, ClientLocalization.Get("settings.invert_mouse", "Инвертировать вертикальный обзор"));
                 if (invert != _invertMouseY)
                 {
                     _invertMouseY = invert;
@@ -4491,6 +4571,7 @@ namespace Pogranichye.Client
                 if (!string.Equals(target, _pendingTalkTargetId, StringComparison.Ordinal))
                     return; // a superseded click on another NPC must not alter the current dialog UI
 
+                SetServerResponseToast(outcome);
                 if (outcome == RequestGate.Outcome.Rejected || outcome == RequestGate.Outcome.TimedOut)
                 {
                     _pendingTalkTargetId = null;
@@ -4503,14 +4584,15 @@ namespace Pogranichye.Client
                 }
                 else
                 {
-                    _talkFeedback = "Сервер подтвердил обращение к жителю.";
+                    _talkFeedback = "Житель готов говорить.";
                 }
                 return;
             }
 
+            SetServerResponseToast(outcome);
             if (label == DialogueRequestLabel)
                 _talkFeedback = outcome == RequestGate.Outcome.Accepted
-                    ? "Реплика принята сервером."
+                    ? "Житель услышал тебя."
                     : "Ответ жителя не принят: " + reason;
 
             if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
@@ -4519,25 +4601,37 @@ namespace Pogranichye.Client
                 // Invite/accept/decline ACKs are not drinking events. Audio is triggered
                 // separately by EntityViewRegistry only when the server publishes a drink transition.
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие с кружкой: " + reason
-                        : "Нет подтверждения сервера на действие с кружкой. Можно попробовать ещё раз.";
+                        ? "Не удалось выпить: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
             }
 
             if (label != null && label.StartsWith(InventoryRequestLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(InventoryRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(InventoryRequestLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие с предметом: " + reason
-                        : "Нет подтверждения сервера на действие с предметом. Можно попробовать ещё раз.";
+                        ? "Не удалось использовать вещь: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
 
             if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие: " + reason
-                        : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
+                        ? "Не удалось выполнить: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
+
+        }
+
+        private void SetServerResponseToast(RequestGate.Outcome outcome)
+        {
+            var key = outcome == RequestGate.Outcome.Accepted ? "status.action_ok" :
+                outcome == RequestGate.Outcome.Rejected ? "status.action_failed" : "status.action_wait";
+            var fallback = outcome == RequestGate.Outcome.Accepted ? "Готово." :
+                outcome == RequestGate.Outcome.Rejected ? "Не получилось." : "Ответа пока нет. Попробуй ещё раз.";
+            _serverResponseToast = ClientLocalization.Get(key, fallback);
+            _serverResponseToastError = outcome != RequestGate.Outcome.Accepted;
+            _serverResponseToastUntil = Time.unscaledTime + 3.2f;
         }
 
         private void UpdateServerAudioAnchors(Transform player)
@@ -4837,7 +4931,7 @@ namespace Pogranichye.Client
                 _activityPrimaryAction = poi.ActionIntent;
                 _activityPanelOpen = true;
                 CollapseHudForContextWindow();
-                _status = "Открыты действия: " + poi.Title + ". Результат каждого действия подтвердит сервер.";
+                _status = "Здесь можно: " + poi.Title + ". Дождись, чем закончится дело.";
                 return;
             }
 
@@ -4846,7 +4940,7 @@ namespace Pogranichye.Client
             // only when their target ID has a supported v1 action/horse mapping.
             if (!string.IsNullOrEmpty(poi.InteractionId))
             {
-                _status = "Эта точка пока не поддерживает серверное действие.";
+                _status = "Здесь пока нечем заняться.";
                 return;
             }
 
@@ -4858,7 +4952,7 @@ namespace Pogranichye.Client
 
             // E is for an immediate interaction at this place. Long-lived character goals
             // are configured only from the character UI, never as a side effect of touching a POI.
-            _status = "Для этой точки пока нет отдельного действия. Долгосрочные приоритеты задаются в разделе персонажа.";
+            _status = "Здесь пока нет особого занятия. Долгосрочные дела выбираются в разделе персонажа.";
         }
 
         private void CollapseHudForContextWindow()
@@ -4903,7 +4997,7 @@ namespace Pogranichye.Client
             if (npc == null) return;
             if (_connectionState != WorldConnectionState.Active)
             {
-                _status = "Подключитесь к миру, чтобы обратиться к жителю.";
+                _status = "Сначала вернись в мир, а потом заговори с жителем.";
                 return;
             }
 
@@ -4917,7 +5011,7 @@ namespace Pogranichye.Client
             _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
             QueueTalk(targetId, requestSerial);
-            _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
+            _status = "Подожди немного — житель собирается с ответом.";
         }
 
         private async Task RegisterAsync()
@@ -5076,7 +5170,7 @@ namespace Pogranichye.Client
                         return;
 
                     _connectionState = WorldConnectionState.AwaitingSnapshot;
-                    _status = "WebSocket подключён. Ожидаю первый полный кадр…";
+                    _status = "Связь установлена. Мир просыпается…";
                 });
             }
             catch (Exception ex)
@@ -5117,7 +5211,7 @@ namespace Pogranichye.Client
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
-            _status = "Связь закрыта: " + reason;
+            _status = "Связь прервалась: " + reason;
         }
 
         private void OnSocketMessage(WorldSocketClient socket, string json)
@@ -6441,7 +6535,7 @@ namespace Pogranichye.Client
 
             _layoutCache?.Update(frame); // Keep nearby cached settlements at their true global offsets.
             if (placeId == _layoutRequestedFor) return;
-            _status = "Подгружается соседнее поселение… прежняя геометрия сохранена.";
+            _status = "Впереди открывается новое поселение…";
             if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
             _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
@@ -6490,7 +6584,7 @@ namespace Pogranichye.Client
                     _layoutRequestedFor = null;
                     _layoutFailedFor = null;
                     _layoutRetryAfter = 0f;
-                    _status = "Поселение загружено: " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : placeId);
+                    _status = "Ты прибыл в " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : "новое поселение") + ".";
                 });
             }
             catch (Exception exception)
