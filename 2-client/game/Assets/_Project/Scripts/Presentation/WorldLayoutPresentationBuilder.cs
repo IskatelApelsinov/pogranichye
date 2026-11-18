@@ -1615,7 +1615,7 @@ namespace Pogranichye.Client.Presentation
         // Server convention: facing is the outward cardinal direction (0 east, 90 north,
         // 180 west, 270 south). Prefer it over coordinate inference; coordinates remain
         // a safe fallback for older/partial layouts with a non-cardinal facing value.
-        internal static int ResolveServerDoorSide(WorldRectFrame building)
+        public static int ResolveServerDoorSide(WorldRectFrame building)
         {
             if (building == null || building.Door == null) return 0;
             var facing = Mathf.Repeat((float)building.Door.Facing, 360f);
