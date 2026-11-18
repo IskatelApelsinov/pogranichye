@@ -2319,18 +2319,18 @@ namespace Pogranichye.Client
             // The horse saddle is at roughly 1.68 m. Keep the rider's pelvis above it and
             // the torso/head clear of the horse body; the old pose put the torso inside the mount.
             _riderVisualRoot.localPosition = Vector3.zero;
-            _riderBody.localPosition = new Vector3(0f, 2.05f, -0.02f);
+            _riderBody.localPosition = new Vector3(0f, 2.25f, -0.02f);
             _riderBody.localRotation = Quaternion.Euler(7f, 0f, 0f);
-            _riderHead.localPosition = new Vector3(0f, 2.72f, 0.02f);
+            _riderHead.localPosition = new Vector3(0f, 2.92f, 0.02f);
             _riderHead.localRotation = Quaternion.Euler(-4f, 0f, 0f);
-            _riderLeftArm.localPosition = new Vector3(-0.34f, 1.98f, 0.25f);
-            _riderRightArm.localPosition = new Vector3(0.34f, 1.98f, 0.25f);
+            _riderLeftArm.localPosition = new Vector3(-0.34f, 2.15f, 0.25f);
+            _riderRightArm.localPosition = new Vector3(0.34f, 2.15f, 0.25f);
             _riderLeftArm.localRotation = Quaternion.Euler(42f, 0f, -8f);
             _riderRightArm.localRotation = Quaternion.Euler(42f, 0f, 8f);
-            _riderLeftLeg.localPosition = new Vector3(-0.28f, 1.42f, -0.02f);
-            _riderRightLeg.localPosition = new Vector3(0.28f, 1.42f, -0.02f);
-            _riderLeftLeg.localRotation = Quaternion.Euler(78f, 0f, -18f);
-            _riderRightLeg.localRotation = Quaternion.Euler(78f, 0f, 18f);
+            _riderLeftLeg.localPosition = new Vector3(-0.28f, 1.55f, -0.02f);
+            _riderRightLeg.localPosition = new Vector3(0.28f, 1.55f, -0.02f);
+            _riderLeftLeg.localRotation = Quaternion.Euler(0f, 0f, 58f);
+            _riderRightLeg.localRotation = Quaternion.Euler(0f, 0f, -58f);
         }
 
         private void LateUpdate()
