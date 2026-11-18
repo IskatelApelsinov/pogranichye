@@ -172,7 +172,6 @@ namespace Pogranichye.Client.Presentation
             var neighbors = frame.Place?.Neighbors;
             if (neighbors != null)
             {
-                var visibleCount = 0;
                 // The server currently advertises at most 24 AOI neighbors. Keep this
                 // client-side ceiling too, so malformed/future oversized snapshots cannot
                 // instantiate an unbounded number of animated GameObjects and colliders.
@@ -320,7 +319,6 @@ namespace Pogranichye.Client.Presentation
                     var npcIdentity = view.GetComponent<WorldNpc>();
                     if (npcIdentity != null)
                         npcIdentity.SetServerIdentity(neighbor.Known, neighbor.Name, neighbor.Description);
-                    visibleCount++;
                 }
             }
 
