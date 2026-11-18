@@ -87,6 +87,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
+      - '2-client/game/Tests/test_shop_catalog_source.py'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
       - '2-client/game/Tests/GatherNodePresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayStatusView.cs'
@@ -163,6 +164,10 @@ jobs:
           unzip -q "$RUNNER_TEMP/newtonsoft/newtonsoft.json.nupkg" -d "$RUNNER_TEMP/newtonsoft"
           test -f "$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           echo "MONO_PATH=$RUNNER_TEMP/newtonsoft/lib/net45" >> "$GITHUB_ENV"
+      - name: Server-authoritative shop catalogue source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_shop_catalog_source.py'
+
       - name: Localization catalog regression checks
         working-directory: 2-client/game
         run: |
