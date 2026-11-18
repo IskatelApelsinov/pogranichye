@@ -4589,6 +4589,7 @@ namespace Pogranichye.Client
                 return;
             }
 
+            SetServerResponseToast(outcome);
             if (label == DialogueRequestLabel)
                 _talkFeedback = outcome == RequestGate.Outcome.Accepted
                     ? "Реплика принята сервером."
@@ -4620,11 +4621,6 @@ namespace Pogranichye.Client
                         ? "Сервер отклонил действие: " + reason
                         : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
 
-            if (label == DialogueRequestLabel ||
-                (label != null && (label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal) ||
-                    label.StartsWith(InventoryRequestLabelPrefix, StringComparison.Ordinal) ||
-                    label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))))
-                SetServerResponseToast(outcome);
         }
 
         private void SetServerResponseToast(RequestGate.Outcome outcome)
