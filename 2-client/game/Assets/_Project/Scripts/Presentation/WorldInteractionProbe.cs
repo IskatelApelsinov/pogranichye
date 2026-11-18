@@ -10,9 +10,9 @@ namespace Pogranichye.Client.Presentation
     [RequireComponent(typeof(Camera))]
     public sealed class WorldInteractionProbe : MonoBehaviour
     {
-        [FormerlySerializedAs("_interactRange")]
+        [FormerlySerializedAs("interactRange")]
         [SerializeField] private float _interactRange = 3.2f;
-        [FormerlySerializedAs("_aimAssistRadius")]
+        [FormerlySerializedAs("aimAssistRadius")]
         [SerializeField] private float _aimAssistRadius = 0.18f;
         private const int HitCapacity = 32;
         private readonly RaycastHit[] _hits = new RaycastHit[HitCapacity];
