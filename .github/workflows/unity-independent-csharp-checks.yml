@@ -51,11 +51,15 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPositionProjection.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldSpacePresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs'
+      - '2-client/game/Tests/WorldInteriorLightingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/VillageSoundscape.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldWindowAperturePolicy.cs'
+      - '2-client/game/Tests/WorldWindowAperturePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
       - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
       - '2-client/art-source/textures/**'
@@ -86,6 +90,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/LocalizationCatalog.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientLocalization.cs'
       - '2-client/game/Tests/LocalizationCatalogCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAudioEventPolicy.cs'
+      - '2-client/game/Tests/WorldAudioEventPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventDebugState.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
@@ -121,6 +127,8 @@ on:
       - '2-client/game/Tests/WorldMapViewportPolicyCheck.cs'
       - '2-client/game/Tests/MovementIntentQueuePolicyCheck.cs'
       - '2-client/game/Tests/NpcActivitySoundPolicyCheck.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/SocialActivityPresentationPolicy.cs'
+      - '2-client/game/Tests/SocialActivityPresentationPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ActivityAnimationPolicy.cs'
       - '2-client/game/Tests/ActivityAnimationPolicyCheck.cs'
       - '2-client/game/Tests/PoiPositionPolicyCheck.cs'
@@ -193,11 +201,23 @@ jobs:
           mcs -out:/tmp/activity-animation-policy.exe Tests/ActivityAnimationPolicyCheck.cs Assets/_Project/Scripts/Presentation/ActivityAnimationPolicy.cs
           mono /tmp/activity-animation-policy.exe
 
+      - name: Server-driven social drink gesture regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/social-activity-presentation.exe Tests/SocialActivityPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/SocialActivityPresentationPolicy.cs
+          mono /tmp/social-activity-presentation.exe
+
       - name: NPC activity sound mapping regression checks
         working-directory: 2-client/game
         run: |
           mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
           mono /tmp/npc-activity-sound.exe
+      - name: Confirmed action audio event regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-audio-event.exe Tests/WorldAudioEventPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldAudioEventPolicy.cs
+          mono /tmp/world-audio-event.exe
+
       - name: Drink presentation event regression checks
         working-directory: 2-client/game
         run: |
@@ -411,6 +431,12 @@ jobs:
           mcs -out:/tmp/world-ambient-palette.exe Tests/WorldAmbientPaletteCheck.cs Assets/_Project/Scripts/Presentation/WorldAmbientPalette.cs
           mono /tmp/world-ambient-palette.exe
 
+      - name: Server-authored tavern interior light placement regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-interior-lighting.exe Tests/WorldInteriorLightingPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs
+          mono /tmp/world-interior-lighting.exe
+
       - name: World clock smoothing regression checks
         working-directory: 2-client/game
         run: |
@@ -447,6 +473,12 @@ jobs:
         run: |
           mcs -out:/tmp/world-building-presentation.exe Tests/WorldBuildingPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs
           mono /tmp/world-building-presentation.exe
+
+      - name: Daylight window aperture geometry regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-window-aperture.exe Tests/WorldWindowAperturePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldWindowAperturePolicy.cs
+          mono /tmp/world-window-aperture.exe
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
