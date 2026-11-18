@@ -235,7 +235,7 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             long value;
             if (token == null || token.Type != JTokenType.Integer ||
-                !long.TryParse(token.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
+                !JsonNumberReader.TryReadInt64(token, out value) ||
                 value < int.MinValue || value > int.MaxValue || (nonNegative && value < 0))
                 throw new FormatException(path + "." + key + " должен быть целым числом в диапазоне int32.");
         }
