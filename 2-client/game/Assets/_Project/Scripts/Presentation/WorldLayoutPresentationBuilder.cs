@@ -101,7 +101,7 @@ namespace Pogranichye.Client.Presentation
                     var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
                         b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
                     if (b.Door != null)
-                        BuildTavernWallColliders(world, b, width, depth, obstructionHeight);
+                        BuildServerDoorWallColliders(world, b, width, depth, obstructionHeight);
                     else
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
@@ -1550,12 +1550,12 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
+        private static void BuildServerDoorWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
         {
             // Door position on the actual server wall determines the opening side.
             var centerX = (float)((building.X0 + building.X1) * 0.5f);
             var centerZ = (float)((building.Y0 + building.Y1) * 0.5f);
-            var side = GetTavernDoorSide(building);
+            var side = ResolveServerDoorSide(building);
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
             var offset = horizontal ? (float)building.Door.X - centerX : (float)building.Door.Y - centerZ;
@@ -1563,16 +1563,16 @@ namespace Pogranichye.Client.Presentation
             offset = Mathf.Clamp(offset, -axisLength * 0.5f + opening * 0.5f, axisLength * 0.5f - opening * 0.5f);
 
             var centerY = wallHeight * 0.5f;
-            if (side != 0) AddWallCollider(parent, "Server south wall", new Vector3(centerX, centerY, centerZ - depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f));
-            if (side != 1) AddWallCollider(parent, "Server north wall", new Vector3(centerX, centerY, centerZ + depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f));
-            if (side != 2) AddWallCollider(parent, "Server west wall", new Vector3(centerX - width * 0.5f + 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
-            if (side != 3) AddWallCollider(parent, "Server east wall", new Vector3(centerX + width * 0.5f - 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
+            if (side != 0) AddWallCollider(parent, "Server building south wall", new Vector3(centerX, centerY, centerZ - depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 1) AddWallCollider(parent, "Server building north wall", new Vector3(centerX, centerY, centerZ + depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f));
+            if (side != 2) AddWallCollider(parent, "Server building west wall", new Vector3(centerX - width * 0.5f + 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
+            if (side != 3) AddWallCollider(parent, "Server building east wall", new Vector3(centerX + width * 0.5f - 0.12f, centerY, centerZ), new Vector3(0.24f, wallHeight, depth));
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
-            AddTavernDoorColliderSegment(parent, "Server door wall left", side, centerX, centerZ, width, depth, wallHeight, left,
+            AddServerDoorColliderSegment(parent, "Server building door wall left", side, centerX, centerZ, width, depth, wallHeight, left,
                 -axisLength * 0.5f + left * 0.5f);
-            AddTavernDoorColliderSegment(parent, "Server door wall right", side, centerX, centerZ, width, depth, wallHeight, right,
+            AddServerDoorColliderSegment(parent, "Server building door wall right", side, centerX, centerZ, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f);
 
             // Keep the wall above the actual door opening solid, including on multi-storey facades.
@@ -1591,11 +1591,11 @@ namespace Pogranichye.Client.Presentation
                 var lintelSize = horizontal
                     ? new Vector3(opening, lintelHeight, 0.24f)
                     : new Vector3(0.24f, lintelHeight, opening);
-                AddWallCollider(parent, "Server door lintel", lintelPosition, lintelSize);
+                AddWallCollider(parent, "Server building door lintel", lintelPosition, lintelSize);
             }
         }
 
-        private static void AddTavernDoorColliderSegment(Transform parent, string name, int side,
+        private static void AddServerDoorColliderSegment(Transform parent, string name, int side,
             float centerX, float centerZ, float width, float depth, float wallHeight, float segmentLength, float axisPosition)
         {
             if (segmentLength <= 0.05f) return;
@@ -1612,9 +1612,17 @@ namespace Pogranichye.Client.Presentation
             AddWallCollider(parent, name, position, size);
         }
 
-        private static int GetTavernDoorSide(WorldRectFrame building)
+        // Server convention: facing is the outward cardinal direction (0 east, 90 north,
+        // 180 west, 270 south). Prefer it over coordinate inference; coordinates remain
+        // a safe fallback for older/partial layouts with a non-cardinal facing value.
+        public static int ResolveServerDoorSide(WorldRectFrame building)
         {
             if (building == null || building.Door == null) return 0;
+            var facing = Mathf.Repeat((float)building.Door.Facing, 360f);
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 0f)) < 1f) return 3;   // east wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 90f)) < 1f) return 1;  // north wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 180f)) < 1f) return 2; // west wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 270f)) < 1f) return 0; // south wall
             var south = Math.Abs(building.Door.Y - building.Y0);
             var north = Math.Abs(building.Door.Y - building.Y1);
             var west = Math.Abs(building.Door.X - building.X0);
@@ -1636,7 +1644,7 @@ namespace Pogranichye.Client.Presentation
             wall.AddComponent<BoxCollider>().size = size;
         }
 
-        private static void BuildTavernHorizontalBeam(Transform root, string name, float z,
+        private static void BuildServerDoorHorizontalBeam(Transform root, string name, float z,
             float width, float y, bool hasDoorGap, float doorOffset, float opening)
         {
             if (!hasDoorGap)
@@ -1657,25 +1665,25 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(right, 0.16f, 0.32f), _trunk, false);
         }
 
-        private static void BuildTavernDoorFacade(Transform root, float width, float depth, float wallHeight,
+        private static void BuildServerDoorFacade(Transform root, float width, float depth, float wallHeight,
             int side, float offset, float opening, Material wall)
         {
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
-            if (side != 0) Create("Tavern south wall", PrimitiveType.Cube, root,
+            if (side != 0) Create("Server building south wall", PrimitiveType.Cube, root,
                 new Vector3(0f, wallHeight * 0.5f, -depth * 0.5f + 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 1) Create("Tavern north wall", PrimitiveType.Cube, root,
+            if (side != 1) Create("Server building north wall", PrimitiveType.Cube, root,
                 new Vector3(0f, wallHeight * 0.5f, depth * 0.5f - 0.12f), new Vector3(width, wallHeight, 0.24f), wall, false);
-            if (side != 2) Create("Tavern west wall", PrimitiveType.Cube, root,
+            if (side != 2) Create("Server building west wall", PrimitiveType.Cube, root,
                 new Vector3(-width * 0.5f + 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
-            if (side != 3) Create("Tavern east wall", PrimitiveType.Cube, root,
+            if (side != 3) Create("Server building east wall", PrimitiveType.Cube, root,
                 new Vector3(width * 0.5f - 0.12f, wallHeight * 0.5f, 0f), new Vector3(0.24f, wallHeight, depth), wall, false);
 
             var left = axisLength * 0.5f + offset - opening * 0.5f;
             var right = axisLength * 0.5f - offset - opening * 0.5f;
-            AddTavernDoorVisualSegment(root, "Tavern door wall left", side, width, depth, wallHeight, left,
+            AddServerDoorVisualSegment(root, "Server building door wall left", side, width, depth, wallHeight, left,
                 -axisLength * 0.5f + left * 0.5f, wall);
-            AddTavernDoorVisualSegment(root, "Tavern door wall right", side, width, depth, wallHeight, right,
+            AddServerDoorVisualSegment(root, "Server building door wall right", side, width, depth, wallHeight, right,
                 offset + opening * 0.5f + right * 0.5f, wall);
 
             for (var end = -1; end <= 1; end += 2)
@@ -1688,7 +1696,7 @@ namespace Pogranichye.Client.Presentation
                         : side == 2
                             ? new Vector3(-width * 0.5f + 0.12f, 1.12f, axisPosition)
                             : new Vector3(width * 0.5f - 0.12f, 1.12f, axisPosition);
-                Create("Tavern door jamb", PrimitiveType.Cube, root, jambPosition,
+                Create("Server building door jamb", PrimitiveType.Cube, root, jambPosition,
                     horizontal ? new Vector3(0.16f, 2.24f, 0.28f) : new Vector3(0.28f, 2.24f, 0.16f), _trunk, false);
             }
             var lintelPosition = side == 0
@@ -1699,14 +1707,14 @@ namespace Pogranichye.Client.Presentation
                         ? new Vector3(-width * 0.5f + 0.12f, wallHeight - 0.16f, offset)
                         : new Vector3(width * 0.5f - 0.12f, wallHeight - 0.16f, offset);
             var infillHeight = Mathf.Max(0.1f, wallHeight - 2.24f);
-            Create("Tavern door upper infill", PrimitiveType.Cube, root,
+            Create("Server building door upper infill", PrimitiveType.Cube, root,
                 new Vector3(lintelPosition.x, 2.24f + infillHeight * 0.5f, lintelPosition.z),
                 horizontal ? new Vector3(opening, infillHeight, 0.24f) : new Vector3(0.24f, infillHeight, opening), wall, false);
-            Create("Tavern doorway lintel", PrimitiveType.Cube, root, lintelPosition,
+            Create("Server building doorway lintel", PrimitiveType.Cube, root, lintelPosition,
                 horizontal ? new Vector3(opening + 0.25f, 0.32f, 0.28f) : new Vector3(0.28f, 0.32f, opening + 0.25f), _trunk, false);
         }
 
-        private static void AddTavernDoorVisualSegment(Transform root, string name, int side, float width,
+        private static void AddServerDoorVisualSegment(Transform root, string name, int side, float width,
             float depth, float wallHeight, float segmentLength, float axisPosition, Material wall)
         {
             if (segmentLength <= 0.05f) return;
@@ -1751,7 +1759,7 @@ namespace Pogranichye.Client.Presentation
             // Only server-authored doors may open a facade. Closed footprints stay visually closed.
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
                 (isMarket ? width * 0.28f : 0f);
-            var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
+            var doorSide = hasDoor ? ResolveServerDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
                 ? (doorSide == 0 || doorSide == 1 ? (float)building.Door.X - center.x : (float)building.Door.Y - center.z)
@@ -1761,7 +1769,7 @@ namespace Pogranichye.Client.Presentation
 
             if (hasDoor)
             {
-                BuildTavernDoorFacade(root, width, depth, wallHeight, doorSide, doorOffset, opening, wall);
+                BuildServerDoorFacade(root, width, depth, wallHeight, doorSide, doorOffset, opening, wall);
             }
             else if (isMarket)
             {
@@ -1808,9 +1816,9 @@ namespace Pogranichye.Client.Presentation
             for (var y = 0; y < facadeStoreys; y++)
             {
                 var beamY = Mathf.Min(wallHeight - 0.28f, 0.72f + y * 3.2f);
-                BuildTavernHorizontalBeam(root, "Front horizontal timber beam",
+                BuildServerDoorHorizontalBeam(root, "Front horizontal timber beam",
                     -depth * 0.5f + 0.02f, width, beamY, hasDoor && doorSide == 0, doorOffset, opening);
-                BuildTavernHorizontalBeam(root, "Rear horizontal timber beam",
+                BuildServerDoorHorizontalBeam(root, "Rear horizontal timber beam",
                     depth * 0.5f - 0.02f, width, beamY, hasDoor && doorSide == 1, doorOffset, opening);
             }
 
