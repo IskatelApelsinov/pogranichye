@@ -107,7 +107,7 @@ namespace Pogranichye.Client.Networking
             var token = obj[key];
             long value;
             if (token == null || token.Type != JTokenType.Integer ||
-                !long.TryParse(token.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
+                !JsonNumberReader.TryReadInt64(token, out value) ||
                 value < 0 || value > int.MaxValue)
                 throw new FormatException(path + "." + key + " должен быть неотрицательным int32.");
         }
@@ -120,7 +120,7 @@ namespace Pogranichye.Client.Networking
             {
                 long value;
                 if (property.Value.Type != JTokenType.Integer ||
-                    !long.TryParse(property.Value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ||
+                    !JsonNumberReader.TryReadInt64(property.Value, out value) ||
                     value < 0 || value > int.MaxValue)
                     throw new FormatException(path + "." + key + "." + property.Name + " должен быть неотрицательным int32.");
             }
