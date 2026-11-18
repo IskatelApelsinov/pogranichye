@@ -52,7 +52,7 @@ namespace Pogranichye.Client
         private SettlementLayoutCache _layoutCache;
         private string _login = "";
         private string _password = "";
-        private string _status = ClientLocalization.Get("login.credentials", "Введите данные для входа.");
+        private string _status;
         private bool _showMainSettings;
         private int _settingsTab = 2;
         private Vector2 _mainMenuScroll;
@@ -261,6 +261,8 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
+            // Unity forbids PlayerPrefs access from MonoBehaviour field initializers/constructors.
+            _status = ClientLocalization.Get("login.credentials", "Введите данные для входа.");
             _voiceChat = GetComponent<VoiceChatController>();
             if (_voiceChat == null) _voiceChat = gameObject.AddComponent<VoiceChatController>();
             _input = GetComponent<ClientInput>();
