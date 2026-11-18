@@ -18,6 +18,12 @@ public static class LocalizationCatalogCheck
                 "RTL notice missing: " + locale);
             Require(LocalizationCatalog.CultureFor(locale) != null,
                 "culture mapping missing: " + locale);
+            Require(!string.IsNullOrWhiteSpace(LocalizationCatalog.Get(locale, "status.action_ok")),
+                "success feedback missing: " + locale);
+            Require(!string.IsNullOrWhiteSpace(LocalizationCatalog.Get(locale, "status.action_failed")),
+                "failure feedback missing: " + locale);
+            Require(!string.IsNullOrWhiteSpace(LocalizationCatalog.Get(locale, "status.action_wait")),
+                "timeout feedback missing: " + locale);
         }
 
         Require(LocalizationCatalog.Get("en", "settings.title") == "Settings", "English lookup failed");
