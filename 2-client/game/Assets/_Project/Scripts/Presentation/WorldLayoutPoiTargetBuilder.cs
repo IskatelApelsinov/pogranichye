@@ -46,6 +46,10 @@ namespace Pogranichye.Client.Presentation
                     descriptorTargetsBuilt++;
                 }
 
+                // The server counter is a separate interior interaction point. It is derived
+                // from the server tavern footprint using the same centre geometry as BuyBeer.
+                BuildTavernCounterTarget(root, layout);
+
                 // A partial/unknown descriptor list must not disable known legacy POIs.
                 if (descriptorTargetsBuilt > 0) return;
             }
@@ -79,6 +83,43 @@ namespace Pogranichye.Client.Presentation
                 var poi = target.AddComponent<WorldPoi>();
                 poi.Initialize(interaction.Title, interaction.Goal, null, Color.clear, interaction.ActionIntent,
                     null, null, true, null, "poi", interaction.Id);
+            }
+
+            BuildTavernCounterTarget(root, layout);
+        }
+
+        private static void BuildTavernCounterTarget(Transform root, WorldLayoutFrame layout)
+        {
+            if (root == null || layout == null || layout.Buildings == null)
+                return;
+
+            foreach (var building in layout.Buildings)
+            {
+                if (building == null ||
+                    !string.Equals(building.BuildingId, "tavern", System.StringComparison.Ordinal) ||
+                    !IsFinite(building.X0) || !IsFinite(building.X1) ||
+                    !IsFinite(building.Y0) || !IsFinite(building.Y1) ||
+                    building.X1 <= building.X0 || building.Y1 <= building.Y0)
+                    continue;
+
+                // Server Layout.TavernCounter() returns the tavern footprint centre.
+                // This target adds an E affordance there; the server still validates the
+                // exact 2.2 m purchase radius from place.tavern_counter.
+                var target = new GameObject("E interaction target • tavern counter");
+                target.transform.SetParent(root, false);
+                target.transform.localPosition = new Vector3(
+                    (float)((building.X0 + building.X1) * 0.5d), 0.9f,
+                    (float)((building.Y0 + building.Y1) * 0.5d));
+
+                var hitArea = target.AddComponent<SphereCollider>();
+                hitArea.radius = 1.25f;
+                hitArea.isTrigger = true;
+
+                var poi = target.AddComponent<WorldPoi>();
+                poi.Initialize("Стойка корчмы", null, null, Color.clear, null,
+                    null, "Открыть меню корчмы и заказать пиво", true, null,
+                    "tavern", "tavern_counter");
+                return;
             }
         }
 
