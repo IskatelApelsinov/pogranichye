@@ -22,7 +22,7 @@
 Создана ветка `fix/input-event-budget-unlimited-20261118` и PR [#768](https://github.com/IskatelApelsinov/pogranichye/pull/768).
 
 - `ClientInput.cs`: конечный лимит теперь поднимается минимум до 8 MiB до включения Input Actions; нулевое/unlimited и более высокое значение проекта сохраняются. Поле переименовано в `_maxInputEventBytes` с `FormerlySerializedAs` для сохранения старых сериализованных значений.
-- `InputEventBudgetPolicy.cs`: отдельная чистая политика разрешения лимита.
+- `InputEventBudgetPolicy.cs`: отдельная чистая политика разрешения лимита. Сохраняется только документированный `0 = unlimited`; отрицательное (некорректное) значение нормализуется до безопасного конечного минимума 8 MiB.
 - F3 input diagnostics: показывают фактический бюджет (`8 MiB`, большее конечное значение или `unlimited`).
 - `InputEventBudgetPolicyCheck.cs`: 9 проверок граничных значений.
 - `test_input_event_budget_wiring.py`: 3 source-level проверки, что политика применяется до включения action map и диагностическое значение подключено.
@@ -32,8 +32,8 @@
 
 ## Проверка и ограничения
 
-- Diff PR #768 просмотрен целиком; сравнение с main: 9 коммитов впереди, 0 позади, 8 изменённых файлов.
-- На момент записи GitHub не опубликовал workflow run/check-run для PR #768; статус CI поэтому **не подтверждён**, тесты нельзя считать прошедшими.
+- Diff PR #768 просмотрен целиком; ветка основана на актуальном main `4ab0bce578baa429c657fa6e22276ac02c13a46b`. Ветка содержит дополнительную нормализацию отрицательного лимита и тест. PR остаётся открытым, mergeability GitHub пока сообщает `unknown`; merge не выполнялся.
+- GitHub Actions `Unity-independent C# checks`, run #810 (`44382557509`) на итоговом head `6ca781fc2240914b2b0b23243d5d33319bce20ac`: **SUCCESS**. Прошли policy checks, включая отрицательное значение, и source-wiring checks.
 - В этом окружении нет `mcs`, `mono` или `dotnet`; C# regression executable локально не запускался.
 - Unity Editor 6000.6.7f1, Play Mode и физическое HID-устройство не запускались. Ручная приёмка вынесена в task_human/012.
 
