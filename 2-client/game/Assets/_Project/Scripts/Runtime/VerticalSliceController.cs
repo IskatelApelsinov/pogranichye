@@ -3493,11 +3493,7 @@ namespace Pogranichye.Client
                 return;
             }
             _status = "Ожидаю подтверждения сервера: " + action + "…";
-            if (action == "cast" || action == "weave")
-            {
-                _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null ? _views.PlayerTransform.position : transform.position);
-                _audioDirector?.Magic();
-            }
+            // Action SFX is played only after the matching server result is accepted.
             var gesture = action == "chop" ? "chop" : action == "fish" ? "fish_reel" : action;
             _views?.PlayPlayerActionGesture(gesture);
         }
@@ -4532,6 +4528,13 @@ namespace Pogranichye.Client
                         ? "Сервер отклонил действие с предметом: " + reason
                         : "Нет подтверждения сервера на действие с предметом. Можно попробовать ещё раз.";
 
+            if (WorldAudioEventPolicy.ShouldPlayMagic(label, outcome == RequestGate.Outcome.Accepted))
+            {
+                _audioDirector?.SetPlayerPosition(_views?.PlayerTransform != null
+                    ? _views.PlayerTransform.position : transform.position);
+                _audioDirector?.Magic();
+            }
+
             if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
                     ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": сервер подтвердил."
@@ -5478,9 +5481,7 @@ namespace Pogranichye.Client
             _movementServerFacingDebug = (float)_frame.Me.Position.Facing;
 
             var moving = worldMove.sqrMagnitude > 0.001f;
-            // Do not play a generic impact on raw mouse/key input. Weapon-specific SFX
-            // will be triggered only from a server-confirmed combat outcome.
-            if (_input != null && _input.WeavePressed) _audioDirector?.Magic();
+            // Combat and weave sounds are driven by confirmed results, never raw input.
             var runRequested = moving && _input != null && (_input.JogHeld || _input.SprintHeld);
             var fastRequested = runRequested && _input != null && _input.SprintHeld;
             var movementProfile = _worldManifest != null ? _worldManifest.Movement : null;
