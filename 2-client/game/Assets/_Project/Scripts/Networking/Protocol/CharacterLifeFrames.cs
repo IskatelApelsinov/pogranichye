@@ -95,11 +95,11 @@ namespace Pogranichye.Client.Networking.Protocol
             var obj = token as JObject;
             if (obj == null) throw new FormatException(path + " должен быть объектом или null.");
             RequireFiniteNumber(obj["energy"], path + ".energy");
-            // Older/mixed server builds may send per_hour as JSON null. The rate is
-            // presentation metadata; default to a neutral rate instead of rejecting the whole frame.
-            if (obj["per_hour"] == null || obj["per_hour"].Type == JTokenType.Null)
+            // per_hour is presentation-only metadata. Mixed/older server builds may
+            // send null, NaN/Infinity, or a non-numeric value; never discard the whole
+            // world frame because this optional rate is malformed.
+            if (!IsFiniteNumber(obj["per_hour"]))
                 obj["per_hour"] = 0d;
-            RequireFiniteNumber(obj["per_hour"], path + ".per_hour");
             ValidateOptionalString(obj["why"], path + ".why");
             ValidateStringArray(obj["tips"], path + ".tips");
             ValidateOptionalNumber(obj["full_in_hours"], path + ".full_in_hours");
@@ -129,6 +129,15 @@ namespace Pogranichye.Client.Networking.Protocol
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
                 throw new FormatException(path + " должен быть строкой или null.");
+        }
+
+        private static bool IsFiniteNumber(JToken token)
+        {
+            double value;
+            return token != null &&
+                (token.Type == JTokenType.Integer || token.Type == JTokenType.Float) &&
+                double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
+                !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
         private static void ValidateOptionalNumber(JToken token, string path)
