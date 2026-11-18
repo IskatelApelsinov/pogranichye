@@ -449,6 +449,27 @@ namespace Pogranichye.Client.Editor
             if (!Pogranichye.Client.Networking.WorldLayoutCompatibilityPolicy.HasRequiredPois("grid", cityPoiIds))
                 throw new FormatException("v1.33 grid city POI compatibility policy rejected the city layout.");
 
+            // v1.34: public building doors use the existing additive DTO, without implying interiors.
+            const string doorsJson = "{\\"version\\":2,\\"plan\\":\\"grid\\",\\"buildings\\":[" +
+                "{\\"kind\\":\\"smithy\\",\\"x0\\":0,\\"y0\\":0,\\"x1\\":12,\\"y1\\":10,\\"door\\":{\\"x\\":6,\\"y\\":0,\\"facing\\":270,\\"width\\":1.6}}," +
+                "{\\"kind\\":\\"bazaar\\",\\"x0\\":20,\\"y0\\":0,\\"x1\\":32,\\"y1\\":10,\\"door\\":{\\"x\\":26,\\"y\\":10,\\"facing\\":90,\\"width\\":1.8}}," +
+                "{\\"kind\\":\\"granary\\",\\"x0\\":40,\\"y0\\":0,\\"x1\\":52,\\"y1\\":10,\\"door\\":{\\"x\\":40,\\"y\\":5,\\"facing\\":180,\\"width\\":1.5}}," +
+                "{\\"kind\\":\\"inn\\",\\"x0\\":60,\\"y0\\":0,\\"x1\\":72,\\"y1\\":10,\\"door\\":{\\"x\\":72,\\"y\\":5,\\"facing\\":0,\\"width\\":2.0}}]}";
+            var doorsLayout = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldLayoutFrame>(doorsJson);
+            if (doorsLayout?.Buildings == null || doorsLayout.Buildings.Count != 4)
+                throw new FormatException("v1.34 public building door DTO list did not deserialize.");
+            var expectedDoorSides = new[] { 0, 1, 2, 3 };
+            for (var doorIndex = 0; doorIndex < doorsLayout.Buildings.Count; doorIndex++)
+            {
+                var building = doorsLayout.Buildings[doorIndex];
+                if (building.Door == null || building.Door.Width < 1.2d || building.Door.Width > 2.4d)
+                    throw new FormatException("v1.34 public building door must retain its server width.");
+                if (WorldLayoutPresentationBuilder.ResolveServerDoorSide(building) != expectedDoorSides[doorIndex])
+                    throw new FormatException("v1.34 door facing must resolve to the matching south/north/west/east wall.");
+                if (building.BuildingId != null || building.Room != null || building.InteriorId != null)
+                    throw new FormatException("A public v1.34 door must not imply building/room/interior identity.");
+            }
+
             const string worldJson = "{\"scheme\":\"yof-tangent\",\"v\":1,\"units\":\"m\",\"chunk_m\":256,\"layer_m\":64,\"settlements\":[{\"id\":\"7\",\"frame\":0,\"e\":0,\"n\":0,\"u\":0,\"bandit_lair\":true}]}";
             var world = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldManifestFrame>(worldJson);
             if (world?.Settlements == null || world.Settlements.Count != 1 || !world.Settlements[0].BanditLair)
