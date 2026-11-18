@@ -52,7 +52,7 @@ namespace Pogranichye.Client
         private SettlementLayoutCache _layoutCache;
         private string _login = "";
         private string _password = "";
-        private string _status = "Введите учётные данные сервера.";
+        private string _status = ClientLocalization.Get("login.credentials", "Введите учётные данные сервера.");
         private bool _showMainSettings;
         private int _settingsTab = 2;
         private Vector2 _mainMenuScroll;
@@ -2883,11 +2883,39 @@ namespace Pogranichye.Client
 
         private void DrawSettingsTab()
         {
-            GUILayout.Label("НАСТРОЙКИ");
+            GUILayout.Label(ClientLocalization.Get("settings.title", "НАСТРОЙКИ"));
             DrawOptionsControls();
             GUILayout.Space(8f);
             if (GUILayout.Button("Сбросить настройки", GUILayout.Height(32f)))
                 ResetSettingsToDefaults();
+        }
+
+        private void DrawLanguageSettings()
+        {
+            GUILayout.Label(ClientLocalization.Get("settings.language_title", "Язык текста"));
+            var locales = Pogranichye.Client.Presentation.LocalizationCatalog.SupportedLocales;
+            var labels = new string[locales.Length];
+            var selected = 0;
+            for (var i = 0; i < locales.Length; i++)
+            {
+                labels[i] = ClientLocalization.LocaleName(locales[i]);
+                if (string.Equals(locales[i], ClientLocalization.Locale, StringComparison.Ordinal))
+                    selected = i;
+            }
+
+            var next = GUILayout.SelectionGrid(selected, labels, 2, GUILayout.MinHeight(36f));
+            if (next >= 0 && next < locales.Length && next != selected)
+            {
+                ClientLocalization.SetLocale(locales[next]);
+                _status = ClientLocalization.Get("settings.language_changed", "Язык изменён.");
+                GUIUtility.ExitGUI();
+            }
+
+            GUILayout.Space(6f);
+            GUILayout.Label(ClientLocalization.Get("settings.language_hint", "Язык сохраняется на этом устройстве. Часть старых надписей пока остаётся на русском."));
+            if (ClientLocalization.IsRightToLeft)
+                GUILayout.Label("العربية · RTL layout and full shaping support are still being completed.");
+            GUILayout.Label(ClientLocalization.Get("settings.language_restart", "Некоторые изменения текста появятся после повторного открытия окна."));
         }
 
         private void ResetSettingsToDefaults()
@@ -2943,18 +2971,24 @@ namespace Pogranichye.Client
         private void DrawOptionsControls()
         {
             GUILayout.BeginHorizontal();
-            DrawSettingsTabButton("ЗВУК", 0);
-            DrawSettingsTabButton("ГРАФИКА", 1);
-            DrawSettingsTabButton("УПРАВЛЕНИЕ", 2);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.sound", "ЗВУК"), 0);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.graphics", "ГРАФИКА"), 1);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.controls", "УПРАВЛЕНИЕ"), 2);
+            DrawSettingsTabButton(ClientLocalization.Get("settings.language", "ЯЗЫК"), 3);
             GUILayout.EndHorizontal();
             GUILayout.Space(8f);
+            if (_settingsTab == 3)
+            {
+                DrawLanguageSettings();
+                return;
+            }
 
             if (_settingsTab == 0)
             {
                 GUILayout.Label("ЗВУК");
-                DrawVolumeSlider("Общая громкость", ref _masterVolume, "Pogranichye.MasterVolume");
-                DrawVolumeSlider("Эффекты: шаги, бой, магия", ref _sfxVolume, "Pogranichye.SfxVolume");
-                DrawVolumeSlider("Окружение: ветер, птицы, вода, костёр", ref _ambienceVolume, "Pogranichye.AmbienceVolume");
+                DrawVolumeSlider(ClientLocalization.Get("settings.master_volume", "Общая громкость"), ref _masterVolume, "Pogranichye.MasterVolume");
+                DrawVolumeSlider(ClientLocalization.Get("settings.effects_volume", "Эффекты: шаги, бой, магия"), ref _sfxVolume, "Pogranichye.SfxVolume");
+                DrawVolumeSlider(ClientLocalization.Get("settings.ambience_volume", "Окружение: ветер, птицы, вода, костёр"), ref _ambienceVolume, "Pogranichye.AmbienceVolume");
                 _audioDirector?.SetVolumes(_sfxVolume, _ambienceVolume);
                 _villageSoundscape?.SetAmbienceVolume(_ambienceVolume);
             }
