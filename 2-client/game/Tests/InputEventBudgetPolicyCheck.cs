@@ -32,8 +32,8 @@ internal static class InputEventBudgetPolicyCheck
             "a larger project-level budget must never be reduced");
         Require(InputEventBudgetPolicy.Resolve(5000000, 12582912) == 12582912,
             "an explicitly configured higher minimum must be respected");
-        Require(InputEventBudgetPolicy.Resolve(-1, 8388608) == -1,
-            "non-positive sentinels must not be rewritten");
+        Require(InputEventBudgetPolicy.Resolve(-1, 8388608) == 8388608,
+            "a negative invalid budget must be normalized to the safe finite minimum");
 
         Console.WriteLine("InputEventBudgetPolicy: " + _assertions + " checks passed");
         return 0;
