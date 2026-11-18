@@ -124,7 +124,7 @@ namespace Pogranichye.Client
         }
 
         // Mirror of Layout v2 POI anchors (metres, server x/y). Only used to decide which actions the
-        // "Дела" window offers; the server validates the real position for every intent.
+        // The activity window offers intents; the server validates the actual position for every intent.
         // Legacy starter-layout anchors are used only when no server POI map is available.
         private static readonly Dictionary<string, PoiCoordinate> Poi = new Dictionary<string, PoiCoordinate>
         {
@@ -2656,7 +2656,7 @@ namespace Pogranichye.Client
             if (_menuOpen || _weaveOpen || _me == null) return;
 
             // Show one concise action at the point of work; the server still validates every intent.
-            // The full activity list remains available in the Дела window.
+            // The full activity list remains available in the Activities window.
             string title = null;
             string primaryLabel = null;
             string primaryAction = null;
