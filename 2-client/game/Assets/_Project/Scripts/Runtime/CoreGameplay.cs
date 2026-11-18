@@ -1378,7 +1378,7 @@ namespace Pogranichye.Client
                     }
                     rec.Target = new Vector3((float)foe.X, 0f, (float)foe.Y);
                     rec.Yaw = EntityViewRegistry.FacingToUnityYaw((float)foe.Facing);
-                    rec.Health = (float)foe.Health;
+                    rec.Health = (float)foe.Hp;
                     rec.MaxHealth = Mathf.Max(1f, (float)foe.Max);
                     rec.Aware = foe.Aware;
                     rec.State = foe.State ?? string.Empty;
