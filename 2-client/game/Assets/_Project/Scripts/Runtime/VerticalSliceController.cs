@@ -5506,7 +5506,7 @@ namespace Pogranichye.Client
             if (moving)
                 speed *= ResolveMovementTerrainMultiplier(player.position,
                     new Vector2(worldMove.x, worldMove.z), movementProfile);
-            if (moving) _audioDirector?.Footsteps(canRun);
+            var inputMoveDistanceSquared = 0f;
             var motion = player.GetComponent<EntityMotion>();
             if (motion != null)
                 motion.SetLocomotion(moving ? Mathf.Clamp01(speed / Mathf.Max(0.1f, runSpeed)) : 0f);
@@ -5529,6 +5529,7 @@ namespace Pogranichye.Client
                 // Preserve the last known elevation until a server height sample is available.
                 // Resetting Y to zero every frame made the terrain appear to sink while moving.
                 player.position = new Vector3(flat.x, player.position.y, flat.y);
+                inputMoveDistanceSquared = (new Vector2(player.position.x, player.position.z) - origin).sqrMagnitude;
 
                 if (!_firstPerson)
                 {
@@ -5540,6 +5541,9 @@ namespace Pogranichye.Client
 
             ApplyMovementCorrection(player);
             ApplyTerrainGrounding(player);
+            // A blocked wall/doorway should not produce footsteps just because movement was held.
+            if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared))
+                _audioDirector?.Footsteps(canRun);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
             if (_moveSendAccumulator < Mathf.Max(0.02f, moveSendInterval))
