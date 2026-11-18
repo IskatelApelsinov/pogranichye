@@ -42,6 +42,8 @@ namespace Pogranichye.Client
         public bool SprintHeld => _sprint.IsPressed();
         public bool JogHeld => _jog.IsPressed();
         public bool InteractPressed => _interact.WasPressedThisFrame();
+        public bool InteractHeld => _interact.IsPressed();
+        public bool InteractReleased => _interact.WasReleasedThisFrame();
         public bool ToggleHudPressed => _toggleHud.WasPressedThisFrame();
         public bool ToggleDiagnosticsPressed => _toggleDiagnostics.WasPressedThisFrame();
         public bool ToggleFullscreenPressed => _toggleFullscreen.WasPressedThisFrame();
