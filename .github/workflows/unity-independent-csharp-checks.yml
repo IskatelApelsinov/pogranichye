@@ -516,7 +516,7 @@ jobs:
         run: |
           NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
           test -n "$NEWTONSOFT"
-          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs
+          mcs -r:"$NEWTONSOFT" -out:/tmp/character-life-frame.exe Tests/CharacterLifeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/CharacterLifeFrames.cs Assets/_Project/Scripts/Networking/Protocol/JsonNumberReader.cs
           mono /tmp/character-life-frame.exe
       - name: Typed v1.33 land style regression checks
         working-directory: 2-client/game
