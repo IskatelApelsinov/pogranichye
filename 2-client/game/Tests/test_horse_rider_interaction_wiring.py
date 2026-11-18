@@ -15,12 +15,12 @@ class HorseRiderInteractionWiringTests(unittest.TestCase):
         cls.probe = (SCRIPTS / "Presentation/WorldInteractionProbe.cs").read_text(encoding="utf-8")
 
     def test_rider_pose_is_above_saddle(self):
-        self.assertIn('_riderBody.localPosition = new Vector3(0f, 2.05f, -0.02f);', self.core)
-        self.assertIn('_riderHead.localPosition = new Vector3(0f, 2.72f, 0.02f);', self.core)
+        self.assertIn('_riderBody.localPosition = new Vector3(0f, 2.25f, -0.02f);', self.core)
+        self.assertIn('_riderHead.localPosition = new Vector3(0f, 2.92f, 0.02f);', self.core)
         self.assertIn('_riderVisualRoot.localPosition = Vector3.zero;', self.core)
 
     def test_mounted_first_person_camera_clears_horse_body(self):
-        self.assertIn('var eyeHeight = _mounted ? 2.55f : 1.62f;', self.camera)
+        self.assertIn('var eyeHeight = _mounted ? 2.78f : 1.62f;', self.camera)
         self.assertIn('public void SetMounted(bool mounted)', self.camera)
         self.assertIn('if (_rig != null) _rig.SetMounted(true);', self.core)
         self.assertIn('if (_rig != null) _rig.SetMounted(false);', self.core)
