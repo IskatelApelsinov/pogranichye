@@ -73,6 +73,7 @@ namespace Pogranichye.Client
         private int _targetFrameRate = 60;
         private WorldAudioDirector _audioDirector;
         private VillageSoundscape _villageSoundscape;
+        // Имена полей намеренно совпадают с ключами JSON: JsonUtility не поддерживает JsonProperty.
         [Serializable] private sealed class ChatEventData
         {
             public string type;
