@@ -1674,12 +1674,12 @@ namespace Pogranichye.Client.Presentation
                 side == 2 ? -width * 0.5f + 0.12f : width * 0.5f - 0.12f;
             var thickness = 0.24f;
 
-            var windowCount = axisLength >= 6.2f ? 2 : 1;
-            var windowWidth = Mathf.Clamp(axisLength * 0.13f, 0.68f, 0.92f);
+            var windowCount = WorldWindowAperturePolicy.ResolveWindowCount(axisLength);
+            var windowWidth = (float)WorldWindowAperturePolicy.ResolveWindowWidth(axisLength);
             var halfWindow = windowWidth * 0.5f;
-            var centers = windowCount == 2
-                ? new[] { -axisLength * 0.24f, axisLength * 0.24f }
-                : new[] { 0f };
+            var centers = new float[windowCount];
+            for (var i = 0; i < centers.Length; i++)
+                centers[i] = (float)WorldWindowAperturePolicy.ResolveWindowCenter(axisLength, windowCount, i);
 
             // Full-height wall piers between apertures.
             var cursor = -halfAxis;
@@ -1696,9 +1696,6 @@ namespace Pogranichye.Client.Presentation
                 halfAxis - cursor, 0f, wallHeight, thickness, wall);
 
             var storeys = WorldBuildingPresentationPolicy.ResolveStoreyCount(wallHeight);
-            const float firstWindowBottom = 1.22f;
-            const float windowHeight = 0.92f;
-            const float floorStep = 3.2f;
             for (var i = 0; i < centers.Length; i++)
             {
                 var center = Mathf.Clamp(centers[i], -halfAxis + halfWindow + 0.08f,
@@ -1706,9 +1703,9 @@ namespace Pogranichye.Client.Presentation
                 var bandStart = 0f;
                 for (var floor = 0; floor < storeys; floor++)
                 {
-                    var bottom = firstWindowBottom + floor * floorStep;
-                    var top = bottom + windowHeight;
-                    if (top > wallHeight - 0.12f) break;
+                    var bottom = (float)WorldWindowAperturePolicy.ResolveWindowBottom(floor);
+                    var top = (float)WorldWindowAperturePolicy.ResolveWindowTop(floor);
+                    if (!WorldWindowAperturePolicy.FitsWall(wallHeight, floor)) break;
                     AddWindowWallPanel(root, side, face, center, windowWidth,
                         bandStart, bottom, thickness, wall);
                     bandStart = top;
