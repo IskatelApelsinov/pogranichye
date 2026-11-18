@@ -17,7 +17,7 @@ namespace Pogranichye.Client.Networking
         public HttpAuthClient(string baseUrl)
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
-                throw new ArgumentException("Адрес сервера не задан.", nameof(baseUrl));
+                throw new ArgumentException("Server address is required.", nameof(baseUrl));
 
             _baseUrl = baseUrl.TrimEnd('/');
         }
@@ -44,7 +44,7 @@ namespace Pogranichye.Client.Networking
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 if (request.result != UnityWebRequest.Result.Success)
-                    throw new InvalidOperationException("Не удалось получить /api/layout: " + request.error);
+                    throw new InvalidOperationException("Failed to fetch /api/layout: " + request.error);
                 var layout = JsonConvert.DeserializeObject<WorldLayoutFrame>(request.downloadHandler.text);
                 if (layout == null || layout.Version != 2 || layout.WorldHalf <= 0 ||
                     layout.Buildings == null || layout.River == null || layout.Pois == null ||
@@ -54,23 +54,23 @@ namespace Pogranichye.Client.Networking
                     !IsFinite(layout.River.Y0) || !IsFinite(layout.River.Y1) ||
                     !IsFinite(layout.River.BridgeX0) || !IsFinite(layout.River.BridgeX1) ||
                     layout.River.Y0 >= layout.River.Y1 || layout.River.BridgeX0 >= layout.River.BridgeX1)
-                    throw new InvalidOperationException("Сервер вернул неподдерживаемую или неполную геометрию Layout v2.");
+                    throw new InvalidOperationException("Server returned an unsupported or incomplete Layout v2 geometry payload.");
 
                 var isGridCity = string.Equals(layout.Plan, "grid", StringComparison.Ordinal);
                 if (!WorldLayoutCompatibilityPolicy.IsSupportedPlan(layout.Plan))
-                    throw new InvalidOperationException("Layout v2 содержит неизвестный план поселения.");
+                    throw new InvalidOperationException("Layout v2 contains an unknown settlement plan.");
                 if (isGridCity && layout.Land == null)
-                    throw new InvalidOperationException("Городская раскладка v1.33 не содержит land metadata.");
+                    throw new InvalidOperationException("City layout v1.33 is missing land metadata.");
                 WorldLandFrameParser.Validate(layout.Land);
 
                 if (!string.IsNullOrEmpty(settlementId) && !string.IsNullOrEmpty(layout.Settlement) &&
                     !string.Equals(settlementId, layout.Settlement, StringComparison.Ordinal))
-                    throw new InvalidOperationException("Сервер вернул раскладку другого поселения.");
+                    throw new InvalidOperationException("Server returned a layout for a different settlement.");
 
                 if (layout.Anchor != null &&
                     (layout.Anchor.Frame < 0 || !IsFinite(layout.Anchor.East) ||
                      !IsFinite(layout.Anchor.North) || !IsFinite(layout.Anchor.Up)))
-                    throw new InvalidOperationException("Layout v2 содержит некорректный глобальный anchor.");
+                    throw new InvalidOperationException("Layout v2 contains an invalid global anchor.");
 
                 foreach (var building in layout.Buildings)
                 {
@@ -82,7 +82,7 @@ namespace Pogranichye.Client.Networking
                         building.Storeys < 0 || building.Storeys > 8 ||
                         !IsFinite(building.HeightMeters) || building.HeightMeters < 0d || building.HeightMeters > 30d ||
                         (isGridCity && (building.Storeys < 2 || building.HeightMeters <= 0d)))
-                        throw new InvalidOperationException("Layout v2 содержит некорректный footprint/этажность здания.");
+                        throw new InvalidOperationException("Layout v2 contains an invalid building footprint or storey count.");
                 }
 
                 if (layout.Zones != null)
@@ -95,7 +95,7 @@ namespace Pogranichye.Client.Networking
                             zone.X0 >= zone.X1 || zone.Y0 >= zone.Y1 ||
                             zone.X0 < -layout.WorldHalf || zone.X1 > layout.WorldHalf ||
                             zone.Y0 < -layout.WorldHalf || zone.Y1 > layout.WorldHalf)
-                            throw new InvalidOperationException("Layout v2 содержит некорректную природную зону.");
+                            throw new InvalidOperationException("Layout v2 contains an invalid natural zone.");
                     }
                 }
 
@@ -109,7 +109,7 @@ namespace Pogranichye.Client.Networking
                             Math.Abs(road[0]) > layout.WorldHalf || Math.Abs(road[1]) > layout.WorldHalf ||
                             Math.Abs(road[2]) > layout.WorldHalf || Math.Abs(road[3]) > layout.WorldHalf ||
                             (Math.Abs(road[0] - road[2]) < 0.001 && Math.Abs(road[1] - road[3]) < 0.001))
-                            throw new InvalidOperationException("Layout v2 содержит некорректный сегмент дороги.");
+                            throw new InvalidOperationException("Layout v2 contains an invalid road segment.");
                     }
                 }
 
@@ -117,18 +117,18 @@ namespace Pogranichye.Client.Networking
                     foreach (var home in layout.Homes)
                         if (home == null || !IsFinite(home.X) || !IsFinite(home.Y) ||
                             Math.Abs(home.X) > layout.WorldHalf || Math.Abs(home.Y) > layout.WorldHalf)
-                            throw new InvalidOperationException("Layout v2 содержит некорректную точку дома.");
+                            throw new InvalidOperationException("Layout v2 contains an invalid home location.");
 
                 if (layout.Entry != null &&
                     (!IsFinite(layout.Entry.X) || !IsFinite(layout.Entry.Y) ||
                      Math.Abs(layout.Entry.X) > layout.WorldHalf || Math.Abs(layout.Entry.Y) > layout.WorldHalf))
-                    throw new InvalidOperationException("Layout v2 содержит некорректную точку входа.");
+                    throw new InvalidOperationException("Layout v2 contains an invalid spawn point.");
 
                 foreach (var poi in layout.Pois)
                     if (string.IsNullOrWhiteSpace(poi.Key) || poi.Value == null ||
                         !IsFinite(poi.Value.X) || !IsFinite(poi.Value.Y) ||
                         Math.Abs(poi.Value.X) > layout.WorldHalf || Math.Abs(poi.Value.Y) > layout.WorldHalf)
-                        throw new InvalidOperationException("Layout v2 содержит некорректную точку интереса.");
+                        throw new InvalidOperationException("Layout v2 contains an invalid point of interest.");
 
                 return layout;
             }
@@ -145,24 +145,24 @@ namespace Pogranichye.Client.Networking
                 operation.completed += _ => completion.TrySetResult(true);
                 await completion.Task;
                 if (request.result != UnityWebRequest.Result.Success)
-                    throw new InvalidOperationException("Не удалось получить /api/world: " + request.error);
+                    throw new InvalidOperationException("Failed to fetch /api/world: " + request.error);
                 var manifest = JsonConvert.DeserializeObject<WorldManifestFrame>(request.downloadHandler.text);
                 if (manifest == null || manifest.Scheme != "yof-tangent" || manifest.Version != 1 ||
                     manifest.Units != "m" || manifest.ChunkMeters != 256 || manifest.LayerMeters != 64 ||
                     manifest.Frames == null || manifest.Settlements == null || manifest.Roads == null)
-                    throw new InvalidOperationException("Сервер вернул неподдерживаемую карту мира v1.19.");
+                    throw new InvalidOperationException("Server returned an unsupported world map version (v1.19).");
                 var frameIds = new HashSet<int>();
                 foreach (var frame in manifest.Frames)
                 {
                     if (frame == null || frame.Id < 0 || string.IsNullOrWhiteSpace(frame.Projection) ||
                         !IsFinite(frame.OriginLatitude) || !IsFinite(frame.OriginLongitude) ||
                         !IsFinite(frame.RadiusMeters) || frame.RadiusMeters <= 0)
-                        throw new InvalidOperationException("Карта мира содержит некорректный кадр координат.");
+                        throw new InvalidOperationException("World map contains an invalid coordinate frame.");
                     if (!frameIds.Add(frame.Id))
-                        throw new InvalidOperationException("Карта мира содержит повторный frame id.");
+                        throw new InvalidOperationException("World map contains a duplicate frame ID.");
                 }
                 if (!frameIds.Contains(0) || !IsFinite(manifest.RimRadiusMeters) || manifest.RimRadiusMeters <= 0)
-                    throw new InvalidOperationException("Карта мира не содержит корректный основной frame 0 или радиус котла.");
+                    throw new InvalidOperationException("World map is missing a valid primary frame 0 or world rim radius.");
 
                 var settlementIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var settlement in manifest.Settlements)
@@ -171,14 +171,14 @@ namespace Pogranichye.Client.Networking
                         !frameIds.Contains(settlement.Frame) ||
                         !IsFinite(settlement.East) || !IsFinite(settlement.North) ||
                         !IsFinite(settlement.Up) || !IsFinite(settlement.Half) || settlement.Half <= 0)
-                        throw new InvalidOperationException("Карта мира содержит некорректное поселение.");
+                        throw new InvalidOperationException("World map contains an invalid settlement.");
                     if (!settlementIds.Add(settlement.Id))
-                        throw new InvalidOperationException("Карта мира содержит повторный settlement id.");
+                        throw new InvalidOperationException("World map contains a duplicate settlement ID.");
                 }
                 foreach (var road in manifest.Roads)
                     if (road == null || string.IsNullOrWhiteSpace(road.From) ||
                         string.IsNullOrWhiteSpace(road.To) || road.From == road.To)
-                        throw new InvalidOperationException("Карта мира содержит некорректную дорогу.");
+                        throw new InvalidOperationException("World map contains an invalid road.");
 
                 // v1.24–v1.26 are additive: validate these fields when present, but keep older
                 // v1 manifests readable. The server remains authoritative for all movement.
@@ -190,7 +190,7 @@ namespace Pogranichye.Client.Networking
                         if (realm == null || string.IsNullOrWhiteSpace(realm.Id) ||
                             string.IsNullOrWhiteSpace(realm.Name) || !realmIds.Add(realm.Id) ||
                             realm.Size < 0 || realm.Territory == null)
-                            throw new InvalidOperationException("Карта мира содержит некорректную державу.");
+                            throw new InvalidOperationException("World map contains an invalid realm.");
                     }
                 }
                 if (manifest.Caravans != null)
@@ -203,7 +203,7 @@ namespace Pogranichye.Client.Networking
                             !IsFinite(caravan.East) || !IsFinite(caravan.North) || !IsFinite(caravan.Up) ||
                             !IsFinite(caravan.Amount) || !IsFinite(caravan.Progress) ||
                             caravan.Progress < 0d || caravan.Progress > 1d)
-                            throw new InvalidOperationException("Карта мира содержит некорректный обоз.");
+                            throw new InvalidOperationException("World map contains an invalid caravan.");
                     }
                 }
                 if (manifest.Movement != null)
@@ -220,7 +220,7 @@ namespace Pogranichye.Client.Networking
                         !IsFinite(slope.EasyDownBoost) || slope.EasyDownBoost < 1d ||
                         !IsFinite(slope.CliffGrade) || slope.CliffGrade <= 0d ||
                         !IsFinite(slope.FlatRadiusMeters) || slope.FlatRadiusMeters < 0d)
-                        throw new InvalidOperationException("Карта мира содержит некорректный профиль движения.");
+                        throw new InvalidOperationException("World map contains an invalid movement profile.");
                 }
 
                 // Older v1.19 manifests may omit wildsites. When present, validate them strictly:
@@ -239,7 +239,7 @@ namespace Pogranichye.Client.Networking
                             !IsFinite(site.Ground) || !IsFinite(site.Mana) || !IsFinite(site.Danger) ||
                             site.Mana < 0.1 || site.Mana > 3.0 || site.Danger < 0.0 || site.Danger > 1.0 ||
                             site.Up < site.Ground - 30.0 || site.Up > site.Ground + 45.0)
-                            throw new InvalidOperationException("Карта мира содержит некорректное дикое место.");
+                            throw new InvalidOperationException("World map contains an invalid wilderness site.");
                     }
                 }
                 return manifest;
@@ -254,7 +254,7 @@ namespace Pogranichye.Client.Networking
             CancellationToken cancellationToken = default(CancellationToken))
         {
             if (stepMeters != 8 && stepMeters != 16 && stepMeters != 32 && stepMeters != 64)
-                throw new ArgumentOutOfRangeException(nameof(stepMeters), "Шаг рельефа: 8, 16, 32 или 64 м.");
+                throw new ArgumentOutOfRangeException(nameof(stepMeters), "Terrain step must be 8, 16, 32, or 64 meters.");
             var url = _baseUrl + "/api/terrain?cx=" +
                 chunkX.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                 "&cz=" + chunkZ.ToString(System.Globalization.CultureInfo.InvariantCulture) +
@@ -267,11 +267,11 @@ namespace Pogranichye.Client.Networking
                 operation.completed += _ => completion.TrySetResult(true);
                 await completion.Task;
                 if (request.result != UnityWebRequest.Result.Success)
-                    throw new InvalidOperationException("Не удалось получить /api/terrain: " + request.error);
+                    throw new InvalidOperationException("Failed to fetch /api/terrain: " + request.error);
                 var chunk = JsonConvert.DeserializeObject<TerrainChunkFrame>(request.downloadHandler.text);
                 if (chunk == null || !chunk.IsValid || chunk.Chunk[0] != chunkX ||
                     chunk.Chunk[1] != chunkZ || chunk.StepMeters != stepMeters)
-                    throw new InvalidOperationException("Сервер вернул некорректный или неожиданный чанк рельефа.");
+                    throw new InvalidOperationException("Server returned an invalid or unexpected terrain chunk.");
                 return chunk;
             }
         }
@@ -301,11 +301,11 @@ namespace Pogranichye.Client.Networking
                 // A 404 is a supported legacy response; other transport errors remain visible.
                 if (request.responseCode == 404) return null;
                 if (request.result != UnityWebRequest.Result.Success)
-                    throw new InvalidOperationException("Не удалось получить /api/spaces: " + request.error);
+                    throw new InvalidOperationException("Failed to fetch /api/spaces: " + request.error);
                 var spaces = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(request.downloadHandler.text);
                 if (!WorldSpaceDescriptorValidator.IsValid(spaces) ||
                     spaces.Chunk[0] != chunkX || spaces.Chunk[1] != chunkZ)
-                    throw new InvalidOperationException("Сервер вернул некорректные пространственные дескрипторы.");
+                    throw new InvalidOperationException("Server returned invalid space descriptors.");
                 return spaces;
             }
         }
@@ -328,17 +328,17 @@ namespace Pogranichye.Client.Networking
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 if (request.result != UnityWebRequest.Result.Success)
-                    throw new InvalidOperationException("Не удалось получить /api/catalog: " + request.error);
+                    throw new InvalidOperationException("Failed to fetch /api/catalog: " + request.error);
                 JObject catalog;
                 try { catalog = JObject.Parse(request.downloadHandler.text); }
-                catch (JsonException ex) { throw new InvalidOperationException("Каталог предметов повреждён.", ex); }
+                catch (JsonException ex) { throw new InvalidOperationException("Item catalog is malformed.", ex); }
                 if (catalog["v"]?.Value<int>() != 1 ||
                     catalog["items"]?.Type != JTokenType.Array ||
                     catalog["recipes"]?.Type != JTokenType.Array ||
                     catalog["names"]?.Type != JTokenType.Object ||
                     catalog["weave_nodes"]?.Type != JTokenType.Array ||
                     catalog["weave_schemas"]?.Type != JTokenType.Array)
-                    throw new InvalidOperationException("Сервер вернул неподдерживаемую форму /api/catalog v1.");
+                    throw new InvalidOperationException("Server returned an unsupported /api/catalog v1 payload.");
                 return catalog;
             }
         }
@@ -378,7 +378,7 @@ namespace Pogranichye.Client.Networking
                 var responseText = request.downloadHandler?.text;
                 if (string.IsNullOrWhiteSpace(responseText))
                     throw new InvalidOperationException(
-                        $"Сервер вернул пустой ответ ({request.responseCode}): {request.error}");
+                        $"Server returned an empty response ({request.responseCode}): {request.error}");
 
                 AuthResponse response;
                 try
@@ -387,13 +387,13 @@ namespace Pogranichye.Client.Networking
                 }
                 catch (JsonException ex)
                 {
-                    throw new InvalidOperationException("Ответ авторизации не является корректным JSON.", ex);
+                    throw new InvalidOperationException("Authorization response is not valid JSON.", ex);
                 }
 
                 if (request.result != UnityWebRequest.Result.Success && response?.Ok != true)
-                    throw new InvalidOperationException(response?.Message ?? request.error ?? "Ошибка HTTP.");
+                    throw new InvalidOperationException(response?.Message ?? request.error ?? "HTTP error.");
 
-                return response ?? throw new InvalidOperationException("Пустой ответ авторизации.");
+                return response ?? throw new InvalidOperationException("Authorization response is empty.");
             }
         }
     }
