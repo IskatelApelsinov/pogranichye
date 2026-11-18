@@ -2,9 +2,10 @@
 # Task 028 — Qwen: high-effort Unity world presentation and scalability
 
 ## Ownership
-- Primary executor: Qwen (Unity client only)
+- Primary executor: Qwen (Unity client work packages in this task)
+- Go/server work: permitted only through the separate explicit packages in `task_ai/029-qwen-go-server-workstream.md`
 - Integration/review: ChatGPT
-- Server, world simulation, API and wire contract: Claude
+- Overall server architecture owner: Claude
 - Owner acceptance: Kate
 - Working branch: `agent/qwen-unity-workstream`
 - Target: PR from this branch to `main`; never merge without Kate's approval.
@@ -108,7 +109,7 @@ Review `task_ai/025-server-wildlife-and-flora.md` and current terrain/gather DTO
 - Before editing, inspect current `main` and this branch; the task may have been partly implemented since its last note.
 - Keep all technical identifiers (types, methods, properties, fields, locals) in English. Preserve existing JSON wire keys exactly.
 - Respect server authority. Unity is a renderer/input client, not a second simulation.
-- Do not alter Go server code, API schemas, wire contracts, fixtures or ADRs without explicit handoff and agreement with Claude/Kate.
+- Do not alter Go server code under this client task; use task 029 for explicitly assigned Go work. Do not change API schemas, wire contracts, fixtures or ADRs without explicit handoff and agreement with Claude/Kate.
 - Avoid broad refactors. Prefer one coherent feature/fix per PR.
 - Add or extend source-level tests where the repository's Unity-independent workflow can validate the logic.
 - State exact checks run. CI success is not proof of Unity Editor/PlayMode success.
