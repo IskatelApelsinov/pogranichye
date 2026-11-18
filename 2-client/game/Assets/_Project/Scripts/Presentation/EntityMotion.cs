@@ -136,6 +136,8 @@ namespace Pogranichye.Client.Presentation
         /// Unknown or missing codes intentionally fall back to neutral idle.
         /// Never infer animation from goal text or localized outcome prose.
         /// </summary>
+        public bool IsServerDrinking => _activity == "drink";
+
         public void SetActivityCode(string activityCode)
         {
             var previousActivity = _activity;
