@@ -182,7 +182,7 @@ jobs:
       - name: Server-driven social drink gesture regression checks
         working-directory: 2-client/game
         run: |
-          mcs -out:/tmp/social-activity-presentation.exe Tests/SocialActivityPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/SocialActivityPresentationPolicy.cs Assets/_Project/Scripts/Presentation/ActivityAnimationPolicy.cs
+          mcs -out:/tmp/social-activity-presentation.exe Tests/SocialActivityPresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/SocialActivityPresentationPolicy.cs
           mono /tmp/social-activity-presentation.exe
 
       - name: NPC activity sound mapping regression checks
