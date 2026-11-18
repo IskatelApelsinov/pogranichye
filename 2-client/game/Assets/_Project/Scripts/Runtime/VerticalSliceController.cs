@@ -2914,7 +2914,7 @@ namespace Pogranichye.Client
             GUILayout.Space(6f);
             GUILayout.Label(ClientLocalization.Get("settings.language_hint", "Язык сохраняется на этом устройстве. Часть старых надписей пока остаётся на русском."));
             if (ClientLocalization.IsRightToLeft)
-                GUILayout.Label("العربية · RTL layout and full shaping support are still being completed.");
+                GUILayout.Label(ClientLocalization.Get("settings.rtl_pending", "Для арабского письма ещё настраивается направление текста."));
             GUILayout.Label(ClientLocalization.Get("settings.language_restart", "Некоторые изменения текста появятся после повторного открытия окна."));
         }
 
