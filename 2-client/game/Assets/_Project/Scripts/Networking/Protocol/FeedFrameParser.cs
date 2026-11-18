@@ -28,7 +28,7 @@ namespace Pogranichye.Client.Networking
             if (token == null || token.Type == JTokenType.Null) return;
             var items = token as JArray;
             if (items == null)
-                throw new FormatException(fieldName + " должен быть массивом или null.");
+                throw new FormatException(fieldName + " must be an array or null.");
 
             long previousSequence = 0;
             for (var i = 0; i < items.Count; i++)
@@ -36,22 +36,22 @@ namespace Pogranichye.Client.Networking
                 var item = items[i] as JObject;
                 var itemPath = fieldName + "[" + i + "]";
                 if (item == null)
-                    throw new FormatException(itemPath + " должен быть объектом.");
+                    throw new FormatException(itemPath + " must be an object.");
 
                 var sequenceToken = item["seq"];
                 long sequence;
                 if (sequenceToken == null || sequenceToken.Type != JTokenType.Integer ||
                     !long.TryParse(sequenceToken.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sequence) ||
                     sequence <= previousSequence)
-                    throw new FormatException(itemPath + ".seq должен быть положительным строго возрастающим int64.");
+                    throw new FormatException(itemPath + ".seq must be a positive, strictly increasing int64.");
                 previousSequence = sequence;
 
                 var kind = item["kind"];
                 if (kind == null || kind.Type != JTokenType.String || string.IsNullOrWhiteSpace(kind.Value<string>()))
-                    throw new FormatException(itemPath + ".kind должен быть непустой строкой.");
+                    throw new FormatException(itemPath + ".kind must be a non-empty string.");
                 var text = item["text"];
                 if (text == null || text.Type != JTokenType.String)
-                    throw new FormatException(itemPath + ".text должен быть строкой.");
+                    throw new FormatException(itemPath + ".text must be a string.");
 
                 ValidateOptionalString(item["foe"], itemPath + ".foe");
                 ValidateOptionalString(item["part"], itemPath + ".part");
@@ -60,11 +60,11 @@ namespace Pogranichye.Client.Networking
                 if (damageToken != null && damageToken.Type != JTokenType.Null)
                 {
                     if (damageToken.Type != JTokenType.Integer && damageToken.Type != JTokenType.Float)
-                        throw new FormatException(itemPath + ".dmg должен быть числом.");
+                        throw new FormatException(itemPath + ".dmg must be a number.");
                     var damage = damageToken.Value<double>();
                     if (double.IsNaN(damage) || double.IsInfinity(damage) ||
                         damage < 0d || damage > float.MaxValue)
-                        throw new FormatException(itemPath + ".dmg должен быть конечным неотрицательным числом в диапазоне float.");
+                        throw new FormatException(itemPath + ".dmg must be a finite non-negative number within the float range.");
                 }
             }
         }
@@ -79,14 +79,14 @@ namespace Pogranichye.Client.Networking
             }
             catch (JsonException ex)
             {
-                throw new FormatException("Не удалось преобразовать " + fieldName + " в типизированные события.", ex);
+                throw new FormatException("Failed to convert " + fieldName + " to typed feed entries.", ex);
             }
         }
 
         private static void ValidateOptionalString(JToken token, string fieldName)
         {
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.String)
-                throw new FormatException(fieldName + " должен быть строкой или null.");
+                throw new FormatException(fieldName + " must be a string or null.");
         }
     }
 }
