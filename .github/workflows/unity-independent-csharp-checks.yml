@@ -165,7 +165,7 @@ jobs:
           echo "MONO_PATH=$RUNNER_TEMP/newtonsoft/lib/net45" >> "$GITHUB_ENV"
       - name: Server-authoritative shop catalogue source checks
         working-directory: 2-client/game
-        run: python3 -m unittest Tests.test_shop_catalog_source
+        run: python3 -m unittest discover -s Tests -p 'test_shop_catalog_source.py'
 
       - name: Localization catalog regression checks
         working-directory: 2-client/game
