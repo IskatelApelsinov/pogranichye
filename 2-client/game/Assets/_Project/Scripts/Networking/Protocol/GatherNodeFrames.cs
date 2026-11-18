@@ -88,8 +88,15 @@ namespace Pogranichye.Client.Networking.Protocol
             value = 0d;
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 return false;
-            return double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
-                !double.IsNaN(value) && !double.IsInfinity(value);
+            try
+            {
+                value = token.Value<double>();
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }
