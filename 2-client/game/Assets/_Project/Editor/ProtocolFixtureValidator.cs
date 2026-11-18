@@ -450,11 +450,11 @@ namespace Pogranichye.Client.Editor
                 throw new FormatException("v1.33 grid city POI compatibility policy rejected the city layout.");
 
             // v1.34: public building doors use the existing additive DTO, without implying interiors.
-            const string doorsJson = "{\\"version\\":2,\\"plan\\":\\"grid\\",\\"buildings\\":[" +
-                "{\\"kind\\":\\"smithy\\",\\"x0\\":0,\\"y0\\":0,\\"x1\\":12,\\"y1\\":10,\\"door\\":{\\"x\\":6,\\"y\\":0,\\"facing\\":270,\\"width\\":1.6}}," +
-                "{\\"kind\\":\\"bazaar\\",\\"x0\\":20,\\"y0\\":0,\\"x1\\":32,\\"y1\\":10,\\"door\\":{\\"x\\":26,\\"y\\":10,\\"facing\\":90,\\"width\\":1.8}}," +
-                "{\\"kind\\":\\"granary\\",\\"x0\\":40,\\"y0\\":0,\\"x1\\":52,\\"y1\\":10,\\"door\\":{\\"x\\":40,\\"y\\":5,\\"facing\\":180,\\"width\\":1.5}}," +
-                "{\\"kind\\":\\"inn\\",\\"x0\\":60,\\"y0\\":0,\\"x1\\":72,\\"y1\\":10,\\"door\\":{\\"x\\":72,\\"y\\":5,\\"facing\\":0,\\"width\\":2.0}}]}";
+            const string doorsJson = "{\"version\":2,\"plan\":\"grid\",\"buildings\":[" +
+                "{\"kind\":\"smithy\",\"x0\":0,\"y0\":0,\"x1\":12,\"y1\":10,\"door\":{\"x\":6,\"y\":0,\"facing\":270,\"width\":1.6}}," +
+                "{\"kind\":\"bazaar\",\"x0\":20,\"y0\":0,\"x1\":32,\"y1\":10,\"door\":{\"x\":26,\"y\":10,\"facing\":90,\"width\":1.8}}," +
+                "{\"kind\":\"granary\",\"x0\":40,\"y0\":0,\"x1\":52,\"y1\":10,\"door\":{\"x\":40,\"y\":5,\"facing\":180,\"width\":1.5}}," +
+                "{\"kind\":\"inn\",\"x0\":60,\"y0\":0,\"x1\":72,\"y1\":10,\"door\":{\"x\":72,\"y\":5,\"facing\":0,\"width\":2.0}}]}";
             var doorsLayout = Newtonsoft.Json.JsonConvert.DeserializeObject<WorldLayoutFrame>(doorsJson);
             if (doorsLayout?.Buildings == null || doorsLayout.Buildings.Count != 4)
                 throw new FormatException("v1.34 public building door DTO list did not deserialize.");
