@@ -143,7 +143,7 @@ namespace Pogranichye.Client
                 try { _actions.LoadBindingOverridesFromJson(savedOverrides); }
                 catch (Exception exception)
                 {
-                    Debug.LogWarning("Failed to load input binding overrides; defaults will be used: " + exception.Message);
+                    Debug.LogWarning("Не удалось загрузить переназначение клавиш; используются стандартные: " + exception.Message);
                     PlayerPrefs.DeleteKey(BindingOverridesPrefsKey);
                 }
             }
