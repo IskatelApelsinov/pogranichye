@@ -52,7 +52,7 @@ namespace Pogranichye.Client
         private SettlementLayoutCache _layoutCache;
         private string _login = "";
         private string _password = "";
-        private string _status = ClientLocalization.Get("login.credentials", "Введите учётные данные сервера.");
+        private string _status = ClientLocalization.Get("login.credentials", "Введите данные для входа.");
         private bool _showMainSettings;
         private int _settingsTab = 2;
         private Vector2 _mainMenuScroll;
@@ -1445,7 +1445,7 @@ namespace Pogranichye.Client
                 _status = "Не удалось отправить режим жизни. Дождитесь ответа на предыдущее действие.";
                 return;
             }
-            _status = "Ожидаю подтверждения сервера: режим жизни «" + label + "»…";
+            _status = "Выбираем занятие: «" + label + "»…";
         }
 
         private void DrawInventoryTab()
@@ -4584,7 +4584,7 @@ namespace Pogranichye.Client
                 }
                 else
                 {
-                    _talkFeedback = "Сервер подтвердил обращение к жителю.";
+                    _talkFeedback = "Житель готов говорить.";
                 }
                 return;
             }
@@ -4592,7 +4592,7 @@ namespace Pogranichye.Client
             SetServerResponseToast(outcome);
             if (label == DialogueRequestLabel)
                 _talkFeedback = outcome == RequestGate.Outcome.Accepted
-                    ? "Реплика принята сервером."
+                    ? "Житель услышал тебя."
                     : "Ответ жителя не принят: " + reason;
 
             if (label != null && label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal))
@@ -4601,25 +4601,25 @@ namespace Pogranichye.Client
                 // Invite/accept/decline ACKs are not drinking events. Audio is triggered
                 // separately by EntityViewRegistry only when the server publishes a drink transition.
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(DrinkRequestLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие с кружкой: " + reason
-                        : "Нет подтверждения сервера на действие с кружкой. Можно попробовать ещё раз.";
+                        ? "Не удалось выпить: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
             }
 
             if (label != null && label.StartsWith(InventoryRequestLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(InventoryRequestLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(InventoryRequestLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие с предметом: " + reason
-                        : "Нет подтверждения сервера на действие с предметом. Можно попробовать ещё раз.";
+                        ? "Не удалось использовать вещь: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
 
             if (label != null && label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))
                 _status = outcome == RequestGate.Outcome.Accepted
-                    ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": сервер подтвердил."
+                    ? label.Substring(WorldActionLabelPrefix.Length).Trim() + ": готово."
                     : outcome == RequestGate.Outcome.Rejected
-                        ? "Сервер отклонил действие: " + reason
-                        : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
+                        ? "Не удалось выполнить: " + reason
+                        : "Ответа пока нет. Попробуй ещё раз.";
 
         }
 
@@ -4931,7 +4931,7 @@ namespace Pogranichye.Client
                 _activityPrimaryAction = poi.ActionIntent;
                 _activityPanelOpen = true;
                 CollapseHudForContextWindow();
-                _status = "Открыты действия: " + poi.Title + ". Результат каждого действия подтвердит сервер.";
+                _status = "Здесь можно: " + poi.Title + ". Дождись, чем закончится дело.";
                 return;
             }
 
@@ -4940,7 +4940,7 @@ namespace Pogranichye.Client
             // only when their target ID has a supported v1 action/horse mapping.
             if (!string.IsNullOrEmpty(poi.InteractionId))
             {
-                _status = "Эта точка пока не поддерживает серверное действие.";
+                _status = "Здесь пока нечем заняться.";
                 return;
             }
 
@@ -4952,7 +4952,7 @@ namespace Pogranichye.Client
 
             // E is for an immediate interaction at this place. Long-lived character goals
             // are configured only from the character UI, never as a side effect of touching a POI.
-            _status = "Для этой точки пока нет отдельного действия. Долгосрочные приоритеты задаются в разделе персонажа.";
+            _status = "Здесь пока нет особого занятия. Долгосрочные дела выбираются в разделе персонажа.";
         }
 
         private void CollapseHudForContextWindow()
@@ -4997,7 +4997,7 @@ namespace Pogranichye.Client
             if (npc == null) return;
             if (_connectionState != WorldConnectionState.Active)
             {
-                _status = "Подключитесь к миру, чтобы обратиться к жителю.";
+                _status = "Сначала вернись в мир, а потом заговори с жителем.";
                 return;
             }
 
@@ -5011,7 +5011,7 @@ namespace Pogranichye.Client
             _talkConfirmationTimedOut = false;
             _talkFeedback = "Запрос отправлен. Ожидаю кадр сервера с разговором именно с этим жителем.";
             QueueTalk(targetId, requestSerial);
-            _status = "Обращаюсь к жителю. Жду ответ сервера и доступные реплики.";
+            _status = "Подожди немного — житель собирается с ответом.";
         }
 
         private async Task RegisterAsync()
@@ -5170,7 +5170,7 @@ namespace Pogranichye.Client
                         return;
 
                     _connectionState = WorldConnectionState.AwaitingSnapshot;
-                    _status = "WebSocket подключён. Ожидаю первый полный кадр…";
+                    _status = "Связь установлена. Мир просыпается…";
                 });
             }
             catch (Exception ex)
@@ -5211,7 +5211,7 @@ namespace Pogranichye.Client
             _views.Clear();
             if (_cameraRig != null) _cameraRig.SetTarget(null);
             socket.Dispose();
-            _status = "Связь закрыта: " + reason;
+            _status = "Связь прервалась: " + reason;
         }
 
         private void OnSocketMessage(WorldSocketClient socket, string json)
@@ -6535,7 +6535,7 @@ namespace Pogranichye.Client
 
             _layoutCache?.Update(frame); // Keep nearby cached settlements at their true global offsets.
             if (placeId == _layoutRequestedFor) return;
-            _status = "Подгружается соседнее поселение… прежняя геометрия сохранена.";
+            _status = "Впереди открывается новое поселение…";
             if (_layoutFailedFor == placeId && Time.unscaledTime < _layoutRetryAfter) return;
             _layoutRequestedFor = placeId;
             _ = ReloadLayoutAsync(placeId, _layoutRequestGeneration);
@@ -6584,7 +6584,7 @@ namespace Pogranichye.Client
                     _layoutRequestedFor = null;
                     _layoutFailedFor = null;
                     _layoutRetryAfter = 0f;
-                    _status = "Поселение загружено: " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : placeId);
+                    _status = "Ты прибыл в " + (_frame != null && _frame.Place != null && !string.IsNullOrEmpty(_frame.Place.Name) ? _frame.Place.Name : "новое поселение") + ".";
                 });
             }
             catch (Exception exception)
