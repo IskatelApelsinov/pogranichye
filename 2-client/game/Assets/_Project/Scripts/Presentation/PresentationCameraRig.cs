@@ -6,36 +6,36 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Presentation-only hybrid camera. It never changes authoritative world position.</summary>
     public sealed class PresentationCameraRig : MonoBehaviour
     {
-        [FormerlySerializedAs("_offset")]
+        [FormerlySerializedAs("offset")]
         [SerializeField] private Vector3 _offset = new Vector3(0, 22, -28);
-        [FormerlySerializedAs("_followSharpness")]
+        [FormerlySerializedAs("followSharpness")]
         [SerializeField] private float _followSharpness = 5f;
         // Raw mouse delta is measured in pixels per frame; a restrained default avoids
         // excessive rotation on high-DPI mice.
-        [FormerlySerializedAs("_mouseSensitivity")]
+        [FormerlySerializedAs("mouseSensitivity")]
         [SerializeField] private float _mouseSensitivity = 0.035f;
-        [FormerlySerializedAs("_thirdPersonMinPitch")]
+        [FormerlySerializedAs("thirdPersonMinPitch")]
         [SerializeField] private float _thirdPersonMinPitch = 18f;
-        [FormerlySerializedAs("_thirdPersonMaxPitch")]
+        [FormerlySerializedAs("thirdPersonMaxPitch")]
         [SerializeField] private float _thirdPersonMaxPitch = 62f;
-        [FormerlySerializedAs("_zoomSpeed")]
+        [FormerlySerializedAs("zoomSpeed")]
         [SerializeField] private float _zoomSpeed = 5f;
-        [FormerlySerializedAs("_minZoomDistance")]
+        [FormerlySerializedAs("minZoomDistance")]
         [SerializeField] private float _minZoomDistance = 8f;
-        [FormerlySerializedAs("_maxZoomDistance")]
+        [FormerlySerializedAs("maxZoomDistance")]
         [SerializeField] private float _maxZoomDistance = 110f;
-        [FormerlySerializedAs("_collisionRadius")]
+        [FormerlySerializedAs("collisionRadius")]
         [SerializeField] private float _collisionRadius = 0.22f;
         [Header("First-person feel")]
-        [FormerlySerializedAs("_headBobAmplitude")]
+        [FormerlySerializedAs("headBobAmplitude")]
         [SerializeField] private float _headBobAmplitude = 0.035f;
-        [FormerlySerializedAs("_headBobSideAmplitude")]
+        [FormerlySerializedAs("headBobSideAmplitude")]
         [SerializeField] private float _headBobSideAmplitude = 0.012f;
-        [FormerlySerializedAs("_headBobFrequency")]
+        [FormerlySerializedAs("headBobFrequency")]
         [SerializeField] private float _headBobFrequency = 9f;
-        [FormerlySerializedAs("_sprintFieldOfViewBoost")]
+        [FormerlySerializedAs("sprintFieldOfViewBoost")]
         [SerializeField] private float _sprintFieldOfViewBoost = 3f;
-        [FormerlySerializedAs("_fieldOfViewSharpness")]
+        [FormerlySerializedAs("fieldOfViewSharpness")]
         [SerializeField] private float _fieldOfViewSharpness = 7f;
         private Camera _camera;
         private float _baseFarClipPlane = 1000f;
