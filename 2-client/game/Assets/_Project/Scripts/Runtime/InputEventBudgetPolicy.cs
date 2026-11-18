@@ -12,10 +12,11 @@ namespace Pogranichye.Client
 
         public static int Resolve(int currentBytesPerUpdate, int configuredMinimumBytesPerUpdate)
         {
-            // Unity Input System uses zero to disable the per-update byte limit.
-            // Preserve non-positive sentinels rather than silently enabling a finite cap.
-            if (currentBytesPerUpdate <= 0)
-                return currentBytesPerUpdate;
+            // Unity Input System uses exactly zero to disable the per-update byte limit.
+            // Negative values are invalid, not an unlimited sentinel, so normalize them
+            // to the safe finite minimum instead of preserving a broken configuration.
+            if (currentBytesPerUpdate == 0)
+                return 0;
 
             var requestedMinimum = Math.Max(
                 MinimumSafeBytesPerUpdate,
