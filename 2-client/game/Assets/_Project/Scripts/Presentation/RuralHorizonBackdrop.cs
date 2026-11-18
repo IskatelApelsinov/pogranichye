@@ -17,13 +17,13 @@ namespace Pogranichye.Client.Presentation
             "South", "SouthWest", "West", "NorthWest"
         };
 
-        [FormerlySerializedAs("_radius")]
+        [FormerlySerializedAs("radius")]
         [SerializeField] private float _radius = 178f;
-        [FormerlySerializedAs("_bottom")]
+        [FormerlySerializedAs("bottom")]
         [SerializeField] private float _bottom = -8f;
-        [FormerlySerializedAs("_top")]
+        [FormerlySerializedAs("top")]
         [SerializeField] private float _top = 48f;
-        [FormerlySerializedAs("_cameraFollowHeight")]
+        [FormerlySerializedAs("cameraFollowHeight")]
         [SerializeField] private float _cameraFollowHeight = 0f;
         private Transform _cameraTransform;
         private Transform _ring;
