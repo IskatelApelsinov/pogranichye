@@ -709,6 +709,8 @@ namespace Pogranichye.Client.Networking.Protocol
         [JsonProperty("roads")] public List<TerrainPathFeatureFrame> Roads { get; set; }
         [JsonProperty("resources")] public List<TerrainResourceHintFrame> Resources { get; set; }
         [JsonProperty("wild")] public List<TerrainWildHintFrame> Wild { get; set; }
+        // v1.30 server-owned gather nodes from /api/terrain; optional on legacy servers.
+        [JsonProperty("gather")] public List<TerrainGatherNodeFrame> Gather { get; set; }
         public bool IsValid
         {
             get
