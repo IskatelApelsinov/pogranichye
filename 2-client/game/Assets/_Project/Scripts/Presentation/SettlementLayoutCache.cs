@@ -92,7 +92,7 @@ namespace Pogranichye.Client.Presentation
             {
                 WorldLayoutPresentationBuilder.Cleanup(root);
                 UnityEngine.Object.Destroy(root.gameObject);
-                Debug.LogWarning("Не удалось собрать кэш поселения " + settlementId + ": " + exception.Message);
+                Debug.LogWarning("Failed to build settlement cache for " + settlementId + ": " + exception.Message);
                 return false;
             }
         }
