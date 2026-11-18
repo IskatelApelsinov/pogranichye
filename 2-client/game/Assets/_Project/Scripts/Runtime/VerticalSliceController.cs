@@ -36,7 +36,7 @@ namespace Pogranichye.Client
             Developer
         }
 
-        [FormerlySerializedAs("_serverUrl")]
+        [FormerlySerializedAs("serverUrl")]
         [SerializeField] private string _serverUrl = "http://127.0.0.1:8090";
         private readonly ConcurrentQueue<Action> _mainThread = new ConcurrentQueue<Action>();
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
@@ -226,7 +226,7 @@ namespace Pogranichye.Client
         private string _lastJournalAction;
         private string _lastJournalTaskSignature;
         private string _lastJournalResultId;
-        [FormerlySerializedAs("_moveSendInterval")]
+        [FormerlySerializedAs("moveSendInterval")]
         [SerializeField] private float _moveSendInterval = 0.05f;
         private float _moveSendAccumulator;
         private float _lastMoveSentAt;
