@@ -7,7 +7,7 @@ ChatGPT has started the first Unity localization slice in branch `feat/client-lo
 - deterministic lookup with Russian fallback and caller-authored fallback (never show localization keys);
 - device-local locale preference;
 - language selector in Unity settings;
-- first localized settings/login/status strings;
+- first localized settings and login strings; status/reason keys are catalogued but not yet wired to every server response;
 - pure C# regression test and CI step.
 
 This is intentionally a foundation, not a claim that the whole client is translated. Current UI still contains a large amount of hard-coded Russian text. The selector explicitly tells players that some older text remains untranslated. Arabic strings are present, but complete RTL layout, bidi and shaping are not yet accepted; don't mark Arabic as production-complete until tested with proper fonts and layout.
