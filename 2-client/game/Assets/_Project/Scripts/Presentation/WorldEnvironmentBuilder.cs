@@ -1059,7 +1059,7 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Presentation-only day/night palette cycle; later it can consume authoritative server time.</summary>
     public sealed class WorldAtmosphereCycle : MonoBehaviour
     {
-        [FormerlySerializedAs("_visualDayLengthSeconds")]
+        [FormerlySerializedAs("visualDayLengthSeconds")]
         [SerializeField] private float _visualDayLengthSeconds = 720f;
         private Material _sky;
         private Material _stars;
