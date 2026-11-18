@@ -113,10 +113,20 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void RequireNumber(JToken token, string path)
         {
             double value;
-            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value))
-                throw new FormatException(path + " должен быть конечным числом.");
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
+                throw new FormatException(path + " must be a finite number.");
+
+            try
+            {
+                value = token.Value<double>();
+            }
+            catch (Exception ex)
+            {
+                throw new FormatException(path + " must be a finite number.", ex);
+            }
+
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new FormatException(path + " must be a finite number.");
         }
     }
 }
