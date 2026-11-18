@@ -1,0 +1,23 @@
+{
+  "name": "Pogranichye hand-laid weathered rye thatch",
+  "availability": "pending",
+  "version": 1,
+  "resolution": [1024, 1024],
+  "tileable": true,
+  "source": "2-client/art-source/textures/thatch_roof_source.jpg",
+  "builder": "2-client/art-source/textures/build_thatch_roof_material.py",
+  "maps": {
+    "albedo": "thatch_roof_albedo.png",
+    "normal": "thatch_roof_normal.png",
+    "roughness": "thatch_roof_roughness.png",
+    "ao": "thatch_roof_ao.png"
+  },
+  "normal": { "space": "tangent", "green_channel": "positive_y" },
+  "urp": {
+    "smoothness": "1 - roughness",
+    "smoothness_storage": "linear alpha channel of _BaseMap; _SmoothnessTextureChannel = 1",
+    "metallic": 0.0,
+    "wrap": "Repeat",
+    "mipmaps": true
+  }
+}

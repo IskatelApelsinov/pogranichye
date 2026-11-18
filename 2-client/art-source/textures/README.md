@@ -1,8 +1,8 @@
-## Статус чистого checkout — 2026-11-17
+## Статус чистого checkout — 2026-11-18
 
-Скрипты генерации четырёх авторских наборов есть, но source JPG и готовые 1024×1024 карты сейчас не закоммичены. Все четыре manifest (packed_road, oak_planks, mossy_stone, lime_plaster) помечены availability: pending. Описания ниже фиксируют целевой вид материалов и формат будущих карт, а не наличие готового artwork.
+В библиотеке определены пять авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster и thatch_roof. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
 
-Пока набор не собран, Unity использует импортированный Grok fallback (если владелец выполнил Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты от master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только после успешного запуска соответствующего builder: он создаёт все четыре 1024×1024 карты и записывает availability: available.
+Пока полный набор не установлен, Unity использует импортированный Grok fallback (если выполнен Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только при наличии source artwork, всех четырёх 1024×1024 карт и манифеста availability: available.
 
 Проверка чистого checkout и полноты доступных наборов:
 
@@ -142,3 +142,27 @@ python 2-client/art-source/textures/build_lime_plaster_material.py
 Ранее документированный архив pogranichye_lime_plaster_pbr_pack.zip также отсутствует в текущем main. Когда source artwork будет предоставлен, положить lime_plaster_source.jpg рядом со скриптом и запустить builder.
 
 В `WorldLayoutPresentationBuilder` штукатурка применяется к стеновым плоскостям сгенерированных домов и таверны. Деревянный каркас, двери, стойки, крыши и открытый рыночный навес остаются на отдельных timber/thatch материалах. UV tiling — 1.5×1.5. До появления полного authored pack сначала используется Grok plaster_wall (если импортирован), затем procedural fallback; authored lime plaster применяется только при availability: available и наличии 1024px albedo.
+
+
+# Авторская текстура соломенной кровли
+
+Целевой вид — уложенные рядами пучки ржаной соломы и камыша, отдельные волокна, тёмные промежутки между рядами и редкие верёвочные перевязки. Это не повторяющийся синусоидальный узор и не одна цветная картинка вместо PBR.
+
+Скрипт build_thatch_roof_material.py создаёт в Unity Resources:
+
+- thatch_roof_albedo.png — 1024×1024 RGBA; RGB — цвет соломы, A — линейная smoothness (1 - roughness);
+- thatch_roof_normal.png — tangent-space normal, positive Y;
+- thatch_roof_roughness.png — отдельная линейная roughness;
+- thatch_roof_ao.png — отдельная линейная AO;
+- thatch_roof_material.json — параметры PBR, источник и метрики швов.
+
+Все карты получаются из одного исправленного по краям художественного исходника и общей карты рельефа. Генератор проверяет четыре карты отдельно: seam ratio не выше 1.35, длину декодированных нормалей и соответствие alpha обратной roughness с погрешностью не более одного уровня.
+
+Пересборка:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_thatch_roof_material.py
+```
+
+При наличии полного набора авторская солома применяется к _roof (кровли зданий и навесы), _straw (соломенные props) и server-authored поверхностям kind roof. Для кровель сохраняется tiling 2×3, для соломенных props — 2×2. При pending/отсутствующих картах остаётся Grok/procedural fallback.

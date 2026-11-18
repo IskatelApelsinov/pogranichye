@@ -27,10 +27,25 @@ class MaterialManifestTests(unittest.TestCase):
     def test_clean_checkout_is_explicitly_pending(self):
         errors, pending = validate(self.root)
         self.assertEqual(errors, [])
-        self.assertEqual(len(pending), 4)
+        self.assertEqual(len(pending), 5)
 
     def test_complete_authored_pack_is_valid(self):
         key = "lime_plaster"
+        source, prefix = PACKS[key]
+        src = self.root / source
+        src.parent.mkdir(parents=True, exist_ok=True)
+        src.write_bytes(b"source")
+        for suffix in SUFFIXES:
+            write_png(self.root / TEXTURES / f"{prefix}_{suffix}.png", 1024, 1024)
+        path = self.root / TEXTURES / (key + "_material.json")
+        data = json.loads(path.read_text())
+        data["availability"] = "available"
+        path.write_text(json.dumps(data))
+        errors, _ = validate(self.root)
+        self.assertEqual(errors, [])
+
+    def test_complete_authored_thatch_pack_is_valid(self):
+        key = "thatch_roof"
         source, prefix = PACKS[key]
         src = self.root / source
         src.parent.mkdir(parents=True, exist_ok=True)

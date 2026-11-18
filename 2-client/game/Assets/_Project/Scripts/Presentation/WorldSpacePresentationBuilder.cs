@@ -347,6 +347,7 @@ namespace Pogranichye.Client.Presentation
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var material = new Material(shader) { name = name, color = color };
+            if (TryApplyAuthoredWorldMaps(material, textureKey)) return material;
             var prefix = "WorldMaterials/Textures/Grok/" + textureKey;
             var albedo = Resources.Load<Texture2D>(prefix);
             if (albedo != null)
@@ -370,6 +371,75 @@ namespace Pogranichye.Client.Presentation
                 material.EnableKeyword("_NORMALMAP");
             }
             return material;
+        }
+
+        [Serializable]
+        private sealed class WorldMaterialAvailabilityManifest
+        {
+            public string availability;
+        }
+
+        private static bool TryApplyAuthoredWorldMaps(Material material, string materialKey)
+        {
+            if (material == null || string.IsNullOrWhiteSpace(materialKey)) return false;
+            var prefix = "WorldMaterials/Textures/" + materialKey;
+            var manifest = Resources.Load<TextAsset>(prefix + "_material");
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.text)) return false;
+
+            WorldMaterialAvailabilityManifest parsed;
+            try
+            {
+                parsed = JsonUtility.FromJson<WorldMaterialAvailabilityManifest>(manifest.text);
+            }
+            catch
+            {
+                return false;
+            }
+            if (parsed == null || !string.Equals(parsed.availability, "available", StringComparison.Ordinal))
+                return false;
+
+            var albedo = Resources.Load<Texture2D>(prefix + "_albedo");
+            var normal = Resources.Load<Texture2D>(prefix + "_normal");
+            var roughness = Resources.Load<Texture2D>(prefix + "_roughness");
+            var ao = Resources.Load<Texture2D>(prefix + "_ao");
+            if (albedo == null || normal == null || roughness == null || ao == null ||
+                albedo.width < 1024 || normal.width < 1024 || roughness.width < 1024 || ao.width < 1024)
+                return false;
+
+            var tiling = new Vector2(2f, 2f);
+            material.mainTexture = albedo;
+            material.mainTextureScale = tiling;
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", albedo);
+                material.SetTextureScale("_BaseMap", tiling);
+                if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
+            }
+            else if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", Color.white);
+            }
+
+            if (material.HasProperty("_SmoothnessTextureChannel"))
+            {
+                material.SetFloat("_SmoothnessTextureChannel", 1f);
+                if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 1f);
+                if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+            }
+            if (material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", tiling);
+                material.EnableKeyword("_NORMALMAP");
+            }
+            if (material.HasProperty("_OcclusionMap"))
+            {
+                material.SetTexture("_OcclusionMap", ao);
+                material.SetTextureScale("_OcclusionMap", tiling);
+                if (material.HasProperty("_OcclusionStrength")) material.SetFloat("_OcclusionStrength", 1f);
+                material.EnableKeyword("_OCCLUSIONMAP");
+            }
+            return true;
         }
 
         private static long ChunkOf(double coordinate) => (long)Math.Floor(coordinate / ChunkMeters);

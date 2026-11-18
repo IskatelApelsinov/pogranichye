@@ -229,6 +229,11 @@ def main():
             "source": "2-client/art-source/textures/stone_masonry_source.jpg",
             "builder": "build_mossy_stone_material.py"
         },
+        "thatch_roof": {
+            "resolution": [1024, 1024],
+            "source": "2-client/art-source/textures/thatch_roof_source.jpg",
+            "builder": "build_thatch_roof_material.py"
+        },
         "lime_plaster": {
             "resolution": [1024, 1024],
             "source": "2-client/art-source/textures/lime_plaster_source.jpg",
