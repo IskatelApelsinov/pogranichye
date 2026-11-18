@@ -10,6 +10,28 @@
 - `worldmut/` (1.5) — изменение физического мира (разрушение/постройка) — задел на будущее.
 - `thin-client/` (1.6) — тонкий клиент (перенос поверх ядра).
 - `cmd/pogserver/` — вход: сейчас демо-прогон, дальше websocket-сервер.
+- `cmd/pogload/` — синтетический нагрузочный стенд: настоящие WS-игроки против запущенного сервера (comms 0284).
 
 Запуск: `go test ./...` и `go run ./cmd/pogserver -days 5910`.
 Как добавить модуль, не трогая ядро — см. `3-dev/docs/СКЕЛЕТ-ЖИВОГО-МИРА.md`, раздел 3.
+
+## Нагрузочный стенд (cmd/pogload)
+
+Повторяемая нагрузка на весь серверный путь (HTTP → register/login → WebSocket →
+резервирование тела → кадры → действия/ACK → AOI → reconnect). Только stdlib,
+контракт v1 не меняется. Подробности и acceptance-критерии — `3-dev/docs/НАГРУЗКА-POGLOAD.md`.
+
+Изолированный сервер (отдельный save, быстрый тик — не трогает пользовательское сохранение):
+
+    go run ./cmd/pogserver -addr :8090 -villages 40 -save pogload.sav -tick 400
+
+В другом терминале — 100 игроков, 60 с, распределённо:
+
+    go run ./cmd/pogload -addr http://localhost:8090 -n 100 -scenario distributed -duration 60s
+
+Ступенчатая разведка предела и машинный отчёт:
+
+    go run ./cmd/pogload -addr http://localhost:8090 -ramp 1,10,25,50,100 -duration 30s -report pogload-report.json
+
+Короткий дым (4 клиента, in-process) уже в `go test ./...` (`cmd/pogload`),
+полный 100-игроков прогон — ручной workflow `.github/workflows/pogload-nightly.yml`.
