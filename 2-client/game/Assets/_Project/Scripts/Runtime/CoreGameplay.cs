@@ -1728,7 +1728,6 @@ namespace Pogranichye.Client
             var talking = Obj(_me, "talk") != null;
             UpdateHandLight();
             UpdateMount();
-            UpdateHorseInteractionInput();
 
             if (_externalModalMenuOpen)
             {
@@ -1754,6 +1753,8 @@ namespace Pogranichye.Client
                 UpdateCursor(true);
                 return;
             }
+
+            UpdateHorseInteractionInput();
 
             if (journey != null)
             {
