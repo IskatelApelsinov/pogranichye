@@ -98,7 +98,7 @@ namespace Pogranichye.Client.Diagnostics
             var path = Path.Combine(directory, fileName);
             var json = dump.ToString(Formatting.Indented);
             if (Encoding.UTF8.GetByteCount(json) > MaxDumpBytes)
-                throw new InvalidOperationException("Диагностический дамп превысил ограничение размера.");
+                throw new InvalidOperationException("Diagnostic dump exceeds the configured size limit.");
             File.WriteAllText(path, json, new UTF8Encoding(false));
             PruneOldDumps(directory);
             return path;
@@ -137,7 +137,7 @@ namespace Pogranichye.Client.Diagnostics
                 if (i >= MaxDumpFiles || total > MaxDumpBytes)
                 {
                     try { files[i].Delete(); total -= fileLength; }
-                    catch (Exception ex) { Debug.LogWarning("[Pogranichye] Не удалось удалить старый дамп: " + ex.Message); }
+                    catch (Exception ex) { Debug.LogWarning("[Pogranichye] Failed to delete the previous diagnostic dump: " + ex.Message); }
                 }
             }
         }
