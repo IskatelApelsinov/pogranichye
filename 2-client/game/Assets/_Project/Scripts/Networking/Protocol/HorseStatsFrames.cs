@@ -180,10 +180,20 @@ namespace Pogranichye.Client.Networking.Protocol
         private static void RequireNumber(JToken token, string path, double min, double max)
         {
             double value;
-            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < min || value > max)
-                throw new FormatException(path + " contains an invalid number.");
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
+                throw new FormatException(path + " must be a finite number in the supported range.");
+
+            try
+            {
+                value = token.Value<double>();
+            }
+            catch (Exception ex)
+            {
+                throw new FormatException(path + " must be a finite number in the supported range.", ex);
+            }
+
+            if (double.IsNaN(value) || double.IsInfinity(value) || value < min || value > max)
+                throw new FormatException(path + " must be a finite number in the supported range.");
         }
     }
 }
