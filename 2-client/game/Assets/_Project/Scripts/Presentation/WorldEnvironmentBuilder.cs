@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.Serialization;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -1058,7 +1059,8 @@ namespace Pogranichye.Client.Presentation
     /// <summary>Presentation-only day/night palette cycle; later it can consume authoritative server time.</summary>
     public sealed class WorldAtmosphereCycle : MonoBehaviour
     {
-        [SerializeField] private float visualDayLengthSeconds = 720f;
+        [FormerlySerializedAs("_visualDayLengthSeconds")]
+        [SerializeField] private float _visualDayLengthSeconds = 720f;
         private Material _sky;
         private Material _stars;
         private Material _motes;
@@ -1122,7 +1124,7 @@ namespace Pogranichye.Client.Presentation
                 _phase = WorldClockSmoothingPolicy.AdvancePhase(
                     _phase, _serverHour / 24f, Time.deltaTime, ServerHourCorrectionDegreesPerSecond);
             else
-                _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, visualDayLengthSeconds), 1f);
+                _phase = Mathf.Repeat(_phase + Time.deltaTime / Mathf.Max(60f, _visualDayLengthSeconds), 1f);
             var daylight = Mathf.Clamp01((Mathf.Sin((_phase - 0.25f) * Mathf.PI * 2f) + 0.12f) * 1.8f);
             var night = 1f - daylight;
             NightAmount = night;
