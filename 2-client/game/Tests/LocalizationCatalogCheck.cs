@@ -14,6 +14,8 @@ public static class LocalizationCatalogCheck
                 "settings title missing: " + locale);
             Require(!string.IsNullOrWhiteSpace(LocalizationCatalog.Get(locale, "settings.language_hint")),
                 "language hint missing: " + locale);
+            Require(!string.IsNullOrWhiteSpace(LocalizationCatalog.Get(locale, "settings.rtl_pending")),
+                "RTL notice missing: " + locale);
         }
 
         Require(LocalizationCatalog.Get("en", "settings.title") == "Settings", "English lookup failed");
