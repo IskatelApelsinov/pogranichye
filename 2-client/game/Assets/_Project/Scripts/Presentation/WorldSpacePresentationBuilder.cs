@@ -167,7 +167,30 @@ namespace Pogranichye.Client.Presentation
                 zone.minDistance = radius * 0.45f;
                 zone.maxDistance = radius;
                 zone.enabled = true;
+
+                // Only server-authored tavern rooms receive a warm presentation light.
+                // This is visual dressing, not a gameplay entity or a client-side room guess.
+                BuildInteriorLight(parent, room, bounds, space.Origin);
             }
+        }
+
+        private static void BuildInteriorLight(Transform parent, WorldSpaceRoomFrame room,
+            WorldSpaceBoundsFrame bounds, WorldSpaceOriginFrame origin)
+        {
+            if (!WorldInteriorLightingPolicy.TryResolve(room.Kind,
+                bounds.MinEast, bounds.MinNorth, bounds.MinUp,
+                bounds.MaxEast, bounds.MaxNorth, bounds.MaxUp,
+                origin.East, origin.North, origin.Up, out var plan)) return;
+
+            var lightObject = new GameObject("InteriorLight_" + SafeName(room.Id));
+            lightObject.transform.SetParent(parent, false);
+            lightObject.transform.localPosition = new Vector3(plan.X, plan.Y, plan.Z);
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.72f, 0.48f);
+            light.intensity = plan.Intensity;
+            light.range = plan.Range;
+            light.shadows = LightShadows.None;
         }
 
         private static void BuildStairs(Transform parent, WorldSpaceFrame space)
