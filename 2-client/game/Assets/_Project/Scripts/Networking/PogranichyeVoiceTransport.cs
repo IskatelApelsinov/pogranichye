@@ -12,6 +12,7 @@ namespace Pogranichye.Client.Networking
     /// </summary>
     public sealed class PogranichyeVoiceTransport : SignalingTransport
     {
+        // Имена полей намеренно совпадают с ключами JSON: JsonUtility не поддерживает JsonProperty.
         [Serializable]
         private sealed class VoiceEnvelope
         {
