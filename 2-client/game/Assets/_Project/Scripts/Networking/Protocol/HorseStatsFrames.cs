@@ -110,10 +110,20 @@ namespace Pogranichye.Client.Networking.Protocol
 
         private static void RequireNumber(JToken token, string path)
         {
+            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
+                throw new FormatException(path + " must be a finite non-negative number.");
+
             double value;
-            if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float) ||
-                !TryReadFiniteNumber(token, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > 1000000000d)
+            try
+            {
+                value = token.Value<double>();
+            }
+            catch (Exception ex)
+            {
+                throw new FormatException(path + " must be a finite non-negative number.", ex);
+            }
+
+            if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > 1000000000d)
                 throw new FormatException(path + " must be a finite non-negative number.");
         }
     }
