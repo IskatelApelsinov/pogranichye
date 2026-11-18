@@ -30,7 +30,7 @@ public static class JsonNumberReaderCheck
                 Check("reject string number under " + cultureName,
                     !JsonNumberReader.TryReadFiniteDouble(JValue.CreateString("0.1"), out decimalValue));
                 Check("reject non-finite overflow under " + cultureName,
-                    !JsonNumberReader.TryReadFiniteDouble(JValue.CreateDouble(double.PositiveInfinity), out largeValue));
+                    !JsonNumberReader.TryReadFiniteDouble(new JValue(double.PositiveInfinity), out largeValue));
             }
         }
         finally
