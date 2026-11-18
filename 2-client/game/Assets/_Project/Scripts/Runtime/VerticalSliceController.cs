@@ -193,6 +193,10 @@ namespace Pogranichye.Client
         private string _lastDiagnosticDumpStatus = "Дамп ещё не сохранён";
         private GUIStyle _statusTextStyle;
         private GUIStyle _pendingActionStyle;
+        private GUIStyle _serverResponseStyle;
+        private string _serverResponseToast;
+        private float _serverResponseToastUntil;
+        private bool _serverResponseToastError;
         private GUIStyle _objectiveCardStyle;
         private Vector2 _movementInputDebug;
         private Vector2 _movementKeyboardDebug;
@@ -600,6 +604,7 @@ namespace Pogranichye.Client
 
             DrawMovementDebugOverlay();
             DrawSocialOverlay();
+            DrawServerResponseToast();
             DrawPendingActionIndicator();
             if (_hudCollapsed)
             {
@@ -1030,6 +1035,45 @@ namespace Pogranichye.Client
             return "Вы уже знакомы. Спроси, не найдётся ли для тебя работа.";
         }
 
+        private void DrawServerResponseToast()
+        {
+            if (string.IsNullOrEmpty(_serverResponseToast) || Time.unscaledTime >= _serverResponseToastUntil)
+                return;
+
+            if (_serverResponseStyle == null)
+            {
+                _serverResponseStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = ClientUiTypography.HudSecondary,
+                    alignment = TextAnchor.MiddleLeft,
+                    wordWrap = true,
+                    padding = new RectOffset(11, 10, 5, 5)
+                };
+            }
+
+            var top = 50f;
+            var neighbors = _frame != null && _frame.Place != null ? _frame.Place.Neighbors : null;
+            if (neighbors != null && IsAtTavern())
+            {
+                var inviteableCount = 0;
+                foreach (var neighbor in neighbors)
+                    if (neighbor != null && neighbor.Controlled) inviteableCount++;
+                if (inviteableCount > 0) top = 18f + 56f + inviteableCount * 34f + 8f;
+            }
+
+            var width = Mathf.Min(260f, Mathf.Max(170f, Screen.width - 24f));
+            var rect = new Rect(Screen.width - width - 12f, top, width, 36f);
+            var remaining = Mathf.Clamp01((_serverResponseToastUntil - Time.unscaledTime) / 0.45f);
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.08f, 0.075f, 0.065f, 0.76f * remaining);
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = _serverResponseToastError
+                ? new Color(0.91f, 0.63f, 0.56f, remaining)
+                : new Color(0.89f, 0.80f, 0.61f, remaining);
+            GUI.Label(rect, _serverResponseToast, _serverResponseStyle);
+            GUI.color = previousColor;
+        }
+
         private void DrawPendingActionIndicator()
         {
             if (_core == null || !_core.HasPendingRequests) return;
@@ -1064,6 +1108,8 @@ namespace Pogranichye.Client
                     if (neighbor != null && neighbor.Controlled) inviteableCount++;
                 if (inviteableCount > 0) topOffset = 18f + 56f + inviteableCount * 34f + 8f;
             }
+            if (!string.IsNullOrEmpty(_serverResponseToast) && Time.unscaledTime < _serverResponseToastUntil)
+                topOffset += 42f;
             var rect = new Rect(Screen.width - width - 12f, topOffset, width, height);
             var previousColor = GUI.color;
             GUI.color = new Color(0.10f, 0.085f, 0.065f, 0.94f);
@@ -4525,6 +4571,7 @@ namespace Pogranichye.Client
                 if (!string.Equals(target, _pendingTalkTargetId, StringComparison.Ordinal))
                     return; // a superseded click on another NPC must not alter the current dialog UI
 
+                SetServerResponseToast(outcome);
                 if (outcome == RequestGate.Outcome.Rejected || outcome == RequestGate.Outcome.TimedOut)
                 {
                     _pendingTalkTargetId = null;
@@ -4572,6 +4619,23 @@ namespace Pogranichye.Client
                     : outcome == RequestGate.Outcome.Rejected
                         ? "Сервер отклонил действие: " + reason
                         : "Нет подтверждения сервера на действие. Можно попробовать ещё раз.";
+
+            if (label == DialogueRequestLabel ||
+                (label != null && (label.StartsWith(DrinkRequestLabelPrefix, StringComparison.Ordinal) ||
+                    label.StartsWith(InventoryRequestLabelPrefix, StringComparison.Ordinal) ||
+                    label.StartsWith(WorldActionLabelPrefix, StringComparison.Ordinal))))
+                SetServerResponseToast(outcome);
+        }
+
+        private void SetServerResponseToast(RequestGate.Outcome outcome)
+        {
+            var key = outcome == RequestGate.Outcome.Accepted ? "status.action_ok" :
+                outcome == RequestGate.Outcome.Rejected ? "status.action_failed" : "status.action_wait";
+            var fallback = outcome == RequestGate.Outcome.Accepted ? "Готово." :
+                outcome == RequestGate.Outcome.Rejected ? "Не получилось." : "Ответа пока нет. Попробуй ещё раз.";
+            _serverResponseToast = ClientLocalization.Get(key, fallback);
+            _serverResponseToastError = outcome != RequestGate.Outcome.Accepted;
+            _serverResponseToastUntil = Time.unscaledTime + 3.2f;
         }
 
         private void UpdateServerAudioAnchors(Transform player)
