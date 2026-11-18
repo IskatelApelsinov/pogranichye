@@ -42,7 +42,7 @@ namespace Pogranichye.Client.Networking
                 var sequenceToken = item["seq"];
                 long sequence;
                 if (sequenceToken == null || sequenceToken.Type != JTokenType.Integer ||
-                    !long.TryParse(sequenceToken.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sequence) ||
+                    !JsonNumberReader.TryReadInt64(sequenceToken, out sequence) ||
                     sequence <= previousSequence)
                     throw new FormatException(itemPath + ".seq должен быть положительным строго возрастающим int64.");
                 previousSequence = sequence;
