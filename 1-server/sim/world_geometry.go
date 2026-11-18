@@ -51,6 +51,33 @@ type Door struct {
 // игрока с запасом на коллизию).
 const tavernDoorWidth = 1.6
 
+// buildingDoorWidth — проём для прочих общественных зданий (кузница, амбар, лавка, изба старосты,
+// городские ратуша/торговые ряды/мастерские/караульня/склад/вторая корчма, comms 0292 п.5, ChatGPT
+// 2026-11-18): здание становится физически проходимым через свой вход, но, в отличие от корчмы, без
+// интерьерных комнат/аренды — это только дверной проём в стене для коллизии и визуала, не новая
+// игровая система. У корчмы BuildingID/Room/InteriorID по-прежнему проставляет только её собственный
+// код (см. StarterLayout/generateLayout) — остальные здания получают лишь Door.
+const buildingDoorWidth = 1.4
+
+// inferDoorAxis — по какой оси лежит approach-точка относительно прямоугольника здания: axisX=true,
+// если точка явно вне диапазона Y (дверь на южной/северной стене, варьируется по X), axisX=false —
+// если явно вне диапазона X (дверь на западной/восточной стене). Если approach лежит внутри здания
+// по обеим осям (не должно происходить для настоящего порога, но на случай вырожденных раскладок),
+// берём ближайшую по расстоянию грань.
+func inferDoorAxis(r Rect, approachX, approachY float64) bool {
+	outY := approachY < r.Y0 || approachY > r.Y1
+	outX := approachX < r.X0 || approachX > r.X1
+	if outY && !outX {
+		return true
+	}
+	if outX && !outY {
+		return false
+	}
+	dy := math.Min(math.Abs(approachY-r.Y0), math.Abs(approachY-r.Y1))
+	dx := math.Min(math.Abs(approachX-r.X0), math.Abs(approachX-r.X1))
+	return dy <= dx
+}
+
 // wallThickness — толщина "оболочки" стен здания с дверью: полоса такой ширины внутрь от каждой
 // грани прямоугольника остаётся непроходимой стеной (кроме проёма), всё, что глубже — пол интерьера.
 const wallThickness = 1.2

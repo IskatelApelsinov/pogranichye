@@ -332,6 +332,15 @@ func generateLayout(seed string, id core.ID, tier, terrain string, site *SiteC, 
 				l.Buildings[bi].Room = "tavern"
 				l.Buildings[bi].InteriorID = "tavern:" + sid(id)
 				l.Buildings[bi].Door = &d
+			} else if lk.poi != "" {
+				// comms 0292 п.5 (ChatGPT, 2026-11-18): прочие общественные здания с собственным POI
+				// (рыночная лавка/кузница/амбар/изба старосты в сёлах; ратуша/торговые ряды/мастерские/
+				// караульня/склад караванов/вторая корчма в городах, plan:"grid") тоже получают дверной
+				// проём в стене — здание проходимо через вход, но без интерьерных комнат/аренды (это
+				// только у корчмы, см. выше). Door — на той же стене, что и уже вычисленный подход dr.
+				bi := len(l.Buildings) - 1
+				d := doorOnWall(r, dr.x, dr.y, dr.axisX, buildingDoorWidth)
+				l.Buildings[bi].Door = &d
 			}
 			break
 		}

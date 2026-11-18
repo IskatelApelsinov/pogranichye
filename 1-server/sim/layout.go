@@ -393,10 +393,23 @@ func StarterLayout() *Layout {
 	starterOnce.Do(func() {
 		bs := append([]Rect{}, Buildings...) // копия: не трогаем общий пакетный срез
 		for i := range bs {
-			if bs[i].Kind == "tavern" {
+			switch {
+			case bs[i].Kind == "tavern":
 				ax, ay := POINamed["tavern"][0], POINamed["tavern"][1] // порог — существующий POI
 				d := doorOnWall(bs[i], ax, ay, true, tavernDoorWidth)
 				bs[i].BuildingID, bs[i].Room, bs[i].InteriorID, bs[i].Door = "tavern", "tavern", "tavern:starter", &d
+			case bs[i].Kind == "smithy" || bs[i].Kind == "granary" || bs[i].Kind == "market":
+				// comms 0292 п.5: те же общественные здания, что и у процедурных сёл (generateLayout),
+				// получают дверной проём — здание проходимо внутрь, но без комнат/аренды, см. buildingDoorWidth.
+				if p, ok := POINamed[bs[i].Kind]; ok {
+					d := doorOnWall(bs[i], p[0], p[1], inferDoorAxis(bs[i], p[0], p[1]), buildingDoorWidth)
+					bs[i].Door = &d
+				}
+			case bs[i].Name == "Изба старосты": // дом старосты — у него свой POI «hearth», не ловится по Kind="house"
+				if p, ok := POINamed["hearth"]; ok {
+					d := doorOnWall(bs[i], p[0], p[1], inferDoorAxis(bs[i], p[0], p[1]), buildingDoorWidth)
+					bs[i].Door = &d
+				}
 			}
 		}
 		l := &Layout{Plan: "starter", Half: WorldHalf, VillageHalf: VillageHalf,
