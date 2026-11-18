@@ -34,6 +34,7 @@ on:
       - '2-client/game/Tests/ClientUiScalePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/DrinkPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/EntityViewRegistry.cs'
+      - '2-client/game/Tests/test_server_neighbor_position_authority.py'
       - '2-client/game/Assets/_Project/Scripts/Presentation/FoePresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs'
@@ -197,6 +198,10 @@ jobs:
         run: |
           mcs -out:/tmp/gameplay-input-capture.exe Tests/GameplayInputCapturePolicyCheck.cs Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs
           mono /tmp/gameplay-input-capture.exe
+      - name: Server neighbor position authority regression checks
+        run: |
+          python3 -m unittest discover -s 2-client/game/Tests -p 'test_server_neighbor_position_authority.py'
+
       - name: Server activity animation mapping regression checks
         working-directory: 2-client/game
         run: |
