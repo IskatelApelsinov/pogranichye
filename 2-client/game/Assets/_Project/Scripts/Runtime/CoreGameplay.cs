@@ -492,7 +492,7 @@ namespace Pogranichye.Client
             }
             else if (invite == null)
             {
-                GUILayout.Label("Ты пока один. Позвать можно только другого игрока рядом.");
+                GUILayout.Label("Поблизости пока никого нет.");
             }
 
             var neighbors = Arr(_place, "neighbors");
@@ -513,7 +513,7 @@ namespace Pogranichye.Client
                 }
             }
             if (candidates == 0)
-                GUILayout.Label("Рядом нет других игроков, которых можно пригласить.");
+                GUILayout.Label("Поблизости пока некого позвать в отряд.");
 
             GUILayout.EndVertical();
         }
@@ -522,7 +522,7 @@ namespace Pogranichye.Client
         {
             if (!_active || _me == null)
             {
-                GUILayout.Label("Инвентарь появится после подключения к миру.");
+                GUILayout.Label("Вещи будут при тебе, когда вернёшься.");
                 return;
             }
 
@@ -557,7 +557,7 @@ namespace Pogranichye.Client
             GUILayout.EndHorizontal();
 
             GUILayout.Label("ЭКИПИРОВКА · ОБРАЗ ПЕРСОНАЖА");
-            GUILayout.Label("Это те же серверные слоты, по которым обновляется 3D-модель персонажа в мире.");
+            GUILayout.Label("Так выглядит твой персонаж — и так на нём сидят надетые вещи.");
             GUILayout.BeginHorizontal();
             DrawEquipmentSlot("Правая рука", hand, "hand", items);
             DrawEquipmentSlot("Голова", WornItem(worn, "head"), "head", items);
@@ -769,14 +769,14 @@ namespace Pogranichye.Client
             }
 
             GUILayout.Space(5f);
-            GUILayout.Label("Действия отправляются серверу. Слоты, характеристики и внешний вид персонажа обновляются только по подтверждённому состоянию мира.");
+            GUILayout.Label("Перемены вступают в силу не сразу: сначала нужно дождаться подтверждения.");
         }
 
         public void DrawQuestJournal()
         {
             if (!_active)
             {
-                GUILayout.Label("Задания появятся после подключения к миру.");
+                GUILayout.Label("Новые просьбы найдутся, когда вернёшься.");
                 return;
             }
 
@@ -832,7 +832,7 @@ namespace Pogranichye.Client
             var offers = quests != null ? quests.Offers : null;
             if (offers == null || offers.Count == 0)
             {
-                GUILayout.Label("Новых просьб пока нет. Поговорите с жителями или загляните к доске объявлений.");
+                GUILayout.Label("Пока никто не просил о помощи. Поговори с соседями или загляни к доске объявлений.");
             }
             else
             {
@@ -857,7 +857,7 @@ namespace Pogranichye.Client
                         if (GUILayout.Button("Принять поручение"))
                             Ask("Поручение", "quest", "action", "accept", "quest", offer.Id);
                     }
-                    else GUILayout.Label("Чтобы принять, сначала заговорите с этим жителем.");
+                    else GUILayout.Label("Сначала поговори с тем, кто просит о помощи.");
                     GUILayout.EndVertical();
                 }
             }
