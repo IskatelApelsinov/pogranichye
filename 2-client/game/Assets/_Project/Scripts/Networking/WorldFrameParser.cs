@@ -47,7 +47,7 @@ namespace Pogranichye.Client.Networking
 
             var hourToken = root["hour"];
             if (hourToken != null && hourToken.Type != JTokenType.Null &&
-                (hourToken.Type != JTokenType.Integer || !int.TryParse(hourToken.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var hour) || hour < 0 || hour > 23))
+                (!JsonNumberReader.TryReadInt32(hourToken, out var hour) || hour < 0 || hour > 23))
                 throw new FormatException("Поле hour должно быть целым числом от 0 до 23.");
 
             var aliveToken = root["alive"];
@@ -297,9 +297,8 @@ namespace Pogranichye.Client.Networking
             if (token.Type != JTokenType.Object ||
                 token["scheme"]?.Type != JTokenType.String || token["scheme"].Value<string>() != "yof-tangent" ||
                 token["v"]?.Type != JTokenType.Integer ||
-                !int.TryParse(token["v"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var version) || version != 1 ||
-                token["frame"]?.Type != JTokenType.Integer ||
-                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
+                !JsonNumberReader.TryReadInt32(token["v"], out var version) || version != 1 ||
+                !JsonNumberReader.TryReadInt32(token["frame"], out var frame) || frame < 0)
                 throw new FormatException(fieldName + " имеет неподдерживаемую схему координат.");
             foreach (var key in new[] { "e", "n", "u", "ground", "z" })
             {
@@ -311,10 +310,10 @@ namespace Pogranichye.Client.Networking
                 throw new FormatException(fieldName + ".chunk должен содержать два целых индекса.");
             for (var i = 0; i < 2; i++)
                 if (chunk[i].Type != JTokenType.Integer ||
-                    !long.TryParse(chunk[i].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    !JsonNumberReader.TryReadInt64(chunk[i], out _))
                     throw new FormatException(fieldName + ".chunk содержит индекс вне диапазона int64.");
             if (token["layer"] == null || token["layer"].Type != JTokenType.Integer ||
-                !long.TryParse(token["layer"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                !JsonNumberReader.TryReadInt64(token["layer"], out _))
                 throw new FormatException(fieldName + ".layer должен быть целым int64.");
         }
 
@@ -338,7 +337,7 @@ namespace Pogranichye.Client.Networking
                     throw new FormatException(fieldName + "." + key + " должен быть неотрицательным конечным числом.");
             foreach (var key in new[] { "paid_through_day", "grace_until_day" })
                 if (token[key] != null && (token[key].Type != JTokenType.Integer ||
-                    !long.TryParse(token[key].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var day) || day < 0))
+                    !JsonNumberReader.TryReadInt64(token[key], out var day) || day < 0))
                     throw new FormatException(fieldName + "." + key + " должен быть неотрицательным целым числом.");
             if (token["chest_items"] != null && token["chest_items"].Type != JTokenType.Object)
                 throw new FormatException(fieldName + ".chest_items должен быть объектом.");
@@ -379,7 +378,7 @@ namespace Pogranichye.Client.Networking
         {
             if (token == null || token.Type == JTokenType.Null) return;
             if (token.Type != JTokenType.Object || token["frame"]?.Type != JTokenType.Integer ||
-                !int.TryParse(token["frame"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) || frame < 0)
+                !JsonNumberReader.TryReadInt32(token["frame"], out var frame) || frame < 0)
                 throw new FormatException(fieldName + " должен содержать неотрицательный целочисленный frame.");
             foreach (var key in new[] { "e", "n", "u" })
                 if (!IsNumber(token[key]) || !IsFinite(token[key].Value<double>()))
@@ -403,13 +402,13 @@ namespace Pogranichye.Client.Networking
 
                 var sequence = entry["seq"];
                 if (sequence == null || sequence.Type != JTokenType.Integer ||
-                    !long.TryParse(sequence.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var sequenceValue) ||
+                    !JsonNumberReader.TryReadInt64(sequence, out var sequenceValue) ||
                     sequenceValue <= previousSequence)
                     throw new FormatException(fieldName + "[" + i + "].seq должен строго возрастать и быть положительным int64.");
 
                 var day = entry["day"];
                 if (day == null || day.Type != JTokenType.Integer ||
-                    !long.TryParse(day.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var dayValue) || dayValue < 0)
+                    !JsonNumberReader.TryReadInt64(day, out var dayValue) || dayValue < 0)
                     throw new FormatException(fieldName + "[" + i + "].day должен быть неотрицательным целым числом int64.");
 
                 var kind = entry["kind"];
@@ -451,7 +450,7 @@ namespace Pogranichye.Client.Networking
                 if (!IsNumber(stamina))
                     throw new FormatException(fieldName + ".stam должен быть числом.");
                 if (sequence == null || sequence.Type != JTokenType.Integer ||
-                    !long.TryParse(sequence.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var sequenceValue) ||
+                    !JsonNumberReader.TryReadInt64(sequence, out var sequenceValue) ||
                     sequenceValue < 0)
                     throw new FormatException(fieldName + ".seq должен быть неотрицательным целым числом в диапазоне int64.");
                 var staminaValue = stamina.Value<double>();
