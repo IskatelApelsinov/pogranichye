@@ -697,7 +697,7 @@ namespace Pogranichye.Client
                     GUILayout.Label("Состояние: в мире");
                     GUILayout.Label("Место: " + (_frame.Place != null ? _frame.Place.Name : "не определено"));
                     GUILayout.Label("Сервер: " + serverUrl);
-                    if (GUILayout.Button("Продолжить игру [F1 / Esc]", GUILayout.Height(42f)))
+                    if (GUILayout.Button("Продолжить [F1 / Esc]", GUILayout.Height(42f)))
                         SetSystemMenuOpen(false);
                     if (GUILayout.Button("Отключиться от мира", GUILayout.Height(34f)))
                         DisconnectWorld("Отключено от мира. Можно подключиться снова.");
@@ -720,7 +720,7 @@ namespace Pogranichye.Client
                 if (GUILayout.Button(Screen.fullScreen ? "Оконный режим [F11]" : "Полный экран [F11]", GUILayout.Height(30f)))
                     ToggleFullscreen();
                 if (GUILayout.Button("Настройки", GUILayout.Height(34f))) _showMainSettings = true;
-                if (GUILayout.Button("Выход из игры", GUILayout.Height(34f))) Application.Quit();
+                if (GUILayout.Button("Выйти", GUILayout.Height(34f))) Application.Quit();
             }
             GUILayout.Space(8f);
             EnsureStatusTextStyle();
@@ -1019,7 +1019,7 @@ namespace Pogranichye.Client
             if (task == null || !task.Met)
                 return _tutorialStep == 0
                     ? "Подойдите к жителю, наведитесь и нажмите E. Выберите «Будем знакомы»."
-                    : "Ожидаем от сервера следующий шаг вводного маршрута.";
+                    : "Пока неясно, что делать дальше. Поговори с жителем.";
 
             if (task.Issued != null)
                 return !string.IsNullOrWhiteSpace(task.Text) ? task.Text : "Выполните принятое поручение жителя.";
@@ -1027,7 +1027,7 @@ namespace Pogranichye.Client
             if (task.ErrandDone)
                 return task.Done ? string.Empty : "Поручение сдано. Загляните в корчму и выпейте пива.";
 
-            return "Вы знакомы с жителем. Поговорите с ним и примите актуальное поручение в окне «Дела».";
+            return "Вы уже знакомы. Спроси, не найдётся ли для тебя работа.";
         }
 
         private void DrawPendingActionIndicator()
@@ -1149,7 +1149,7 @@ namespace Pogranichye.Client
                     : "Не удалось выполнить: " + (me.Result.Reason ?? "попробуйте ещё раз."));
             GUILayout.Label(_tutorialStep == 0
                 ? "Сначала познакомьтесь с жителем: наведитесь на него и нажмите E. Выберите реплику «Будем знакомы»."
-                : "Следующий шаг вводного маршрута отмечен в журнале. Дополнительные занятия необязательны.");
+                : "Первое знакомство позади. Дальше можно идти своей дорогой.");
             if (GUILayout.Button(_showAdvancedCharacterActions
                 ? "Скрыть приоритеты и дополнительные занятия"
                 : "Показать приоритеты и дополнительные занятия"))
@@ -1162,7 +1162,7 @@ namespace Pogranichye.Client
 
             GUILayout.Space(5f);
             GUILayout.Label("🍺 РАЗГОВОР И ПИТЬЁ");
-            GUILayout.Label("Заговорите с жителем клавишей E: сервер даст варианты реплик, знакомство откроет имя. У корчмы можно угостить знакомого; входящее приглашение игрока появится здесь.", GUILayout.Height(54f));
+            GUILayout.Label("Подойди к жителю и нажми E, чтобы заговорить. Сначала познакомьтесь, а потом он назовёт своё имя. В корчме можно угостить знакомого; приглашения от спутников появятся здесь.", GUILayout.Height(54f));
             _core?.DrawPartyActions();
             _core?.DrawNearbyGatherables();
 
@@ -1171,8 +1171,8 @@ namespace Pogranichye.Client
                 GUILayout.Space(6f);
                 GUILayout.Label("ДРУГИЕ ЗАНЯТИЯ");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("🪓 Рубка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
-                if (GUILayout.Button("🎣 Рыбалка — мини-игра")) StartActivityMiniGame(ActivityMiniGame.Fishing);
+                if (GUILayout.Button("🪓 Рубка")) StartActivityMiniGame(ActivityMiniGame.Woodcutting);
+                if (GUILayout.Button("🎣 Рыбалка")) StartActivityMiniGame(ActivityMiniGame.Fishing);
                 if (GUILayout.Button("✨ Разряд")) QueueWorldAction("cast");
                 GUILayout.EndHorizontal();
                 GUILayout.Label("G — начать рубку у леса · K — начать рыбалку у воды. Нужен топор/удочка в руке.");
@@ -1345,10 +1345,10 @@ namespace Pogranichye.Client
                         "% · восстановление " + vigor.Stamina.RegenPerSecond.ToString("0.###", CultureInfo.InvariantCulture) +
                         "/с · расход " + vigor.Stamina.DrainPerSecond.ToString("0.###", CultureInfo.InvariantCulture) + "/с");
             }
-            else GUILayout.Label("Сведения о восстановлении сил пока не получены от сервера.");
+            else GUILayout.Label("Пока неизвестно, сколько времени понадобится на отдых.");
 
             var mode = me.Mode;
-            if (mode == null) GUILayout.Label("Сервер пока не прислал доступные режимы жизни.");
+            if (mode == null) GUILayout.Label("Пока нельзя выбрать занятие на будущее.");
             else
             {
                 GUILayout.Label("Выбрано: " + (string.IsNullOrWhiteSpace(mode.Selected)
@@ -1360,7 +1360,7 @@ namespace Pogranichye.Client
                     ? MapActivityName(mode.ActivityCode) : mode.Activity;
                 if (!string.IsNullOrWhiteSpace(activityLabel)) GUILayout.Label("Сейчас: " + activityLabel);
                 if (mode.Options == null || mode.Options.Count == 0)
-                    GUILayout.Label("Сервер не перечислил варианты режима.");
+                    GUILayout.Label("Пока нет других занятий на выбор.");
                 else
                 {
                     foreach (var option in mode.Options)
@@ -1447,7 +1447,7 @@ namespace Pogranichye.Client
             GUILayout.Label("АКТИВНЫЕ ЗАДАНИЯ");
             if (task == null)
             {
-                GUILayout.Label("Сервер пока не передал задания. Старые версии мира остаются совместимыми.");
+                GUILayout.Label("Пока новых поручений нет.");
             }
             else
             {
@@ -1540,7 +1540,7 @@ namespace Pogranichye.Client
                 GUILayout.Label("СЕГОДНЯ В ЭТОМ СЕАНСЕ");
                 foreach (var entry in _sessionJournal)
                     GUILayout.Label("• " + entry);
-                GUILayout.Label("Это заметки текущего подключения, не сохранённые сервером записи.");
+                GUILayout.Label("Это заметки только за нынешний день. Они не попадут в летопись.");
                 GUILayout.EndVertical();
             }
         }
@@ -1657,7 +1657,7 @@ namespace Pogranichye.Client
             GUI.Box(panel, "КАРТА МИРА · РАСШИРЕННЫЙ РЕЖИМ");
             GUILayout.BeginArea(new Rect(panel.x + 16f, panel.y + 30f, panel.width - 32f, panel.height - 44f));
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Карта мира · серверная география · Esc — закрыть");
+            GUILayout.Label("Карта мира · Esc — закрыть");
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Свернуть  ×", GUILayout.Width(116f), GUILayout.Height(32f)))
                 _mapExpanded = false;
@@ -1671,7 +1671,7 @@ namespace Pogranichye.Client
         private void DrawMapTab()
         {
             GUILayout.Label("КАРТА МИРА");
-            GUILayout.Label("Единая карта: от дорог и городов до улиц и зданий. География и положение поселений берутся из данных сервера; неизвестные персонажу места не подписываются.");
+            GUILayout.Label("На карте можно рассмотреть дороги, города, улицы и дома. Незнакомые места останутся без названий, пока ты о них не узнаешь.");
             var place = _frame?.Place;
             var anchor = place?.Anchor;
             var manifest = _worldManifest;
@@ -1690,7 +1690,7 @@ namespace Pogranichye.Client
             GUILayout.Label("Колесо — приблизить/отдалить · ЛКМ — двигать карту · Север ↑");
             if (manifest?.Settlements == null || place == null || anchor == null)
             {
-                GUILayout.Label("Карта мира ожидает серверный манифест и глобальное положение персонажа.");
+                GUILayout.Label("Карта откроется, когда станут известны дороги и окрестные места.");
                 return;
             }
 
@@ -1923,13 +1923,13 @@ namespace Pogranichye.Client
                         " · азимут " + Mathf.Repeat(mapCamera.transform.eulerAngles.y, 360f).ToString("0", CultureInfo.InvariantCulture) + "°");
             }
             GUILayout.Label(mapHalf > 1800d
-                ? "Масштаб мира: города, известные поселения и серверные дороги."
+                ? "Весь край: города, знакомые поселения и дороги."
                 : mapHalf > 300d
                     ? "Региональный масштаб: дороги и окрестности текущего поселения."
-                    : "Масштаб поселения: здания и места из серверной планировки.");
+                    : "Поселение: улицы, дома и людные места.");
             GUILayout.Label(drawDetailedPaths
-                ? "★ Вы · ◆ город · ● поселение · дороги, тропы и водотоки показаны по серверным линиям загруженных чанков."
-                : "★ Вы · ◆ город · ● поселение · ━ схематическая связь поселений (тип и ширина пути от сервера); точная трасса раскрывается при приближении.");
+                ? "★ Вы · ◆ город · ● поселение · дороги, тропы и ручьи."
+                : "★ Вы · ◆ город · ● поселение · ━ путь между поселениями; подробности видны при приближении.");
         }
 
         private static string CompassDirection(float yaw)
