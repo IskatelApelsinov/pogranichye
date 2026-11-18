@@ -101,7 +101,7 @@ namespace Pogranichye.Client.Presentation
                     var obstructionHeight = (float)WorldBuildingPresentationPolicy.ResolveWallHeight(
                         b.HeightMeters, b.Storeys, b.Kind == "market") + 1.8f;
                     if (b.Door != null)
-                        BuildTavernWallColliders(world, b, width, depth, obstructionHeight);
+                        BuildServerDoorWallColliders(world, b, width, depth, obstructionHeight);
                     else
                     {
                         var collision = new GameObject("Server collision • " + b.Kind);
@@ -1550,12 +1550,12 @@ namespace Pogranichye.Client.Presentation
             }
         }
 
-        private static void BuildTavernWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
+        private static void BuildServerDoorWallColliders(Transform parent, WorldRectFrame building, float width, float depth, float wallHeight)
         {
             // Door position on the actual server wall determines the opening side.
             var centerX = (float)((building.X0 + building.X1) * 0.5f);
             var centerZ = (float)((building.Y0 + building.Y1) * 0.5f);
-            var side = GetTavernDoorSide(building);
+            var side = ResolveServerDoorSide(building);
             var horizontal = side == 0 || side == 1;
             var axisLength = horizontal ? width : depth;
             var offset = horizontal ? (float)building.Door.X - centerX : (float)building.Door.Y - centerZ;
@@ -1612,9 +1612,17 @@ namespace Pogranichye.Client.Presentation
             AddWallCollider(parent, name, position, size);
         }
 
-        private static int GetTavernDoorSide(WorldRectFrame building)
+        // Server convention: facing is the outward cardinal direction (0 east, 90 north,
+        // 180 west, 270 south). Prefer it over coordinate inference; coordinates remain
+        // a safe fallback for older/partial layouts with a non-cardinal facing value.
+        internal static int ResolveServerDoorSide(WorldRectFrame building)
         {
             if (building == null || building.Door == null) return 0;
+            var facing = Mathf.Repeat((float)building.Door.Facing, 360f);
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 0f)) < 1f) return 3;   // east wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 90f)) < 1f) return 1;  // north wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 180f)) < 1f) return 2; // west wall
+            if (Mathf.Abs(Mathf.DeltaAngle(facing, 270f)) < 1f) return 0; // south wall
             var south = Math.Abs(building.Door.Y - building.Y0);
             var north = Math.Abs(building.Door.Y - building.Y1);
             var west = Math.Abs(building.Door.X - building.X0);
@@ -1657,7 +1665,7 @@ namespace Pogranichye.Client.Presentation
                     new Vector3(right, 0.16f, 0.32f), _trunk, false);
         }
 
-        private static void BuildTavernDoorFacade(Transform root, float width, float depth, float wallHeight,
+        private static void BuildServerDoorFacade(Transform root, float width, float depth, float wallHeight,
             int side, float offset, float opening, Material wall)
         {
             var horizontal = side == 0 || side == 1;
@@ -1751,7 +1759,7 @@ namespace Pogranichye.Client.Presentation
             // Only server-authored doors may open a facade. Closed footprints stay visually closed.
             var opening = hasDoor ? Mathf.Clamp((float)building.Door.Width, 1.2f, 2.4f) :
                 (isMarket ? width * 0.28f : 0f);
-            var doorSide = hasDoor ? GetTavernDoorSide(building) : 0;
+            var doorSide = hasDoor ? ResolveServerDoorSide(building) : 0;
             var axisLength = doorSide == 0 || doorSide == 1 ? width : depth;
             var doorOffset = hasDoor
                 ? (doorSide == 0 || doorSide == 1 ? (float)building.Door.X - center.x : (float)building.Door.Y - center.z)
@@ -1761,7 +1769,7 @@ namespace Pogranichye.Client.Presentation
 
             if (hasDoor)
             {
-                BuildTavernDoorFacade(root, width, depth, wallHeight, doorSide, doorOffset, opening, wall);
+                BuildServerDoorFacade(root, width, depth, wallHeight, doorSide, doorOffset, opening, wall);
             }
             else if (isMarket)
             {
