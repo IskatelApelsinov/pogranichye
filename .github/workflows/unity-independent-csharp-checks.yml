@@ -86,6 +86,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/CharacterMenuHotkeyPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/TavernPanelNavigationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/ClientInput.cs'
+      - '2-client/game/Assets/_Project/Scripts/Runtime/InputEventBudgetPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/CoreGameplay.cs'
       - '2-client/game/Tests/test_shop_catalog_source.py'
       - '2-client/game/Assets/_Project/Scripts/Runtime/GatherNodePresentationPolicy.cs'
@@ -122,6 +123,8 @@ on:
       - '2-client/game/Tests/HexCellCoordinateCheck.cs'
       - '2-client/game/Tests/HexCellStreamingPolicyCheck.cs'
       - '2-client/game/Tests/InputEventDebugStateCheck.cs'
+      - '2-client/game/Tests/InputEventBudgetPolicyCheck.cs'
+      - '2-client/game/Tests/test_input_event_budget_wiring.py'
       - '2-client/game/Tests/JourneyQuestFrameParserCheck.cs'
       - '2-client/game/Tests/CharacterLifeFrameParserCheck.cs'
       - '2-client/game/Tests/WorldLandFrameParserCheck.cs'
@@ -188,6 +191,16 @@ jobs:
         run: |
           mcs -out:/tmp/input-event-debug.exe Tests/InputEventDebugStateCheck.cs Assets/_Project/Scripts/Runtime/InputEventDebugState.cs
           mono /tmp/input-event-debug.exe
+
+      - name: Input event budget regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/input-event-budget.exe Tests/InputEventBudgetPolicyCheck.cs Assets/_Project/Scripts/Runtime/InputEventBudgetPolicy.cs
+          mono /tmp/input-event-budget.exe
+
+      - name: Input event budget wiring regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_input_event_budget_wiring.py'
       - name: Character menu hotkey regression checks
         working-directory: 2-client/game
         run: |

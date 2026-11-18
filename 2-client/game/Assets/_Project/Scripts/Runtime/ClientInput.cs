@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.InputSystem;
 
 namespace Pogranichye.Client
@@ -11,12 +13,11 @@ namespace Pogranichye.Client
     /// </summary>
     public sealed class ClientInput : MonoBehaviour
     {
-        // High-polling mice can enqueue more raw events than the Input System's small default
-        // per-update budget. When that budget is exceeded Unity discards the remaining events,
-        // which is perceived as missed clicks/keys. Keep the limit configurable and raise it
-        // once, before enabling the action map; this is a safety margin, not a substitute for
-        // fixing main-thread stalls.
-        [SerializeField, Min(65536)] private int maxInputEventBytes = 1048576;
+        // High-polling HID devices can enqueue more than 5 MiB in one update on this project.
+        // Enforce an 8 MiB minimum while preserving the Input System's zero = unlimited setting.
+        // This absorbs event bursts; it does not replace fixing main-thread stalls.
+        [FormerlySerializedAs("maxInputEventBytes")]
+        [SerializeField, Min(65536)] private int _maxInputEventBytes = InputEventBudgetPolicy.MinimumSafeBytesPerUpdate;
 
         private InputActionMap _actions;
         private InputAction _move, _look, _zoom, _jump, _sprint, _jog, _interact;
@@ -75,10 +76,16 @@ namespace Pogranichye.Client
 
         private void Awake()
         {
-            // InputSettings is shared by the Input System. Never lower a project's existing
-            // setting; only raise the budget enough to absorb high-frequency device bursts.
-            if (InputSystem.settings != null && InputSystem.settings.maxEventBytesPerUpdate < maxInputEventBytes)
-                InputSystem.settings.maxEventBytesPerUpdate = maxInputEventBytes;
+            // InputSettings is shared by the Input System. A value of zero explicitly means
+            // unlimited, so it must never be converted into a finite cap by this safety policy.
+            var inputSettings = InputSystem.settings;
+            if (inputSettings != null)
+            {
+                var currentBudget = inputSettings.maxEventBytesPerUpdate;
+                var resolvedBudget = InputEventBudgetPolicy.Resolve(currentBudget, _maxInputEventBytes);
+                if (resolvedBudget != currentBudget)
+                    inputSettings.maxEventBytesPerUpdate = resolvedBudget;
+            }
 
             _actions = new InputActionMap("PogranichyeGameplay");
             _move = _actions.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
@@ -338,7 +345,19 @@ namespace Pogranichye.Client
                 if (Mouse.current.middleButton.isPressed) keys.Add("СКМ");
             }
             var held = keys.Count == 0 ? "нет" : string.Join(", ", keys);
-            return held + " · " + _inputDebugState.Describe(Time.unscaledTime);
+            return held + " · " + _inputDebugState.Describe(Time.unscaledTime) +
+                " · " + DescribeInputEventBudget();
+        }
+
+        private static string DescribeInputEventBudget()
+        {
+            var settings = InputSystem.settings;
+            if (settings == null) return "input budget: unavailable";
+            var budget = settings.maxEventBytesPerUpdate;
+            if (budget == 0) return "input budget: unlimited";
+            if (budget < 0) return "input budget: invalid (" + budget + ")";
+            return string.Format(CultureInfo.InvariantCulture, "input budget: {0:0.#} MiB",
+                budget / (1024d * 1024d));
         }
 
         private void OnDestroy()
