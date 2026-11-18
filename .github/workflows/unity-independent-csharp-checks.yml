@@ -25,6 +25,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldLandFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldLayoutCompatibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs'
+      - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/TerrainGatherNodeFrames.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldFrameParser.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs'
       - '2-client/game/Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs'
@@ -77,6 +78,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainTextureSourcePolicy.cs'
       - '2-client/game/Tests/TerrainTextureSourcePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldTerrainChunkBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldGatherNodePresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainGatherNodeVisualPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/TerrainResourceVisualPolicy.cs'
       - '2-client/game/Tests/TerrainResourceVisualPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldClockSmoothingPolicy.cs'
@@ -141,6 +144,9 @@ on:
       - '2-client/game/Tests/WorldPositionProjectionPolicyCheck.cs'
       - '2-client/game/Tests/TavernCounterFrameParserCheck.cs'
       - '2-client/game/Tests/GatherNodeFrameParserCheck.cs'
+      - '2-client/game/Tests/TerrainGatherNodeFrameParserCheck.cs'
+      - '2-client/game/Tests/TerrainGatherNodeVisualPolicyCheck.cs'
+      - '2-client/game/Tests/test_terrain_gather_visual_wiring.py'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
@@ -361,6 +367,22 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/gather-node-frame.exe Tests/GatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/GatherNodeFrames.cs
           mono /tmp/gather-node-frame.exe
+      - name: Terrain gather-node descriptor normalization regression checks
+        working-directory: 2-client/game
+        run: |
+          NEWTONSOFT="$RUNNER_TEMP/newtonsoft/lib/net45/Newtonsoft.Json.dll"
+          test -f "$NEWTONSOFT"
+          mcs -r:"$NEWTONSOFT" -out:/tmp/terrain-gather-frame.exe Tests/TerrainGatherNodeFrameParserCheck.cs Assets/_Project/Scripts/Networking/Protocol/TerrainGatherNodeFrames.cs
+          mono /tmp/terrain-gather-frame.exe
+      - name: Terrain gather-node visual policy regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/terrain-gather-visual.exe Tests/TerrainGatherNodeVisualPolicyCheck.cs Assets/_Project/Scripts/Presentation/TerrainGatherNodeVisualPolicy.cs
+          mono /tmp/terrain-gather-visual.exe
+
+      - name: Terrain gather-node presentation wiring source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_terrain_gather_visual_wiring.py'
       - name: Generated layout POI interaction allow-list checks
         working-directory: 2-client/game
         run: |
