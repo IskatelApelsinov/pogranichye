@@ -42,8 +42,7 @@ namespace Pogranichye.Client.Networking.Protocol
             if (token == null || (token.Type != JTokenType.Integer && token.Type != JTokenType.Float))
                 throw new FormatException(path + " должен быть числом.");
             double value;
-            if (!double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-                double.IsNaN(value) || double.IsInfinity(value))
+            if (!JsonNumberReader.TryReadFiniteDouble(token, out value))
                 throw new FormatException(path + " должен быть конечным числом.");
             return value;
         }
