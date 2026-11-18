@@ -77,17 +77,17 @@ namespace Pogranichye.Client.Networking
             var fast = root["fast"];
             if (fast == null) return false;
             if (fast.Type != JTokenType.Boolean)
-                throw new FormatException("Поле fast должно быть boolean.");
+                throw new FormatException("Field fast must be a boolean.");
             if (!fast.Value<bool>()) return false;
 
             var version = root["v"];
             if (version == null || version.Type != JTokenType.Integer ||
                 version.Value<int>() != SupportedVersion)
-                throw new FormatException("Быстрый кадр имеет неподдерживаемую или отсутствующую версию протокола.");
+                throw new FormatException("Fast frame has an unsupported or missing protocol version.");
 
             var alive = root["alive"];
             if (alive == null || alive.Type != JTokenType.Boolean)
-                throw new FormatException("Поле alive в fast-кадре должно быть boolean.");
+                throw new FormatException("Field alive in a fast frame must be a boolean.");
             // The server emits a terminal fast envelope when the entity disappears.
             // Route it through the full parser so the normal alive:false lifecycle runs.
             if (!alive.Value<bool>()) return false;
@@ -95,14 +95,14 @@ namespace Pogranichye.Client.Networking
             var meToken = root["me"];
             var placeToken = root["place"];
             if (meToken != null && meToken.Type != JTokenType.Null && meToken.Type != JTokenType.Object)
-                throw new FormatException("Быстрый кадр: me должен быть объектом или null.");
+                throw new FormatException("Fast frame: me must be an object or null.");
             if (placeToken != null && placeToken.Type != JTokenType.Null && placeToken.Type != JTokenType.Object)
-                throw new FormatException("Быстрый кадр: place должен быть объектом или null.");
+                throw new FormatException("Fast frame: place must be an object or null.");
 
             var me = meToken as JObject;
             var place = placeToken as JObject;
             if (me == null && place == null)
-                throw new FormatException("Быстрый кадр не содержит ни одного обновляемого раздела.");
+                throw new FormatException("Fast frame does not contain any updatable sections.");
 
             ValidateOptionalObject(me, "me.pos");
             ValidateOptionalObject(me, "me.wounds");
@@ -150,7 +150,7 @@ namespace Pogranichye.Client.Networking
             if (token == null) return false;
             if (token.Type == JTokenType.Null) return true;
             if (token.Type != JTokenType.Object)
-                throw new FormatException("me.pos должен быть объектом или null.");
+                throw new FormatException("me.pos must be an object or null.");
 
             // A present position replaces the previous position object. If its optional
             // stamina member is absent/null, the legacy numeric selector reads it as zero.
@@ -166,12 +166,12 @@ namespace Pogranichye.Client.Networking
             if (token == null) return false;
             if (token.Type == JTokenType.Null) return true;
             if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
-                throw new FormatException(field + " должен быть числом или null.");
+                throw new FormatException(field + " must be a number or null.");
 
             var number = token.Value<double>();
             if (double.IsNaN(number) || double.IsInfinity(number) ||
                 number > float.MaxValue || number < -float.MaxValue)
-                throw new FormatException(field + " выходит за диапазон конечного float.");
+                throw new FormatException(field + " is outside the finite float range.");
             value = (float)number;
             return true;
         }
@@ -184,10 +184,10 @@ namespace Pogranichye.Client.Networking
             {
                 var item = token[i] as JObject;
                 if (item == null || item["id"]?.Type != JTokenType.String)
-                    throw new FormatException("place.neighbors[" + i + "] должен содержать строковый id.");
+                    throw new FormatException("place.neighbors[" + i + "] must contain a string ID.");
                 var pos = item["pos"];
                 if (pos != null && pos.Type != JTokenType.Null && pos.Type != JTokenType.Object)
-                    throw new FormatException("place.neighbors[" + i + "].pos должен быть объектом.");
+                    throw new FormatException("place.neighbors[" + i + "].pos must be an object.");
             }
         }
 
@@ -197,7 +197,7 @@ namespace Pogranichye.Client.Networking
             var name = FieldName(field);
             var token = parent[name];
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.Object)
-                throw new FormatException(field + " должен быть объектом.");
+                throw new FormatException(field + " must be an object.");
         }
 
         private static void ValidateOptionalNumber(JObject parent, string field)
@@ -206,7 +206,7 @@ namespace Pogranichye.Client.Networking
             var token = parent[FieldName(field)];
             if (token != null && token.Type != JTokenType.Null &&
                 token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
-                throw new FormatException(field + " должен быть числом.");
+                throw new FormatException(field + " must be a number.");
         }
 
         private static void ValidateOptionalArray(JObject parent, string field)
@@ -215,7 +215,7 @@ namespace Pogranichye.Client.Networking
             var name = FieldName(field);
             var token = parent[name];
             if (token != null && token.Type != JTokenType.Null && token.Type != JTokenType.Array)
-                throw new FormatException(field + " должен быть массивом.");
+                throw new FormatException(field + " must be an array.");
         }
 
         private static string FieldName(string path)
