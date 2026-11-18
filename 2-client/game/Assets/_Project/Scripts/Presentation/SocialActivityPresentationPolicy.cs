@@ -1,3 +1,5 @@
+using System;
+
 namespace Pogranichye.Client.Presentation
 {
     /// <summary>Pure helpers for server activity-driven social presentation.</summary>
@@ -5,7 +7,7 @@ namespace Pogranichye.Client.Presentation
     {
         public static bool IsDrinking(string serverActivityCode)
         {
-            return ActivityAnimationPolicy.Resolve(serverActivityCode) == "drink";
+            return string.Equals(serverActivityCode, "drink_tavern", StringComparison.Ordinal);
         }
     }
 }
