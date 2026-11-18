@@ -200,7 +200,7 @@ jobs:
           mono /tmp/gameplay-input-capture.exe
       - name: Server neighbor position authority regression checks
         run: |
-          python3 -m unittest 2-client/game/Tests/test_server_neighbor_position_authority.py
+          python3 -m unittest discover -s 2-client/game/Tests -p 'test_server_neighbor_position_authority.py'
 
       - name: Server activity animation mapping regression checks
         working-directory: 2-client/game
