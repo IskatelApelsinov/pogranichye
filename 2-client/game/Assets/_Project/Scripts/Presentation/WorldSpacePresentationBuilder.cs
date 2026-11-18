@@ -402,7 +402,8 @@ namespace Pogranichye.Client.Presentation
             var normal = Resources.Load<Texture2D>(prefix + "_normal");
             var roughness = Resources.Load<Texture2D>(prefix + "_roughness");
             var ao = Resources.Load<Texture2D>(prefix + "_ao");
-            if (albedo == null || albedo.width < 1024 || normal == null || roughness == null || ao == null)
+            if (albedo == null || normal == null || roughness == null || ao == null ||
+                albedo.width < 1024 || normal.width < 1024 || roughness.width < 1024 || ao.width < 1024)
                 return false;
 
             var tiling = new Vector2(2f, 2f);
@@ -412,7 +413,7 @@ namespace Pogranichye.Client.Presentation
             {
                 material.SetTexture("_BaseMap", albedo);
                 material.SetTextureScale("_BaseMap", tiling);
-                material.SetColor("_BaseColor", Color.white);
+                if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
             }
             else if (material.HasProperty("_Color"))
             {
