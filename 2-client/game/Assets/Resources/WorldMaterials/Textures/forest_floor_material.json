@@ -1,0 +1,30 @@
+{
+  "name": "Pogranichye authored damp woodland leaf litter",
+  "availability": "pending",
+  "availability_note": "Source artwork and complete authored 1024x1024 maps are supplied in the matching forest-floor texture pack; the clean checkout remains on its procedural fallback until that pack is installed.",
+  "version": 1,
+  "resolution": [
+    1024,
+    1024
+  ],
+  "tileable": true,
+  "source": "2-client/art-source/textures/forest_floor_source.jpg",
+  "builder": "2-client/art-source/textures/build_forest_floor_material.py",
+  "maps": {
+    "albedo": "forest_floor_albedo.png",
+    "normal": "forest_floor_normal.png",
+    "roughness": "forest_floor_roughness.png",
+    "ao": "forest_floor_ao.png"
+  },
+  "normal": {
+    "space": "tangent",
+    "green_channel": "positive_y"
+  },
+  "urp": {
+    "smoothness": "1 - roughness",
+    "smoothness_storage": "linear alpha channel of _BaseMap; _SmoothnessTextureChannel = 1",
+    "metallic": 0,
+    "wrap": "Repeat",
+    "mipmaps": true
+  }
+}

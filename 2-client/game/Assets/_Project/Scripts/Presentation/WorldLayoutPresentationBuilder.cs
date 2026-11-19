@@ -14,6 +14,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _roof;
         private static Material _field;
         private static Material _forest;
+        private static Material _forestFloor;
         private static Material _trunk;
         private static Material _road;
         private static Material _straw;
@@ -44,6 +45,7 @@ namespace Pogranichye.Client.Presentation
             _roof = MakeTexturedMaterial("Layout thatch • straw courses", new Color(0.24f, 0.20f, 0.14f), 3, 2f, 3f);
             _field = MakeTexturedMaterial("Layout field • rough soil", new Color(0.57f, 0.57f, 0.30f), 1, 8f, 8f);
             _forest = MakeTexturedMaterial("Layout woodland • foliage", new Color(0.13f, 0.25f, 0.15f), 0, 5f, 5f);
+            _forestFloor = MakeTexturedMaterial("Woodland floor • damp leaf litter", new Color(0.25f, 0.19f, 0.12f), 1, 1f, 1f);
             _trunk = MakeTexturedMaterial("Layout trunks • bark", new Color(0.25f, 0.16f, 0.10f), 2, 1f, 3f);
             _road = MakeTexturedMaterial("Layout country roads • packed dirt", new Color(0.38f, 0.30f, 0.22f), 1, 2f, 12f);
             _straw = MakeTexturedMaterial("Farm straw • dry stalks", new Color(0.69f, 0.53f, 0.24f), 3, 2f, 2f);
@@ -71,6 +73,7 @@ namespace Pogranichye.Client.Presentation
             ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
             ApplyAuthoredWorldMapsWithGrokFallback(_straw, "thatch_roof", "thatch_roof", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
+            ApplyGeneratedWorldMaps(_forestFloor, "forest_floor", 1f, 1f, true);
             ApplyAuthoredWorldMapsWithGrokFallback(_road, "packed_road", "cobble_path", 2f, 12f, true);
             ApplyAuthoredWorldMapsWithGrokFallback(_stone, "mossy_stone", "stone_wall", 1.5f, 2f, true);
             ApplyAuthoredWorldMapsWithGrokFallback(_plaster, "lime_plaster", "plaster_wall", 1.5f, 1.5f, true);
@@ -204,35 +207,41 @@ namespace Pogranichye.Client.Presentation
                     var z0 = Mathf.Max((float)zone.Y0, -half);
                     var z1 = Mathf.Min((float)zone.Y1, half);
                     if (x1 <= x0 || z1 <= z0) continue;
-                    var material = _grass;
-                    var thickness = 0.10f;
-                    switch (zone.Kind)
+                    if (zone.Kind == "forest")
                     {
-                        case "forest":
-                            material = _forest;
-                            thickness = 0.12f;
-                            break;
-                        case "copse":
-                            // A copse is not a full timber forest: keep its floor visibly lighter
-                            // and its tree population sparse to match the server's unavailable-woods feature.
-                            material = _grass;
-                            thickness = 0.08f;
-                            break;
-                        case "field":
-                            material = _field;
-                            break;
-                        case "rock":
-                            material = _stone;
-                            thickness = 0.16f;
-                            break;
-                        case "pond":
-                            material = _water;
-                            thickness = 0.06f;
-                            break;
+                        // A world-aligned litter surface sits just above the terrain. Its UVs
+                        // use metres, so each four-metre tile keeps the same detail scale in
+                        // small and large server-authored woodland zones.
+                        CreateForestFloorPatch(world, "Woodland floor • zone " + index, x0, z0, x1, z1);
                     }
-                    Create("Zone • " + zone.Kind + " " + index, PrimitiveType.Cube, world,
-                        new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
-                        new Vector3(x1 - x0, thickness, z1 - z0), material, false);
+                    else
+                    {
+                        var material = _grass;
+                        var thickness = 0.10f;
+                        switch (zone.Kind)
+                        {
+                            case "copse":
+                                // A copse is not a full timber forest: keep its floor visibly lighter
+                                // and its tree population sparse to match the server's unavailable-woods feature.
+                                material = _grass;
+                                thickness = 0.08f;
+                                break;
+                            case "field":
+                                material = _field;
+                                break;
+                            case "rock":
+                                material = _stone;
+                                thickness = 0.16f;
+                                break;
+                            case "pond":
+                                material = _water;
+                                thickness = 0.06f;
+                                break;
+                        }
+                        Create("Zone • " + zone.Kind + " " + index, PrimitiveType.Cube, world,
+                            new Vector3((x0 + x1) * 0.5f, 0.025f, (z0 + z1) * 0.5f),
+                            new Vector3(x1 - x0, thickness, z1 - z0), material, false);
+                    }
 
                     if (zone.Kind != "forest" && zone.Kind != "copse") continue;
 
@@ -334,6 +343,45 @@ namespace Pogranichye.Client.Presentation
                 // and deterministic from the server-provided road graph.
                 BuildRoadsideGroundCover(world, layout);
             }
+        }
+
+        private static void CreateForestFloorPatch(Transform parent, string objectName,
+            float x0, float z0, float x1, float z1)
+        {
+            if (parent == null || _forestFloor == null || x1 <= x0 || z1 <= z0) return;
+
+            const float surfaceY = 0.086f;
+            const float tileWorldSize = 4f;
+            var vertices = new[]
+            {
+                new Vector3(x0, surfaceY, z0),
+                new Vector3(x1, surfaceY, z0),
+                new Vector3(x1, surfaceY, z1),
+                new Vector3(x0, surfaceY, z1)
+            };
+            var uv = new[]
+            {
+                new Vector2(x0 / tileWorldSize, z0 / tileWorldSize),
+                new Vector2(x1 / tileWorldSize, z0 / tileWorldSize),
+                new Vector2(x1 / tileWorldSize, z1 / tileWorldSize),
+                new Vector2(x0 / tileWorldSize, z1 / tileWorldSize)
+            };
+            var mesh = new Mesh { name = objectName };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
+
+            var patch = new GameObject(objectName);
+            patch.transform.SetParent(parent, false);
+            patch.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = patch.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _forestFloor;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
         }
 
         /// <summary>

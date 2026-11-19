@@ -238,6 +238,11 @@ def main():
             "resolution": [1024, 1024],
             "source": "2-client/art-source/textures/lime_plaster_source.jpg",
             "builder": "build_lime_plaster_material.py"
+        },
+        "forest_floor": {
+            "resolution": [1024, 1024],
+            "source": "2-client/art-source/textures/forest_floor_source.jpg",
+            "builder": "build_forest_floor_material.py"
         }
     }
     for kind in kinds:
