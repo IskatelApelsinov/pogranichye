@@ -100,7 +100,7 @@ namespace Pogranichye.Client.Presentation
             _nightInsects = CreateSource("Ambience • night insects", 0f, 0f, 1f);
             _nightInsects.clip = CreateNightInsectLoop();
             _nightInsects.volume = 0f;
-            StartAmbientLoops();
+            if (isActiveAndEnabled) StartAmbientLoops();
         }
 
         private void OnEnable()
