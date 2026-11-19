@@ -4361,11 +4361,14 @@ namespace Pogranichye.Client
             var poi = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
             var feature = game == ActivityMiniGame.Woodcutting ? "woods" : "river";
             var tool = game == ActivityMiniGame.Woodcutting ? "axe" : "rod";
-            if (!_core.SupportsFeature(feature))
+            var activityAvailable = game == ActivityMiniGame.Woodcutting
+                ? _core.SupportsFeature(feature)
+                : _core.CanFishHere;
+            if (!activityAvailable)
             {
                 _activityMiniGameFeedback = game == ActivityMiniGame.Woodcutting
                     ? "В этих угодьях нет подходящего леса."
-                    : "В этом поселении нет подходящего водоёма.";
+                    : "Рыба здесь сейчас не ловится.";
                 _status = _activityMiniGameFeedback;
                 return;
             }
@@ -4395,6 +4398,12 @@ namespace Pogranichye.Client
 
         private void DrawActivityMiniGame()
         {
+            if (_activityMiniGame == ActivityMiniGame.Fishing && _core != null && !_core.CanFishHere)
+            {
+                _activityMiniGame = ActivityMiniGame.None;
+                _activityMiniGameFeedback = "Рыба здесь сейчас не ловится.";
+            }
+
             if (_activityMiniGame == ActivityMiniGame.None)
             {
                 if (!string.IsNullOrEmpty(_activityMiniGameFeedback))
@@ -4458,6 +4467,12 @@ namespace Pogranichye.Client
         private void HandleActivityMiniGamePrimaryAction()
         {
             if (_activityMiniGame == ActivityMiniGame.None) return;
+            if (_activityMiniGame == ActivityMiniGame.Fishing && _core != null && !_core.CanFishHere)
+            {
+                _activityMiniGame = ActivityMiniGame.None;
+                _activityMiniGameFeedback = "Рыба здесь сейчас не ловится.";
+                return;
+            }
             var elapsed = Mathf.Max(0f, Time.realtimeSinceStartup - _activityMiniGameStartedAt);
             if (_activityMiniGame == ActivityMiniGame.Woodcutting)
             {
