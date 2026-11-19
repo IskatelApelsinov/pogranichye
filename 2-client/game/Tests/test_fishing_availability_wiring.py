@@ -22,7 +22,7 @@ class FishingAvailabilityWiringTests(unittest.TestCase):
 
     def test_fishing_minigame_requires_server_availability(self):
         self.assertIn(': _core.CanFishHere;', self.controller)
-        self.assertIn('game == ActivityMiniGame.Fishing && _core != null && !_core.CanFishHere', self.controller)
+        self.assertIn('_activityMiniGame == ActivityMiniGame.Fishing && _core != null && !_core.CanFishHere', self.controller)
         self.assertIn('Рыба здесь сейчас не ловится.', self.controller)
 
 
