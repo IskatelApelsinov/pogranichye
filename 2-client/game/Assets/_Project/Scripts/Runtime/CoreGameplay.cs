@@ -252,6 +252,7 @@ namespace Pogranichye.Client
             if (_externalCharacterMenuOpen == open) return;
             _externalCharacterMenuOpen = open;
             if (!open) return;
+            CancelHorseInteractionInput();
             _menuOpen = false;
             _holding = false;
             _holdStart = 0f;
@@ -262,12 +263,14 @@ namespace Pogranichye.Client
         public void SetExternalUiCapture(bool captured)
         {
             _externalUiCapture = captured;
+            if (captured) CancelHorseInteractionInput();
         }
 
         public void SetExternalModalMenuOpen(bool open)
         {
             _externalModalMenuOpen = open;
             if (!open) return;
+            CancelHorseInteractionInput();
             _externalCharacterMenuOpen = false;
             _menuOpen = false;
             _holding = false;
@@ -1156,7 +1159,7 @@ namespace Pogranichye.Client
             _stats = null;
             _bag = null;
             _horse = null;
-            _horseInteractPending = false;
+            CancelHorseInteractionInput();
             if (_rig != null) _rig.SetMounted(false);
             _region = null;
             _tavernCounter = null;
@@ -1739,6 +1742,7 @@ namespace Pogranichye.Client
                 _holding = false;
                 _holdStart = 0f;
                 CloseWeave(false);
+                CancelHorseInteractionInput();
                 ReleaseGuard();
                 UpdateCursor(true);
                 return;
@@ -1750,6 +1754,7 @@ namespace Pogranichye.Client
                 _holding = false;
                 _holdStart = 0f;
                 _fishPhase = 0;
+                CancelHorseInteractionInput();
                 ReleaseGuard();
                 if (_weaveOpen) CloseWeave(false);
                 UpdateCursor(true);
@@ -1760,6 +1765,7 @@ namespace Pogranichye.Client
 
             if (journey != null)
             {
+                CancelHorseInteractionInput();
                 _menuOpen = false;
                 CloseWeave(false);
                 ReleaseGuard();
@@ -2149,7 +2155,7 @@ namespace Pogranichye.Client
             {
                 if (_mount != null) _mount.SetActive(false);
                 if (_rig != null) _rig.SetMounted(false);
-                _horseInteractPending = false;
+                CancelHorseInteractionInput();
                 return;
             }
             if (_mount == null)
@@ -2338,11 +2344,17 @@ namespace Pogranichye.Client
             if (_active && _me != null) ApplyRiderPose();
         }
 
+        private void CancelHorseInteractionInput()
+        {
+            _horseInteractPending = false;
+            _horseInteractStartedAt = 0f;
+        }
+
         private void UpdateHorseInteractionInput()
         {
             if (_input == null || _horse == null || !_horse.Mounted || CapturesInput)
             {
-                _horseInteractPending = false;
+                CancelHorseInteractionInput();
                 return;
             }
 
@@ -2355,7 +2367,7 @@ namespace Pogranichye.Client
             if (_input.InteractReleased && _horseInteractPending)
             {
                 var heldSeconds = Time.unscaledTime - _horseInteractStartedAt;
-                _horseInteractPending = false;
+                CancelHorseInteractionInput();
                 if (heldSeconds >= 0.45f)
                     Ask("Спешиться", "horse", "action", "dismount", "target", _horse.Id);
                 else
