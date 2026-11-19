@@ -60,6 +60,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs'
       - '2-client/game/Tests/WorldInteriorLightingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/VillageSoundscape.cs'
+      - '2-client/game/Tests/test_village_soundscape_lifecycle.py'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
@@ -224,6 +225,10 @@ jobs:
         run: |
           mcs -out:/tmp/gameplay-input-capture.exe Tests/GameplayInputCapturePolicyCheck.cs Assets/_Project/Scripts/Runtime/GameplayInputCapturePolicy.cs
           mono /tmp/gameplay-input-capture.exe
+      - name: Village soundscape lifecycle source regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_village_soundscape_lifecycle.py'
+
       - name: Server neighbor position authority regression checks
         run: |
           python3 -m unittest discover -s 2-client/game/Tests -p 'test_server_neighbor_position_authority.py'
