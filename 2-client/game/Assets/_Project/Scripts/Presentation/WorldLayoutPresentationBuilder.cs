@@ -376,7 +376,6 @@ namespace Pogranichye.Client.Presentation
 
             var patch = new GameObject(objectName);
             patch.transform.SetParent(parent, false);
-            patch.isStatic = true;
             patch.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = patch.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = _forestFloor;
