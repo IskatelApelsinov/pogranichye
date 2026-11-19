@@ -24,6 +24,10 @@ namespace Pogranichye.Client.Presentation
         private float _birdDaylightFactor = 1f;
         private float _nightInsectFactor;
         private float _nextAtmosphereMixAt;
+        private bool _waterAvailable;
+        private bool _forgeAvailable;
+        private bool _hearthAvailable;
+        private bool _tavernAvailable;
 
         public void SetAmbienceVolume(float volume)
         {
@@ -65,12 +69,10 @@ namespace Pogranichye.Client.Presentation
             _wind = CreateSource("Ambience • soft meadow wind", 0f, 0f, 1f);
             _wind.clip = CreateWindLoop();
             _wind.volume = 0.16f * _ambienceVolume;
-            _wind.Play();
 
             _birds = CreateSource("Ambience • distant birds", 0f, 0f, 1f);
             _birds.clip = CreateBirdLoop();
             _birds.volume = 0.20f * _ambienceVolume;
-            _birds.Play();
 
             _water = CreateSource("Ambience • creek and reeds", 1f, 5f, 58f);
             _water.clip = CreateWaterLoop();
@@ -98,7 +100,50 @@ namespace Pogranichye.Client.Presentation
             _nightInsects = CreateSource("Ambience • night insects", 0f, 0f, 1f);
             _nightInsects.clip = CreateNightInsectLoop();
             _nightInsects.volume = 0f;
-            _nightInsects.Play();
+            StartAmbientLoops();
+        }
+
+        private void OnEnable()
+        {
+            if (_wind == null) return;
+            StartAmbientLoops();
+            StartAvailableAnchorLoops();
+        }
+
+        private void OnDisable()
+        {
+            StopSource(_wind);
+            StopSource(_birds);
+            StopSource(_water);
+            StopSource(_forge);
+            StopSource(_hearth);
+            StopSource(_tavern);
+            StopSource(_nightInsects);
+        }
+
+        private void StartAmbientLoops()
+        {
+            PlaySource(_wind);
+            PlaySource(_birds);
+            PlaySource(_nightInsects);
+        }
+
+        private void StartAvailableAnchorLoops()
+        {
+            if (_waterAvailable) PlaySource(_water);
+            if (_forgeAvailable) PlaySource(_forge);
+            if (_hearthAvailable) PlaySource(_hearth);
+            if (_tavernAvailable) PlaySource(_tavern);
+        }
+
+        private static void PlaySource(AudioSource source)
+        {
+            if (source != null && !source.isPlaying) source.Play();
+        }
+
+        private static void StopSource(AudioSource source)
+        {
+            if (source != null && source.isPlaying) source.Stop();
         }
 
         public void SetServerAnchor(string kind, Vector3 position, bool available)
@@ -107,21 +152,21 @@ namespace Pogranichye.Client.Presentation
             float baseVolume = 0f;
             switch (kind)
             {
-                case "water": source = _water; baseVolume = 0.22f; break;
-                case "forge": source = _forge; baseVolume = 0.18f; break;
-                case "hearth": source = _hearth; baseVolume = 0.24f; break;
-                case "tavern": source = _tavern; baseVolume = 0.12f; break;
+                case "water": source = _water; baseVolume = 0.22f; _waterAvailable = available; break;
+                case "forge": source = _forge; baseVolume = 0.18f; _forgeAvailable = available; break;
+                case "hearth": source = _hearth; baseVolume = 0.24f; _hearthAvailable = available; break;
+                case "tavern": source = _tavern; baseVolume = 0.12f; _tavernAvailable = available; break;
             }
             if (source == null) return;
             if (!available)
             {
                 source.volume = 0f;
-                source.Stop();
+                StopSource(source);
                 return;
             }
             source.transform.position = position;
             source.volume = baseVolume * _ambienceVolume;
-            if (!source.isPlaying) source.Play();
+            if (isActiveAndEnabled) PlaySource(source);
         }
 
         private AudioSource CreateSource(string sourceName, float blend, float minDistance, float maxDistance)
@@ -367,6 +412,7 @@ namespace Pogranichye.Client.Presentation
         private static void DestroySource(AudioSource source)
         {
             if (source == null) return;
+            source.Stop();
             var clip = source.clip;
             if (clip != null) Destroy(clip);
         }
