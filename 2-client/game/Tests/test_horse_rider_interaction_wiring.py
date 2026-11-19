@@ -67,5 +67,14 @@ class HorseRiderInteractionWiringTests(unittest.TestCase):
         self.assertIn("_horseInteractPending = false;", cancel_body)
         self.assertIn("_horseInteractStartedAt = 0f;", cancel_body)
 
+
+    def test_focus_loss_cancels_pending_dismount_before_processing_released_input(self):
+        update_body = extract_method_body(self.core, "private void Update()")
+        focus_guard = update_body.split("if (!Application.isFocused)", 1)[1].split(
+            "UpdateHorseInteractionInput();", 1
+        )[0]
+        self.assertIn("CancelHorseInteractionInput();", focus_guard)
+        self.assertIn("return;", focus_guard)
+
 if __name__ == "__main__":
     unittest.main()
