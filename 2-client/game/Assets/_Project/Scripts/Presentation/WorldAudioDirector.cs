@@ -17,6 +17,7 @@ namespace Pogranichye.Client.Presentation
         private float _nextStepAt;
         private float _sfxVolume = 0.9f;
         private float _ambienceVolume = 0.75f;
+        private bool _eventsSubscribed;
 
         public void Initialize()
         {
@@ -58,9 +59,43 @@ namespace Pogranichye.Client.Presentation
                 voice.volume = _sfxVolume;
                 _nearbyVoices[i] = voice;
             }
+            SubscribeEvents();
+        }
+
+        private void OnEnable()
+        {
+            if (_oneShot != null) SubscribeEvents();
+        }
+
+        private void OnDisable()
+        {
+            UnsubscribeEvents();
+            StopPlayback();
+        }
+
+        private void SubscribeEvents()
+        {
+            if (_eventsSubscribed) return;
             EntityMotion.NearbyFootstep += OnNearbyFootstep;
             EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
             EntityMotion.NearbyWorkAction += OnNearbyWorkAction;
+            _eventsSubscribed = true;
+        }
+
+        private void UnsubscribeEvents()
+        {
+            if (!_eventsSubscribed) return;
+            EntityMotion.NearbyFootstep -= OnNearbyFootstep;
+            EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
+            EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;
+            _eventsSubscribed = false;
+        }
+
+        private void StopPlayback()
+        {
+            if (_oneShot != null) _oneShot.Stop();
+            for (var i = 0; i < _nearbyVoices.Length; i++)
+                if (_nearbyVoices[i] != null) _nearbyVoices[i].Stop();
         }
 
         public void SetVolumes(float sfx, float ambience)
@@ -79,13 +114,13 @@ namespace Pogranichye.Client.Presentation
 
         public void Footsteps(bool running)
         {
-            if (Time.unscaledTime < _nextStepAt || _oneShot == null) return;
+            if (!isActiveAndEnabled || Time.unscaledTime < _nextStepAt || _oneShot == null) return;
             _nextStepAt = Time.unscaledTime + (running ? 0.46f : 0.68f);
             _oneShot.PlayOneShot(running ? _run : _step, running ? 0.38f : 0.27f);
         }
 
-        public void Magic() { if (_oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
-        public void DrinkBeer() { if (_oneShot != null) _oneShot.PlayOneShot(_beer, 0.9f); }
+        public void Magic() { if (isActiveAndEnabled && _oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
+        public void DrinkBeer() { if (isActiveAndEnabled && _oneShot != null) _oneShot.PlayOneShot(_beer, 0.9f); }
 
         private void OnNearbyFootstep(Vector3 position, bool running)
         {
@@ -142,7 +177,7 @@ namespace Pogranichye.Client.Presentation
 
         private void PlayNearby(Vector3 position, AudioClip clip, float volume)
         {
-            if (_oneShot == null || clip == null || _nearbyVoices.Length == 0) return;
+            if (!isActiveAndEnabled || _oneShot == null || clip == null || _nearbyVoices.Length == 0) return;
             // Remote entities are replicated as a bounded nearest-neighbor set, but some may
             // still be outside hearing range. Cull before taking a voice so distant activity
             // cannot steal one of the six audible slots from a nearby character.
@@ -215,9 +250,8 @@ namespace Pogranichye.Client.Presentation
 
         private void OnDestroy()
         {
-            EntityMotion.NearbyFootstep -= OnNearbyFootstep;
-            EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;
-            EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;
+            UnsubscribeEvents();
+            StopPlayback();
             DestroyClip(_step); DestroyClip(_run);
             DestroyClip(_magic); DestroyClip(_beer);
             DestroyClip(_npcWoodcut); DestroyClip(_npcForge); DestroyClip(_npcFishing);
