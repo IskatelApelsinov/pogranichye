@@ -2997,6 +2997,9 @@ namespace Pogranichye.Client
 
         public bool SupportsFeature(string feature) => HasFeature(feature);
 
+        /// <summary>Server-authoritative availability of fish at the current settlement.</summary>
+        public bool CanFishHere => Flag(Obj(_place, "site"), "can_fish");
+
         private bool HasFeature(string feature)
         {
             var site = Obj(_place, "site");
@@ -3370,7 +3373,14 @@ namespace Pogranichye.Client
             if (Flag(Obj(_me, "weave"), "can_learn") && GUILayout.Button("Созерцать ману (учиться плетению)")) AskActivity("Созерцание", "meditate");
             if (Flag(Obj(_me, "weave"), "can_study") && GUILayout.Button("Учиться у мага рядом (новый узор)")) AskActivity("Урок плетения", "study");
             if (HasFeature("woods") && Near("woods", 10f) && GUILayout.Button("Срубить дерево")) AskActivity("Рубка", "chop");
-            if (HasFeature("river") && Near("river", 10f) && GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
+            if (Near("river", 10f))
+            {
+                if (CanFishHere)
+                {
+                    if (GUILayout.Button("Закинуть удочку")) AskActivity("Рыбалка", "fish");
+                }
+                else GUILayout.Label("Рыба здесь сейчас не ловится.");
+            }
             var catalogItemsForSale = Arr(_catalog, "items");
             if (catalogItemsForSale != null)
             {
