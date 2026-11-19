@@ -371,6 +371,7 @@ namespace Pogranichye.Client.Presentation
             mesh.uv = uv;
             mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
             mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
             mesh.RecalculateBounds();
             if (_activeBuildAssets != null) _activeBuildAssets.Add(mesh);
 
