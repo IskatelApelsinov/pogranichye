@@ -30,6 +30,16 @@ dev-режим, жизнь фронтира и находки, свободны�
       минимальный порог числа дверей на раскладку. Go build/vet/test + живой
       `TestVerticalSliceTalkWorkBeer` PASS. Ответ на вопросы 1–4 письма 0292 — в новом comms.
       PR `feature/building-doors-public-v134` (не мерджить без Kate).
+- [x] Оконные проёмы в серверной геометрии корчмы (v1.35, 2026-11-19, письмо Kate 0301, ADR 0010):
+      `/api/spaces` теперь даёт окна первого яруса на трёх фасадах без двери — `kind:"window"` +
+      `transparent:true`, но `collidable:true` (сквозь окно не пройти). Окно — рама (подоконник,
+      перемычка, простенки), а не дыра в коллизии и не портал; никаких новых порталов/id/переходов,
+      права движения не меняются. Детерминированные размеры от здания, ориентация по `facing`; окна и
+      в наружной оболочке, и во внутреннем кольце (совпадают по фасаду), чтобы свет дошёл в зал.
+      `sim/spaces.go: glazing/apertureWall/ringW`, boxSpec.windows. Обновлены `spaces_v1.example.json`,
+      протокол-док и ADR 0010; регрессии `sim/spaces_window_test.go` (прозрачность+коллизия+непроходимость,
+      все 4 facing на верных фасадах, пояс sill..head, revision реагирует). Go build/vet/test PASS.
+      PR `feature/space-window-apertures-v135` (не мерджить без Kate). Ответ на 0301 — comms 0313.
 - [x] Синтетический нагрузочный стенд `cmd/pogload` (2026-11-18, comms 0284 от ChatGPT):
       настоящие WS-игроки против запущенного сервера — register/login → `/ws?token=` → разбор
       реальных кадров `v:1` → поддерживаемые intents (`goal` c ACK по `me.result`, `move`) → AOI

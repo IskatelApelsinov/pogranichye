@@ -4,7 +4,7 @@
     66
   ],
   "frame": 0,
-  "revision": 2544177695983323,
+  "revision": 1512444548042443,
   "scheme": "yof-tangent",
   "spaces": [
     {
@@ -173,12 +173,12 @@
             {
               "x": 0,
               "y": 0,
-              "z": 12
+              "z": 5.4
             },
             {
               "x": 0,
               "y": 6,
-              "z": 12
+              "z": 5.4
             },
             {
               "x": 0,
@@ -195,24 +195,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 14,
+              "x": 0,
               "y": 0,
-              "z": 0
+              "z": 6.6
             },
             {
-              "x": 14,
+              "x": 0,
               "y": 0,
               "z": 12
             },
             {
-              "x": 14,
+              "x": 0,
               "y": 6,
               "z": 12
             },
             {
-              "x": 14,
+              "x": 0,
               "y": 6,
-              "z": 0
+              "z": 6.6
             }
           ],
           "walkable": false
@@ -226,22 +226,22 @@
             {
               "x": 0,
               "y": 0,
-              "z": 12
-            },
-            {
-              "x": 14,
-              "y": 0,
-              "z": 12
-            },
-            {
-              "x": 14,
-              "y": 6,
-              "z": 12
+              "z": 5.4
             },
             {
               "x": 0,
-              "y": 6,
-              "z": 12
+              "y": 0,
+              "z": 6.6
+            },
+            {
+              "x": 0,
+              "y": 0.9,
+              "z": 6.6
+            },
+            {
+              "x": 0,
+              "y": 0.9,
+              "z": 5.4
             }
           ],
           "walkable": false
@@ -254,23 +254,23 @@
           "points": [
             {
               "x": 0,
-              "y": 0,
-              "z": 0
+              "y": 2,
+              "z": 5.4
             },
             {
-              "x": 6.2,
-              "y": 0,
-              "z": 0
-            },
-            {
-              "x": 6.2,
-              "y": 6,
-              "z": 0
+              "x": 0,
+              "y": 2,
+              "z": 6.6
             },
             {
               "x": 0,
               "y": 6,
-              "z": 0
+              "z": 6.6
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "z": 5.4
             }
           ],
           "walkable": false
@@ -279,29 +279,30 @@
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:005",
-          "kind": "wall",
+          "kind": "window",
           "points": [
             {
-              "x": 7.8,
-              "y": 0,
-              "z": 0
+              "x": 0,
+              "y": 0.9,
+              "z": 5.4
             },
             {
-              "x": 14,
-              "y": 0,
-              "z": 0
+              "x": 0,
+              "y": 0.9,
+              "z": 6.6
             },
             {
-              "x": 14,
-              "y": 6,
-              "z": 0
+              "x": 0,
+              "y": 2,
+              "z": 6.6
             },
             {
-              "x": 7.8,
-              "y": 6,
-              "z": 0
+              "x": 0,
+              "y": 2,
+              "z": 5.4
             }
           ],
+          "transparent": true,
           "walkable": false
         },
         {
@@ -311,22 +312,22 @@
           "kind": "wall",
           "points": [
             {
-              "x": 6.2,
-              "y": 2.1,
+              "x": 14,
+              "y": 0,
               "z": 0
             },
             {
-              "x": 7.8,
-              "y": 2.1,
-              "z": 0
+              "x": 14,
+              "y": 0,
+              "z": 5.4
             },
             {
-              "x": 7.8,
+              "x": 14,
               "y": 6,
-              "z": 0
+              "z": 5.4
             },
             {
-              "x": 6.2,
+              "x": 14,
               "y": 6,
               "z": 0
             }
@@ -340,24 +341,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 6.2,
+              "x": 14,
               "y": 0,
-              "z": 0
+              "z": 6.6
             },
             {
-              "x": 6.2,
+              "x": 14,
               "y": 0,
-              "z": 1.2
+              "z": 12
             },
             {
-              "x": 6.2,
-              "y": 2.1,
-              "z": 1.2
+              "x": 14,
+              "y": 6,
+              "z": 12
             },
             {
-              "x": 6.2,
-              "y": 2.1,
-              "z": 0
+              "x": 14,
+              "y": 6,
+              "z": 6.6
             }
           ],
           "walkable": false
@@ -369,24 +370,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 7.8,
+              "x": 14,
               "y": 0,
-              "z": 0
+              "z": 5.4
             },
             {
-              "x": 7.8,
+              "x": 14,
               "y": 0,
-              "z": 1.2
+              "z": 6.6
             },
             {
-              "x": 7.8,
-              "y": 2.1,
-              "z": 1.2
+              "x": 14,
+              "y": 0.9,
+              "z": 6.6
             },
             {
-              "x": 7.8,
-              "y": 2.1,
-              "z": 0
+              "x": 14,
+              "y": 0.9,
+              "z": 5.4
             }
           ],
           "walkable": false
@@ -395,56 +396,27 @@
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:009",
-          "kind": "floor",
+          "kind": "wall",
           "points": [
             {
-              "x": 6.2,
-              "y": 0,
-              "z": 0
+              "x": 14,
+              "y": 2,
+              "z": 5.4
             },
             {
-              "x": 7.8,
-              "y": 0,
-              "z": 0
+              "x": 14,
+              "y": 2,
+              "z": 6.6
             },
             {
-              "x": 7.8,
-              "y": 0,
-              "z": 1.2
+              "x": 14,
+              "y": 6,
+              "z": 6.6
             },
             {
-              "x": 6.2,
-              "y": 0,
-              "z": 1.2
-            }
-          ],
-          "walkable": true
-        },
-        {
-          "collidable": true,
-          "floor_id": "b:2:tavern:floor:ground",
-          "id": "b:2:tavern:surf:010",
-          "kind": "ceiling",
-          "points": [
-            {
-              "x": 6.2,
-              "y": 2.1,
-              "z": 0
-            },
-            {
-              "x": 7.8,
-              "y": 2.1,
-              "z": 0
-            },
-            {
-              "x": 7.8,
-              "y": 2.1,
-              "z": 1.2
-            },
-            {
-              "x": 6.2,
-              "y": 2.1,
-              "z": 1.2
+              "x": 14,
+              "y": 6,
+              "z": 5.4
             }
           ],
           "walkable": false
@@ -452,115 +424,145 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
-          "id": "b:2:tavern:surf:011",
-          "kind": "floor",
+          "id": "b:2:tavern:surf:010",
+          "kind": "window",
           "points": [
             {
-              "x": 2.3,
-              "y": 0,
-              "z": 1.2
+              "x": 14,
+              "y": 0.9,
+              "z": 5.4
             },
             {
-              "x": 12.8,
-              "y": 0,
-              "z": 1.2
+              "x": 14,
+              "y": 0.9,
+              "z": 6.6
             },
             {
-              "x": 12.8,
-              "y": 0,
-              "z": 10.8
+              "x": 14,
+              "y": 2,
+              "z": 6.6
             },
             {
-              "x": 2.3,
-              "y": 0,
-              "z": 10.8
+              "x": 14,
+              "y": 2,
+              "z": 5.4
             }
           ],
-          "walkable": true
+          "transparent": true,
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:011",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 0,
+              "y": 0,
+              "z": 12
+            },
+            {
+              "x": 6.4,
+              "y": 0,
+              "z": 12
+            },
+            {
+              "x": 6.4,
+              "y": 6,
+              "z": 12
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "z": 12
+            }
+          ],
+          "walkable": false
         },
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:012",
-          "kind": "floor",
+          "kind": "wall",
           "points": [
             {
-              "x": 1.2,
+              "x": 7.6,
               "y": 0,
-              "z": 1.2
+              "z": 12
             },
             {
-              "x": 2.3,
+              "x": 14,
               "y": 0,
-              "z": 1.2
+              "z": 12
             },
             {
-              "x": 2.3,
-              "y": 0,
-              "z": 6.644
+              "x": 14,
+              "y": 6,
+              "z": 12
             },
             {
-              "x": 1.2,
-              "y": 0,
-              "z": 6.644
+              "x": 7.6,
+              "y": 6,
+              "z": 12
             }
           ],
-          "walkable": true
+          "walkable": false
         },
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:013",
-          "kind": "floor",
+          "kind": "wall",
           "points": [
             {
-              "x": 1.2,
+              "x": 6.4,
               "y": 0,
-              "z": 9.5
+              "z": 12
             },
             {
-              "x": 2.3,
+              "x": 7.6,
               "y": 0,
-              "z": 9.5
+              "z": 12
             },
             {
-              "x": 2.3,
-              "y": 0,
-              "z": 10.8
+              "x": 7.6,
+              "y": 0.9,
+              "z": 12
             },
             {
-              "x": 1.2,
-              "y": 0,
-              "z": 10.8
+              "x": 6.4,
+              "y": 0.9,
+              "z": 12
             }
           ],
-          "walkable": true
+          "walkable": false
         },
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:014",
-          "kind": "ceiling",
+          "kind": "wall",
           "points": [
             {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 1.2
+              "x": 6.4,
+              "y": 2,
+              "z": 12
             },
             {
-              "x": 9,
-              "y": 2.85,
-              "z": 1.2
+              "x": 7.6,
+              "y": 2,
+              "z": 12
             },
             {
-              "x": 9,
-              "y": 2.85,
-              "z": 10.8
+              "x": 7.6,
+              "y": 6,
+              "z": 12
             },
             {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 10.8
+              "x": 6.4,
+              "y": 6,
+              "z": 12
             }
           ],
           "walkable": false
@@ -569,56 +571,57 @@
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:015",
-          "kind": "ceiling",
+          "kind": "window",
           "points": [
             {
-              "x": 11.8,
-              "y": 2.85,
-              "z": 1.2
+              "x": 6.4,
+              "y": 0.9,
+              "z": 12
             },
             {
-              "x": 12.8,
-              "y": 2.85,
-              "z": 1.2
+              "x": 7.6,
+              "y": 0.9,
+              "z": 12
             },
             {
-              "x": 12.8,
-              "y": 2.85,
-              "z": 10.8
+              "x": 7.6,
+              "y": 2,
+              "z": 12
             },
             {
-              "x": 11.8,
-              "y": 2.85,
-              "z": 10.8
+              "x": 6.4,
+              "y": 2,
+              "z": 12
             }
           ],
+          "transparent": true,
           "walkable": false
         },
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:016",
-          "kind": "ceiling",
+          "kind": "wall",
           "points": [
             {
-              "x": 9,
-              "y": 2.85,
-              "z": 1.2
+              "x": 0,
+              "y": 0,
+              "z": 0
             },
             {
-              "x": 11.8,
-              "y": 2.85,
-              "z": 1.2
+              "x": 6.2,
+              "y": 0,
+              "z": 0
             },
             {
-              "x": 11.8,
-              "y": 2.85,
-              "z": 9.7
+              "x": 6.2,
+              "y": 6,
+              "z": 0
             },
             {
-              "x": 9,
-              "y": 2.85,
-              "z": 9.7
+              "x": 0,
+              "y": 6,
+              "z": 0
             }
           ],
           "walkable": false
@@ -630,24 +633,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 1.2,
+              "x": 7.8,
               "y": 0,
-              "z": 1.2
+              "z": 0
             },
             {
-              "x": 1.2,
+              "x": 14,
               "y": 0,
-              "z": 10.8
+              "z": 0
             },
             {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 10.8
+              "x": 14,
+              "y": 6,
+              "z": 0
             },
             {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 1.2
+              "x": 7.8,
+              "y": 6,
+              "z": 0
             }
           ],
           "walkable": false
@@ -659,24 +662,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 12.8,
-              "y": 0,
-              "z": 1.2
+              "x": 6.2,
+              "y": 2.1,
+              "z": 0
             },
             {
-              "x": 12.8,
-              "y": 0,
-              "z": 10.8
+              "x": 7.8,
+              "y": 2.1,
+              "z": 0
             },
             {
-              "x": 12.8,
-              "y": 2.85,
-              "z": 10.8
+              "x": 7.8,
+              "y": 6,
+              "z": 0
             },
             {
-              "x": 12.8,
-              "y": 2.85,
-              "z": 1.2
+              "x": 6.2,
+              "y": 6,
+              "z": 0
             }
           ],
           "walkable": false
@@ -688,24 +691,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 1.2,
+              "x": 6.2,
               "y": 0,
-              "z": 10.8
+              "z": 0
             },
             {
-              "x": 12.8,
+              "x": 6.2,
               "y": 0,
-              "z": 10.8
+              "z": 1.2
             },
             {
-              "x": 12.8,
-              "y": 2.85,
-              "z": 10.8
+              "x": 6.2,
+              "y": 2.1,
+              "z": 1.2
             },
             {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 10.8
+              "x": 6.2,
+              "y": 2.1,
+              "z": 0
             }
           ],
           "walkable": false
@@ -717,24 +720,24 @@
           "kind": "wall",
           "points": [
             {
-              "x": 1.2,
+              "x": 7.8,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 7.8,
               "y": 0,
               "z": 1.2
             },
             {
-              "x": 6.2,
-              "y": 0,
+              "x": 7.8,
+              "y": 2.1,
               "z": 1.2
             },
             {
-              "x": 6.2,
-              "y": 2.85,
-              "z": 1.2
-            },
-            {
-              "x": 1.2,
-              "y": 2.85,
-              "z": 1.2
+              "x": 7.8,
+              "y": 2.1,
+              "z": 0
             }
           ],
           "walkable": false
@@ -743,6 +746,705 @@
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
           "id": "b:2:tavern:surf:021",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 6.2,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 7.8,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 7.8,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 6.2,
+              "y": 0,
+              "z": 1.2
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:022",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 6.2,
+              "y": 2.1,
+              "z": 0
+            },
+            {
+              "x": 7.8,
+              "y": 2.1,
+              "z": 0
+            },
+            {
+              "x": 7.8,
+              "y": 2.1,
+              "z": 1.2
+            },
+            {
+              "x": 6.2,
+              "y": 2.1,
+              "z": 1.2
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:023",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 10.8
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:024",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 6.644
+            },
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 6.644
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:025",
+          "kind": "floor",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 9.5
+            },
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 9.5
+            },
+            {
+              "x": 2.3,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 10.8
+            }
+          ],
+          "walkable": true
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:026",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 9,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 9,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:027",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 11.8,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 11.8,
+              "y": 2.85,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:028",
+          "kind": "ceiling",
+          "points": [
+            {
+              "x": 9,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 11.8,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 11.8,
+              "y": 2.85,
+              "z": 9.7
+            },
+            {
+              "x": 9,
+              "y": 2.85,
+              "z": 9.7
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:029",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 5.4
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 5.4
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 1.2
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:030",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 6.6
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:031",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 5.4
+            },
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 0.9,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 0.9,
+              "z": 5.4
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:032",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 2,
+              "z": 5.4
+            },
+            {
+              "x": 1.2,
+              "y": 2,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 5.4
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:033",
+          "kind": "window",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0.9,
+              "z": 5.4
+            },
+            {
+              "x": 1.2,
+              "y": 0.9,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 2,
+              "z": 6.6
+            },
+            {
+              "x": 1.2,
+              "y": 2,
+              "z": 5.4
+            }
+          ],
+          "transparent": true,
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:034",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 5.4
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 5.4
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 1.2
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:035",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 6.6
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:036",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 5.4
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 0.9,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 0.9,
+              "z": 5.4
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:037",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 12.8,
+              "y": 2,
+              "z": 5.4
+            },
+            {
+              "x": 12.8,
+              "y": 2,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 5.4
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:038",
+          "kind": "window",
+          "points": [
+            {
+              "x": 12.8,
+              "y": 0.9,
+              "z": 5.4
+            },
+            {
+              "x": 12.8,
+              "y": 0.9,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 2,
+              "z": 6.6
+            },
+            {
+              "x": 12.8,
+              "y": 2,
+              "z": 5.4
+            }
+          ],
+          "transparent": true,
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:039",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 6.4,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 6.4,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:040",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 7.6,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 12.8,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 12.8,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 2.85,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:041",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 6.4,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 0,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 0.9,
+              "z": 10.8
+            },
+            {
+              "x": 6.4,
+              "y": 0.9,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:042",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 6.4,
+              "y": 2,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 2,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 2.85,
+              "z": 10.8
+            },
+            {
+              "x": 6.4,
+              "y": 2.85,
+              "z": 10.8
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:043",
+          "kind": "window",
+          "points": [
+            {
+              "x": 6.4,
+              "y": 0.9,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 0.9,
+              "z": 10.8
+            },
+            {
+              "x": 7.6,
+              "y": 2,
+              "z": 10.8
+            },
+            {
+              "x": 6.4,
+              "y": 2,
+              "z": 10.8
+            }
+          ],
+          "transparent": true,
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:044",
+          "kind": "wall",
+          "points": [
+            {
+              "x": 1.2,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 6.2,
+              "y": 0,
+              "z": 1.2
+            },
+            {
+              "x": 6.2,
+              "y": 2.85,
+              "z": 1.2
+            },
+            {
+              "x": 1.2,
+              "y": 2.85,
+              "z": 1.2
+            }
+          ],
+          "walkable": false
+        },
+        {
+          "collidable": true,
+          "floor_id": "b:2:tavern:floor:ground",
+          "id": "b:2:tavern:surf:045",
           "kind": "wall",
           "points": [
             {
@@ -771,7 +1473,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:ground",
-          "id": "b:2:tavern:surf:022",
+          "id": "b:2:tavern:surf:046",
           "kind": "wall",
           "points": [
             {
@@ -800,7 +1502,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:023",
+          "id": "b:2:tavern:surf:047",
           "kind": "floor",
           "points": [
             {
@@ -829,7 +1531,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:024",
+          "id": "b:2:tavern:surf:048",
           "kind": "floor",
           "points": [
             {
@@ -858,7 +1560,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:025",
+          "id": "b:2:tavern:surf:049",
           "kind": "floor",
           "points": [
             {
@@ -887,7 +1589,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:026",
+          "id": "b:2:tavern:surf:050",
           "kind": "ceiling",
           "points": [
             {
@@ -916,7 +1618,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:027",
+          "id": "b:2:tavern:surf:051",
           "kind": "wall",
           "points": [
             {
@@ -945,7 +1647,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:028",
+          "id": "b:2:tavern:surf:052",
           "kind": "wall",
           "points": [
             {
@@ -974,7 +1676,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:029",
+          "id": "b:2:tavern:surf:053",
           "kind": "wall",
           "points": [
             {
@@ -1003,7 +1705,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:030",
+          "id": "b:2:tavern:surf:054",
           "kind": "wall",
           "points": [
             {
@@ -1032,7 +1734,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:031",
+          "id": "b:2:tavern:surf:055",
           "kind": "roof",
           "points": [
             {
@@ -1061,7 +1763,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:032",
+          "id": "b:2:tavern:surf:056",
           "kind": "roof",
           "points": [
             {
@@ -1090,7 +1792,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:033",
+          "id": "b:2:tavern:surf:057",
           "kind": "wall",
           "points": [
             {
@@ -1114,7 +1816,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:upper",
-          "id": "b:2:tavern:surf:034",
+          "id": "b:2:tavern:surf:058",
           "kind": "wall",
           "points": [
             {
@@ -1138,7 +1840,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:035",
+          "id": "b:2:tavern:surf:059",
           "kind": "floor",
           "points": [
             {
@@ -1167,7 +1869,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:036",
+          "id": "b:2:tavern:surf:060",
           "kind": "ceiling",
           "points": [
             {
@@ -1196,7 +1898,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:037",
+          "id": "b:2:tavern:surf:061",
           "kind": "ceiling",
           "points": [
             {
@@ -1225,7 +1927,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:038",
+          "id": "b:2:tavern:surf:062",
           "kind": "ceiling",
           "points": [
             {
@@ -1254,7 +1956,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:039",
+          "id": "b:2:tavern:surf:063",
           "kind": "wall",
           "points": [
             {
@@ -1283,7 +1985,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:040",
+          "id": "b:2:tavern:surf:064",
           "kind": "wall",
           "points": [
             {
@@ -1312,7 +2014,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:041",
+          "id": "b:2:tavern:surf:065",
           "kind": "wall",
           "points": [
             {
@@ -1341,7 +2043,7 @@
         {
           "collidable": true,
           "floor_id": "b:2:tavern:floor:cellar",
-          "id": "b:2:tavern:surf:042",
+          "id": "b:2:tavern:surf:066",
           "kind": "wall",
           "points": [
             {
