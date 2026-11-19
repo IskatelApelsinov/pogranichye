@@ -1,6 +1,6 @@
 ## Статус чистого checkout — 2026-11-18
 
-В библиотеке определены пять авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster и thatch_roof. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
+В библиотеке определены шесть авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster, thatch_roof и forest_floor. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
 
 Пока полный набор не установлен, Unity использует импортированный Grok fallback (если выполнен Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только при наличии source artwork, всех четырёх 1024×1024 карт и манифеста availability: available.
 
@@ -166,3 +166,33 @@ python 2-client/art-source/textures/build_thatch_roof_material.py
 ```
 
 При наличии полного набора авторская солома применяется к _roof (кровли зданий и навесы), _straw (соломенные props) и server-authored поверхностям kind roof. Для кровель сохраняется tiling 2×3, для соломенных props — 2×2. При pending/отсутствующих картах остаётся Grok/procedural fallback.
+
+
+# Авторская текстура лесной подстилки
+
+Целевой исходник — плотный естественный слой лесной подстилки: влажная тёмная земля, перекрывающиеся листья дуба и берёзы, хвоя, тонкие веточки, корни, кусочки коры, мелкие камни, мох и лишайник. Источник не является процедурным шумом: это отдельная авторская hand-painted / realistic-stylized композиция.
+
+Скрипт `build_forest_floor_material.py` создаёт в Unity Resources:
+
+- `forest_floor_albedo.png` — 1024×1024 RGBA; RGB — цвет подстилки, A — линейная smoothness (`1 - roughness`);
+- `forest_floor_normal.png` — tangent-space normal, positive Y;
+- `forest_floor_roughness.png` — отдельная линейная roughness;
+- `forest_floor_ao.png` — отдельная линейная AO;
+- `forest_floor_material.json` — диапазоны карт, SHA-256 исходника и метрики бесшовности.
+
+Normal, roughness и AO выведены из общей карты высот, полученной из границ листьев, веток и перекрывающегося растительного слоя. Все карты проходят отдельную проверку seam ratio (не выше 1.35), длины декодированных normal-векторов и совпадения smoothness alpha с обратной roughness (погрешность не более одного уровня).
+
+Пересборка:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_forest_floor_material.py
+```
+
+Исходник `forest_floor_source.jpg` должен лежать рядом со скриптом. Он и четыре карты входят в архив `pogranichye_forest_floor_pbr_pack.zip`; распаковывать архив нужно в корень репозитория. В чистом checkout манифест остаётся `availability: pending`, пока исходник и карты не установлены.
+
+## Подключение в мире
+
+`WorldLayoutPresentationBuilder` создаёт отдельный общий `_forestFloor` материал только для серверных зон `forest`. Поверхность — один quad на лесную зону с UV, выровненными по мировым координатам: один повтор на 4 метра. Это сохраняет одинаковый размер листьев на маленьких и больших лесных участках. Материал `_forest` остаётся отдельным и продолжает обслуживать кроны деревьев; зоны `copse` сохраняют более светлый травяной пол. Количество объектов не растёт на каждое дерево — создаётся один mesh на лесную зону.
+
+`WorldMaterialTextureImporter` автоматически применяет Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear data import для roughness/AO. Если авторский комплект отсутствует, остаётся текущий procedural fallback.
