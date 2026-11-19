@@ -1,3 +1,18 @@
+
+def extract_method_body(source, signature):
+    start = source.index(signature)
+    opening = source.index("{", start)
+    depth = 0
+    for index in range(opening, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opening + 1:index]
+    raise AssertionError(f"Unclosed method body: {signature}")
+
+
 from pathlib import Path
 import unittest
 
@@ -35,6 +50,22 @@ class HorseRiderInteractionWiringTests(unittest.TestCase):
         self.assertIn('public bool ConsumesWorldInteraction => _horse != null && _horse.Mounted;', self.core)
         self.assertIn('!_core.ConsumesWorldInteraction', self.probe)
 
+
+    def test_interrupted_hold_is_cancelled_on_modal_focus_and_journey_transitions(self):
+        for signature in (
+            "public void SetExternalCharacterMenuOpen(bool open)",
+            "public void SetExternalUiCapture(bool captured)",
+            "public void SetExternalModalMenuOpen(bool open)",
+        ):
+            self.assertIn("CancelHorseInteractionInput();", extract_method_body(self.core, signature))
+
+        update_body = extract_method_body(self.core, "private void Update()")
+        self.assertGreaterEqual(update_body.count("CancelHorseInteractionInput();"), 3)
+
+    def test_cancel_resets_pending_flag_and_hold_timestamp(self):
+        cancel_body = extract_method_body(self.core, "private void CancelHorseInteractionInput()")
+        self.assertIn("_horseInteractPending = false;", cancel_body)
+        self.assertIn("_horseInteractStartedAt = 0f;", cancel_body)
 
 if __name__ == "__main__":
     unittest.main()
