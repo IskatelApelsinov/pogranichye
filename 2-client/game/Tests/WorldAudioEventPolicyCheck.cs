@@ -12,10 +12,12 @@ internal static class WorldAudioEventPolicyCheck
 
     public static int Main()
     {
-        Check("real resolved movement plays footsteps", WorldAudioEventPolicy.ShouldPlayFootstep(0.01f));
-        Check("blocked movement stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0f));
-        Check("tiny correction noise stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0.0001f));
-        Check("invalid movement distance stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(float.NaN));
+        Check("real resolved movement plays footsteps", WorldAudioEventPolicy.ShouldPlayFootstep(0.01f, false));
+        Check("blocked movement stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0f, false));
+        Check("tiny correction noise stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0.0001f, false));
+        Check("invalid movement distance stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(float.NaN, false));
+        Check("mounted movement never plays human footsteps", !WorldAudioEventPolicy.ShouldPlayFootstep(0.01f, true));
+        Check("mounted stationary state stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0f, true));
         Check("confirmed cast plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: cast", true));
         Check("confirmed explicit weave plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: weave", true));
         Check("unrelated accepted action is silent", !WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: chop", true));
