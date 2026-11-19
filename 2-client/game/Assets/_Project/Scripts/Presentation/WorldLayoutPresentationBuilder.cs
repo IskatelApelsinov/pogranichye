@@ -23,6 +23,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _plaster;
         private static Material _iron;
         private static Material _flowers;
+        private static Material _windowGlass;
         // Layouts may coexist during seamless streaming. Generated meshes/materials/textures
         // are owned by the layout root that created them, not by the most recently built layout.
         private static readonly System.Collections.Generic.Dictionary<UnityEngine.EntityId, System.Collections.Generic.List<UnityEngine.Object>> _assetsByLayoutRoot =
@@ -55,6 +56,8 @@ namespace Pogranichye.Client.Presentation
             if (_iron.HasProperty("_Metallic")) _iron.SetFloat("_Metallic", 0.72f);
             if (_iron.HasProperty("_Smoothness")) _iron.SetFloat("_Smoothness", 0.42f);
             _flowers = MakeTexturedMaterial("Meadow wildflowers • pale cream", new Color(0.78f, 0.72f, 0.48f), 0, 1f, 1f);
+            _windowGlass = MakeWindowGlassMaterial();
+            _activeBuildAssets.Add(_windowGlass);
 
             // Grok's optional starter pack lives under Resources/WorldMaterials/Textures/Grok.
             // Apply it first; the project's authored PBR maps below take precedence whenever present.
@@ -1721,6 +1724,26 @@ namespace Pogranichye.Client.Presentation
                         windowWidth, 0.09f, thickness + 0.06f);
                     AddWindowFramePiece(root, side, face, center, top - 0.015f,
                         windowWidth, 0.09f, thickness + 0.06f);
+                    var windowHeight = top - bottom;
+                    var paneCenter = (bottom + top) * 0.5f;
+                    var inwardOffset = side == 0 || side == 2 ? 0.045f : -0.045f;
+                    var panePosition = horizontal
+                        ? new Vector3(center, paneCenter, face + inwardOffset)
+                        : new Vector3(face + inwardOffset, paneCenter, center);
+                    var paneSize = horizontal
+                        ? new Vector3(Mathf.Max(0.08f, windowWidth - 0.18f), Mathf.Max(0.08f, windowHeight - 0.18f), 0.025f)
+                        : new Vector3(0.025f, Mathf.Max(0.08f, windowHeight - 0.18f), Mathf.Max(0.08f, windowWidth - 0.18f));
+                    var pane = Create("Window glass pane", PrimitiveType.Cube, root, panePosition, paneSize, _windowGlass, false);
+                    var paneRenderer = pane.GetComponent<Renderer>();
+                    if (paneRenderer != null)
+                    {
+                        paneRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                        paneRenderer.receiveShadows = false;
+                    }
+                    AddWindowFramePiece(root, side, face, center, paneCenter, windowWidth - 0.10f,
+                        0.055f, thickness + 0.06f);
+                    AddWindowFramePiece(root, side, face, center, paneCenter, 0.055f,
+                        Mathf.Max(0.08f, windowHeight - 0.10f), thickness + 0.06f);
                 }
                 AddWindowWallPanel(root, side, face, center, windowWidth,
                     bandStart, wallHeight, thickness, wall);
@@ -2474,6 +2497,30 @@ namespace Pogranichye.Client.Presentation
             _plaster = null;
             _iron = null;
             _flowers = null;
+            _windowGlass = null;
+        }
+
+        private static Material MakeWindowGlassMaterial()
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                name = "Building window glass • translucent blue-grey",
+                color = new Color(0.48f, 0.66f, 0.72f, 0.22f),
+                renderQueue = (int)RenderQueue.Transparent
+            };
+            material.SetOverrideTag("RenderType", "Transparent");
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend")) material.SetFloat("_Blend", 0f);
+            if (material.HasProperty("_SrcBlend")) material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend")) material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
+            if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.EnableKeyword("_ALPHABLEND_ON");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            return material;
         }
 
         private static Material MakeMaterial(string name, Color color)
