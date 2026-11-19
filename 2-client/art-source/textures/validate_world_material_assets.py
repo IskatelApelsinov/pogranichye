@@ -12,6 +12,7 @@ PACKS = {
     "mossy_stone": ("2-client/art-source/textures/stone_masonry_source.jpg", "mossy_stone"),
     "lime_plaster": ("2-client/art-source/textures/lime_plaster_source.jpg", "lime_plaster"),
     "thatch_roof": ("2-client/art-source/textures/thatch_roof_source.jpg", "thatch_roof"),
+    "forest_floor": ("2-client/art-source/textures/forest_floor_source.jpg", "forest_floor"),
 }
 TEXTURES = Path("2-client/game/Assets/Resources/WorldMaterials/Textures")
 SUFFIXES = ("albedo", "normal", "roughness", "ao")
@@ -85,7 +86,7 @@ def main():
     if errors:
         print("World material asset validation failed:", len(errors), "error(s)", file=sys.stderr)
         return 1
-    print("World material asset validation passed: five manifests checked")
+    print("World material asset validation passed: six manifests checked")
     return 0
 
 
