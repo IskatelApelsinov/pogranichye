@@ -32,9 +32,18 @@ class WorldSpaceWindowTransparencyWiringTests(unittest.TestCase):
         self.assertIn('material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT")', self.builder)
         self.assertIn('new Color(0.48f, 0.66f, 0.72f, 0.22f)', self.builder)
 
+    def test_transparent_material_uses_alpha_blend_factors_and_clears_conflicting_modes(self):
+        self.assertIn('material.SetFloat("_Blend", 0f)', self.builder)
+        self.assertIn('material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha)', self.builder)
+        self.assertIn('material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha)', self.builder)
+        self.assertIn('material.SetOverrideTag("RenderType", "Transparent")', self.builder)
+        self.assertIn('material.DisableKeyword("_ALPHATEST_ON")', self.builder)
+        self.assertIn('material.DisableKeyword("_ALPHAPREMULTIPLY_ON")', self.builder)
+
     def test_transparency_does_not_remove_server_collider(self):
         self.assertIn("if (surface.Collidable)", self.builder)
         self.assertIn("go.AddComponent<MeshCollider>()", self.builder)
+        self.assertIn("collider.sharedMesh = mesh;", self.builder)
 
 
 if __name__ == "__main__":
