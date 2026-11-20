@@ -5648,7 +5648,8 @@ namespace Pogranichye.Client
             ApplyTerrainGrounding(player);
             // Measure after collision resolution: blocked movement must stay silent.
             inputMoveDistanceSquared = (new Vector2(player.position.x, player.position.z) - origin).sqrMagnitude;
-            if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared))
+            var isMounted = _frame?.Me?.Horse != null && _frame.Me.Horse.Mounted;
+            if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared, isMounted))
                 _audioDirector?.Footsteps(canRun);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
