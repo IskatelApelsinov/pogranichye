@@ -62,6 +62,7 @@ on:
       - '2-client/game/Tests/WorldInteriorLightingPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/VillageSoundscape.cs'
       - '2-client/game/Tests/test_village_soundscape_lifecycle.py'
+      - '2-client/game/Tests/test_core_gameplay_skill_numeric_source.py'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiInteractionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPoiTargetBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
@@ -183,6 +184,10 @@ jobs:
       - name: Tavern counter E interaction source checks
         working-directory: 2-client/game
         run: python3 -m unittest discover -s Tests -p 'test_tavern_counter_interaction_source.py'
+
+      - name: Core gameplay skill numeric culture source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_core_gameplay_skill_numeric_source.py'
 
       - name: Localization catalog regression checks
         working-directory: 2-client/game
