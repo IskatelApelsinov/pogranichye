@@ -43,6 +43,8 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/MapLabelLayoutPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMapViewportPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldAudioDirector.cs'
+      - '2-client/game/Tests/test_world_audio_director_lifecycle.py'
       - '2-client/game/Assets/_Project/Scripts/Presentation/PoiPositionPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralGait.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/ProceduralVillageBuilder.cs'
