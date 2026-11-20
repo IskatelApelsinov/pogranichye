@@ -256,6 +256,13 @@ The character journal shows up to six server-authored `place.gather[]` nodes. `g
 - Editor fixture validation covers all four cardinal orientations and asserts that a door does not imply `building_id`, `room` or `interior_id`.
 - Source-level only: run Tools → Pogranichye → Validate shared v1 fixture, then verify each orientation in Unity 6000.6.7f1 Play Mode. No Editor build or visual acceptance is claimed here.
 
+## v1.35 server-space window glazing — 2026-11-20
+
+- /api/spaces surfaces with kind "window" and transparent:true now render as translucent URP glass instead of falling through to the default timber-floor material.
+- The glass does not cast or receive shadows, allowing server-authored tavern window openings to pass daylight visually. The existing collidable flag still creates the same MeshCollider; transparency never opens a movement path.
+- Older v1 responses without transparent remain valid and render a window descriptor as an opaque wall fallback. The wire contract and frame version are unchanged.
+- Unity-independent policy and source-wiring checks cover material selection, shadow behavior and the retained collider. Unity Editor/PlayMode daylight and collision acceptance remains required.
+
 ## Input System event budget safety — 2026-11-18
 
 - `ClientInput` raises a finite `maxEventBytesPerUpdate` to at least 8 MiB. This covers the previously observed approximately 5.2 MiB high-polling HID burst with headroom; a larger project-level value is preserved.
