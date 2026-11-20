@@ -494,7 +494,8 @@
       "specialty": "рыба и мельницы",
       "lat": 48.2,
       "lon": 12.5,
-      "cauldron": true
+      "cauldron": true,
+      "can_fish": true
     },
     "anchor": {
       "frame": 0,

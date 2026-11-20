@@ -44,8 +44,24 @@ func TestSitesDifferAndGateWork(t *testing.T) {
 	core.Place(e).Settlement = noRiver.ID
 	GoTo(w, e, "river")
 	core.Vitals(e).Energy = 100
-	if ok, why := FishCatch(w, e, "pf1"); ok || why == "" {
-		t.Fatal("где нет реки, рыбу не ловят")
+	// comms 0302/0304: отсутствие Features["river"] больше не значит "лова здесь нет вообще" —
+	// такое место честно получает Land.Water=="pond" или "well" (layout_gen.go), и пруд может
+	// быть рыбным. Проверяем, что исход лова согласован с честной доступностью места/запаса, а не
+	// что лов всегда запрещён без feature "river".
+	l := layoutFor(w, e)
+	switch waterKind(l) {
+	case "":
+		if ok, why := FishCatch(w, e, "pf1"); ok || why == "" {
+			t.Fatal("у колодца (без реки и без пруда) рыбу не ловят")
+		}
+	case "pond":
+		_, has := fisheryExpectationFor(w, noRiver, l)
+		ok, why := FishCatch(w, e, "pf1")
+		if ok != has {
+			t.Fatalf("лов у пруда без Features[\"river\"] должен совпадать с честной доступностью рыбы: ok=%v (%q), ожидали has=%v", ok, why, has)
+		}
+	default:
+		t.Fatalf("у места без Features[\"river\"] неожиданный waterKind=%q", waterKind(l))
 	}
 }
 func TestSiteCoordinatesUseSphericalProjectionAndStayDeterministic(t *testing.T) {

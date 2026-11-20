@@ -254,8 +254,12 @@ func SiteView(w *core.World, se *core.Entity) map[string]any {
 		}
 	}
 	sort.Strings(fs)
+	// can_fish (comms 0304): честная серверная доступность лова ЗДЕСЬ прямо сейчас — river/pond
+	// с реальным запасом рыбы, не факт типа воды. Безопасная булева подсказка, без точного
+	// остатка (не раскрываем игроку скрытые детали мира, см. SiteView/FishAvailable).
 	return map[string]any{"terrain": c.Terrain, "features": fs, "climate": c.Climate, "state": c.State,
-		"specialty": c.Specialty, "lat": c.Lat, "lon": c.Lon, "cauldron": c.Cauldron}
+		"specialty": c.Specialty, "lat": c.Lat, "lon": c.Lon, "cauldron": c.Cauldron,
+		"can_fish": FishAvailable(w, se)}
 }
 
 // PlanetView — служебная сводка планеты (/api/planet): знание разработчика, игрокам не показывается.

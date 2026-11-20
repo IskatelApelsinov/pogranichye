@@ -5,6 +5,7 @@ import (
 
 	"pogranichye/battle"
 	"pogranichye/core"
+	"pogranichye/dice"
 	"pogranichye/econ"
 )
 
@@ -26,6 +27,17 @@ const (
 	sparkManaMax = 100.0
 	sparkRegen   = 6.0 // маны в секунду восстановления (реальное время)
 	sparkWard    = 1.5 // на сколько разряд отпугивает/прореживает опасного зверя
+
+	// comms 0302/0303/0304: рыба — настоящий конечный запас места (econ.ResourceNodeC{Node:
+	// NodeFishery}), не бесконечный ресурс по одному факту типа воды. У реки запас заводится
+	// честно (река почти всегда рыбная); у пруда — не всегда: честная монета по зерну места
+	// решает, есть ли в НЕМ рыба вообще (вода не доказывает рыбу, см. 0304). Колодец — никогда.
+	// Числа — начальная прикидка баланса, не финал: пруд скромнее реки по запасу и приросту.
+	riverFishCap   = 60.0
+	riverFishRegen = 3.0
+	pondFishCap    = 24.0
+	pondFishRegen  = 1.0
+	pondFishChance = 0.6 // доля прудов, где рыба вообще есть
 )
 
 func init() {
@@ -199,11 +211,112 @@ func GatherBrushwood(w *core.World, e *core.Entity, reqid string) (bool, string)
 	return true, ""
 }
 
-// FishCatch — закинуть снасть у реки: нужны силы и берег; даёт рыбу в закрома.
-func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
-	if why := siteLacks(w, e, "river"); why != "" {
-		return false, why
+// waterKind — честный тип воды места для лова: "river" (включая стартовое село, у которого
+// HasRiver выставлен напрямую, без Land.Water) | "pond" | "" (нет воды для лова — в т.ч. колодец).
+func waterKind(l *Layout) string {
+	if l.HasRiver || l.Land.Water == "river" {
+		return "river"
 	}
+	if l.Land.Water == "pond" {
+		return "pond"
+	}
+	return ""
+}
+
+// fisheryNode — существующий серверный запас рыбы места (econ.ResourceNodeC{Node: NodeFishery})
+// по конкретному поселению, если он уже заведён (фоновой экономикой или прежним ловом).
+func fisheryNode(w *core.World, seID core.ID) *econ.ResourceNodeC {
+	var n *econ.ResourceNodeC
+	w.Each("resnode", func(ne *core.Entity) {
+		if n != nil {
+			return
+		}
+		if rn := econ.Node(ne); rn != nil && rn.Node == econ.NodeFishery && rn.Settlement == seID {
+			n = rn
+		}
+	})
+	return n
+}
+
+// fisheryExpectationFor — что ЧЕСТНО положено месту с раскладкой l по его воде, БЕЗ побочных
+// эффектов (для place.site: превью доступности нельзя заводить сущности на каждый кадр каждого
+// зрителя) и без обращения к кешу LayoutOf (чистая функция — проще и безопаснее тестировать).
+// У реки рыба почти всегда есть; у пруда — не всегда: сам факт land.water=="pond" не доказывает
+// рыбу (решение Kate, comms 0304) — честная монета по зерну места решает раз и навсегда
+// (детерминированно, тот же бросок при реальном заведении запаса в ensureFisheryFor).
+func fisheryExpectationFor(w *core.World, se *core.Entity, l *Layout) (kind string, hasFish bool) {
+	if se == nil || l == nil {
+		return "", false
+	}
+	kind = waterKind(l)
+	switch kind {
+	case "river":
+		return kind, true
+	case "pond":
+		s := core.Settle(se)
+		g := dice.NewStream(dice.Seed64(w.Seed, "pond-fish", s.Name, sid(se.ID)))
+		return kind, g.Chance(pondFishChance)
+	default:
+		return "", false
+	}
+}
+
+// fisheryExpectation — fisheryExpectationFor по текущей (кешированной) раскладке поселения.
+func fisheryExpectation(w *core.World, se *core.Entity) (string, bool) {
+	if se == nil {
+		return "", false
+	}
+	return fisheryExpectationFor(w, se, LayoutOf(w, se.ID))
+}
+
+// ensureFisheryFor — реальный серверный запас рыбы места: если уже существует (фоновая экономика
+// её, возможно, уже тронула), берём его; иначе заводим один раз по той же честной монете, что и
+// fisheryExpectationFor (один источник правды, не параллельный счётчик). У пруда без рыбы (монета
+// не выпала) и у колодца — nil: лов там недоступен, и повторный вызов это же нескончаемо
+// подтвердит (одна и та же монета на тех же входных данных).
+func ensureFisheryFor(w *core.World, se *core.Entity, l *Layout) *econ.ResourceNodeC {
+	if se == nil {
+		return nil
+	}
+	if n := fisheryNode(w, se.ID); n != nil {
+		return n
+	}
+	kind, has := fisheryExpectationFor(w, se, l)
+	if !has {
+		return nil
+	}
+	stockCap, regen := riverFishCap, riverFishRegen
+	if kind == "pond" {
+		stockCap, regen = pondFishCap, pondFishRegen
+	}
+	return econ.Node(w.Spawn(&econ.ResourceNodeC{Node: econ.NodeFishery, Good: econ.GoodFish,
+		Settlement: se.ID, Stock: stockCap, Cap: stockCap, Regen: regen}))
+}
+
+// FishAvailable — честное превью для кадра (place.site.can_fish): видна ли СЕЙЧАС рыба в месте
+// игрока. Не заводит сущностей (см. fisheryExpectation) — только читает, если запас уже есть.
+func FishAvailable(w *core.World, se *core.Entity) bool {
+	if se == nil {
+		return false
+	}
+	if n := fisheryNode(w, se.ID); n != nil {
+		return n.Stock >= fishYield
+	}
+	_, has := fisheryExpectation(w, se)
+	return has
+}
+
+// FishCatch — закинуть снасть у реки или пруда: нужны силы, берег и реальная рыба в запасе места
+// (comms 0302/0304) — не любая вода одинаково рыбная, и лов не бесконечен. Отказ из-за отсутствия
+// рыбы не тратит силы и не выдаёт рыбу (ни при пустом запасе, ни при его отсутствии — игроку это
+// не различимо намеренно, чтобы не выдавать скрытые детали мира).
+func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
+	return fishCatchAt(w, e, layoutFor(w, e), settlementEnt(w, e), reqid)
+}
+
+// fishCatchAt — тело FishCatch с явной раскладкой/поселением (тестируемо без кеша LayoutOf: тесты
+// на пруд/колодец подают синтетическую Layout, минуя процедурную генерацию).
+func fishCatchAt(w *core.World, e *core.Entity, l *Layout, se *core.Entity, reqid string) (bool, string) {
 	pc := EnsurePlayer(w, e)
 	if reqid == "" {
 		return false, "нужен reqid"
@@ -215,16 +328,23 @@ func FishCatch(w *core.World, e *core.Entity, reqid string) (bool, string) {
 	if p == nil {
 		return false, "нет тела в сцене"
 	}
-	l := layoutFor(w, e)
+	if waterKind(l) == "" {
+		return false, "здесь нет ни реки, ни пруда — рыбу ловят у воды"
+	}
 	rx, ry := l.POI("river")
 	if !l.NearWater(p.X, p.Y) && math.Hypot(p.X-rx, p.Y-ry) > actReach {
-		return false, "надо встать у реки"
+		return false, "надо встать у воды"
 	}
 	v := core.Vitals(e)
 	if v == nil || v.Energy < fishEnergy {
 		return false, "нет сил на лов"
 	}
+	fn := ensureFisheryFor(w, se, l)
+	if fn == nil || fn.Stock < fishYield {
+		return false, "рыба здесь сейчас не водится"
+	}
 	v.Energy -= fishEnergy
+	fn.Stock -= fishYield
 	addStash(w, e, econ.GoodFish, fishYield)
 	trainSkill(w, e, "fisher", 0.6) // прокачка рыбака
 	pc.markDone(reqid)
