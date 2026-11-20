@@ -249,6 +249,9 @@ jobs:
         run: |
           mcs -out:/tmp/npc-activity-sound.exe Tests/NpcActivitySoundPolicyCheck.cs Assets/_Project/Scripts/Presentation/NpcActivitySoundPolicy.cs
           mono /tmp/npc-activity-sound.exe
+      - name: Audio director lifecycle source regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_world_audio_director_lifecycle.py'
       - name: Confirmed action audio event regression checks
         working-directory: 2-client/game
         run: |
