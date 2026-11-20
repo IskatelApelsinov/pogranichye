@@ -10,11 +10,12 @@ namespace Pogranichye.Client.Presentation
         private const int Rate = 22050;
         private const float NearbyVoiceMaxDistance = 24f;
         private AudioSource _oneShot;
-        private AudioClip _step, _run, _magic, _beer;
+        private AudioClip _step, _run, _hoofWalk, _hoofRun, _magic, _beer;
         private AudioClip _npcWoodcut, _npcForge, _npcFishing, _npcFieldwork, _npcMining, _npcHearth, _npcHerding;
         private readonly AudioSource[] _nearbyVoices = new AudioSource[6];
         private int _nearbyVoiceCursor;
         private float _nextStepAt;
+        private float _nextHoofstepAt;
         private float _sfxVolume = 0.9f;
         private float _ambienceVolume = 0.75f;
         private bool _eventsSubscribed;
@@ -35,6 +36,8 @@ namespace Pogranichye.Client.Presentation
             _oneShot.volume = _sfxVolume;
             _step = MakeNoise("Soft footsteps on earth", 0.075f, 0.085f, 0.12f);
             _run = MakeNoise("Running footsteps", 0.11f, 0.065f, 0.17f);
+            _hoofWalk = MakeHoofstep("Horse hooves walk on packed earth", 0.105f, 0.20f);
+            _hoofRun = MakeHoofstep("Horse hooves trot on packed earth", 0.135f, 0.22f);
             _magic = MakeTone("Magic cast shimmer", 0.38f, 0.42f, 0.19f);
             _beer = MakeNoise("Beer sip and mug", 0.15f, 0.24f, 0.13f);
             _npcWoodcut = MakeNoise("Nearby NPC axe and wood", 0.22f, 0.13f, 0.055f);
@@ -117,6 +120,13 @@ namespace Pogranichye.Client.Presentation
             if (!isActiveAndEnabled || Time.unscaledTime < _nextStepAt || _oneShot == null) return;
             _nextStepAt = Time.unscaledTime + (running ? 0.46f : 0.68f);
             _oneShot.PlayOneShot(running ? _run : _step, running ? 0.38f : 0.27f);
+        }
+
+        public void Hoofsteps(bool running)
+        {
+            if (!isActiveAndEnabled || Time.unscaledTime < _nextHoofstepAt || _oneShot == null) return;
+            _nextHoofstepAt = Time.unscaledTime + (running ? 0.34f : 0.58f);
+            _oneShot.PlayOneShot(running ? _hoofRun : _hoofWalk, running ? 0.42f : 0.32f);
         }
 
         public void Magic() { if (isActiveAndEnabled && _oneShot != null) _oneShot.PlayOneShot(_magic, 0.78f); }
@@ -226,6 +236,31 @@ namespace Pogranichye.Client.Presentation
             return clip;
         }
 
+        private static AudioClip MakeHoofstep(string name, float amplitude, float duration)
+        {
+            var length = Mathf.Max(1, Mathf.CeilToInt(Rate * duration));
+            var data = new float[length];
+            var random = new System.Random(name.GetHashCode());
+            for (var i = 0; i < length; i++)
+            {
+                var t = i / (float)Rate;
+                var body = (Mathf.Sin(2f * Mathf.PI * 108f * t) +
+                    0.28f * Mathf.Sin(2f * Mathf.PI * 216f * t)) * Mathf.Exp(-t * 27f);
+                var clopTime = t - 0.026f;
+                var clop = clopTime > 0f
+                    ? Mathf.Sin(2f * Mathf.PI * 570f * clopTime) * Mathf.Exp(-clopTime * 48f) * 0.34f
+                    : 0f;
+                var grit = ((float)random.NextDouble() * 2f - 1f) * Mathf.Exp(-t * 42f) * 0.12f;
+                var transient = ((float)random.NextDouble() * 2f - 1f) * Mathf.Exp(-t * 125f) * 0.18f;
+                var envelope = Mathf.Clamp01(1f - t / duration);
+                data[i] = (body * 0.52f + clop + grit + transient) * amplitude * envelope;
+            }
+
+            var clip = AudioClip.Create(name, data.Length, 1, Rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
         private static AudioClip MakeMetalTap(string name, float fundamental, float amplitude)
         {
             const float duration = 0.22f;
@@ -253,6 +288,7 @@ namespace Pogranichye.Client.Presentation
             UnsubscribeEvents();
             StopPlayback();
             DestroyClip(_step); DestroyClip(_run);
+            DestroyClip(_hoofWalk); DestroyClip(_hoofRun);
             DestroyClip(_magic); DestroyClip(_beer);
             DestroyClip(_npcWoodcut); DestroyClip(_npcForge); DestroyClip(_npcFishing);
             DestroyClip(_npcFieldwork); DestroyClip(_npcMining); DestroyClip(_npcHearth);
