@@ -87,7 +87,7 @@ def main():
     if errors:
         print("World material asset validation failed:", len(errors), "error(s)", file=sys.stderr)
         return 1
-    print("World material asset validation passed: six manifests checked")
+    print("World material asset validation passed: seven manifests checked")
     return 0
 
 
