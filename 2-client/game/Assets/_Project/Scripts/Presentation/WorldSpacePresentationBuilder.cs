@@ -20,6 +20,7 @@ namespace Pogranichye.Client.Presentation
         private static Material _roof;
         private static Material _stone;
         private static Material _stair;
+        private static Material _windowGlass;
 
         public static void Apply(Transform parent, WorldSpaceChunkFrame chunk, WorldAnchorFrame anchor)
         {
@@ -120,10 +121,17 @@ namespace Pogranichye.Client.Presentation
                 go.transform.SetParent(parent, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var renderer = go.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = MaterialFor(surface.Kind);
-                renderer.shadowCastingMode = surface.Kind == "floor" || surface.Kind == "ceiling"
-                    ? ShadowCastingMode.Off : ShadowCastingMode.On;
-                renderer.receiveShadows = true;
+                var transparentWindow = WorldSpaceSurfacePresentationPolicy.UsesWindowGlass(
+                    surface.Kind, surface.Transparent);
+                renderer.sharedMaterial = transparentWindow
+                    ? GetWindowGlassMaterial()
+                    : WorldSpaceSurfacePresentationPolicy.UsesOpaqueWindowFallback(surface.Kind, surface.Transparent)
+                        ? MaterialFor("wall")
+                        : MaterialFor(surface.Kind);
+                renderer.shadowCastingMode = WorldSpaceSurfacePresentationPolicy.CastsShadows(
+                    surface.Kind, surface.Transparent) ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                renderer.receiveShadows = WorldSpaceSurfacePresentationPolicy.ReceivesShadows(
+                    surface.Kind, surface.Transparent);
                 if (surface.Collidable)
                 {
                     var collider = go.AddComponent<MeshCollider>();
@@ -315,6 +323,31 @@ namespace Pogranichye.Client.Presentation
                 length += Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
             }
             return Mathf.Max(0.001f, length);
+        }
+
+        private static Material GetWindowGlassMaterial()
+        {
+            if (_windowGlass != null) return _windowGlass;
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                name = "Server space window glass • translucent blue-grey",
+                color = new Color(0.48f, 0.66f, 0.72f, 0.22f),
+                renderQueue = (int)RenderQueue.Transparent
+            };
+            material.SetOverrideTag("RenderType", "Transparent");
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend")) material.SetFloat("_Blend", 0f);
+            if (material.HasProperty("_SrcBlend")) material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend")) material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
+            if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.EnableKeyword("_ALPHABLEND_ON");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            _windowGlass = material;
+            return _windowGlass;
         }
 
         private static Material MaterialFor(string kind)
