@@ -70,6 +70,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLayoutPresentationBuilder.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldBuildingPresentationPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldWindowAperturePolicy.cs'
+      - '2-client/game/Tests/test_world_window_glazing_wiring.py'
       - '2-client/game/Tests/WorldWindowAperturePolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs'
       - '2-client/game/Tests/WorldMaterialSourcePolicyCheck.cs'
@@ -568,6 +569,10 @@ jobs:
         run: |
           mcs -out:/tmp/world-window-aperture.exe Tests/WorldWindowAperturePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldWindowAperturePolicy.cs
           mono /tmp/world-window-aperture.exe
+
+      - name: Server-layout window glazing source regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_world_window_glazing_wiring.py'
 
       - name: Initial full-frame socket ownership regression checks
         working-directory: 2-client/game
