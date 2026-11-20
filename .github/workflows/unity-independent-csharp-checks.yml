@@ -258,6 +258,10 @@ jobs:
           mcs -out:/tmp/world-audio-event.exe Tests/WorldAudioEventPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldAudioEventPolicy.cs
           mono /tmp/world-audio-event.exe
 
+      - name: Mounted hoofstep audio source regression checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_mounted_hoofstep_audio.py'
+
       - name: Drink presentation event regression checks
         working-directory: 2-client/game
         run: |
