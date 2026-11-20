@@ -78,6 +78,7 @@ namespace Pogranichye.Client.Presentation
 
         private void SubscribeEvents()
         {
+            // Initialize may be called after this component was disabled; defer subscription until OnEnable.
             if (!isActiveAndEnabled || _eventsSubscribed) return;
             EntityMotion.NearbyFootstep += OnNearbyFootstep;
             EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
