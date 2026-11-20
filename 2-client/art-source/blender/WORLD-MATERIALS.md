@@ -17,7 +17,7 @@ materials for the Unity 6 client:
 The library contains ten material keys. The procedural fallback is 512×512; each key has Albedo, tangent-space Normal, Roughness and AO PNG maps. URP smoothness is the linear inverse of roughness and is stored in the albedo alpha channel; this avoids a redundant fifth texture.
 The procedural fallback generator is deterministic and uses periodic functions
 so opposite edges match; it needs no downloaded textures or Blender add-ons.
-Six keys now have authored 1024×1024 overrides: `packed_road` (damp compacted earth),
+Seven keys now have authored 1024×1024 overrides: `packed_road` (damp compacted earth),
 `oak_planks` (weathered boards), `mossy_stone` (weathered fieldstone masonry), `lime_plaster` (aged limewash), `thatch_roof` (layered rye straw), and `forest_floor` (damp leaf litter). Their separate source-art builders create all four PBR maps and are preserved by this Blender generator when the complete map sets are present. The procedural versions remain safe fallbacks.
 
 ## Generate
@@ -52,3 +52,6 @@ The forest-floor source is a dense woodland litter composition: curled oak/birch
 The Unity client uses a separate `_forestFloor` material for server-authored `forest` zone ground patches. A single quad per forest zone uses world-aligned UVs at four metres per repeat, while `_forest` remains dedicated to the animated canopy. Copses keep their lighter grass floor. This avoids changing foliage colour or introducing per-tree materials.
 
 The procedural baseline remains a fallback for the other materials; it is not a substitute for later hand-authored hero materials or scanned assets.
+
+
+The seventh authored override is `oak_bark`: weathered vertical oak plates, deep fissures and restrained lichen for tree trunks. Its 1024×1024 albedo, tangent-space normal, roughness and AO are derived from one shared relief field; smoothness is packed into linear albedo alpha. The runtime applies it to the shared trunk material at the existing 1×3 tiling, preferring the authored pack, then the Grok `bark_tree` starter map, then the 512px procedural fallback. The clean checkout manifest stays pending until the source JPG and four PNG maps are installed.
