@@ -1,0 +1,27 @@
+{
+  "name": "Pogranichye authored weathered oak bark",
+  "availability": "pending",
+  "version": 1,
+  "resolution": [1024, 1024],
+  "tileable": true,
+  "source": "2-client/art-source/textures/oak_bark_source.jpg",
+  "builder": "2-client/art-source/textures/build_oak_bark_material.py",
+  "maps": {
+    "albedo": "oak_bark_albedo.png",
+    "normal": "oak_bark_normal.png",
+    "roughness": "oak_bark_roughness.png",
+    "ao": "oak_bark_ao.png"
+  },
+  "normal": {
+    "space": "tangent",
+    "green_channel": "positive_y"
+  },
+  "urp": {
+    "smoothness": "1 - roughness",
+    "smoothness_storage": "linear albedo alpha; _SmoothnessTextureChannel = 1",
+    "metallic": 0.0,
+    "wrap": "Repeat",
+    "mipmaps": true
+  },
+  "note": "The clean Git checkout remains on Grok/procedural fallback until the source JPG and four 1024x1024 maps are installed."
+}

@@ -1,6 +1,6 @@
 ## Статус чистого checkout — 2026-11-18
 
-В библиотеке определены шесть авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster, thatch_roof и forest_floor. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
+В библиотеке определены семь авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster, thatch_roof, forest_floor и oak_bark. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
 
 Пока полный набор не установлен, Unity использует импортированный Grok fallback (если выполнен Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только при наличии source artwork, всех четырёх 1024×1024 карт и манифеста availability: available.
 
@@ -196,3 +196,23 @@ python 2-client/art-source/textures/build_forest_floor_material.py
 `WorldLayoutPresentationBuilder` создаёт отдельный общий `_forestFloor` материал только для серверных зон `forest`. Поверхность — один quad на лесную зону с UV, выровненными по мировым координатам: один повтор на 4 метра. Это сохраняет одинаковый размер листьев на маленьких и больших лесных участках. Материал `_forest` остаётся отдельным и продолжает обслуживать кроны деревьев; зоны `copse` сохраняют более светлый травяной пол. Количество объектов не растёт на каждое дерево — создаётся один mesh на лесную зону.
 
 `WorldMaterialTextureImporter` автоматически применяет Repeat, mipmaps, trilinear, anisotropic 8, Normal Map и linear data import для roughness/AO. Если авторский комплект отсутствует, остаётся текущий procedural fallback.
+
+
+# Авторская текстура коры старого дуба
+
+Целевой исходник `oak_bark_source.jpg` — выветренная кора дуба с вертикальными пластинами, глубокими трещинами, волокнистой поверхностью и сдержанными участками лишайника. Генератор `build_oak_bark_material.py` создаёт в Unity Resources:
+
+- `oak_bark_albedo.png` — 1024×1024 RGBA; RGB — цвет коры, A — линейная smoothness (`1 - roughness`);
+- `oak_bark_normal.png` — tangent-space normal, positive Y;
+- `oak_bark_roughness.png` — отдельная линейная roughness;
+- `oak_bark_ao.png` — отдельная линейная AO;
+- `oak_bark_material.json` — диапазоны карт, SHA-256 исходника и метрики бесшовности.
+
+Генератор смещает исходник на половину тайла и ремонтирует центральный крест детерминированным Poisson patch из другого участка того же изображения. Все четыре карты проверяются отдельно; порог seam ratio — 1.35. Normal, roughness и AO выводятся из общей карты рельефа. Smoothness хранится в linear alpha albedo для URP Lit. Для пересборки нужны Python 3.10+, Pillow, NumPy и OpenCV:
+
+```bash
+python -m pip install pillow numpy opencv-python
+python 2-client/art-source/textures/build_oak_bark_material.py
+```
+
+В runtime авторская кора применяется к общему `_trunk` материалу деревьев с сохранением UV tiling 1×3. Приоритет: полный authored pack, затем Grok `bark_tree` albedo/normal, затем procedural fallback. Исходный JPG и четыре 1024px PNG распространяются в отдельном PBR-архиве; манифест чистого checkout остаётся pending, пока бинарные файлы не установлены.
