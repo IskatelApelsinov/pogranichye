@@ -66,14 +66,13 @@ namespace Pogranichye.Client.Presentation
             ApplyGrokWorldMaps(_ground, "grass_meadow", 10f, 10f);
             ApplyGrokWorldMaps(_field, "dirt_soil", 8f, 8f);
             ApplyAuthoredWorldMapsWithGrokFallback(_roof, "thatch_roof", "thatch_roof", 2f, 3f, true);
-            ApplyGrokWorldMaps(_trunk, "bark_tree", 1f, 3f);
             ApplyGrokWorldMaps(_scarecrowCloth, "cloth_linen", 1f, 1f);
             ApplyGrokWorldMaps(_water, "water_shallow", 2f, 18f, false);
 
             // Authored 1024px packs are used only when their manifest says available.
             // Otherwise prefer the imported Grok starter texture, then the existing procedural fallback.
             ApplyAuthoredWorldMapsWithGrokFallback(_timber, "oak_planks", "wood_planks", 2f, 2f, true);
-            ApplyGeneratedWorldMaps(_trunk, "oak_bark", 1f, 3f);
+            ApplyAuthoredWorldMapsWithGrokFallback(_trunk, "oak_bark", "bark_tree", 1f, 3f, true);
             ApplyAuthoredWorldMapsWithGrokFallback(_straw, "thatch_roof", "thatch_roof", 2f, 2f, true);
             ApplyGeneratedWorldMaps(_forest, "leaf_canopy", 5f, 5f);
             ApplyGeneratedWorldMaps(_forestFloor, "forest_floor", 1f, 1f, true);
