@@ -108,6 +108,7 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Runtime/MovementIntentQueuePolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/RequestGate.cs'
       - '2-client/game/Assets/_Project/Scripts/Runtime/VerticalSliceController.cs'
+      - '2-client/game/Tests/test_core_gameplay_skill_numeric_source.py'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellCoordinate.cs'
       - '2-client/game/Assets/_Project/Scripts/World/HexCellStreamingPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/World/WorldOriginState.cs'
@@ -182,6 +183,10 @@ jobs:
       - name: Tavern counter E interaction source checks
         working-directory: 2-client/game
         run: python3 -m unittest discover -s Tests -p 'test_tavern_counter_interaction_source.py'
+
+      - name: Core gameplay skill numeric culture source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_core_gameplay_skill_numeric_source.py'
 
       - name: Localization catalog regression checks
         working-directory: 2-client/game
