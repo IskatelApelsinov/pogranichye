@@ -78,7 +78,7 @@ namespace Pogranichye.Client.Presentation
 
         private void SubscribeEvents()
         {
-            if (_eventsSubscribed) return;
+            if (!isActiveAndEnabled || _eventsSubscribed) return;
             EntityMotion.NearbyFootstep += OnNearbyFootstep;
             EntityMotion.NearbyMagicCast += OnNearbyMagicCast;
             EntityMotion.NearbyWorkAction += OnNearbyWorkAction;
