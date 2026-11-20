@@ -1,6 +1,6 @@
 ## Статус чистого checkout — 2026-11-18
 
-В библиотеке определены семь авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster, thatch_roof и forest_floor. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
+В библиотеке определены семь авторских PBR-наборов: packed_road, oak_planks, mossy_stone, lime_plaster, thatch_roof, forest_floor и oak_bark. Генераторы и манифесты находятся в репозитории, но чистый checkout пока не содержит source JPG и готовые 1024×1024 PNG-карты; соответствующие манифесты остаются availability: pending. Поэтому не считайте описания ниже подтверждением наличия бинарных карт в Git.
 
 Пока полный набор не установлен, Unity использует импортированный Grok fallback (если выполнен Tools → Pogranichye → Art → Import Grok Texture Pack), иначе — существующий procedural fallback. 512px карты master generator остаются preview/fallback и не становятся авторским PBR override. Авторский набор получает приоритет только при наличии source artwork, всех четырёх 1024×1024 карт и манифеста availability: available.
 
