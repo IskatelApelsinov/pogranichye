@@ -7,7 +7,16 @@ namespace Pogranichye.Client.Presentation
     {
         public static bool ShouldPlayFootstep(float horizontalDistanceSquared, bool mounted)
         {
-            if (mounted) return false;
+            return !mounted && HasMeaningfulMovement(horizontalDistanceSquared);
+        }
+
+        public static bool ShouldPlayHoofstep(float horizontalDistanceSquared, bool mounted)
+        {
+            return mounted && HasMeaningfulMovement(horizontalDistanceSquared);
+        }
+
+        private static bool HasMeaningfulMovement(float horizontalDistanceSquared)
+        {
             return !float.IsNaN(horizontalDistanceSquared) &&
                 !float.IsInfinity(horizontalDistanceSquared) &&
                 horizontalDistanceSquared >= 0.0004f;
