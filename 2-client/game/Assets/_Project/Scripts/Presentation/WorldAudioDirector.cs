@@ -89,7 +89,7 @@ namespace Pogranichye.Client.Presentation
 
         public void Hoofsteps(bool running)
         {
-            if (Time.unscaledTime < _nextHoofstepAt || _oneShot == null) return;
+            if (!isActiveAndEnabled || Time.unscaledTime < _nextHoofstepAt || _oneShot == null) return;
             _nextHoofstepAt = Time.unscaledTime + (running ? 0.34f : 0.58f);
             _oneShot.PlayOneShot(running ? _hoofRun : _hoofWalk, running ? 0.42f : 0.32f);
         }
