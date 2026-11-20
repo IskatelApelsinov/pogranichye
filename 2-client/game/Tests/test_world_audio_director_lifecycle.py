@@ -11,7 +11,7 @@ class WorldAudioDirectorLifecycleTests(unittest.TestCase):
         cls.source = SOURCE.read_text(encoding="utf-8")
 
     def test_event_subscriptions_are_idempotent_and_balanced(self):
-        self.assertIn("if (_eventsSubscribed) return;", self.source)
+        self.assertIn("if (!isActiveAndEnabled || _eventsSubscribed) return;", self.source)
         self.assertIn("_eventsSubscribed = true;", self.source)
         self.assertIn("if (!_eventsSubscribed) return;", self.source)
         self.assertIn("_eventsSubscribed = false;", self.source)
