@@ -45,6 +45,7 @@ namespace Pogranichye.Client.Presentation
         private Transform _target;
         private Transform _lockOnTarget;
         private bool _firstPerson;
+        private bool _mounted;
         private float _yaw;
         private float _pitch;
         private float _zoomDistance;
@@ -55,6 +56,7 @@ namespace Pogranichye.Client.Presentation
         public void BindInput(Pogranichye.Client.ClientInput input) { _input = input; }
         public bool IsFirstPerson => _firstPerson;
         public bool CaptureMouseForGesture => _captureMouseForGesture;
+        public void SetMounted(bool mounted) { _mounted = mounted; }
 
         public void SetJumpOffset(float offset) { _jumpOffset = Mathf.Max(0f, offset); }
 
@@ -163,9 +165,11 @@ namespace Pogranichye.Client.Presentation
                 var walkBob = Mathf.Sin(_headBobPhase * 2f) * _headBobAmplitude * gait;
                 var sideBob = Mathf.Sin(_headBobPhase) * _headBobSideAmplitude * gait;
                 var idleBreath = Mathf.Sin(Time.unscaledTime * 1.15f) * 0.006f;
-                transform.position = _target.position + Vector3.up * (1.62f + walkBob + idleBreath + _jumpOffset)
-                    + _target.right * sideBob;
-                transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+                var eyeHeight = _mounted ? 2.55f : 1.62f;
+                var mountForwardOffset = _mounted ? 0.12f : 0f;
+                transform.position = _target.position + Vector3.up * (eyeHeight + walkBob + idleBreath + _jumpOffset)
+                    + _target.right * sideBob + _target.forward * mountForwardOffset;
+                transform.rotation = Quaternion.Euler(Mathf.Clamp(_pitch + (_mounted ? 9f : 0f), -75f, 75f), _yaw, 0f);
                 return;
             }
 
@@ -181,7 +185,8 @@ namespace Pogranichye.Client.Presentation
                     _thirdPersonMinPitch, _thirdPersonMaxPitch);
             }
 
-            var focus = _target.position + Vector3.up * (1.25f + _jumpOffset);
+            var focusHeight = _mounted ? 2.0f : 1.25f;
+            var focus = _target.position + Vector3.up * (focusHeight + _jumpOffset);
             var direction = Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.back;
             var desired = focus + direction * _zoomDistance;
             var ray = desired - focus;
