@@ -20,6 +20,7 @@ class MountedHoofstepAudioTests(unittest.TestCase):
     def test_hoofsteps_have_separate_walk_and_trot_cadence(self):
         self.assertIn('running ? 0.34f : 0.58f', self.audio)
         self.assertIn('running ? _hoofRun : _hoofWalk', self.audio)
+        self.assertIn('if (!isActiveAndEnabled || Time.unscaledTime < _nextHoofstepAt', self.audio)
 
     def test_confirmed_mounted_movement_selects_hoofsteps(self):
         self.assertIn('WorldAudioEventPolicy.ShouldPlayHoofstep(inputMoveDistanceSquared, isMounted)', self.controller)
