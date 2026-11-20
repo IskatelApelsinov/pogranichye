@@ -3977,6 +3977,8 @@ namespace Pogranichye.Client
             else
             {
                 var counter = _frame.Place.TavernCounter;
+                if (!IsAtTavernCounter())
+                    GUILayout.Label("Подойдите к стойке внутри корчмы, чтобы заказать пиво.");
                 if (counter == null)
                     GUILayout.Label("Сведения о стойке не получены. Сервер проверит возможность заказа.");
                 else if (!counter.BartenderPresent)
@@ -4880,7 +4882,10 @@ namespace Pogranichye.Client
             if (poi == null) return;
             if (IsTavernInteractionPoi(poi))
             {
-                var open = !_tavernPanelOpen;
+                var isCounterTarget = string.Equals(poi.TargetId, "tavern_counter", StringComparison.Ordinal);
+                // The entrance target toggles the panel. The interior counter target is an
+                // affordance to open/use it and must never close an already-open panel.
+                var open = isCounterTarget || !_tavernPanelOpen;
                 _marketPanelOpen = false;
                 _stablePanelOpen = false;
                 _activityPanelOpen = false;
@@ -4976,7 +4981,7 @@ namespace Pogranichye.Client
             var type = (poi.TargetType ?? string.Empty).ToLowerInvariant();
             var id = (poi.TargetId ?? string.Empty).ToLowerInvariant();
             var title = (poi.Title ?? string.Empty).ToLowerInvariant();
-            return type == "tavern" || type == "inn" || id == "tavern" ||
+            return type == "tavern" || type == "inn" || id == "tavern" || id == "tavern_counter" ||
                 title.Contains("корчм") || title.Contains("трактир");
         }
 
