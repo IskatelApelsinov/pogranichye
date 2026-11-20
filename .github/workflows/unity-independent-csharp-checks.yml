@@ -159,6 +159,7 @@ on:
       - '2-client/game/Tests/TerrainGatherNodeFrameParserCheck.cs'
       - '2-client/game/Tests/TerrainGatherNodeVisualPolicyCheck.cs'
       - '2-client/game/Tests/test_terrain_gather_visual_wiring.py'
+      - '2-client/game/Tests/test_fishing_availability_wiring.py'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
@@ -431,6 +432,9 @@ jobs:
       - name: Terrain gather-node presentation wiring source checks
         working-directory: 2-client/game
         run: python3 -m unittest discover -s Tests -p 'test_terrain_gather_visual_wiring.py'
+      - name: Server-authoritative fishing availability source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_fishing_availability_wiring.py'
       - name: Generated layout POI interaction allow-list checks
         working-directory: 2-client/game
         run: |
