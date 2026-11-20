@@ -315,6 +315,23 @@ search:
 		}
 		sim.ScenePos(e).X, sim.ScenePos(e).Y = cx, cy
 	})
+	// Этот шаг проверяет саму механику покупки (стойка/запас/кошель/reqid), а не дневное
+	// расписание корчмаря (comms 0242) — то отдельно покрыто sim/tavern_test.go с явным
+	// управлением часом. Реальный тик идёт по настенным часам 400мс/час всё это время (talk +
+	// work + errand выше), так что к этому шагу игровой час мог случайно утечь за пределы
+	// окна обслуживания [10,22) под нагрузкой параллельного сюита тестов — ровно баг-флак из
+	// comms 0193/0311/0312 ("корчмаря сейчас нет за стойкой"). Пиним час на полдень того же
+	// игрового дня (или следующего, если полдень уже прошёл), не трогая монотонность часов.
+	c.world(func(e *core.Entity) {
+		clk := &s.runner.Clock
+		const noon = 12
+		inDay := clk.TotalHours % core.HoursPerDay
+		target := clk.TotalHours - inDay + noon
+		if target < clk.TotalHours {
+			target += core.HoursPerDay
+		}
+		clk.TotalHours = target
+	})
 	var coins0, beerStock0 float64
 	var hour0 int64
 	c.world(func(e *core.Entity) {
