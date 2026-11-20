@@ -18,6 +18,11 @@ internal static class WorldAudioEventPolicyCheck
         Check("invalid movement distance stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(float.NaN, false));
         Check("mounted movement never plays human footsteps", !WorldAudioEventPolicy.ShouldPlayFootstep(0.01f, true));
         Check("mounted stationary state stays silent", !WorldAudioEventPolicy.ShouldPlayFootstep(0f, true));
+        Check("mounted movement plays hoofsteps", WorldAudioEventPolicy.ShouldPlayHoofstep(0.01f, true));
+        Check("unmounted movement never plays hoofsteps", !WorldAudioEventPolicy.ShouldPlayHoofstep(0.01f, false));
+        Check("mounted stationary state does not play hoofsteps", !WorldAudioEventPolicy.ShouldPlayHoofstep(0f, true));
+        Check("invalid mounted movement does not play hoofsteps", !WorldAudioEventPolicy.ShouldPlayHoofstep(float.NaN, true));
+        Check("infinite mounted movement does not play hoofsteps", !WorldAudioEventPolicy.ShouldPlayHoofstep(float.PositiveInfinity, true));
         Check("confirmed cast plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: cast", true));
         Check("confirmed explicit weave plays magic", WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: weave", true));
         Check("unrelated accepted action is silent", !WorldAudioEventPolicy.ShouldPlayMagic("Действие мира: chop", true));
