@@ -5649,7 +5649,9 @@ namespace Pogranichye.Client
             // Measure after collision resolution: blocked movement must stay silent.
             inputMoveDistanceSquared = (new Vector2(player.position.x, player.position.z) - origin).sqrMagnitude;
             var isMounted = _frame?.Me?.Horse != null && _frame.Me.Horse.Mounted;
-            if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared, isMounted))
+            if (WorldAudioEventPolicy.ShouldPlayHoofstep(inputMoveDistanceSquared, isMounted))
+                _audioDirector?.Hoofsteps(canRun);
+            else if (WorldAudioEventPolicy.ShouldPlayFootstep(inputMoveDistanceSquared, isMounted))
                 _audioDirector?.Footsteps(canRun);
 
             _moveSendAccumulator += Mathf.Clamp(Time.unscaledDeltaTime, 0f, 0.25f);
