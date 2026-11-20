@@ -20,6 +20,15 @@ public static class WorldSpaceDescriptorValidatorCheck
         var fixture = JsonConvert.DeserializeObject<WorldSpaceChunkFrame>(json);
         Require(WorldSpaceDescriptorValidator.IsValid(fixture), "the committed server fixture must be accepted");
 
+        var transparentWindow = JsonConvert.DeserializeObject<WorldSpaceSurfaceFrame>(
+            "{\"kind\":\"window\",\"transparent\":true}");
+        Require(transparentWindow != null && transparentWindow.Transparent,
+            "the additive transparent flag must deserialize on server window surfaces");
+        var legacyWindow = JsonConvert.DeserializeObject<WorldSpaceSurfaceFrame>(
+            "{\"kind\":\"window\"}");
+        Require(legacyWindow != null && !legacyWindow.Transparent,
+            "older window descriptors without transparent must remain opaque by default");
+
         var empty = Clone(fixture);
         empty.Spaces.Clear();
         Require(WorldSpaceDescriptorValidator.IsValid(empty), "an empty chunk must remain valid");
