@@ -18,7 +18,7 @@ The library contains ten material keys. The procedural fallback is 512×512; eac
 The procedural fallback generator is deterministic and uses periodic functions
 so opposite edges match; it needs no downloaded textures or Blender add-ons.
 Seven keys now have authored 1024×1024 overrides: `packed_road` (damp compacted earth),
-`oak_planks` (weathered boards), `mossy_stone` (weathered fieldstone masonry), `lime_plaster` (aged limewash), `thatch_roof` (layered rye straw), and `forest_floor` (damp leaf litter). Their separate source-art builders create all four PBR maps and are preserved by this Blender generator when the complete map sets are present. The procedural versions remain safe fallbacks.
+`oak_planks` (weathered boards), `mossy_stone` (weathered fieldstone masonry), `lime_plaster` (aged limewash), `thatch_roof` (layered rye straw), and `forest_floor` (damp leaf litter), plus `oak_bark` (weathered oak trunks). Their separate source-art builders create all four PBR maps and are preserved by this Blender generator when the complete map sets are present. The procedural versions remain safe fallbacks.
 
 ## Generate
 
