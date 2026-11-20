@@ -58,6 +58,9 @@ on:
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldLabelVisibilityPolicy.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldPositionProjection.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldSpacePresentationBuilder.cs'
+      - '2-client/game/Assets/_Project/Scripts/Presentation/WorldSpaceSurfacePresentationPolicy.cs'
+      - '2-client/game/Tests/WorldSpaceSurfacePresentationPolicyCheck.cs'
+      - '2-client/game/Tests/test_world_space_window_transparency_wiring.py'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldRoomAcousticPolicy.cs'
       - '2-client/game/Tests/WorldRoomAcousticPolicyCheck.cs'
       - '2-client/game/Assets/_Project/Scripts/Presentation/WorldInteriorLightingPolicy.cs'
@@ -467,6 +470,13 @@ jobs:
           test -n "$NEWTONSOFT"
           mcs -r:"$NEWTONSOFT" -out:/tmp/world-space-descriptor-validator.exe Tests/WorldSpaceDescriptorValidatorCheck.cs Assets/_Project/Scripts/Networking/Protocol/WorldSpatialDescriptors.cs Assets/_Project/Scripts/Networking/WorldSpaceDescriptorValidator.cs
           mono /tmp/world-space-descriptor-validator.exe ../../3-dev/contract/fixtures/spaces_v1.example.json
+
+      - name: Server-space transparent window presentation regression checks
+        working-directory: 2-client/game
+        run: |
+          mcs -out:/tmp/world-space-window-presentation.exe Tests/WorldSpaceSurfacePresentationPolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldSpaceSurfacePresentationPolicy.cs
+          mono /tmp/world-space-window-presentation.exe
+          python3 -m unittest discover -s Tests -p 'test_world_space_window_transparency_wiring.py'
 
       - name: World material source priority regression checks
         working-directory: 2-client/game
