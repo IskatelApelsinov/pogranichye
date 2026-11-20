@@ -132,11 +132,13 @@ namespace Pogranichye.Client.Networking.Protocol
     {
         [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("floor_id")] public string FloorId { get; set; }
-        // floor | ceiling | wall | roof | cliff | cave_wall | waterbed
+        // floor | ceiling | wall | roof | cliff | cave_wall | waterbed | window
         [JsonProperty("kind")] public string Kind { get; set; }
         [JsonProperty("points")] public List<WorldSpacePointFrame> Points { get; set; }
         [JsonProperty("collidable")] public bool Collidable { get; set; }
         [JsonProperty("walkable")] public bool Walkable { get; set; }
+        // Optional visual transparency; it never changes the server-authored collider.
+        [JsonProperty("transparent")] public bool Transparent { get; set; }
     }
 
     [Serializable]
