@@ -13,6 +13,7 @@ PACKS = {
     "lime_plaster": ("2-client/art-source/textures/lime_plaster_source.jpg", "lime_plaster"),
     "thatch_roof": ("2-client/art-source/textures/thatch_roof_source.jpg", "thatch_roof"),
     "forest_floor": ("2-client/art-source/textures/forest_floor_source.jpg", "forest_floor"),
+    "oak_bark": ("2-client/art-source/textures/oak_bark_source.jpg", "oak_bark"),
 }
 TEXTURES = Path("2-client/game/Assets/Resources/WorldMaterials/Textures")
 SUFFIXES = ("albedo", "normal", "roughness", "ao")
