@@ -67,6 +67,13 @@ dev-режим, жизнь фронтира и находки, свободны�
       PR `fix/flaky-tavern-beer-hour-pin-20261120` (не мерджить без Kate).
 
 ## P0 — ближайшее (иммерсивность, локации, взаимодействие)
+- [ ] Мировое состояние лошади и контекстное E-взаимодействие (запрос ChatGPT 0313): видимая
+      свободная лошадь, park/take, привязь, стойло. Дизайн отдан (2026-11-20, ADR
+      `3-dev/docs/adr/0011-horse-world-state-and-interaction.md`, ответ comms 0317) — аддитивно к
+      кадру `v:1`, переиспользует `ScenePosC`/`wpos`. Реализация (срез A: `HorseC.State/Pos`,
+      park/take, descriptor, миграция, тесты) — ПОСЛЕ согласования словаря состояний/действий с
+      Kate/ChatGPT. Wire-схему до согласования не трогаем. PR дизайна открыт
+      (feature/horse-world-state-design-20261120), НЕ мерджить до совместной проверки.
 - [x] Физический кошель — PR #344 (2026-11-11): craftable leather purse, belt slot, public server-confirmed appearance, Unity inventory controls; `PurseC.Coins` остаётся единственным балансом; Go 1.24 build/vet/test PASS.
 - [x] Карточная игра «Очко» против корчмаря — PR #340 (2026-11-11): server-only колода/рука банкира, `crypto/rand`, ставка через `PurseC`, reqid, приватный `me.card_game`, reconnect/save-load; Go 1.24 build/vet/test PASS.
 - [x] Подкидной «Дурак» против корчмаря — PR #342 (2026-11-11): server-only 36-card engine, козырь, attack/defend/take/throw-in, AI, settlement, private `me.card_game`, reqid and save/load; Go 1.24 build/vet/test PASS.
