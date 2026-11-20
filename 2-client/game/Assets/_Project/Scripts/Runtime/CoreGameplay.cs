@@ -252,6 +252,7 @@ namespace Pogranichye.Client
             if (_externalCharacterMenuOpen == open) return;
             _externalCharacterMenuOpen = open;
             if (!open) return;
+            CancelHorseInteractionInput();
             _menuOpen = false;
             _holding = false;
             _holdStart = 0f;
@@ -262,12 +263,14 @@ namespace Pogranichye.Client
         public void SetExternalUiCapture(bool captured)
         {
             _externalUiCapture = captured;
+            if (captured) CancelHorseInteractionInput();
         }
 
         public void SetExternalModalMenuOpen(bool open)
         {
             _externalModalMenuOpen = open;
             if (!open) return;
+            CancelHorseInteractionInput();
             _externalCharacterMenuOpen = false;
             _menuOpen = false;
             _holding = false;
@@ -1165,6 +1168,8 @@ namespace Pogranichye.Client
             _stats = null;
             _bag = null;
             _horse = null;
+            CancelHorseInteractionInput();
+            if (_rig != null) _rig.SetMounted(false);
             _region = null;
             _tavernCounter = null;
             _riderVisualRoot = null;
@@ -1746,6 +1751,7 @@ namespace Pogranichye.Client
                 _holding = false;
                 _holdStart = 0f;
                 CloseWeave(false);
+                CancelHorseInteractionInput();
                 ReleaseGuard();
                 UpdateCursor(true);
                 return;
@@ -1757,14 +1763,18 @@ namespace Pogranichye.Client
                 _holding = false;
                 _holdStart = 0f;
                 _fishPhase = 0;
+                CancelHorseInteractionInput();
                 ReleaseGuard();
                 if (_weaveOpen) CloseWeave(false);
                 UpdateCursor(true);
                 return;
             }
 
+            UpdateHorseInteractionInput();
+
             if (journey != null)
             {
+                CancelHorseInteractionInput();
                 _menuOpen = false;
                 CloseWeave(false);
                 ReleaseGuard();
@@ -2137,6 +2147,11 @@ namespace Pogranichye.Client
         private Vector3[] _riderHomePositions;
         private Quaternion[] _riderHomeRotations;
         private bool _riderHomeCaptured;
+        private bool _horseInteractPending;
+        private float _horseInteractStartedAt;
+
+        /// <summary>Mounted E input belongs to the hold-to-dismount action, not world POIs.</summary>
+        public bool ConsumesWorldInteraction => _horse != null && _horse.Mounted;
 
         // Procedural low-poly horse: anatomical silhouette, articulated legs, mane, tack and saddle.
         // It remains presentation-only; ownership, stamina, inventory and mounting are server-owned.
@@ -2148,6 +2163,8 @@ namespace Pogranichye.Client
             if (!riding)
             {
                 if (_mount != null) _mount.SetActive(false);
+                if (_rig != null) _rig.SetMounted(false);
+                CancelHorseInteractionInput();
                 return;
             }
             if (_mount == null)
@@ -2209,6 +2226,7 @@ namespace Pogranichye.Client
                 foreach (var collider in _mount.GetComponentsInChildren<Collider>()) Destroy(collider);
             }
             _mount.SetActive(true);
+            if (_rig != null) _rig.SetMounted(true);
             var facing = Quaternion.Euler(0f, _player.eulerAngles.y, 0f);
             _mount.transform.SetPositionAndRotation(_player.position, facing);
             var stamina = Mathf.Clamp((float)horse.Stamina, 0f, 100f);
@@ -2313,24 +2331,57 @@ namespace Pogranichye.Client
 
             // Presentation-only seated pose. The networked entity root and camera target stay
             // at the authoritative ground position; only the visible rig is reshaped.
-            _riderVisualRoot.localPosition = new Vector3(0f, 0.34f, 0f);
-            _riderBody.localPosition = new Vector3(0f, 1.02f, 0f);
-            _riderBody.localRotation = Quaternion.Euler(8f, 0f, 0f);
-            _riderHead.localPosition = new Vector3(0f, 1.68f, 0.03f);
-            _riderHead.localRotation = Quaternion.Euler(-5f, 0f, 0f);
-            _riderLeftArm.localPosition = new Vector3(-0.34f, 1.22f, 0.16f);
-            _riderRightArm.localPosition = new Vector3(0.34f, 1.22f, 0.16f);
-            _riderLeftArm.localRotation = Quaternion.Euler(58f, 0f, -7f);
-            _riderRightArm.localRotation = Quaternion.Euler(58f, 0f, 7f);
-            _riderLeftLeg.localPosition = new Vector3(-0.22f, 0.48f, 0.1f);
-            _riderRightLeg.localPosition = new Vector3(0.22f, 0.48f, 0.1f);
-            _riderLeftLeg.localRotation = Quaternion.Euler(82f, 0f, -12f);
-            _riderRightLeg.localRotation = Quaternion.Euler(82f, 0f, 12f);
+            // The horse saddle is at roughly 1.68 m. Keep the rider's pelvis above it and
+            // the torso/head clear of the horse body; the old pose put the torso inside the mount.
+            _riderVisualRoot.localPosition = Vector3.zero;
+            _riderBody.localPosition = new Vector3(0f, 2.25f, -0.02f);
+            _riderBody.localRotation = Quaternion.Euler(7f, 0f, 0f);
+            _riderHead.localPosition = new Vector3(0f, 2.92f, 0.02f);
+            _riderHead.localRotation = Quaternion.Euler(-4f, 0f, 0f);
+            _riderLeftArm.localPosition = new Vector3(-0.34f, 2.15f, 0.25f);
+            _riderRightArm.localPosition = new Vector3(0.34f, 2.15f, 0.25f);
+            _riderLeftArm.localRotation = Quaternion.Euler(42f, 0f, -8f);
+            _riderRightArm.localRotation = Quaternion.Euler(42f, 0f, 8f);
+            _riderLeftLeg.localPosition = new Vector3(-0.28f, 1.55f, -0.02f);
+            _riderRightLeg.localPosition = new Vector3(0.28f, 1.55f, -0.02f);
+            _riderLeftLeg.localRotation = Quaternion.Euler(0f, 0f, 58f);
+            _riderRightLeg.localRotation = Quaternion.Euler(0f, 0f, -58f);
         }
 
         private void LateUpdate()
         {
             if (_active && _me != null) ApplyRiderPose();
+        }
+
+        private void CancelHorseInteractionInput()
+        {
+            _horseInteractPending = false;
+            _horseInteractStartedAt = 0f;
+        }
+
+        private void UpdateHorseInteractionInput()
+        {
+            if (_input == null || _horse == null || !_horse.Mounted || CapturesInput)
+            {
+                CancelHorseInteractionInput();
+                return;
+            }
+
+            if (_input.InteractPressed)
+            {
+                _horseInteractPending = true;
+                _horseInteractStartedAt = Time.unscaledTime;
+            }
+
+            if (_input.InteractReleased && _horseInteractPending)
+            {
+                var heldSeconds = Time.unscaledTime - _horseInteractStartedAt;
+                CancelHorseInteractionInput();
+                if (heldSeconds >= 0.45f)
+                    Ask("Спешиться", "horse", "action", "dismount", "target", _horse.Id);
+                else
+                    Toast("Удерживай E, чтобы спешиться", 1.4f);
+            }
         }
 
         private void UpdateHandLight()
