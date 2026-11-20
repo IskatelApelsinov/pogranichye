@@ -29,6 +29,14 @@ const (
 	towerSide    = 7.0
 	towerWall    = 0.8
 	towerStoreyH = 3.2
+
+	// Оконный проём (v1.35, письмо Kate 0301): детерминированное окно в стене первого яруса на
+	// фасадах без двери. Размеры — от здания, не от координат мира; окна не создают порталов/переходов
+	// и не дают прохода (остекление collidable, см. glazing).
+	winW       = 1.2 // ширина светового проёма вдоль стены, м
+	winSillH   = 0.9 // низ проёма над полом яруса, м
+	winHeadH   = 2.0 // верх проёма над полом яруса, м
+	winMinPier = 0.6 // минимальный глухой простенок с каждой стороны; короче — стена глухая
 )
 
 type spaceBuilder struct {
@@ -122,6 +130,70 @@ func (sb *spaceBuilder) wall(kind, floor string, a0, b0, a1, b1, y0, y1 float64)
 	sb.surface(kind, floor, false, [3]float64{a0, y0, b0}, [3]float64{a1, y0, b1}, [3]float64{a1, y1, b1}, [3]float64{a0, y1, b0})
 }
 
+// glazing — оконное остекление: видимый световой проём, который пропускает свет, но остаётся
+// collidable, то есть сквозь него нельзя пройти. Явное поле transparent отделяет визуальную
+// прозрачность (клиент рисует стекло) от блокирующей коллизии — ответ на п.4 письма 0301: окно не
+// дыра в несущей геометрии, а отдельная поверхность с собственным видом "window".
+func (sb *spaceBuilder) glazing(floor string, pts ...[3]float64) {
+	ps := make([]map[string]float64, 0, len(pts))
+	for _, p := range pts {
+		ps = append(ps, sb.pt(p[0], p[1], p[2]))
+	}
+	sb.nSurf++
+	sb.surfaces = append(sb.surfaces, map[string]any{"id": fmt.Sprintf("%s:surf:%03d", sb.id, sb.nSurf),
+		"floor_id": sb.fid(floor), "kind": "window", "points": ps, "collidable": true, "walkable": false, "transparent": true})
+}
+
+// winBand — параметры центрального окна для apertureWall/ringW.
+type winBand struct{ w, sill, head float64 }
+
+// apertureWall — стена от (a0,b0) до (a1,b1) между y0..y1 с центральным оконным проёмом win:
+// боковые простенки во всю высоту, нижний (подоконник) и верхний (перемычка) глухие пояса, а сам
+// проём заполнен прозрачным остеклением. Если стена короче окна с простенками или по высоте проём не
+// помещается — стена остаётся глухой целиком. Окно получается именно рамой вокруг остекления, а не
+// сквозной дырой в коллизии.
+func (sb *spaceBuilder) apertureWall(kind, floor string, a0, b0, a1, b1, y0, y1 float64, win *winBand) {
+	if win == nil {
+		sb.wall(kind, floor, a0, b0, a1, b1, y0, y1)
+		return
+	}
+	L := math.Hypot(a1-a0, b1-b0)
+	sill := clampf(win.sill, y0+0.3, y1-0.3)
+	head := clampf(win.head, sill+0.3, y1-0.1)
+	if L < win.w+2*winMinPier || head-sill < 0.3 {
+		sb.wall(kind, floor, a0, b0, a1, b1, y0, y1)
+		return
+	}
+	fw := (win.w / L) / 2
+	lerp := func(f float64) (float64, float64) { return a0 + (a1-a0)*f, b0 + (b1-b0)*f }
+	la, lb := lerp(0.5 - fw)
+	ra, rb := lerp(0.5 + fw)
+	sb.wall(kind, floor, a0, b0, la, lb, y0, y1)   // левый простенок во всю высоту
+	sb.wall(kind, floor, ra, rb, a1, b1, y0, y1)   // правый простенок во всю высоту
+	sb.wall(kind, floor, la, lb, ra, rb, y0, sill) // подоконник: глухой пояс под проёмом
+	sb.wall(kind, floor, la, lb, ra, rb, head, y1) // перемычка: глухой пояс над проёмом
+	sb.glazing(floor, [3]float64{la, sill, lb}, [3]float64{ra, sill, rb}, [3]float64{ra, head, rb}, [3]float64{la, head, lb})
+}
+
+// ringW — как ring, но у трёх стен без двери (левой, правой и задней) ставит центральное окно win.
+// Передняя стена (b=b0) с дверью окон не получает. win==nil делает ringW тождественным ring.
+func (sb *spaceBuilder) ringW(kind, floor string, a0, b0, a1, b1, y0, y1, da, dw, dh float64, win *winBand) {
+	if win == nil {
+		sb.ring(kind, floor, a0, b0, a1, b1, y0, y1, da, dw, dh)
+		return
+	}
+	sb.apertureWall(kind, floor, a0, b0, a0, b1, y0, y1, win) // левая (a=a0)
+	sb.apertureWall(kind, floor, a1, b0, a1, b1, y0, y1, win) // правая (a=a1)
+	sb.apertureWall(kind, floor, a0, b1, a1, b1, y0, y1, win) // задняя (b=b1)
+	if dw <= 0 {
+		sb.wall(kind, floor, a0, b0, a1, b0, y0, y1)
+		return
+	}
+	sb.wall(kind, floor, a0, b0, da-dw/2, b0, y0, y1)
+	sb.wall(kind, floor, da+dw/2, b0, a1, b0, y0, y1)
+	sb.wall(kind, floor, da-dw/2, b0, da+dw/2, b0, dh, y1)
+}
+
 // ring — четыре стены по прямоугольнику [a0,a1]×[b0,b1]; в передней (b=b0) — проём двери шириной
 // dw с центром da (dw=0 — глухая), над проёмом перемычка от dh до y1.
 func (sb *spaceBuilder) ring(kind, floor string, a0, b0, a1, b1, y0, y1, da, dw, dh float64) {
@@ -200,6 +272,7 @@ type boxSpec struct {
 	storeyH            float64
 	cellar             float64
 	flatRoof           bool
+	windows            bool // окна в стенах первого яруса на фасадах без двери (письмо 0301)
 	wallKind           string
 }
 
@@ -248,7 +321,11 @@ func buildBox(s boxSpec) *spaceBuilder {
 	if s.flatRoof {
 		outerTop = top + 1.0
 	}
-	sb.ring(s.wallKind, "ground", 0, 0, A, B, 0, outerTop, da, s.doorW, spaceDoorH)
+	var gwin *winBand // окна первого яруса — и в оболочке, и во внутреннем кольце (чтобы свет дошёл внутрь)
+	if s.windows {
+		gwin = &winBand{w: winW, sill: winSillH, head: winHeadH}
+	}
+	sb.ringW(s.wallKind, "ground", 0, 0, A, B, 0, outerTop, da, s.doorW, spaceDoorH, gwin)
 	// дверной проём сквозь толщу стены: откосы, порог, притолока
 	sb.wall(s.wallKind, "ground", da-s.doorW/2, 0, da-s.doorW/2, t, 0, spaceDoorH)
 	sb.wall(s.wallKind, "ground", da+s.doorW/2, 0, da+s.doorW/2, t, 0, spaceDoorH)
@@ -273,7 +350,7 @@ func buildBox(s boxSpec) *spaceBuilder {
 		sb.slab("floor", fl, true, y, t, t, A-t, B-t, holeHere)
 		sb.slab("ceiling", fl, false, ceil, t, t, A-t, B-t, holeAbove)
 		if k == 0 {
-			sb.ring(s.wallKind, fl, t, t, A-t, B-t, y, ceil, da, s.doorW, spaceDoorH)
+			sb.ringW(s.wallKind, fl, t, t, A-t, B-t, y, ceil, da, s.doorW, spaceDoorH, gwin)
 		} else {
 			sb.ring(s.wallKind, fl, t, t, A-t, B-t, y, ceil, 0, 0, 0)
 		}
@@ -332,7 +409,7 @@ func tavernSpace(w *core.World, t *Terrain, se *core.Entity) map[string]any {
 		}
 		spec := boxSpec{id: TavernSpaceID(se.ID), name: b.Name, roomKind: "tavern", titles: []string{"Зал корчмы", "Комнаты над корчмой"},
 			oe: ae + b.X0, on: an + b.Y0, g: t.Height(ae+b.cx(), an+b.cy()), W: b.X1 - b.X0, D: b.Y1 - b.Y0,
-			facing: int(math.Round(b.Door.Facing)), doorW: b.Door.Width, t: wallThickness, storeys: 2, storeyH: 3.0, cellar: 2.4, wallKind: "wall"}
+			facing: int(math.Round(b.Door.Facing)), doorW: b.Door.Width, t: wallThickness, storeys: 2, storeyH: 3.0, cellar: 2.4, windows: true, wallKind: "wall"}
 		switch spec.facing {
 		case 270:
 			spec.doorA = b.Door.X - b.X0
