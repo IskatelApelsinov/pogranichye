@@ -474,6 +474,10 @@ jobs:
           mcs -out:/tmp/world-material-source.exe Tests/WorldMaterialSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs
           mono /tmp/world-material-source.exe
 
+      - name: World material authored and Grok fallback wiring source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_world_material_fallback_wiring.py'
+
       - name: Authored world material manifest regression checks
         run: |
           python3 -m unittest discover -s 2-client/art-source/textures -p 'test_*.py'
