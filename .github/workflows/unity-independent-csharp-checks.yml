@@ -161,6 +161,7 @@ on:
       - '2-client/game/Tests/TerrainGatherNodeVisualPolicyCheck.cs'
       - '2-client/game/Tests/test_terrain_gather_visual_wiring.py'
       - '2-client/game/Tests/test_fishing_availability_wiring.py'
+      - '2-client/game/Tests/test_world_material_fallback_wiring.py'
       - '2-client/game/Tests/WorldLabelVisibilityPolicyCheck.cs'
       - '2-client/game/Tests/WorldLayoutPoiInteractionPolicyCheck.cs'
       - '2-client/game/Tests/WorldInteractionRaycastMaskPolicyCheck.cs'
@@ -472,6 +473,10 @@ jobs:
         run: |
           mcs -out:/tmp/world-material-source.exe Tests/WorldMaterialSourcePolicyCheck.cs Assets/_Project/Scripts/Presentation/WorldMaterialSourcePolicy.cs
           mono /tmp/world-material-source.exe
+
+      - name: World material authored and Grok fallback wiring source checks
+        working-directory: 2-client/game
+        run: python3 -m unittest discover -s Tests -p 'test_world_material_fallback_wiring.py'
 
       - name: Authored world material manifest regression checks
         run: |
