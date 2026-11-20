@@ -19,6 +19,12 @@ class WorldAudioDirectorLifecycleTests(unittest.TestCase):
         self.assertIn("EntityMotion.NearbyMagicCast -= OnNearbyMagicCast;", self.source)
         self.assertIn("EntityMotion.NearbyWorkAction -= OnNearbyWorkAction;", self.source)
 
+    def test_disabled_component_cannot_subscribe_during_late_initialization(self):
+        subscribe = self.source.split("private void SubscribeEvents()", 1)[1].split(
+            "private void UnsubscribeEvents()", 1
+        )[0]
+        self.assertIn("if (!isActiveAndEnabled || _eventsSubscribed) return;", subscribe)
+
     def test_disable_unsubscribes_and_stops_all_voices(self):
         disable = self.source.split("private void OnDisable()", 1)[1].split("private void SubscribeEvents()", 1)[0]
         self.assertIn("UnsubscribeEvents();", disable)
