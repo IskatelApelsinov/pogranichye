@@ -243,6 +243,11 @@ def main():
             "resolution": [1024, 1024],
             "source": "2-client/art-source/textures/forest_floor_source.jpg",
             "builder": "build_forest_floor_material.py"
+        },
+        "oak_bark": {
+            "resolution": [1024, 1024],
+            "source": "2-client/art-source/textures/oak_bark_source.jpg",
+            "builder": "build_oak_bark_material.py"
         }
     }
     for kind in kinds:
