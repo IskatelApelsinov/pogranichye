@@ -6,6 +6,7 @@ import (
 	"pogranichye/arcane"
 
 	"pogranichye/core"
+	"pogranichye/dice"
 	"pogranichye/econ"
 	"pogranichye/mind"
 )
@@ -168,5 +169,61 @@ func TestExtraMagesReturnToCrafts(t *testing.T) {
 	}
 	if DescFor("mage") != "маг" || DescFor("bandit") == "местный" {
 		t.Fatal("маг и разбойник не должны подписываться «местный»")
+	}
+}
+
+// Фон (MindSystem.Hour) идёт по ВСЕМ сущностям с MindC, включая тело игрока — но игрок зарабатывает
+// и растит навык ТОЛЬКО явным op:"act" на верном месте, а не просто простаивая с присвоенной целью
+// GoalWork. Без этой защиты реальные тики мира, идущие пока ответ едет по сокету между собственными
+// действиями игрока, могли сами начислить ему зарплату и навык — ровно так проявился флак
+// TestVerticalSliceTalkWorkBeer (сервер покупка пива увеличивала кошелёк; comms 0313, Grok).
+// НЕигровых жителей это не касается: фон как и раньше платит им и растит навык — тест держит оба
+// исхода рядом, чтобы не превратить защиту игрока в тихую порчу экономики NPC.
+func TestPlayerIdleGoalWorkDoesNotAutoPay(t *testing.T) {
+	w, e, se := starterPlayer(t)
+	if core.Ident(e).Role != "farmer" {
+		t.Fatalf("ожидали игрока-фермера для теста, получили %q", core.Ident(e).Role)
+	}
+	var npc *core.Entity
+	for _, r := range residentsOf(w, se.ID) {
+		if r.ID != e.ID && Player(r) == nil && core.Ident(r).Role == "farmer" {
+			npc = r
+			break
+		}
+	}
+	if npc == nil {
+		t.Fatal("нет второго жителя-фермера для контраста")
+	}
+
+	clock := core.Clock{TotalHours: 100}
+	for _, who := range []*core.Entity{e, npc} {
+		core.Vitals(who).Energy = 100
+		m := core.Mind(who)
+		m.Pinned = ""
+		// цель уже назначена и ещё держится — mind.Decide() в этот тик не перевыбирает её.
+		m.Goal, m.GoalUntil = mind.GoalWork, clock.TotalHours+10
+	}
+	playerCoins0 := core.Purse(e).Coins
+	playerSkill0 := core.Skills(e).Level("farmer")
+	npcCoins0 := core.Purse(npc).Coins
+	npcSkill0 := core.Skills(npc).Level("farmer")
+
+	MindSystem{}.Hour(w, clock, dice.NewHub("player-no-autowage"))
+
+	if c := core.Purse(e).Coins; c != playerCoins0 {
+		t.Fatalf("фон не должен платить игроку без его op:\"act\": было %.2f, стало %.2f", playerCoins0, c)
+	}
+	if sk := core.Skills(e).Level("farmer"); sk != playerSkill0 {
+		t.Fatalf("фон не должен растить навык игрока без его op:\"act\": было %.2f, стало %.2f", playerSkill0, sk)
+	}
+	if core.Mind(e).Goal != mind.GoalWork {
+		t.Fatal("занятие (Goal/ActCode) игрока должно отражаться для анимации/летописи, даже без оплаты")
+	}
+
+	if c := core.Purse(npc).Coins; c <= npcCoins0 {
+		t.Fatalf("фон должен платить НЕигровому жителю за труд: было %.2f, стало %.2f", npcCoins0, c)
+	}
+	if sk := core.Skills(npc).Level("farmer"); sk <= npcSkill0 {
+		t.Fatalf("фон должен растить навык НЕигрового жителя: было %.2f, стало %.2f", npcSkill0, sk)
 	}
 }

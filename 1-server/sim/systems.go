@@ -223,7 +223,18 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 	case mind.GoalWork:
 		ident := core.Ident(e)
 		sk := core.Skills(e)
-		if ident != nil && sk != nil && v.Energy > 8 {
+		switch {
+		case ident == nil || sk == nil || v.Energy <= 8:
+			m.LastAct = "выдохся" // нет сил работать — особый исход важнее занятия
+		case Player(e) != nil:
+			// Игрок без явного op:"act": автопилот лишь подписывает занятие (ActCode/LastAct —
+			// для анимации и летописи), но НЕ платит и НЕ растит навык. Иначе фоновый mind.Decide
+			// (этот же цикл идёт по ВСЕМ сущностям с MindC, включая тело игрока) начислял бы
+			// зарплату и опыт, пока игрок просто стоит — без проверки места и без его команды,
+			// в отличие от настоящей рубки/кузни/жатвы, которые требуют стоять у верного места.
+			// Нашлось как флак TestVerticalSliceTalkWorkBeer: реальные тики идут, пока кадр с
+			// покупкой пива едет по сокету, и кошелёк мог вырасти без всякой покупки.
+		default:
 			sk.Train(ident.Role, 0.5)            // труд растит навык
 			trainStatsFor(w, e, ident.Role, 0.5) // и характеристики: упорный житель крепнет, как и игрок
 			// заработок: продал излишек своего ремесла на рынок, получил из котла торга
@@ -235,8 +246,6 @@ func execGoal(w *core.World, e *core.Entity, m *core.MindC, v *core.VitalsC,
 					econ.TakeHome(se, e, econ.FoodGoodOfRole(ident.Role))
 				}
 			}
-		} else {
-			m.LastAct = "выдохся" // нет сил работать — особый исход важнее занятия
 		}
 	case mind.GoalSocialize:
 		// честно: если в корчме есть медовуха — угостился (мера списывается, настрой выше);
