@@ -28,6 +28,7 @@ type OchkoC struct {
 	Done    bool        `json:"done"`
 	Result  string      `json:"result"`
 	Message string      `json:"message"`
+	Touched int64       `json:"touched,omitempty"` // игровой час последнего хода; для таймаута заброшенной партии (не в кадре)
 }
 
 func (c *OchkoC) Kind() string { return "ochko" }

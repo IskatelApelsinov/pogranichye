@@ -66,6 +66,21 @@ dev-режим, жизнь фронтира и находки, свободны�
       `go test ./...` подряд зелёные. Никаких изменений контракта/wire — чистый тестовый фикс.
       PR `fix/flaky-tavern-beer-hour-pin-20261120` (не мерджить без Kate).
 
+- [x] Таймаут заброшенной карточной партии после обрыва связи (2026-11-21, issue #651 часть B):
+      партия «очко»/«дурак» лежит компонентом на теле и уже переживала короткий обрыв (реконнект
+      отдаёт `me.card_game`, игрок продолжает); не хватало закрытия на другом конце — осиротевшая
+      после вылета партия висела вечно и `start` отвечал «ты уже играешь». Добавлены `CardGameSystem`
+      (часовой свип закрывает партию без ходов дольше `CardGameAbandonHours`=2 игровых часа ≈ ~1.5 ч
+      реального времени, `result:"abandoned"`, ставка не возвращается — как `leave`), внутреннее поле
+      `Touched` в `OchkoC`/`DurakC` (в кадр не попадает — вид строит `OchkoView`/`CardGameView`),
+      `TouchCardGame`/`CardGameStale`/`AbandonCardGame`; серверный обработчик `card_game` стампит
+      `Touched` после каждого хода и сам закрывает протаймаутившую осиротевшую партию перед `start`,
+      так что вернувшемуся игроку не нужно слать `leave` вручную. Свежую партию ни свип, ни `start` не
+      трогают. Контракт `v:1` без изменений (новых wire-полей нет), протокол-док дополнен. Тесты:
+      `sim/cardgame_lifecycle_test.go` (свип закрывает/не трогает, legacy zero-Touched, идемпотентность,
+      дурак) и `server/cardgame_lifecycle_wire_test.go` (self-heal `start` через обработчик). Go
+      build/vet/test зелёные. PR `feature/cardgame-abandon-timeout-20261121` (не мерджить без Kate).
+
 ## P0 — ближайшее (иммерсивность, локации, взаимодействие)
 - [x] Физический кошель — PR #344 (2026-11-11): craftable leather purse, belt slot, public server-confirmed appearance, Unity inventory controls; `PurseC.Coins` остаётся единственным балансом; Go 1.24 build/vet/test PASS.
 - [x] Карточная игра «Очко» против корчмаря — PR #340 (2026-11-11): server-only колода/рука банкира, `crypto/rand`, ставка через `PurseC`, reqid, приватный `me.card_game`, reconnect/save-load; Go 1.24 build/vet/test PASS.

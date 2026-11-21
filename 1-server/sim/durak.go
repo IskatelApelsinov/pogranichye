@@ -40,6 +40,7 @@ type DurakC struct {
 	Settled  bool        `json:"settled"`
 	Result   string      `json:"result,omitempty"`
 	Message  string      `json:"message"`
+	Touched  int64       `json:"touched,omitempty"` // игровой час последнего хода; для таймаута заброшенной партии (не в кадре)
 }
 
 func (c *DurakC) Kind() string { return "durak" }

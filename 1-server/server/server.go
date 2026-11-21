@@ -712,10 +712,17 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 		if e := s.world.Get(cid); e != nil {
 			var ok bool
 			var why string
+			now := s.runner.Clock.TotalHours
 			game := in.Game
 			if game == "" {
 				game = "ochko"
 			} // совместимость с первым контрактом #340
+			// issue #651 Б: сесть за новую партию поверх осиротевшей после обрыва связи. Если прежняя
+			// партия заброшена (нет ходов дольше порога), закрываем её до старта, а не отвечаем «ты уже
+			// играешь». Свежую (недавно тронутую) партию не трогаем — её игрок должен доиграть или выйти.
+			if in.Action == "start" && sim.CardGameStale(e, now) {
+				sim.AbandonCardGame(e)
+			}
 			switch game {
 			case "ochko":
 				switch in.Action {
@@ -751,6 +758,9 @@ func (s *Server) applyIntent(cid core.ID, msg string) {
 				why = "неизвестная карточная игра"
 			}
 			sim.SetResult(s.world, e, in.ReqID, ok, why)
+			if ok {
+				sim.TouchCardGame(e, now) // отметить партию живой, чтобы таймаут заброшенности не сработал на активном игроке
+			}
 		}
 		s.mu.Unlock()
 	case "take": // подобрать предмет (v1.7)
